@@ -36,6 +36,7 @@ import {
   toGeminiSystemInstruction,
   toGeminiTool,
 } from '../common/converters.js';
+import { isKnownKey } from '../common/utils.js';
 import {
   generateContent,
   generateContentStream,
@@ -381,7 +382,7 @@ export const GeminiImageConfigSchema = GeminiConfigSchema.extend({
           '21:9',
         ])
         .optional(),
-      imageSize: z.enum(['1K', '2K', '4K']).optional(),
+      imageSize: z.enum(['512', '1K', '2K', '4K']).optional(),
     })
     .passthrough()
     .optional(),
@@ -473,6 +474,10 @@ export function model(
   config: ConfigSchema = {}
 ): ModelReference<ConfigSchemaType> {
   const name = checkModelName(version);
+
+  if (isKnownKey(name, KNOWN_MODELS)) {
+    return KNOWN_MODELS[name].withConfig(config);
+  }
 
   if (isImageModelName(name)) {
     return modelRef({
@@ -703,6 +708,15 @@ export function defineModel(
       };
 
       const modelVersion = versionFromConfig || extractVersion(ref);
+
+      if (isImageModelName(modelVersion)) {
+        if (!generateContentRequest.generationConfig!.responseModalities) {
+          generateContentRequest.generationConfig!.responseModalities = [
+            'TEXT',
+            'IMAGE',
+          ];
+        }
+      }
 
       if (jsonMode && request.output?.constrained) {
         if (pluginOptions?.legacyResponseSchema) {

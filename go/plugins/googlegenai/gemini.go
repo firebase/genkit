@@ -337,7 +337,7 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 		gcc.Tools = mergeTools(append(gcc.Tools, tools...))
 
 		// Then set up the tool configuration based on ToolChoice
-		tc, err := toGeminiToolChoice(input.ToolChoice, input.Tools)
+		tc, err := toGeminiToolChoice(gcc.ToolConfig, input.ToolChoice, input.Tools)
 		if err != nil {
 			return nil, err
 		}

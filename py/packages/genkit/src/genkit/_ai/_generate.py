@@ -16,10 +16,12 @@
 
 """Generate action."""
 
+import asyncio
+import contextlib
 import copy
 import inspect
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any, cast
 
 from pydantic import BaseModel
@@ -35,16 +37,18 @@ from genkit._ai._model import (
     ModelResponseChunk,
 )
 from genkit._ai._resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
-from genkit._ai._tools import ToolInterruptError
+from genkit._ai._tools import Tool, ToolInterruptError
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
+from genkit._core._model import GenerateActionOptions
 from genkit._core._registry import Registry
+from genkit._core._tracing import run_in_new_span
 from genkit._core._typing import (
     FinishReason,
-    GenerateActionOptions,
     Part,
     Role,
+    SpanMetadata,
     ToolDefinition,
     ToolRequest,
     ToolRequestPart,
@@ -55,6 +59,21 @@ from genkit._core._typing import (
 DEFAULT_MAX_TURNS = 5
 
 logger = get_logger(__name__)
+
+
+def tools_to_action_names(
+    tools: Sequence[str | Tool] | None,
+) -> list[str] | None:
+    """Normalize tool arguments to registry tool name strings for GenerateActionOptions."""
+    if tools is None:
+        return None
+    names: list[str] = []
+    for t in tools:
+        if isinstance(t, str):
+            names.append(t)
+        else:
+            names.append(t.name)
+    return names
 
 
 # Matches data URIs: everything up to the first comma is the media-type +
@@ -104,6 +123,32 @@ def define_generate_action(registry: Registry) -> None:
 
 
 async def generate_action(
+    registry: Registry,
+    raw_request: GenerateActionOptions,
+    on_chunk: Callable[[ModelResponseChunk], None] | None = None,
+    message_index: int = 0,
+    current_turn: int = 0,
+    middleware: list[ModelMiddleware] | None = None,
+    context: dict[str, Any] | None = None,
+) -> ModelResponse:
+    """Execute a generation request with tool calling and middleware support."""
+    span_name = 'generate'
+    with run_in_new_span(
+        SpanMetadata(name=span_name),
+        labels={'genkit:type': 'util'},
+    ) as span:
+        span.set_attribute('genkit:name', span_name)
+        with contextlib.suppress(Exception):
+            span.set_attribute('genkit:input', raw_request.model_dump_json(by_alias=True, exclude_none=True))
+        result = await _generate_action(
+            registry, raw_request, on_chunk, message_index, current_turn, middleware, context
+        )
+        with contextlib.suppress(Exception):
+            span.set_attribute('genkit:output', result.model_dump_json(by_alias=True, exclude_none=True))
+        return result
+
+
+async def _generate_action(
     registry: Registry,
     raw_request: GenerateActionOptions,
     on_chunk: Callable[[ModelResponseChunk], None] | None = None,
@@ -290,6 +335,24 @@ async def generate_action(
         # No message in response, return as-is
         return response
 
+    # Stamp output format metadata on message for Dev UI rendering.
+    # Mirrors JS GenerateResponse constructor which sets message.metadata.generate.output
+    # so the Dev UI knows to render the output as formatted JSON vs plain text.
+    out = raw_request.output
+    if out and (out.content_type or out.format):
+        generate_output: dict[str, str] = {}
+        if out.content_type:
+            generate_output['contentType'] = out.content_type
+        if out.format:
+            generate_output['format'] = out.format
+        existing_meta = dict(generated_msg.metadata) if isinstance(generated_msg.metadata, dict) else {}
+        generate_meta = existing_meta.get('generate')
+        if not isinstance(generate_meta, dict):
+            generate_meta = {}
+        generate_meta['output'] = generate_output
+        existing_meta['generate'] = generate_meta
+        generated_msg.metadata = existing_meta
+
     tool_requests = [x for x in generated_msg.content if x.root.tool_request]
 
     if raw_request.return_tool_requests or len(tool_requests) == 0:
@@ -344,7 +407,7 @@ async def generate_action(
         next_request = apply_transfer_preamble(next_request, transfer_preamble)
 
     # then recursively call for another loop
-    return await generate_action(
+    return await _generate_action(
         registry,
         raw_request=next_request,
         # middleware: middleware,
@@ -606,34 +669,36 @@ async def resolve_tool_requests(
 
     revised_model_message = message.model_copy(deep=True)
 
-    has_interrupts = False
-    response_parts: list[Part] = []
-    i = 0
-    for tool_request_part in message.content:
+    work: list[tuple[int, Action, ToolRequestPart]] = []
+    for i, tool_request_part in enumerate(message.content):
         if not (isinstance(tool_request_part, Part) and isinstance(tool_request_part.root, ToolRequestPart)):  # pyright: ignore[reportUnnecessaryIsInstance]
-            i += 1
             continue
 
-        # Type is now narrowed: tool_request_part.root is ToolRequestPart
         tool_req_root = tool_request_part.root
         tool_request = tool_req_root.tool_request
 
         if tool_request.name not in tool_dict:
             raise RuntimeError(f'failed {tool_request.name} not found')
         tool = tool_dict[tool_request.name]
-        tool_response_part, interrupt_part = await _resolve_tool_request(tool, tool_req_root)
+        work.append((i, tool, tool_req_root))
 
+    if not work:
+        return (None, Message(role=Role.TOOL, content=[]), None)
+
+    outs = await asyncio.gather(*[_resolve_tool_request(tool, trp) for _, tool, trp in work])
+
+    has_interrupts = False
+    response_parts: list[Part] = []
+    for (idx, _tool, tool_req_root), (tool_response_part, interrupt_part) in zip(work, outs, strict=True):
         if tool_response_part:
             # Extract the ToolResponsePart from the returned Part for _to_pending_response
             if isinstance(tool_response_part.root, ToolResponsePart):
-                revised_model_message.content[i] = _to_pending_response(tool_req_root, tool_response_part.root)
+                revised_model_message.content[idx] = _to_pending_response(tool_req_root, tool_response_part.root)
             response_parts.append(tool_response_part)
 
         if interrupt_part:
             has_interrupts = True
-            revised_model_message.content[i] = interrupt_part
-
-        i += 1
+            revised_model_message.content[idx] = interrupt_part
 
     if has_interrupts:
         return (revised_model_message, None, None)
@@ -694,11 +759,17 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
         raise e
 
 
-async def resolve_tool(registry: Registry, tool_name: str) -> Action:
-    """Resolve a tool by name from the registry."""
-    tool = await registry.resolve_action(kind=ActionKind.TOOL, name=tool_name)
+async def resolve_tool(registry: Registry, tool_ref: str | Tool) -> Action:
+    """Resolve a tool from a registry name or a Tool instance.
+
+    Used when building ModelRequest (for example from to_generate_request).
+    """
+    if isinstance(tool_ref, Tool):
+        return tool_ref.action
+
+    tool = await registry.resolve_action(kind=ActionKind.TOOL, name=tool_ref)
     if tool is None:
-        raise ValueError(f'Unable to resolve tool {tool_name}')
+        raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve tool {tool_ref}')
     return tool
 
 

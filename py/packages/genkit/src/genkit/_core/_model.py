@@ -38,6 +38,8 @@ from genkit._core._typing import (
     DocumentData,
     DocumentPart,
     FinishReason,
+    GenerateActionOptionsData,
+    GenerateActionOutputConfig,
     GenerateResponseChunk,
     GenerationCommonConfig,
     GenerationUsage,
@@ -45,8 +47,11 @@ from genkit._core._typing import (
     MediaModel,
     MediaPart,
     MessageData,
+    MiddlewareRef,
     Operation,
     Part,
+    Resume,
+    Role,
     Text,
     TextPart,
     ToolChoice,
@@ -82,11 +87,21 @@ class Message(MessageData):
     ) -> None:
         """Initialize from MessageData or keyword arguments."""
         if message is not None:
-            super().__init__(
-                role=message.role,
-                content=message.content,
-                metadata=message.metadata,
-            )
+            if isinstance(message, dict):
+                role = message.get('role')
+                if role is None:
+                    raise ValueError('Message role is required')
+                super().__init__(
+                    role=role,
+                    content=message.get('content', []),
+                    metadata=message.get('metadata'),
+                )
+            else:
+                super().__init__(
+                    role=message.role,
+                    content=message.content,
+                    metadata=message.metadata,
+                )
         else:
             super().__init__(**kwargs)  # type: ignore[arg-type]
 
@@ -114,6 +129,17 @@ class Message(MessageData):
     def interrupts(self) -> list[ToolRequestPart]:
         """Tool requests marked as interrupted."""
         return [p for p in self.tool_requests if p.metadata and p.metadata.get('interrupt')]
+
+
+class GenerateActionOptions(GenerateActionOptionsData):
+    """Generate options with messages as list[Message] for type-safe use with ai.generate()."""
+
+    messages: list[Message]
+
+    @field_validator('messages', mode='before')
+    @classmethod
+    def _wrap_messages(cls, v: list[MessageData]) -> list[Message]:
+        return [m if isinstance(m, Message) else Message(m) for m in v]
 
 
 _TEXT_DATA_TYPE: str = 'text'
@@ -216,7 +242,7 @@ class ModelRequest(GenkitModel, Generic[ConfigT]):
                 schema = request.output_schema
     """
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
     # Veneer types for IDE/typing (validators wrap MessageData->Message, DocumentData->Document)
     messages: list[Message]  # pyright: ignore[reportIncompatibleVariableOverride]
     docs: list[Document] | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -353,6 +379,17 @@ class ModelResponse(GenkitModel, Generic[OutputT]):
         if self.message is None:
             return []
         return self.message.tool_requests
+
+    @cached_property
+    def media(self) -> list[Media]:
+        """All media parts in the response message."""
+        if self.message is None:
+            return []
+        return [
+            part.root.media
+            for part in self.message.content
+            if isinstance(part.root, MediaPart) and part.root.media is not None
+        ]
 
     @cached_property
     def interrupts(self) -> list[ToolRequestPart]:
@@ -509,6 +546,17 @@ def get_basic_usage_stats(input_: list[Message], response: Message) -> Generatio
         output_audio_files=out_audio,
     )
 
+
+# Rebuild schema after all types (including Message) are fully defined.
+# _types_namespace provides forward-ref resolution for GenerateActionOptionsData fields.
+GenerateActionOptions.model_rebuild(
+    _types_namespace={
+        'GenerateActionOutputConfig': GenerateActionOutputConfig,
+        'MiddlewareRef': MiddlewareRef,
+        'Resume': Resume,
+        'Role': Role,
+    }
+)
 
 # Type aliases for model middleware (Any is intentional - middleware is type-agnostic)
 # Middleware can have two signatures:
