@@ -881,11 +881,6 @@
         "name": {
           "type": "string"
         },
-        "configSchema": {},
-        "info": {},
-        "version": {
-          "type": "string"
-        },
         "config": {}
       },
       "required": [

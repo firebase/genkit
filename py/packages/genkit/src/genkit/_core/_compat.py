@@ -28,7 +28,10 @@ T = TypeVar('T')
 # Note: override was added to typing in Python 3.12, but typing_extensions has it for all versions
 from typing import overload as overload  # noqa: E402
 
-from strenum import StrEnum as StrEnum  # noqa: E402
+if sys.version_info >= (3, 11):
+    from enum import StrEnum as StrEnum  # noqa: E402
+else:
+    from strenum import StrEnum as StrEnum  # noqa: E402
 from typing_extensions import override as override  # noqa: E402
 
 

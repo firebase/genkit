@@ -12,7 +12,6 @@ resolution-markers = [
 [manifest]
 members = [
     "context",
-    "dynamic-tools",
     "evaluators",
     "fastapi-bugbot",
     "flask-hello",
@@ -21,6 +20,7 @@ members = [
     "genkit",
     "genkit-plugin-anthropic",
     "genkit-plugin-compat-oai",
+    "genkit-plugin-evaluators",
     "genkit-plugin-fastapi",
     "genkit-plugin-flask",
     "genkit-plugin-google-cloud",
@@ -1223,27 +1223,6 @@ wheels = [
 ]
 
 [[package]]
-name = "dynamic-tools"
-version = "0.2.0"
-source = { editable = "samples/dynamic-tools" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "structlog", specifier = ">=24.0.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-]
-
-[[package]]
 name = "email-validator"
 version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1262,6 +1241,7 @@ version = "0.1.0"
 source = { editable = "samples/evaluators" }
 dependencies = [
     { name = "genkit" },
+    { name = "genkit-plugin-evaluators" },
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
 ]
@@ -1269,6 +1249,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-evaluators", editable = "plugins/evaluators" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
 ]
@@ -1454,7 +1435,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit"
-version = "0.5.1"
+version = "0.5.2"
 source = { editable = "packages/genkit" }
 dependencies = [
     { name = "anyio" },
@@ -1534,7 +1515,7 @@ provides-extras = ["flask", "google-cloud", "google-genai", "ollama", "openai", 
 
 [[package]]
 name = "genkit-plugin-anthropic"
-version = "0.5.1"
+version = "0.5.2"
 source = { editable = "plugins/anthropic" }
 dependencies = [
     { name = "anthropic" },
@@ -1549,7 +1530,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-compat-oai"
-version = "0.5.1"
+version = "0.5.2"
 source = { editable = "plugins/compat-oai" }
 dependencies = [
     { name = "genkit" },
@@ -1565,8 +1546,23 @@ requires-dist = [
 ]
 
 [[package]]
+name = "genkit-plugin-evaluators"
+version = "0.5.2"
+source = { editable = "plugins/evaluators" }
+dependencies = [
+    { name = "genkit" },
+    { name = "jsonata-python" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "jsonata-python", specifier = ">=0.6.0" },
+]
+
+[[package]]
 name = "genkit-plugin-fastapi"
-version = "0.5.1"
+version = "0.5.2"
 source = { editable = "plugins/fastapi" }
 dependencies = [
     { name = "fastapi" },
@@ -1583,7 +1579,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-flask"
-version = "0.5.1"
+version = "0.5.2"
 source = { editable = "plugins/flask" }
 dependencies = [
     { name = "flask" },
@@ -1602,7 +1598,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-cloud"
-version = "0.5.1"
+version = "0.5.2"
 source = { editable = "plugins/google-cloud" }
 dependencies = [
     { name = "genkit" },
@@ -1623,7 +1619,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-genai"
-version = "0.5.1"
+version = "0.5.2"
 source = { editable = "plugins/google-genai" }
 dependencies = [
     { name = "genkit" },
@@ -1644,7 +1640,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-ollama"
-version = "0.5.1"
+version = "0.5.2"
 source = { editable = "plugins/ollama" }
 dependencies = [
     { name = "genkit" },
@@ -1661,7 +1657,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-vertex-ai"
-version = "0.5.1"
+version = "0.5.2"
 source = { editable = "plugins/vertex-ai" }
 dependencies = [
     { name = "anthropic" },
@@ -1697,6 +1693,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-anthropic" },
     { name = "genkit-plugin-compat-oai" },
+    { name = "genkit-plugin-evaluators" },
     { name = "genkit-plugin-fastapi" },
     { name = "genkit-plugin-flask" },
     { name = "genkit-plugin-google-cloud" },
@@ -1766,6 +1763,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
+    { name = "genkit-plugin-evaluators", editable = "plugins/evaluators" },
     { name = "genkit-plugin-fastapi", editable = "plugins/fastapi" },
     { name = "genkit-plugin-flask", editable = "plugins/flask" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -2889,6 +2887,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/77/e8/a3f261a66e4663f22700bc8a17c08cb83e91fbf086726e7a228398968981/json5-0.13.0.tar.gz", hash = "sha256:b1edf8d487721c0bf64d83c28e91280781f6e21f4a797d3261c7c828d4c165bf", size = 52441, upload-time = "2026-01-01T19:42:14.99Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d7/9e/038522f50ceb7e74f1f991bf1b699f24b0c2bbe7c390dd36ad69f4582258/json5-0.13.0-py3-none-any.whl", hash = "sha256:9a08e1dd65f6a4d4c6fa82d216cf2477349ec2346a38fd70cc11d2557499fbcc", size = 36163, upload-time = "2026-01-01T19:42:13.962Z" },
+]
+
+[[package]]
+name = "jsonata-python"
+version = "0.6.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b9/45/7f095befed14d95db05d56a1164b9e2c41d87faefad7277454e4fd3b2daf/jsonata_python-0.6.1.tar.gz", hash = "sha256:416a65731f31f7cf427f3711bb1bf9117174985f9795e198020cce1a38d32984", size = 362705, upload-time = "2025-12-26T21:25:12.436Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6a/04/708bf06353fb43734440c3928e7e3358d1686f15cc3078c3d9a09aa33ae2/jsonata_python-0.6.1-py3-none-any.whl", hash = "sha256:21d80d0b34f1753935371c79b140406d45a2d4ad9dd5c29e4138dbf58991e6ef", size = 83706, upload-time = "2025-12-26T21:25:11.003Z" },
 ]
 
 [[package]]

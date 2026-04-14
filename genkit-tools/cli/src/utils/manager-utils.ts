@@ -62,6 +62,7 @@ export async function startManager(options: {
   manageHealth?: boolean;
   corsOrigin?: string;
   experimentalReflectionV2?: boolean;
+  reflectionV2Port?: number;
 }): Promise<BaseRuntimeManager> {
   const telemetryServerUrl = await resolveTelemetryServer(options);
   const manager = RuntimeManager.create({
@@ -69,6 +70,7 @@ export async function startManager(options: {
     manageHealth: options.manageHealth,
     projectRoot: options.projectRoot,
     experimentalReflectionV2: options.experimentalReflectionV2,
+    reflectionV2Port: options.reflectionV2Port,
   });
   return manager;
 }
@@ -81,14 +83,19 @@ export interface DevProcessManagerOptions {
   cwd?: string;
   corsOrigin?: string;
   experimentalReflectionV2?: boolean;
+  envVars?: Record<string, string>;
+  reflectionV2Port?: number;
+  telemetryServerUrl?: string;
 }
 
-export async function startDevProcessManager(
+export async function getDevEnvVars(
   projectRoot: string,
-  command: string,
-  args: string[],
   options?: DevProcessManagerOptions
-): Promise<{ manager: BaseRuntimeManager; processPromise: Promise<void> }> {
+): Promise<{
+  envVars: Record<string, string>;
+  reflectionV2Port?: number;
+  telemetryServerUrl: string;
+}> {
   const telemetryServerUrl = await resolveTelemetryServer({
     projectRoot,
     corsOrigin: options?.corsOrigin,
@@ -110,6 +117,29 @@ export async function startDevProcessManager(
   if (!disableRealtimeTelemetry) {
     envVars.GENKIT_ENABLE_REALTIME_TELEMETRY = 'true';
   }
+
+  return { envVars, reflectionV2Port, telemetryServerUrl };
+}
+
+export async function startDevProcessManager(
+  projectRoot: string,
+  command: string,
+  args: string[],
+  options?: DevProcessManagerOptions
+): Promise<{ manager: BaseRuntimeManager; processPromise: Promise<void> }> {
+  const { envVars, reflectionV2Port, telemetryServerUrl } =
+    options?.envVars &&
+    options?.telemetryServerUrl &&
+    (!options?.experimentalReflectionV2 || options?.reflectionV2Port)
+      ? {
+          envVars: options.envVars,
+          reflectionV2Port: options.reflectionV2Port,
+          telemetryServerUrl: options.telemetryServerUrl,
+        }
+      : await getDevEnvVars(projectRoot, options);
+
+  const disableRealtimeTelemetry = options?.disableRealtimeTelemetry ?? false;
+  const experimentalReflectionV2 = options?.experimentalReflectionV2 ?? false;
 
   const processManager = new ProcessManager(command, args, envVars);
   const manager = await RuntimeManager.create({

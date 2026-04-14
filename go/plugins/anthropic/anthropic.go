@@ -202,7 +202,7 @@ func newModel(client anthropic.Client, name, apiModelName string, opts ai.ModelO
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		return ant.Generate(ctx, client, targetModel, input, cb)
+		return ant.Generate(ctx, client, provider, targetModel, input, cb)
 	}
 
 	return ai.NewModel(api.NewName(provider, name), meta, fn)

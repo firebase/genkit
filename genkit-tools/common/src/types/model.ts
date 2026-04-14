@@ -70,9 +70,6 @@ export {
  */
 export const ModelReferenceSchema = z.object({
   name: z.string(),
-  configSchema: z.any().optional(),
-  info: z.any().optional(),
-  version: z.string().optional(),
   config: z.any().optional(),
 });
 

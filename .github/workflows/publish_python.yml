@@ -57,8 +57,10 @@ jobs:
             py/plugins/google-cloud
             py/plugins/google-genai
             py/plugins/ollama
+            py/plugins/fastapi
             py/plugins/flask
             py/plugins/vertex-ai
+            py/plugins/evaluators
           )
 
           FAILED=()

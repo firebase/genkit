@@ -169,7 +169,13 @@ async def test_run_action_standard(asgi_client: AsyncClient, mock_registry: Magi
     assert response_data['telemetry']['spanId'] == 'test_span_id'
     assert response.headers['X-Genkit-Trace-Id'] == 'test_trace_id'
     assert response.headers['X-Genkit-Span-Id'] == 'test_span_id'
-    mock_action.run.assert_called_once_with(input={'data': 'test'}, context={}, on_trace_start=ANY, on_chunk=None)
+    mock_action.run.assert_called_once_with(
+        input={'data': 'test'},
+        context={},
+        on_trace_start=ANY,
+        on_chunk=None,
+        telemetry_labels=None,
+    )
 
 
 @pytest.mark.asyncio
@@ -202,6 +208,7 @@ async def test_run_action_with_context(asgi_client: AsyncClient, mock_registry: 
         context={'user': 'test_user'},
         on_trace_start=ANY,
         on_chunk=None,
+        telemetry_labels=None,
     )
 
 
