@@ -18,7 +18,7 @@
 
 import asyncio
 import time
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -47,28 +47,14 @@ class ImageInput(BaseModel):
 class VideoInput(BaseModel):
     """Input for Veo."""
 
-    model: Literal[
-        'googleai/veo-3.1-generate-preview',
-        'googleai/veo-3.1-fast-generate-preview',
-        'googleai/veo-3.0-generate-001',
-        'googleai/veo-3.0-fast-generate-001',
-        'googleai/veo-3.1-generate-001',
-        'googleai/veo-3.1-fast-generate-001',
-        'googleai/veo-2.0-generate-001',
-    ] = Field(default='googleai/veo-3.1-generate-preview', description='Veo model for generation')
-    prompt: str = Field(
-        default='A paper airplane gliding through a bright classroom, cinematic slow motion',
-        description='Video prompt',
+    model: str = Field(
+        default='googleai/veo-3.1-generate-preview',
+        description=(
+            'Veo model for generation, e.g. '
+            'googleai/veo-3.1-generate-preview, googleai/veo-3.1-fast-generate-preview, '
+            'googleai/veo-3.0-generate-001, googleai/veo-3.0-fast-generate-001'
+        ),
     )
-    aspect_ratio: str = Field(default='16:9', description='Video aspect ratio')
-    duration_seconds: int = Field(default=5, description='Video duration in seconds')
-    resolution: str | None = Field(default='720p', description='Output resolution (for supported models)')
-    seed: int | None = Field(default=None, description='Optional RNG seed')
-
-
-class VideoPresetInput(BaseModel):
-    """Input for fixed-model Veo flows in Dev UI."""
-
     prompt: str = Field(
         default='A paper airplane gliding through a bright classroom, cinematic slow motion',
         description='Video prompt',
@@ -132,24 +118,32 @@ async def _poll_video(operation: Operation, model_name: str) -> Operation:
     return operation
 
 
-async def _generate_video_for_model(input: VideoPresetInput, model_name: str) -> dict[str, str | int | None]:
-    """Generate one video for a specific Veo model."""
-    action = await lookup_background_action(ai.registry, f'/background-model/{model_name}')
+def _video_config(input: VideoInput) -> dict[str, Any]:
+    """Build Veo config while omitting unset optional fields."""
+    config = {
+        'aspect_ratio': input.aspect_ratio,
+        'duration_seconds': input.duration_seconds,
+        'resolution': input.resolution,
+        'seed': input.seed,
+    }
+    return {k: v for k, v in config.items() if v is not None}
+
+
+@ai.flow(name='generate_video')
+async def veo_video_generator(input: VideoInput) -> dict[str, str | int | None]:
+    """Generate one video by starting and polling a background model."""
+
+    action = await lookup_background_action(ai.registry, f'/background-model/{input.model}')
     if action is None:
-        raise ValueError(f'Veo background model not found: {model_name}')
+        raise ValueError(f'Veo background model not found: {input.model}')
 
     operation = await action.start(
         ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=input.prompt))])],
-            config={
-                'aspect_ratio': input.aspect_ratio,
-                'duration_seconds': input.duration_seconds,
-                'resolution': input.resolution,
-                'seed': input.seed,
-            },
+            config=_video_config(input),
         )
     )
-    operation = await _poll_video(operation, model_name)
+    operation = await _poll_video(operation, input.model)
 
     video_url = None
     if isinstance(operation.output, dict):
@@ -160,55 +154,11 @@ async def _generate_video_for_model(input: VideoPresetInput, model_name: str) ->
             video_url = media.get('url')
 
     return {
-        'model': model_name,
+        'model': input.model,
         'operation_id': operation.id,
         'video_url': video_url,
         'duration_seconds': input.duration_seconds,
     }
-
-
-@ai.flow(name='generate_video')
-async def veo_video_generator(input: VideoInput) -> dict[str, str | int | None]:
-    """Generate one video by starting and polling a background model."""
-
-    return await _generate_video_for_model(
-        VideoPresetInput(
-            prompt=input.prompt,
-            aspect_ratio=input.aspect_ratio,
-            duration_seconds=input.duration_seconds,
-            resolution=input.resolution,
-            seed=input.seed,
-        ),
-        input.model,
-    )
-
-
-@ai.flow(name='generate_video_veo31')
-async def veo31_video_generator(input: VideoPresetInput) -> dict[str, str | int | None]:
-    """Generate video with veo-3.1-generate-preview."""
-
-    return await _generate_video_for_model(input, 'googleai/veo-3.1-generate-preview')
-
-
-@ai.flow(name='generate_video_veo31_fast')
-async def veo31_fast_video_generator(input: VideoPresetInput) -> dict[str, str | int | None]:
-    """Generate video with veo-3.1-fast-generate-preview."""
-
-    return await _generate_video_for_model(input, 'googleai/veo-3.1-fast-generate-preview')
-
-
-@ai.flow(name='generate_video_veo30')
-async def veo30_video_generator(input: VideoPresetInput) -> dict[str, str | int | None]:
-    """Generate video with veo-3.0-generate-001."""
-
-    return await _generate_video_for_model(input, 'googleai/veo-3.0-generate-001')
-
-
-@ai.flow(name='generate_video_veo30_fast')
-async def veo30_fast_video_generator(input: VideoPresetInput) -> dict[str, str | int | None]:
-    """Generate video with veo-3.0-fast-generate-001."""
-
-    return await _generate_video_for_model(input, 'googleai/veo-3.0-fast-generate-001')
 
 
 async def main() -> None:

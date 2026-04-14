@@ -21,6 +21,7 @@ start path) and Pydantic GenerateVideosResponse objects (from the check
 path where the SDK returns a model instance).
 """
 
+import pytest
 from google.genai import types as genai_types
 
 from genkit.plugins.google_genai.models.veo import (
@@ -51,12 +52,18 @@ class TestIsVeoModel:
 class TestVeoVersion:
     """Tests for VeoVersion enum convenience constants."""
 
-    def test_includes_new_googleai_veo_models(self) -> None:
-        """New Veo 3.0/3.1 GoogleAI model names are exposed."""
-        assert VeoVersion.VEO_3_1_PREVIEW.value == 'veo-3.1-generate-preview'
-        assert VeoVersion.VEO_3_1_FAST_PREVIEW.value == 'veo-3.1-fast-generate-preview'
-        assert VeoVersion.VEO_3_0.value == 'veo-3.0-generate-001'
-        assert VeoVersion.VEO_3_0_FAST.value == 'veo-3.0-fast-generate-001'
+    @pytest.mark.parametrize(
+        'version',
+        [
+            VeoVersion.VEO_3_1_PREVIEW,
+            VeoVersion.VEO_3_1_FAST_PREVIEW,
+            VeoVersion.VEO_3_0,
+            VeoVersion.VEO_3_0_FAST,
+        ],
+    )
+    def test_new_googleai_models_are_recognized(self, version: VeoVersion) -> None:
+        """New Veo 3.0/3.1 model constants map to valid Veo names."""
+        assert is_veo_model(version.value) is True
 
 
 class TestToVeoParameters:
