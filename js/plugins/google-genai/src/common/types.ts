@@ -1242,6 +1242,8 @@ export declare interface GenerateContentRequest {
   tools?: Tool[];
   /** Optional. This config is shared for all tools provided in the request. */
   toolConfig?: ToolConfig;
+  /** Optional. Service tier (e.g. 'standard', 'flex', or 'priority'). */
+  serviceTier?: string;
 }
 
 /**

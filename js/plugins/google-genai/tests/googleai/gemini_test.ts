@@ -496,6 +496,23 @@ describe('Google AI Gemini', () => {
         });
       });
 
+      it('passes serviceTier to the API', async () => {
+        const model = defineModel('gemini-flash-latest', defaultPluginOptions);
+        mockFetchResponse(defaultApiResponse);
+        const request: GenerateRequest<typeof GeminiConfigSchema> = {
+          ...minimalRequest,
+          config: {
+            serviceTier: 'flex',
+          },
+        };
+        await model.run(request);
+
+        const apiRequest: GenerateContentRequest = JSON.parse(
+          fetchStub.lastCall.args[1].body
+        );
+        assert.strictEqual(apiRequest.serviceTier, 'flex');
+      });
+
       it('passes imageConfig to the API', async () => {
         const model = defineModel(
           'gemini-2.5-flash-image',

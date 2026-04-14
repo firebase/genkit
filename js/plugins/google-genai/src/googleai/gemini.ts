@@ -263,6 +263,10 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
       GenerationCommonConfigDescriptions.topP + ' The default value is 0.95.'
     )
     .optional(),
+  serviceTier: z
+    .union([z.enum(['standard', 'flex', 'priority']), z.string()])
+    .describe('Service tier for the Gemini API.')
+    .optional(),
   thinkingConfig: z
     .object({
       includeThoughts: z
@@ -764,6 +768,7 @@ export function defineModel(
         urlContext,
         tools: toolsFromConfig,
         retrievalConfig,
+        serviceTier,
         ...restOfConfigOptions
       } = requestOptions;
 
@@ -885,6 +890,7 @@ export function defineModel(
           (setting) => setting.category !== 'HARM_CATEGORY_UNSPECIFIED'
         ) as SafetySetting[],
         contents: messages.map((message) => toGeminiMessage(message, ref)),
+        serviceTier,
       };
 
       const generateApiKey = calculateApiKey(
