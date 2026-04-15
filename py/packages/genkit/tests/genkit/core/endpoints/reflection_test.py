@@ -66,6 +66,8 @@ async def asgi_client(mock_registry: MagicMock) -> AsyncIterator[AsyncClient]:
     Returns:
         An AsyncClient configured to make requests to the test ASGI app.
     """
+    mock_registry.list_actions = AsyncMock(return_value={})
+    mock_registry.list_resolvable_actions = AsyncMock(return_value={})
     app = create_reflection_asgi_app(mock_registry)
     transport = ASGITransport(app=app)
     client = AsyncClient(transport=transport, base_url='http://test')
@@ -86,21 +88,16 @@ async def test_health_check(asgi_client: AsyncClient) -> None:
 async def test_list_actions(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
     """Test that the actions list endpoint returns registered actions."""
 
-    # Mock the async list_actions method to return a list of ActionMetadata
-    async def mock_list_actions_async(allowed_kinds: list[ActionKind] | None = None) -> list[ActionMetadata]:
-        return [
-            ActionMetadata(
-                kind=ActionKind.CUSTOM,
-                name='action1',
-            )
-        ]
+    async def mock_list_resolvable() -> dict[str, dict[str, object]]:
+        return {
+            '/custom/action1': {
+                'key': '/custom/action1',
+                'name': 'action1',
+                'type': ActionKind.CUSTOM,
+            }
+        }
 
-    # Mock resolve_actions_by_kind to return empty dict (no registered actions in this test)
-    async def mock_resolve_actions_by_kind(kind: ActionKind) -> dict:
-        return {}
-
-    mock_registry.list_actions = mock_list_actions_async
-    mock_registry.resolve_actions_by_kind = mock_resolve_actions_by_kind
+    mock_registry.list_resolvable_actions = mock_list_resolvable
     response = await asgi_client.get('/api/actions')
     assert response.status_code == 200
     result = response.json()

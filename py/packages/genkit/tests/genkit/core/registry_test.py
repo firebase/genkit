@@ -12,7 +12,7 @@ functionality, ensuring proper registration and management of Genkit resources.
 import pytest
 
 from genkit import Genkit, Plugin
-from genkit._core._action import Action, ActionKind, ActionMetadata
+from genkit._core._action import Action, ActionKind, ActionMetadata, create_action_key
 from genkit._core._dap import DapValue, define_dynamic_action_provider
 from genkit._core._registry import Registry
 
@@ -128,8 +128,8 @@ async def test_resolve_action_from_plugin() -> None:
 
     ai = Genkit(plugins=[MyPlugin()])
 
-    metas = await ai.registry.list_actions()
-    assert metas == [ActionMetadata(kind=ActionKind.MODEL, name='myplugin/foo')]
+    catalog = await ai.registry.list_resolvable_actions()
+    assert catalog['/model/myplugin/foo']['name'] == 'myplugin/foo'
 
     action = await ai.registry.resolve_action(ActionKind.MODEL, 'myplugin/foo')
 
@@ -272,8 +272,8 @@ def test_child_inherits_lookup_value() -> None:
 
 
 @pytest.mark.asyncio
-async def test_child_list_actions_includes_parent_plugin() -> None:
-    """list_actions on child includes parent-plugin actions not shadowed locally."""
+async def test_child_resolvable_includes_parent_plugin() -> None:
+    """list_resolvable_actions on child includes parent plugin rows not shadowed locally."""
 
     class ParentPlugin(Plugin):
         name = 'parentplugin'
@@ -291,6 +291,146 @@ async def test_child_list_actions_includes_parent_plugin() -> None:
     parent.register_plugin(ParentPlugin())
 
     child = parent.new_child()
-    metas = await child.list_actions()
-    names = [m.name for m in metas]
-    assert 'parentplugin/my-model' in names
+    catalog = await child.list_resolvable_actions()
+    assert '/model/parentplugin/my-model' in catalog
+    assert catalog['/model/parentplugin/my-model']['name'] == 'parentplugin/my-model'
+
+
+@pytest.mark.asyncio
+async def test_child_resolvable_local_tool_shadows_parent_plugin_metadata() -> None:
+    """A tool registered on the child must not inherit parent plugin metadata for the same name."""
+
+    class ParentPlugin(Plugin):
+        name = 'parentplugin'
+
+        async def init(self) -> list[Action]:
+            return []
+
+        async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
+            return None
+
+        async def list_actions(self) -> list[ActionMetadata]:
+            return [
+                ActionMetadata(
+                    kind=ActionKind.TOOL,
+                    name='parentplugin/shared-name',
+                    description='from parent plugin',
+                )
+            ]
+
+    async def local_tool(_: str) -> str:
+        return 'local'
+
+    parent = Registry()
+    parent.register_plugin(ParentPlugin())
+    child = parent.new_child()
+    child.register_action(
+        kind=ActionKind.TOOL,
+        name='parentplugin/shared-name',
+        fn=local_tool,
+        description='from child registry',
+    )
+
+    catalog = await child.list_resolvable_actions()
+    entry = catalog['/tool/parentplugin/shared-name']
+    assert entry['description'] == 'from child registry'
+    assert entry['description'] != 'from parent plugin'
+
+
+@pytest.mark.asyncio
+async def test_child_resolvable_dap_tool_shadows_parent_plugin_metadata() -> None:
+    """DAP-exposed nested actions must shadow parent plugin metadata for the same (kind, name)."""
+
+    class ParentPlugin(Plugin):
+        name = 'parentplugin'
+
+        async def init(self) -> list[Action]:
+            return []
+
+        async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
+            return None
+
+        async def list_actions(self) -> list[ActionMetadata]:
+            return [
+                ActionMetadata(
+                    kind=ActionKind.TOOL,
+                    name='parentplugin/mcp-tool',
+                    description='stale parent schema',
+                )
+            ]
+
+    async def mcp_tool_fn(_: str) -> str:
+        return 'mcp'
+
+    mcp_tool = Action(
+        kind=ActionKind.TOOL,
+        name='parentplugin/mcp-tool',
+        fn=mcp_tool_fn,
+        description='from mcp',
+    )
+
+    parent = Registry()
+    parent.register_plugin(ParentPlugin())
+    child = parent.new_child()
+
+    async def dap_fn() -> DapValue:
+        return {'tool': [mcp_tool]}
+
+    define_dynamic_action_provider(child, 'mcp', dap_fn)
+
+    catalog = await child.list_resolvable_actions()
+    entry = catalog['/tool/parentplugin/mcp-tool']
+    assert entry['description'] == 'from mcp'
+    assert entry['description'] != 'stale parent schema'
+
+
+@pytest.mark.asyncio
+async def test_list_resolvable_registered_canonical_coexists_with_qualified_dap_rows() -> None:
+    """Same canonical tool path from registration and from DAP: both catalog shapes appear.
+
+    The qualified DAP metadata row (under ``dynamic-action-provider``) is always merged;
+    the canonical ``/tool/...`` row prefers the action already in the registry when both
+    would describe the same path.
+    """
+    tool_name = 'suite/same-canonical'
+
+    async def registered_fn(_: str) -> str:
+        return 'registered'
+
+    async def dap_nested_fn(_: str) -> str:
+        return 'dap'
+
+    dap_nested = Action(
+        kind=ActionKind.TOOL,
+        name=tool_name,
+        fn=dap_nested_fn,
+        description='from dap nested',
+    )
+
+    registry = Registry()
+    registry.register_action(
+        kind=ActionKind.TOOL,
+        name=tool_name,
+        fn=registered_fn,
+        description='from registry registration',
+    )
+
+    async def dap_fn() -> DapValue:
+        return {'tool': [dap_nested]}
+
+    define_dynamic_action_provider(registry, 'mcp', dap_fn)
+
+    catalog = await registry.list_resolvable_actions()
+
+    canonical = create_action_key(ActionKind.TOOL, tool_name)
+    record_key = f'mcp:tool/{tool_name}'
+    qualified = create_action_key(ActionKind.DYNAMIC_ACTION_PROVIDER, record_key)
+    provider_key = create_action_key(ActionKind.DYNAMIC_ACTION_PROVIDER, 'mcp')
+
+    assert canonical in catalog
+    assert catalog[canonical]['description'] == 'from registry registration'
+
+    assert qualified in catalog
+    assert catalog[qualified]['key'] == qualified
+
+    assert provider_key in catalog
