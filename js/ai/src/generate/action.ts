@@ -298,9 +298,26 @@ async function generateActionImpl(
       }
       const currentMiddleware = middleware[index];
       if (currentMiddleware.generate) {
+        const wrappedOnChunk = ctx.onChunk
+          ? (c: GenerateResponseChunk | GenerateResponseChunkData) => {
+              if (c instanceof GenerateResponseChunk) {
+                ctx.onChunk!(c);
+              } else {
+                ctx.onChunk!(
+                  new GenerateResponseChunk(c, {
+                    index: c.index !== undefined ? c.index : messageIndex,
+                    role: c.role !== undefined ? c.role : 'model',
+                    previousChunks: [],
+                    parser: undefined,
+                  })
+                );
+              }
+            }
+          : undefined;
+
         return currentMiddleware.generate(
           { request: request, currentTurn, messageIndex },
-          ctx,
+          { ...ctx, onChunk: wrappedOnChunk },
           async (modifiedEnvelope, opts) =>
             dispatchGenerate(
               index + 1,
@@ -326,22 +343,7 @@ async function generateActionImpl(
     };
     return dispatchGenerate(0, rawRequest, currentTurn, messageIndex, {
       abortSignal,
-      onChunk: streamingCallback
-        ? (c) => {
-            if (c instanceof GenerateResponseChunk) {
-              streamingCallback(c);
-            } else {
-              streamingCallback(
-                new GenerateResponseChunk(c, {
-                  index: messageIndex,
-                  role: 'model',
-                  previousChunks: [],
-                  parser: undefined,
-                })
-              );
-            }
-          }
-        : undefined,
+      onChunk: streamingCallback,
       context,
     });
   } else {
