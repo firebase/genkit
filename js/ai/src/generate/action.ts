@@ -321,11 +321,11 @@ async function generateActionImpl(
           async (modifiedEnvelope, opts) =>
             dispatchGenerate(
               index + 1,
-              modifiedEnvelope.request || request,
-              modifiedEnvelope.currentTurn !== undefined
+              modifiedEnvelope?.request || request,
+              modifiedEnvelope?.currentTurn !== undefined
                 ? modifiedEnvelope.currentTurn
                 : currentTurn,
-              modifiedEnvelope.messageIndex !== undefined
+              modifiedEnvelope?.messageIndex !== undefined
                 ? modifiedEnvelope.messageIndex
                 : messageIndex,
               opts || ctx
