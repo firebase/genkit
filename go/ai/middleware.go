@@ -55,6 +55,15 @@ type GenerateParams struct {
 	Request *ModelRequest
 	// Iteration is the current tool-loop iteration (0-indexed).
 	Iteration int
+	// MessageIndex is the index of the next message in the streamed response sequence.
+	// Middleware that streams extra messages (e.g. injected user content) should emit
+	// chunks at this index and advance it so downstream middleware and the model
+	// receive the shifted value.
+	MessageIndex int
+	// Callback is the streaming callback supplied to [Generate], or nil if not streaming.
+	// Middleware may invoke it to emit chunks, setting [ModelResponseChunk.Role] and
+	// [ModelResponseChunk.Index] explicitly.
+	Callback ModelStreamCallback
 }
 
 // ModelParams holds params for the WrapModel hook.

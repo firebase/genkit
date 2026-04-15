@@ -244,6 +244,21 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		}
 	}
 
+	// Collect tools contributed by middleware. These must come from the
+	// per-invocation instance (whose state reflects the override config), not
+	// the prototype, so registering them on a child registry shadows any
+	// prototype-bound registration from an outer Generate.
+	var middlewareTools []Tool
+	for _, mw := range mws {
+		middlewareTools = append(middlewareTools, mw.Tools()...)
+	}
+	if len(middlewareTools) > 0 {
+		r = r.NewChild()
+		for _, t := range middlewareTools {
+			t.Register(r)
+		}
+	}
+
 	toolDefMap := make(map[string]*ToolDefinition)
 	for _, t := range opts.Tools {
 		if _, ok := toolDefMap[t]; ok {
@@ -256,6 +271,12 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		}
 
 		toolDefMap[t] = tool.Definition()
+	}
+	for _, t := range middlewareTools {
+		if _, ok := toolDefMap[t.Name()]; ok {
+			continue
+		}
+		toolDefMap[t.Name()] = t.Definition()
 	}
 	toolDefs := make([]*ToolDefinition, 0, len(toolDefMap))
 	for _, t := range toolDefMap {
@@ -471,7 +492,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		innerGenerate := generate
 		generate = func(ctx context.Context, req *ModelRequest, currentTurn int, messageIndex int) (*ModelResponse, error) {
 			innerFn := func(ctx context.Context, params *GenerateParams) (*ModelResponse, error) {
-				return innerGenerate(ctx, params.Request, currentTurn, messageIndex)
+				return innerGenerate(ctx, params.Request, params.Iteration, params.MessageIndex)
 			}
 			for i := len(mws) - 1; i >= 0; i-- {
 				h := mws[i]
@@ -481,9 +502,11 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 				}
 			}
 			return innerFn(ctx, &GenerateParams{
-				Options:   opts,
-				Request:   req,
-				Iteration: currentTurn,
+				Options:      opts,
+				Request:      req,
+				Iteration:    currentTurn,
+				MessageIndex: messageIndex,
+				Callback:     cb,
 			})
 		}
 	}
@@ -519,14 +542,6 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 	toolNames, dynamicTools, err := resolveUniqueTools(r, genOpts.Tools)
 	if err != nil {
 		return nil, err
-	}
-
-	// Collect tools provided by middleware.
-	for _, mw := range genOpts.Use {
-		for _, t := range mw.Tools() {
-			dynamicTools = append(dynamicTools, t)
-			toolNames = append(toolNames, t.Name())
-		}
 	}
 
 	if len(dynamicTools) > 0 {

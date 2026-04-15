@@ -282,6 +282,103 @@ func TestFilesystemReadFileInjectsImageAsMedia(t *testing.T) {
 	}
 }
 
+// TestFilesystemStreamsInjectedFileContents verifies that when read_file runs
+// and the next turn begins, the injected user message carrying the file contents
+// is emitted to the streaming callback with the correct sequential index, so
+// consumers of GenerateStream see it alongside the model and tool messages.
+func TestFilesystemStreamsInjectedFileContents(t *testing.T) {
+	r := newTestRegistry(t)
+	root := makeFS(t)
+
+	// Streaming model that emits the same payload it returns, so each turn
+	// produces at least one chunk.
+	turn := 0
+	m := ai.DefineModel(r, "test/fs-stream", &ai.ModelOptions{
+		Supports: &ai.ModelSupports{Multiturn: true, SystemRole: true, Tools: true, Media: true},
+	}, func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+		turn++
+		if turn == 1 {
+			content := []*ai.Part{ai.NewToolRequestPart(&ai.ToolRequest{
+				Name:  "read_file",
+				Input: map[string]any{"filePath": "hello.txt"},
+			})}
+			if cb != nil {
+				if err := cb(ctx, &ai.ModelResponseChunk{Content: content}); err != nil {
+					return nil, err
+				}
+			}
+			return &ai.ModelResponse{Request: req, Message: &ai.Message{Role: ai.RoleModel, Content: content}}, nil
+		}
+		content := []*ai.Part{ai.NewTextPart("done")}
+		if cb != nil {
+			if err := cb(ctx, &ai.ModelResponseChunk{Content: content}); err != nil {
+				return nil, err
+			}
+		}
+		return &ai.ModelResponse{Request: req, Message: &ai.Message{Role: ai.RoleModel, Content: content}}, nil
+	})
+
+	fs := &Filesystem{RootDir: root}
+	ai.DefineMiddleware(r, "filesystem", fs)
+
+	var chunks []*ai.ModelResponseChunk
+	if _, err := ai.Generate(ctx, r,
+		ai.WithModel(m),
+		ai.WithPrompt("go"),
+		ai.WithUse(fs),
+		ai.WithStreaming(func(_ context.Context, c *ai.ModelResponseChunk) error {
+			chunks = append(chunks, c)
+			return nil
+		}),
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	// Expect four unique indices in order: model (0), tool (1), injected user (2), model (3).
+	var indices []int
+	seen := map[int]bool{}
+	for _, c := range chunks {
+		if !seen[c.Index] {
+			seen[c.Index] = true
+			indices = append(indices, c.Index)
+		}
+	}
+	want := []int{0, 1, 2, 3}
+	if len(indices) != len(want) {
+		t.Fatalf("distinct indices = %v, want %v", indices, want)
+	}
+	for i := range want {
+		if indices[i] != want[i] {
+			t.Fatalf("indices[%d] = %d, want %d (full: %v)", i, indices[i], want[i], indices)
+		}
+	}
+
+	// The injected file-content chunk must be at index 2 with RoleUser and
+	// carry the file body.
+	var injected *ai.ModelResponseChunk
+	for _, c := range chunks {
+		if c.Index == 2 {
+			injected = c
+			break
+		}
+	}
+	if injected == nil {
+		t.Fatal("no chunk at index 2 for injected file content")
+	}
+	if injected.Role != ai.RoleUser {
+		t.Errorf("injected chunk role = %q, want %q", injected.Role, ai.RoleUser)
+	}
+	var hasFileBody bool
+	for _, p := range injected.Content {
+		if p.IsText() && strings.Contains(p.Text, "hello world") {
+			hasFileBody = true
+		}
+	}
+	if !hasFileBody {
+		t.Errorf("injected chunk missing file body; got %+v", injected.Content)
+	}
+}
+
 func TestFilesystemWriteFileRequiresAllowWriteAccess(t *testing.T) {
 	r := newTestRegistry(t)
 	root := makeFS(t)
@@ -593,8 +690,8 @@ func TestApplySearchReplaceInvalidBlock(t *testing.T) {
 	cases := []string{
 		"no markers at all",
 		"<<<<<<< SEARCH\nonly search\n>>>>>>> REPLACE",
-		"<<<<<<< SEARCH\na\n=======\n",            // missing end
-		"a\n=======\nb\n>>>>>>> REPLACE",          // missing start
+		"<<<<<<< SEARCH\na\n=======\n",   // missing end
+		"a\n=======\nb\n>>>>>>> REPLACE", // missing start
 	}
 	for _, b := range cases {
 		if _, err := applySearchReplace("anything", b, "x"); err == nil {

@@ -18,11 +18,11 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"maps"
 	"slices"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 )
 
 const toolApprovalSource = "toolApproval"
@@ -131,7 +131,7 @@ func (t *ToolApproval) New() ai.Middleware {
 
 func (t *ToolApproval) WrapTool(ctx context.Context, params *ai.ToolParams, next ai.ToolNext) (*ai.ToolResponse, error) {
 	if len(t.AllowedTools) > 0 && len(t.DeniedTools) > 0 {
-		return nil, fmt.Errorf("toolApproval: AllowedTools and DeniedTools are mutually exclusive")
+		return nil, core.NewError(core.INVALID_ARGUMENT, "toolApproval: AllowedTools and DeniedTools are mutually exclusive")
 	}
 
 	// Resumed (restarted) tool calls have already been approved by the caller.

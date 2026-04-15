@@ -30,6 +30,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 )
 
 // SEARCH/REPLACE block markers used by the search_and_replace tool.
@@ -92,17 +93,17 @@ func (f *Filesystem) New() ai.Middleware {
 func (f *Filesystem) init() error {
 	f.initOnce.Do(func() {
 		if strings.TrimSpace(f.RootDir) == "" {
-			f.initErr = errors.New("filesystem middleware: RootDir is required")
+			f.initErr = core.NewError(core.INVALID_ARGUMENT, "filesystem middleware: RootDir is required")
 			return
 		}
 		abs, err := filepath.Abs(f.RootDir)
 		if err != nil {
-			f.initErr = fmt.Errorf("filesystem middleware: resolve %q: %w", f.RootDir, err)
+			f.initErr = core.NewError(core.INTERNAL, "filesystem middleware: resolve %q: %v", f.RootDir, err)
 			return
 		}
 		root, err := os.OpenRoot(abs)
 		if err != nil {
-			f.initErr = fmt.Errorf("filesystem middleware: open root %q: %w", abs, err)
+			f.initErr = core.NewError(core.FAILED_PRECONDITION, "filesystem middleware: open root %q: %v", abs, err)
 			return
 		}
 		f.root = root
@@ -133,11 +134,25 @@ func (f *Filesystem) WrapGenerate(ctx context.Context, params *ai.GenerateParams
 	}
 
 	f.mu.Lock()
-	if len(f.queue) > 0 {
-		params.Request.Messages = append(params.Request.Messages, f.queue...)
-		f.queue = nil
-	}
+	queued := f.queue
+	f.queue = nil
 	f.mu.Unlock()
+
+	if len(queued) > 0 {
+		if params.Callback != nil {
+			for _, msg := range queued {
+				if err := params.Callback(ctx, &ai.ModelResponseChunk{
+					Role:    msg.Role,
+					Index:   params.MessageIndex,
+					Content: msg.Content,
+				}); err != nil {
+					return nil, err
+				}
+				params.MessageIndex++
+			}
+		}
+		params.Request.Messages = append(params.Request.Messages, queued...)
+	}
 
 	return next(ctx, params)
 }
