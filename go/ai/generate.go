@@ -344,43 +344,6 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 	var generate func(context.Context, *ModelRequest, int, int) (*ModelResponse, error)
 
 	generate = func(ctx context.Context, req *ModelRequest, currentTurn int, messageIndex int) (*ModelResponse, error) {
-		// Handle resume on first iteration so restarted tool execution is
-		// wrapped by WrapGenerate (lifecycle: generate > tool > generate > model > tool).
-		if currentTurn == 0 && opts.Resume != nil && (len(opts.Resume.Respond) > 0 || len(opts.Resume.Restart) > 0) {
-			resumeOutput, err := handleResumeOption(ctx, r, opts, mws)
-			if err != nil {
-				return nil, err
-			}
-
-			if resumeOutput.interruptedResponse != nil {
-				return nil, core.NewError(core.FAILED_PRECONDITION,
-					"One or more tools triggered an interrupt during a restarted execution.")
-			}
-
-			opts = resumeOutput.revisedRequest
-
-			if resumeOutput.toolMessage != nil && cb != nil {
-				err := cb(ctx, &ModelResponseChunk{
-					Content: resumeOutput.toolMessage.Content,
-					Role:    RoleTool,
-					Index:   messageIndex,
-				})
-				if err != nil {
-					return nil, fmt.Errorf("streaming callback failed for resumed tool message: %w", err)
-				}
-			}
-
-			resumeReq := &ModelRequest{
-				Messages:   opts.Messages,
-				Config:     req.Config,
-				Docs:       req.Docs,
-				ToolChoice: req.ToolChoice,
-				Tools:      req.Tools,
-				Output:     req.Output,
-			}
-			return generate(ctx, resumeReq, currentTurn+1, messageIndex+1)
-		}
-
 		spanMetadata := &tracing.SpanMetadata{
 			Name:    "generate",
 			Type:    "util",
@@ -410,6 +373,44 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 					chunk.formatHandler = streamingHandler
 					return cb(ctx, chunk)
 				}
+			}
+
+			// Handle resume on the first iteration inside this span so that
+			// restarted tool execution is both wrapped by WrapGenerate (from
+			// the outer middleware chain) and recorded as a child of the
+			// current generate span (lifecycle: generate > tool > generate >
+			// model > tool).
+			if currentTurn == 0 && opts.Resume != nil && (len(opts.Resume.Respond) > 0 || len(opts.Resume.Restart) > 0) {
+				resumeOutput, err := handleResumeOption(ctx, r, opts, mws)
+				if err != nil {
+					return nil, err
+				}
+
+				if resumeOutput.interruptedResponse != nil {
+					return nil, core.NewError(core.FAILED_PRECONDITION,
+						"One or more tools triggered an interrupt during a restarted execution.")
+				}
+
+				opts = resumeOutput.revisedRequest
+
+				if resumeOutput.toolMessage != nil && wrappedCb != nil {
+					if err := wrappedCb(ctx, &ModelResponseChunk{
+						Content: resumeOutput.toolMessage.Content,
+						Role:    RoleTool,
+					}); err != nil {
+						return nil, fmt.Errorf("streaming callback failed for resumed tool message: %w", err)
+					}
+				}
+
+				resumeReq := &ModelRequest{
+					Messages:   opts.Messages,
+					Config:     req.Config,
+					Docs:       req.Docs,
+					ToolChoice: req.ToolChoice,
+					Tools:      req.Tools,
+					Output:     req.Output,
+				}
+				return generate(ctx, resumeReq, currentTurn+1, currentIndex)
 			}
 
 			resp, err := fn(ctx, req, wrappedCb)
