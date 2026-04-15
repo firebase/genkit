@@ -107,6 +107,10 @@ const (
 )
 
 var (
+	deprecatedGenAIModels = map[string]struct{}{
+		"gemini-3-pro-preview": {},
+	}
+
 	// eventually, Vertex AI and Google AI models will match, in the meantime,
 	// keep them sepparated
 	vertexAIModels = []string{
@@ -373,6 +377,9 @@ func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, er
 
 		name := strings.TrimPrefix(item.Name, "publishers/google/")
 		name = strings.TrimPrefix(name, "models/")
+		if isDeprecatedGenAIModel(name) {
+			continue
+		}
 
 		// The Vertex AI backend does not populate SupportedActions,
 		// so we fall back to name-based categorization.
@@ -398,4 +405,9 @@ func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, er
 	}
 
 	return models, nil
+}
+
+func isDeprecatedGenAIModel(name string) bool {
+	_, ok := deprecatedGenAIModels[name]
+	return ok
 }

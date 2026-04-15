@@ -37,10 +37,6 @@ var AnthropicModels = map[string]ai.ModelOptions{
 		Label:    "Claude 3 Sonnet",
 		Supports: &internal.Multimodal,
 	},
-	"claude-3-haiku@20240307": {
-		Label:    "Claude 3 Haiku",
-		Supports: &internal.Multimodal,
-	},
 	"claude-3-opus@20240229": {
 		Label:    "Claude 3 Opus",
 		Supports: &internal.Multimodal,
