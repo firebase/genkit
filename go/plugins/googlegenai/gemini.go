@@ -193,7 +193,7 @@ func generate(
 	if cb == nil {
 		resp, err := client.Models.GenerateContent(ctx, model, contents, gcc)
 		if err != nil {
-			return nil, err
+			return nil, wrapAPIError(err)
 		}
 		r, err := translateResponse(resp)
 		if err != nil {
@@ -218,7 +218,7 @@ func generate(
 	for chunk, err := range iter {
 		// abort stream if error found in the iterator items
 		if err != nil {
-			return nil, err
+			return nil, wrapAPIError(err)
 		}
 		for _, c := range chunk.Candidates {
 			tc, err := translateCandidate(c)

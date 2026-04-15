@@ -251,6 +251,85 @@ func TestFallbackCustomStatuses(t *testing.T) {
 	}
 }
 
+func TestFallbackUsesRefConfig(t *testing.T) {
+	g := newTestGenkit(t)
+	var secondaryConfig any
+
+	primary := defineTestModel(t, g, "test/primary", func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+		return nil, core.NewError(core.UNAVAILABLE, "primary down")
+	})
+	secondary := defineTestModel(t, g, "test/secondary", func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+		secondaryConfig = req.Config
+		return &ai.ModelResponse{Message: ai.NewModelTextMessage("secondary ok")}, nil
+	})
+
+	refConfig := map[string]any{"temperature": 0.5, "source": "ref"}
+	fb := &Fallback{Models: []ai.ModelRef{ai.NewModelRef(secondary.Name(), refConfig)}}
+
+	_, err := genkit.Generate(ctx, g, ai.WithModel(primary), ai.WithPrompt("hello"), ai.WithConfig(map[string]any{"temperature": 0.9, "source": "req"}), ai.WithUse(fb))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, ok := secondaryConfig.(map[string]any)
+	if !ok {
+		t.Fatalf("secondary config type = %T, want map[string]any", secondaryConfig)
+	}
+	if got["source"] != "ref" {
+		t.Errorf("secondary config source = %v, want %q (fallback must use ref config)", got["source"], "ref")
+	}
+}
+
+func TestFallbackPassesNilConfigWhenRefHasNone(t *testing.T) {
+	g := newTestGenkit(t)
+	var secondaryConfig any
+
+	primary := defineTestModel(t, g, "test/primary", func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+		return nil, core.NewError(core.UNAVAILABLE, "primary down")
+	})
+	secondary := defineTestModel(t, g, "test/secondary", func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+		secondaryConfig = req.Config
+		return &ai.ModelResponse{Message: ai.NewModelTextMessage("secondary ok")}, nil
+	})
+
+	fb := &Fallback{Models: []ai.ModelRef{ai.NewModelRef(secondary.Name(), nil)}}
+
+	_, err := genkit.Generate(ctx, g, ai.WithModel(primary), ai.WithPrompt("hello"), ai.WithConfig(map[string]any{"source": "req"}), ai.WithUse(fb))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if secondaryConfig != nil {
+		t.Errorf("secondary config = %v, want nil (ref has no config, request config must not leak through)", secondaryConfig)
+	}
+}
+
+func TestFallbackDoesNotMutateOriginalRequest(t *testing.T) {
+	g := newTestGenkit(t)
+	var primaryConfig any
+
+	primary := defineTestModel(t, g, "test/primary", func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+		primaryConfig = req.Config
+		return nil, core.NewError(core.UNAVAILABLE, "primary down")
+	})
+	secondary := defineTestModel(t, g, "test/secondary", func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+		return &ai.ModelResponse{Message: ai.NewModelTextMessage("secondary ok")}, nil
+	})
+
+	refConfig := map[string]any{"source": "ref"}
+	fb := &Fallback{Models: []ai.ModelRef{ai.NewModelRef(secondary.Name(), refConfig)}}
+
+	_, err := genkit.Generate(ctx, g, ai.WithModel(primary), ai.WithPrompt("hello"), ai.WithConfig(map[string]any{"source": "req"}), ai.WithUse(fb))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, ok := primaryConfig.(map[string]any)
+	if !ok {
+		t.Fatalf("primary config type = %T, want map[string]any", primaryConfig)
+	}
+	if got["source"] != "req" {
+		t.Errorf("primary config source = %v, want %q (fallback must not mutate request seen by primary)", got["source"], "req")
+	}
+}
+
 func TestFallbackModelNotFound(t *testing.T) {
 	g := newTestGenkit(t)
 

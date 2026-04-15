@@ -59,7 +59,9 @@ var defaultFallbackStatuses = []core.StatusName{
 type Fallback struct {
 	ai.BaseMiddleware
 	// Models is the ordered list of fallback models to try.
-	// These are tried in order after the primary model fails.
+	// These are tried in order after the primary model fails. Each ref's
+	// Config is used verbatim for that model -- the original request's
+	// Config is not inherited. Use [ai.NewModelRef] to attach config.
 	Models []ai.ModelRef `json:"models,omitempty"`
 	// Statuses is the set of status codes that trigger a fallback.
 	// Only [core.GenkitError] errors with a matching status will trigger fallback;
@@ -101,7 +103,9 @@ func (f *Fallback) WrapModel(ctx context.Context, params *ai.ModelParams, next a
 		if m == nil {
 			return nil, core.NewError(core.NOT_FOUND, "fallback: model %q not found", name)
 		}
-		resp, err := m.Generate(ctx, params.Request, params.Callback)
+		req := *params.Request
+		req.Config = ref.Config()
+		resp, err := m.Generate(ctx, &req, params.Callback)
 		if err == nil {
 			return resp, nil
 		}
