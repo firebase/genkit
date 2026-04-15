@@ -38,6 +38,7 @@ func (p *Middleware) ListMiddleware(ctx context.Context) ([]*ai.MiddlewareDesc, 
 		ai.NewMiddleware("Retry failed model calls with exponential backoff", &Retry{}),
 		ai.NewMiddleware("Try alternative models when the primary model fails", &Fallback{}),
 		ai.NewMiddleware("Require explicit approval before executing tools", &ToolApproval{}),
-		ai.NewMiddleware("Return tool errors as text responses instead of failing", &ToolErrorHandler{}),
+		ai.NewMiddleware("Expose a local library of skills as loadable system instructions", &Skills{}),
+		ai.NewMiddleware("Grant the model file access scoped to a directory", &Filesystem{}),
 	}, nil
 }
