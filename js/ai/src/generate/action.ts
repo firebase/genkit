@@ -280,12 +280,14 @@ async function generateActionImpl(
   if (middleware && middleware.length > 0) {
     const dispatchGenerate = async (
       index: number,
-      req: GenerateActionOptions,
+      request: GenerateActionOptions,
+      currentTurn: number,
+      messageIndex: number,
       ctx: ActionRunOptions<any>
     ): Promise<any> => {
       if (index === middleware.length) {
         return generateActionTurn(registry, {
-          rawRequest: req,
+          rawRequest: request,
           middleware,
           currentTurn,
           messageIndex,
@@ -296,16 +298,50 @@ async function generateActionImpl(
       }
       const currentMiddleware = middleware[index];
       if (currentMiddleware.generate) {
-        return currentMiddleware.generate(req, ctx, async (modifiedReq, opts) =>
-          dispatchGenerate(index + 1, modifiedReq || req, opts || ctx)
+        return currentMiddleware.generate(
+          { request: request, currentTurn, messageIndex },
+          ctx,
+          async (modifiedEnvelope, opts) =>
+            dispatchGenerate(
+              index + 1,
+              modifiedEnvelope.request || request,
+              modifiedEnvelope.currentTurn !== undefined
+                ? modifiedEnvelope.currentTurn
+                : currentTurn,
+              modifiedEnvelope.messageIndex !== undefined
+                ? modifiedEnvelope.messageIndex
+                : messageIndex,
+              opts || ctx
+            )
         );
       } else {
-        return dispatchGenerate(index + 1, req, ctx);
+        return dispatchGenerate(
+          index + 1,
+          request,
+          currentTurn,
+          messageIndex,
+          ctx
+        );
       }
     };
-    return dispatchGenerate(0, rawRequest, {
+    return dispatchGenerate(0, rawRequest, currentTurn, messageIndex, {
       abortSignal,
-      onChunk: streamingCallback,
+      onChunk: streamingCallback
+        ? (c) => {
+            if (c instanceof GenerateResponseChunk) {
+              streamingCallback(c);
+            } else {
+              streamingCallback(
+                new GenerateResponseChunk(c, {
+                  index: messageIndex,
+                  role: 'model',
+                  previousChunks: [],
+                  parser: undefined,
+                })
+              );
+            }
+          }
+        : undefined,
       context,
     });
   } else {
