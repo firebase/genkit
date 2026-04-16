@@ -312,7 +312,7 @@ async function generateActionImpl(
                 const chunk = new GenerateResponseChunk(c, {
                   index: c.index !== undefined ? c.index : messageIndex,
                   role: c.role !== undefined ? c.role : 'model',
-                  previousChunks: sharedPreviousChunks,
+                  previousChunks: [...sharedPreviousChunks],
                   parser: parser,
                 });
                 sharedPreviousChunks.push(c); // Accumulate raw data!
