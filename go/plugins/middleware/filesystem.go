@@ -44,7 +44,7 @@ const (
 // single root directory. It registers list_files and read_file, plus
 // write_file and search_and_replace when AllowWriteAccess is true.
 //
-// Path safety is enforced by [os.Root] (Go 1.24+), which rejects any path
+// Path safety is enforced by [os.Root] (Go 1.25+), which rejects any path
 // that resolves outside the root, including via "..", absolute paths, or
 // symbolic links.
 //

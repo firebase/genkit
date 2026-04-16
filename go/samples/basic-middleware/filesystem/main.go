@@ -15,7 +15,7 @@
 // This sample demonstrates the Filesystem middleware, which grants the model
 // scoped file access via list_files, read_file, write_file, and
 // search_and_replace tools. All operations are confined to the configured
-// RootDir — os.Root (Go 1.24+) rejects any path that resolves outside it,
+// RootDir — os.Root (Go 1.25+) rejects any path that resolves outside it,
 // including via "..", absolute paths, or symbolic links.
 //
 // A ready-to-demo workspace/ directory ships alongside this sample with a
