@@ -9,13 +9,13 @@ All keyword args on `generate()` are optional. `model` falls back to the default
 response = await ai.generate(prompt='Explain recursion simply.')
 print(response.text)
 
-# Multimodal input — mix media with text in the prompt list
-from genkit import Media, MediaPart, Part, TextPart
+# Multimodal input — mix media with text in the prompt list.
+from genkit import Media, MediaPart, TextPart
 
 response = await ai.generate(
     prompt=[
-        Part(root=MediaPart(media=Media(url='https://example.com/cat.jpg', content_type='image/jpeg'))),
-        Part(root=TextPart(text='Describe this image.')),
+        MediaPart(media=Media(url='https://example.com/cat.jpg', content_type='image/jpeg')),
+        TextPart(text='Describe this image.'),
     ],
 )
 # Supported URL shapes: https://, gs://, data: URIs (base64), and provider-specific
@@ -399,7 +399,7 @@ class LoggingMiddleware(BaseMiddleware):
 class ConciseReplyMiddleware(BaseMiddleware):
     """Prepend a system message before every model call."""
     async def wrap_model(self, req, ctx, next_handler):
-        system = Message(role=Role.SYSTEM, content=[Part(root=TextPart(text='Answer in one short paragraph.'))])
+        system = Message(role=Role.SYSTEM, content=[TextPart(text='Answer in one short paragraph.')])
         return await next_handler(req.model_copy(update={'messages': [system, *req.messages]}), ctx)
 
 response = await ai.generate(
