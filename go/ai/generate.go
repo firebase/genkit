@@ -366,6 +366,29 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 	}
 	fn = core.ChainMiddleware(mmws...)(fn)
 
+	// Share one streaming format handler across middleware- and model-emitted
+	// chunks so its per-index accumulation (e.g. accumulatedText) spans both.
+	var streamingHandler StreamingFormatHandler
+	if sfh, ok := formatHandler.(StreamingFormatHandler); ok {
+		streamingHandler = sfh
+	}
+
+	// middlewareCb is the callback given to WrapGenerate hooks. It attaches the
+	// shared streamingHandler so middleware-emitted chunks can be parsed and
+	// contribute to accumulation, while preserving any Index/Role the middleware
+	// set explicitly (the model path in wrappedCb assigns those from role-based
+	// state).
+	var middlewareCb ModelStreamCallback
+	if cb != nil {
+		middlewareCb = func(ctx context.Context, chunk *ModelResponseChunk) error {
+			if chunk.Role == "" {
+				chunk.Role = RoleModel
+			}
+			chunk.formatHandler = streamingHandler
+			return cb(ctx, chunk)
+		}
+	}
+
 	// Inline recursive helper function that captures variables from parent scope.
 	var generate func(context.Context, *ModelRequest, int, int) (*ModelResponse, error)
 
@@ -417,11 +440,6 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 			var wrappedCb ModelStreamCallback
 			currentRole := RoleModel
 			currentIndex := messageIndex
-
-			var streamingHandler StreamingFormatHandler
-			if sfh, ok := formatHandler.(StreamingFormatHandler); ok {
-				streamingHandler = sfh
-			}
 
 			if cb != nil {
 				wrappedCb = func(ctx context.Context, chunk *ModelResponseChunk) error {
@@ -506,7 +524,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 				Request:      req,
 				Iteration:    currentTurn,
 				MessageIndex: messageIndex,
-				Callback:     cb,
+				Callback:     middlewareCb,
 			})
 		}
 	}

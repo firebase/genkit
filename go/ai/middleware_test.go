@@ -180,6 +180,85 @@ func TestMiddlewareToolHook(t *testing.T) {
 	}
 }
 
+// TestMiddlewareStreamsAccumulateWithModel verifies that chunks emitted by a
+// middleware's WrapGenerate hook share the same streaming format handler as
+// model-emitted chunks. When middleware and model chunks share an index, a
+// caller that iterates chunks and calls Output in order observes text that
+// accumulates across both.
+func TestMiddlewareStreamsAccumulateWithModel(t *testing.T) {
+	r := newTestRegistry(t)
+	m := defineFakeModel(t, r, fakeModelConfig{
+		name:    "test/streamModel",
+		handler: streamingModelHandler([]string{"model chunk"}, "done"),
+	})
+
+	mw := &emitChunkMiddleware{text: "middleware chunk "}
+	DefineMiddleware(r, "emits raw chunks", mw)
+
+	var chunks []*ModelResponseChunk
+	_, err := Generate(testCtx, r,
+		WithModel(m),
+		WithPrompt("go"),
+		WithUse(mw),
+		WithStreaming(func(_ context.Context, c *ModelResponseChunk) error {
+			chunks = append(chunks, c)
+			return nil
+		}),
+	)
+	assertNoError(t, err)
+
+	if len(chunks) != 2 {
+		t.Fatalf("got %d chunks, want 2", len(chunks))
+	}
+	if chunks[0].Role != RoleModel {
+		t.Errorf("chunks[0].Role = %q, want %q", chunks[0].Role, RoleModel)
+	}
+	if chunks[0].Index != chunks[1].Index {
+		t.Errorf("chunks[0].Index=%d chunks[1].Index=%d; want equal", chunks[0].Index, chunks[1].Index)
+	}
+
+	var midText string
+	if err := chunks[0].Output(&midText); err != nil {
+		t.Fatalf("middleware chunk Output error: %v", err)
+	}
+	if midText != "middleware chunk " {
+		t.Errorf("middleware chunk Output = %q, want %q", midText, "middleware chunk ")
+	}
+
+	var modelText string
+	if err := chunks[1].Output(&modelText); err != nil {
+		t.Fatalf("model chunk Output error: %v", err)
+	}
+	if modelText != "middleware chunk model chunk" {
+		t.Errorf("model chunk Output = %q, want %q", modelText, "middleware chunk model chunk")
+	}
+}
+
+// emitChunkMiddleware emits one text chunk via its WrapGenerate hook before the
+// model runs. It does not set Index or Role, so middlewareCb fills them with
+// the defaults used for model chunks.
+type emitChunkMiddleware struct {
+	BaseMiddleware
+	text string
+}
+
+func (m *emitChunkMiddleware) Name() string { return "emitChunk" }
+
+func (m *emitChunkMiddleware) New() Middleware {
+	return &emitChunkMiddleware{text: m.text}
+}
+
+func (m *emitChunkMiddleware) WrapGenerate(ctx context.Context, params *GenerateParams, next GenerateNext) (*ModelResponse, error) {
+	if params.Callback != nil {
+		if err := params.Callback(ctx, &ModelResponseChunk{
+			Content: []*Part{NewTextPart(m.text)},
+		}); err != nil {
+			return nil, err
+		}
+	}
+	return next(ctx, params)
+}
+
 func TestMiddlewareOrdering(t *testing.T) {
 	// First middleware is outermost
 	var order []string
