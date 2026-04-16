@@ -96,7 +96,7 @@ for d in response.data:
 
 ## Dotprompt (`.prompt` files)
 
-Prompts are stored as `.prompt` files and loaded at startup. Handlebars templating with custom helpers, typed input/output schemas, and named variants. This structure helps you keep y
+Prompts are stored as .prompt files and loaded at startup. Handlebars templating with custom helpers, typed input/output schemas, and named variants. This structure helps you keep your prompts organized and separated from your application logic.
 
 By default Genkit loads `./prompts` (relative to cwd) if it exists; pass `prompt_dir=` only to override.
 
