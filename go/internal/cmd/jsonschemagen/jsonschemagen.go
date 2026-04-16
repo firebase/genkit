@@ -442,10 +442,10 @@ func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) err
 		if skipOmitEmpty(goName, field) {
 			jsonTag = fmt.Sprintf(`json:"%s"`, field)
 		}
-		g.pr(fmt.Sprintf("  %s %s `%s`\n", adjustIdentifier(field), typeExpr, jsonTag))
+		g.pr("  %s %s `%s`\n", adjustIdentifier(field), typeExpr, jsonTag)
 	}
 	for _, f := range tcfg.fields {
-		g.pr(fmt.Sprintf("  %s %s\n", f.name, f.typeExpr))
+		g.pr("  %s %s\n", f.name, f.typeExpr)
 	}
 	g.pr("}\n\n")
 	return nil
