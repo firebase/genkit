@@ -19,7 +19,11 @@ import { initNodeFeatures } from '@genkit-ai/core/node';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { generate, generateStream } from '../../src/generate.js';
+import {
+  GenerateResponseChunk,
+  generate,
+  generateStream,
+} from '../../src/generate.js';
 import {
   GenerateMiddlewareDef,
   generateMiddleware,
@@ -1059,6 +1063,63 @@ describe('generateMiddleware', () => {
       rawChunk.previousChunks,
       [],
       'Should have empty previousChunks'
+    );
+  });
+
+  it('accumulates middleware chunks into sharedPreviousChunks for subsequent model chunks', async () => {
+    const mockStreamingModel = defineModel(
+      registry,
+      { name: 'mockStreamingModel' },
+      async (req, streamingCallback) => {
+        if (streamingCallback) {
+          // The model emits a chunk
+          streamingCallback({ content: [{ text: 'model chunk' }] });
+        }
+        return {
+          message: { role: 'model', content: [{ text: 'done' }] },
+        };
+      }
+    );
+
+    const rawChunkMiddleware = generateMiddleware(
+      { name: 'rawChunk2' },
+      () => ({
+        generate: async (envelope, ctx, next) => {
+          if (ctx.onChunk) {
+            // Middleware emits a raw chunk BEFORE the model runs
+            ctx.onChunk({ content: [{ text: 'middleware chunk ' }] } as any);
+          }
+          return next(envelope, ctx);
+        },
+      })
+    );
+
+    const chunks: GenerateResponseChunk[] = [];
+    const { stream, response } = generateStream(registry, {
+      model: mockStreamingModel,
+      prompt: 'test',
+      use: [rawChunkMiddleware()],
+    });
+
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+    await response;
+
+    // We expect 2 chunks in the stream
+    assert.strictEqual(chunks.length, 2);
+    assert.strictEqual(chunks[0].text, 'middleware chunk ');
+    assert.strictEqual(chunks[1].text, 'model chunk');
+
+    // CRITICAL ASSERTION: The model chunk should have the middleware chunk in its previousChunks!
+    assert.strictEqual(chunks[1].previousChunks!.length, 1);
+    assert.strictEqual(
+      chunks[1].previousChunks![0].content[0].text,
+      'middleware chunk '
+    );
+    assert.strictEqual(
+      chunks[1].accumulatedText,
+      'middleware chunk model chunk'
     );
   });
 });

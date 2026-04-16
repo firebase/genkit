@@ -277,6 +277,11 @@ async function generateActionImpl(
     context,
   } = args;
 
+  const format = await resolveFormat(registry, rawRequest.output);
+
+  const sharedPreviousChunks: GenerateResponseChunkData[] = [];
+  const parser = format?.handler(rawRequest.output?.jsonSchema).parseChunk;
+
   if (middleware && middleware.length > 0) {
     const dispatchGenerate = async (
       index: number,
@@ -294,6 +299,7 @@ async function generateActionImpl(
           abortSignal: ctx.abortSignal,
           streamingCallback: ctx.onChunk,
           context: ctx.context,
+          sharedPreviousChunks,
         });
       }
       const currentMiddleware = middleware[index];
@@ -303,14 +309,14 @@ async function generateActionImpl(
               if (c instanceof GenerateResponseChunk) {
                 ctx.onChunk!(c);
               } else {
-                ctx.onChunk!(
-                  new GenerateResponseChunk(c, {
-                    index: c.index !== undefined ? c.index : messageIndex,
-                    role: c.role !== undefined ? c.role : 'model',
-                    previousChunks: [],
-                    parser: undefined,
-                  })
-                );
+                const chunk = new GenerateResponseChunk(c, {
+                  index: c.index !== undefined ? c.index : messageIndex,
+                  role: c.role !== undefined ? c.role : 'model',
+                  previousChunks: sharedPreviousChunks,
+                  parser: parser,
+                });
+                sharedPreviousChunks.push(c); // Accumulate raw data!
+                ctx.onChunk!(chunk);
               }
             }
           : undefined;
@@ -347,7 +353,10 @@ async function generateActionImpl(
       context,
     });
   } else {
-    return generateActionTurn(registry, args);
+    return generateActionTurn(registry, {
+      ...args,
+      sharedPreviousChunks,
+    });
   }
 }
 
@@ -361,6 +370,7 @@ async function generateActionTurn(
     abortSignal,
     streamingCallback,
     context,
+    sharedPreviousChunks,
   }: {
     rawRequest: GenerateActionOptions;
     middleware: GenerateMiddlewareDef[] | undefined;
@@ -369,6 +379,7 @@ async function generateActionTurn(
     abortSignal?: AbortSignal;
     streamingCallback?: StreamingCallback<GenerateResponseChunk>;
     context?: Record<string, any>;
+    sharedPreviousChunks: GenerateResponseChunkData[];
   }
 ): Promise<GenerateResponseData> {
   const { model, tools, resources, format } = await resolveParameters(
@@ -440,20 +451,18 @@ async function generateActionTurn(
     model
   );
 
-  const previousChunks: GenerateResponseChunkData[] = [];
-
   let chunkRole: Role = 'model';
   // convenience method to create a full chunk from role and data, append the chunk
-  // to the previousChunks array, and increment the message index as needed
+  // to the sharedPreviousChunks array, and increment the message index as needed
   const makeChunk = (
     role: Role,
     chunk: GenerateResponseChunkData
   ): GenerateResponseChunk => {
-    if (role !== chunkRole && previousChunks.length) messageIndex++;
+    if (role !== chunkRole && sharedPreviousChunks.length) messageIndex++;
     chunkRole = role;
 
-    const prevToSend = [...previousChunks];
-    previousChunks.push(chunk);
+    const prevToSend = [...sharedPreviousChunks];
+    sharedPreviousChunks.push(chunk);
 
     return new GenerateResponseChunk(chunk, {
       index: messageIndex,
