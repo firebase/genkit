@@ -46,7 +46,6 @@ func defineTool(t *testing.T, r api.Registry, name string) ai.Tool {
 // then returns a final text response when it sees tool responses.
 func twoToolModelHandler(tool1, tool2 string) ai.ModelFunc {
 	return func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
-		// Check if we already have tool responses
 		for _, msg := range req.Messages {
 			for _, part := range msg.Content {
 				if part.IsToolResponse() {
@@ -57,7 +56,6 @@ func twoToolModelHandler(tool1, tool2 string) ai.ModelFunc {
 				}
 			}
 		}
-		// First call — request both tools
 		return &ai.ModelResponse{
 			Request: req,
 			Message: &ai.Message{
@@ -90,7 +88,6 @@ func TestToolApprovalAllowsApprovedTools(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Both tools approved → no interrupt, model returns "done"
 	if resp.Text() != "done" {
 		t.Errorf("got %q, want %q", resp.Text(), "done")
 	}
@@ -127,15 +124,13 @@ func TestToolApprovalInterruptsUnapprovedTools(t *testing.T) {
 		t.Fatal("expected at least one interrupt")
 	}
 
-	// Find the interrupt for "dangerous" using the typed helper.
 	found := false
 	for _, p := range interrupts {
-		meta, ok := IsToolApprovalInterrupt(p)
-		if !ok {
-			continue
-		}
-		if meta.Tool == "dangerous" {
+		if p.ToolRequest != nil && p.ToolRequest.Name == "dangerous" {
 			found = true
+		}
+		if p.ToolRequest != nil && p.ToolRequest.Name == "safe" {
+			t.Error("did not expect interrupt for 'safe' tool")
 		}
 	}
 	if !found {
@@ -146,7 +141,6 @@ func TestToolApprovalInterruptsUnapprovedTools(t *testing.T) {
 func TestToolApprovalEmptyListInterruptsAll(t *testing.T) {
 	r := newTestRegistry(t)
 
-	// Model requests a single tool
 	singleToolHandler := func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
 		for _, msg := range req.Messages {
 			for _, part := range msg.Content {
@@ -169,7 +163,7 @@ func TestToolApprovalEmptyListInterruptsAll(t *testing.T) {
 	m := defineToolModel(t, r, "test/singletool", singleToolHandler)
 	myTool := defineTool(t, r, "myTool")
 
-	ta := &ToolApproval{} // empty allowed list
+	ta := &ToolApproval{}
 	ai.DefineMiddleware(r, "toolApproval", ta)
 
 	resp, err := ai.Generate(ctx, r,
@@ -186,109 +180,28 @@ func TestToolApprovalEmptyListInterruptsAll(t *testing.T) {
 	}
 }
 
-func TestToolApprovalDeniedToolsInterruptsDenied(t *testing.T) {
+func TestToolApprovalResumedCallRuns(t *testing.T) {
 	r := newTestRegistry(t)
 
-	m := defineToolModel(t, r, "test/twotools", twoToolModelHandler("safe", "dangerous"))
-	safe := defineTool(t, r, "safe")
-	dangerous := defineTool(t, r, "dangerous")
-
-	ta := &ToolApproval{DeniedTools: []string{"dangerous"}}
-	ai.DefineMiddleware(r, "toolApproval", ta)
-
-	resp, err := ai.Generate(ctx, r,
-		ai.WithModel(m),
-		ai.WithPrompt("go"),
-		ai.WithTools(safe, dangerous),
-		ai.WithUse(ta),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.FinishReason != "interrupted" {
-		t.Errorf("got finish reason %q, want %q", resp.FinishReason, "interrupted")
-	}
-
-	interrupts := resp.Interrupts()
-	if len(interrupts) == 0 {
-		t.Fatal("expected at least one interrupt")
-	}
-
-	found := false
-	for _, p := range interrupts {
-		meta, ok := IsToolApprovalInterrupt(p)
-		if !ok {
-			continue
+	m := defineToolModel(t, r, "test/singletool", func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+		for _, msg := range req.Messages {
+			for _, part := range msg.Content {
+				if part.IsToolResponse() {
+					return &ai.ModelResponse{Request: req, Message: ai.NewModelTextMessage("done")}, nil
+				}
+			}
 		}
-		if meta.Tool == "dangerous" {
-			found = true
-		}
-		if meta.Tool == "safe" {
-			t.Error("did not expect interrupt for 'safe' tool")
-		}
-	}
-	if !found {
-		t.Error("expected interrupt for 'dangerous' tool")
-	}
-}
-
-func TestToolApprovalDeniedToolsAllowsOthers(t *testing.T) {
-	r := newTestRegistry(t)
-
-	m := defineToolModel(t, r, "test/twotools", twoToolModelHandler("allowed1", "allowed2"))
-	allowed1 := defineTool(t, r, "allowed1")
-	allowed2 := defineTool(t, r, "allowed2")
-
-	ta := &ToolApproval{DeniedTools: []string{"somethingElse"}}
-	ai.DefineMiddleware(r, "toolApproval", ta)
-
-	resp, err := ai.Generate(ctx, r,
-		ai.WithModel(m),
-		ai.WithPrompt("go"),
-		ai.WithTools(allowed1, allowed2),
-		ai.WithUse(ta),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.Text() != "done" {
-		t.Errorf("got %q, want %q", resp.Text(), "done")
-	}
-	if resp.FinishReason == "interrupted" {
-		t.Error("did not expect interrupted finish reason")
-	}
-}
-
-func TestToolApprovalMutualExclusionErrors(t *testing.T) {
-	r := newTestRegistry(t)
-
-	m := defineToolModel(t, r, "test/twotools", twoToolModelHandler("a", "b"))
-	a := defineTool(t, r, "a")
-	b := defineTool(t, r, "b")
-
-	ta := &ToolApproval{
-		AllowedTools: []string{"a"},
-		DeniedTools:  []string{"b"},
-	}
-	ai.DefineMiddleware(r, "toolApproval", ta)
-
-	_, err := ai.Generate(ctx, r,
-		ai.WithModel(m),
-		ai.WithPrompt("go"),
-		ai.WithTools(a, b),
-		ai.WithUse(ta),
-	)
-	if err == nil {
-		t.Fatal("expected error when both AllowedTools and DeniedTools are set")
-	}
-}
-
-func TestToolApprovalApproveAndDenyHelpers(t *testing.T) {
-	r := newTestRegistry(t)
-
-	m := defineToolModel(t, r, "test/twotools", twoToolModelHandler("approvable", "deniable"))
-	approvable := defineTool(t, r, "approvable")
-	deniable := defineTool(t, r, "deniable")
+		return &ai.ModelResponse{
+			Request: req,
+			Message: &ai.Message{
+				Role: ai.RoleModel,
+				Content: []*ai.Part{
+					ai.NewToolRequestPart(&ai.ToolRequest{Name: "needsApproval", Input: map[string]any{"v": "1"}}),
+				},
+			},
+		}, nil
+	})
+	needsApproval := defineTool(t, r, "needsApproval")
 
 	ta := &ToolApproval{} // deny all
 	ai.DefineMiddleware(r, "toolApproval", ta)
@@ -296,7 +209,7 @@ func TestToolApprovalApproveAndDenyHelpers(t *testing.T) {
 	resp, err := ai.Generate(ctx, r,
 		ai.WithModel(m),
 		ai.WithPrompt("go"),
-		ai.WithTools(approvable, deniable),
+		ai.WithTools(needsApproval),
 		ai.WithUse(ta),
 	)
 	if err != nil {
@@ -306,34 +219,19 @@ func TestToolApprovalApproveAndDenyHelpers(t *testing.T) {
 		t.Fatalf("got finish reason %q, want %q", resp.FinishReason, "interrupted")
 	}
 
-	var restarts, responses []*ai.Part
-	for _, interrupt := range resp.Interrupts() {
-		meta, ok := IsToolApprovalInterrupt(interrupt)
-		if !ok {
-			t.Fatal("expected tool approval interrupt")
-		}
-		switch meta.Tool {
-		case "approvable":
-			restarts = append(restarts, ApproveInterrupt(interrupt))
-		case "deniable":
-			responses = append(responses, DenyInterrupt(interrupt, "denied by user"))
-		}
+	// Build a restart part for each interrupt and resume.
+	var restarts []*ai.Part
+	for _, p := range resp.Interrupts() {
+		restart := ai.NewToolRequestPart(p.ToolRequest)
+		restart.Metadata = map[string]any{"resumed": true}
+		restarts = append(restarts, restart)
 	}
 
-	if len(restarts) != 1 {
-		t.Fatalf("expected 1 restart, got %d", len(restarts))
-	}
-	if len(responses) != 1 {
-		t.Fatalf("expected 1 response, got %d", len(responses))
-	}
-
-	// Resume with the approved and denied tools.
 	resp, err = ai.Generate(ctx, r,
 		ai.WithModel(m),
 		ai.WithMessages(resp.History()...),
-		ai.WithTools(approvable, deniable),
+		ai.WithTools(needsApproval),
 		ai.WithToolRestarts(restarts...),
-		ai.WithToolResponses(responses...),
 		ai.WithUse(ta),
 	)
 	if err != nil {
