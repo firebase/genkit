@@ -11,6 +11,7 @@ Define the flow with `@ai.flow()` so it's registered on the `Genkit` instance (t
 from fastapi import FastAPI
 from genkit import ActionRunContext, Genkit
 from genkit.plugins.fastapi import genkit_fastapi_handler
+from genkit.plugins.google_genai import GoogleAI
 
 app = FastAPI()
 ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.0-flash')
