@@ -121,11 +121,7 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
                         ? normalizedModel.config
                         : (normalizedModel.config ?? req.config),
                     },
-                    {
-                      context: ctx.context,
-                      abortSignal: ctx.abortSignal,
-                      onChunk: ctx.onChunk,
-                    }
+                    ctx
                   );
                 } catch (e2) {
                   lastError = e2;
