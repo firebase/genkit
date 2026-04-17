@@ -29,10 +29,7 @@ import {
 import * as clc from 'colorette';
 import { Command } from 'commander';
 import { writeFile } from 'fs/promises';
-import {
-  runWithEphemeralManager,
-  runWithManager,
-} from '../utils/manager-utils';
+import { runWithManager } from '../utils/manager-utils';
 
 interface EvalDatasetOptions {
   output?: string;
@@ -124,11 +121,7 @@ export const evalExtractData = new Command('eval:extractData')
       }
     };
 
-    if (runtimeCommand && runtimeCommand.length > 0) {
-      await runWithEphemeralManager(projectRoot, runtimeCommand, runAction);
-    } else {
-      await runWithManager(projectRoot, runAction);
-    }
+    await runWithManager(projectRoot, runAction, { runtimeCommand });
   });
 
 function toArray(input: any) {

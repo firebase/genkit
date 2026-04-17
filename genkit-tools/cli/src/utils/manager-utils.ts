@@ -63,8 +63,9 @@ export async function startManager(options: {
   corsOrigin?: string;
   experimentalReflectionV2?: boolean;
   reflectionV2Port?: number;
+  telemetryServerUrl?: string;
 }): Promise<BaseRuntimeManager> {
-  const telemetryServerUrl = await resolveTelemetryServer(options);
+  const telemetryServerUrl = options.telemetryServerUrl ?? await resolveTelemetryServer(options);
   const manager = RuntimeManager.create({
     telemetryServerUrl,
     manageHealth: options.manageHealth,
@@ -216,16 +217,60 @@ export async function waitForRuntime(
 /**
  * Runs the given function with a runtime manager.
  */
+export interface RunWithManagerOptions {
+  /** Command to start the runtime process. If provided, an ephemeral manager is used. */
+  runtimeCommand?: string[];
+  experimentalReflectionV2?: boolean;
+}
+
 export async function runWithManager(
   projectRoot: string,
-  fn: (manager: BaseRuntimeManager) => Promise<void>
+  fn: (manager: BaseRuntimeManager) => Promise<void>,
+  options?: RunWithManagerOptions
 ) {
+  const useEphemeral = options?.runtimeCommand && options.runtimeCommand.length > 0;
   let manager: BaseRuntimeManager;
+  const oldLevel = logger.level;
+
   try {
-    manager = await startManager({ projectRoot, manageHealth: false }); // Don't manage health in this case.
+    if (useEphemeral) {
+      const devEnv = await getDevEnvVars(projectRoot, {
+        experimentalReflectionV2: options?.experimentalReflectionV2 ?? true,
+      });
+      const { envVars, telemetryServerUrl, reflectionV2Port } = devEnv;
+
+      logger.level = 'warn';
+
+      const result = await startDevProcessManager(
+        projectRoot,
+        options!.runtimeCommand![0],
+        options!.runtimeCommand!.slice(1),
+        {
+          experimentalReflectionV2: options?.experimentalReflectionV2 ?? true,
+          healthCheck: true,
+          envVars,
+          telemetryServerUrl,
+          reflectionV2Port,
+          nonInteractive: true,
+        }
+      );
+      manager = result.manager;
+    } else {
+      manager = await startManager({ 
+        projectRoot, 
+        manageHealth: false,
+        experimentalReflectionV2: options?.experimentalReflectionV2,
+      });
+    }
   } catch (e) {
+    logger.error('Failed to start manager', e);
     process.exit(1);
+  } finally {
+    if (useEphemeral) {
+      logger.level = oldLevel;
+    }
   }
+
   try {
     await fn(manager);
   } catch (err) {
@@ -244,65 +289,9 @@ export async function runWithManager(
     }
     logger.error('Stack trace:');
     logger.error(`${error.stack}`);
-  }
-}
-
-export async function runWithEphemeralManager(
-  projectRoot: string,
-  runtimeCommand: string[],
-  fn: (manager: BaseRuntimeManager) => Promise<void>
-) {
-  const devEnv = await getDevEnvVars(projectRoot, {
-    experimentalReflectionV2: true,
-  });
-  const { envVars, telemetryServerUrl, reflectionV2Port } = devEnv;
-
-  process.env.GENKIT_TELEMETRY_SERVER = telemetryServerUrl;
-
-  const oldLevel = logger.level;
-  logger.level = 'warn';
-
-  let manager: BaseRuntimeManager;
-  let processPromise: Promise<void>;
-  try {
-    const result = await startDevProcessManager(
-      projectRoot,
-      runtimeCommand[0],
-      runtimeCommand.slice(1),
-      {
-        experimentalReflectionV2: true,
-        healthCheck: true,
-        envVars,
-        telemetryServerUrl,
-        reflectionV2Port,
-        nonInteractive: true,
-      }
-    );
-    manager = result.manager;
-    processPromise = result.processPromise;
   } finally {
-    logger.level = oldLevel;
-  }
-
-  try {
-    await fn(manager);
-  } catch (err) {
-    logger.error('Command exited with an Error:');
-    const error = err as GenkitToolsError;
-    if (typeof error.data === 'object') {
-      const errorStatus = error.data as Status;
-      const { code, details, message } = errorStatus;
-      logger.error(`\tCode: ${code}`);
-      logger.error(`\tMessage: ${message}`);
-      if (details?.traceId) {
-        logger.error(`\tTrace ID:${details.traceId}\n`);
-      }
-    } else {
-      logger.error(`\tMessage: ${error.data}\n`);
+    if (useEphemeral || manager) {
+      await manager.stop();
     }
-    logger.error('Stack trace:');
-    logger.error(`${error.stack}`);
-  } finally {
-    await manager.stop();
   }
 }
