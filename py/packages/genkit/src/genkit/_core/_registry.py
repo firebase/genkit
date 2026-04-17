@@ -679,6 +679,7 @@ class Registry:
                     if kind in self._entries and target in self._entries[kind]:
                         return await self._trigger_lazy_loading(self._entries[kind][target])
 
+                # On-demand resolution: target may not have been in init()'s registered set.
                 action = await plugin.resolve(kind, target)
                 if action is not None:
                     self.register_action_instance(action, namespace=plugin_name)
