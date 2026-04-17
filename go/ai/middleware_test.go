@@ -18,138 +18,183 @@ package ai
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"sync/atomic"
 	"testing"
 )
 
-// testMiddleware is a simple middleware for testing that tracks hook invocations.
-type testMiddleware struct {
-	BaseMiddleware
-	Label         string `json:"label"`
-	generateCalls int
-	modelCalls    int
-	toolCalls     int32 // atomic since tool hooks run in parallel
+// --- counter: a config whose BuildMiddleware tracks hook invocations ---
+
+type counterConfig struct {
+	Label string `json:"label,omitempty"`
+
+	// Plugin-level state lives on unexported fields and is preserved by
+	// the descriptor's value-copy across JSON-dispatch calls.
+	sharedGenerateCalls *int32
+	sharedModelCalls    *int32
+	sharedToolCalls     *int32
 }
 
-func (m *testMiddleware) Name() string { return "test" }
+func (counterConfig) Name() string { return "test/counter" }
 
-func (m *testMiddleware) New() Middleware {
-	return &testMiddleware{Label: m.Label}
+func (c counterConfig) New(ctx context.Context) (*Hooks, error) {
+	return &Hooks{
+		WrapGenerate: func(ctx context.Context, p *GenerateParams, next GenerateNext) (*ModelResponse, error) {
+			if c.sharedGenerateCalls != nil {
+				atomic.AddInt32(c.sharedGenerateCalls, 1)
+			}
+			return next(ctx, p)
+		},
+		WrapModel: func(ctx context.Context, p *ModelParams, next ModelNext) (*ModelResponse, error) {
+			if c.sharedModelCalls != nil {
+				atomic.AddInt32(c.sharedModelCalls, 1)
+			}
+			return next(ctx, p)
+		},
+		WrapTool: func(ctx context.Context, p *ToolParams, next ToolNext) (*MultipartToolResponse, error) {
+			if c.sharedToolCalls != nil {
+				atomic.AddInt32(c.sharedToolCalls, 1)
+			}
+			return next(ctx, p)
+		},
+	}, nil
 }
 
-func (m *testMiddleware) WrapGenerate(ctx context.Context, params *GenerateParams, next GenerateNext) (*ModelResponse, error) {
-	m.generateCalls++
-	return next(ctx, params)
-}
+// --- core descriptor tests ---
 
-func (m *testMiddleware) WrapModel(ctx context.Context, params *ModelParams, next ModelNext) (*ModelResponse, error) {
-	m.modelCalls++
-	return next(ctx, params)
-}
-
-func (m *testMiddleware) WrapTool(ctx context.Context, params *ToolParams, next ToolNext) (*ToolResponse, error) {
-	atomic.AddInt32(&m.toolCalls, 1)
-	return next(ctx, params)
-}
-
-func TestNewMiddlewareDesc(t *testing.T) {
-	proto := &testMiddleware{Label: "original"}
-	desc := NewMiddleware("test middleware", proto)
-
-	if desc.Name != "test" {
-		t.Errorf("got name %q, want %q", desc.Name, "test")
+func TestNewMiddleware_NameFromPrototype(t *testing.T) {
+	desc := NewMiddleware("tracks calls", counterConfig{})
+	if desc.Name != "test/counter" {
+		t.Errorf("got name %q, want %q", desc.Name, "test/counter")
 	}
-	if desc.Description != "test middleware" {
-		t.Errorf("got description %q, want %q", desc.Description, "test middleware")
-	}
-}
-
-func TestDefineAndLookupMiddleware(t *testing.T) {
-	r := newTestRegistry(t)
-	proto := &testMiddleware{Label: "original"}
-	DefineMiddleware(r, "test middleware", proto)
-
-	found := LookupMiddleware(r, "test")
-	if found == nil {
-		t.Fatal("expected to find middleware, got nil")
-	}
-	if found.Name != "test" {
-		t.Errorf("got name %q, want %q", found.Name, "test")
+	if desc.Description != "tracks calls" {
+		t.Errorf("got description %q, want %q", desc.Description, "tracks calls")
 	}
 }
 
-func TestLookupMiddlewareNotFound(t *testing.T) {
-	r := newTestRegistry(t)
-	found := LookupMiddleware(r, "nonexistent")
-	if found != nil {
-		t.Errorf("expected nil, got %v", found)
-	}
-}
-
-func TestConfigFromJSON(t *testing.T) {
-	proto := &testMiddleware{Label: "stable"}
-	desc := NewMiddleware("test middleware", proto)
-
-	handler, err := desc.newFromJSON([]byte(`{"label": "custom"}`))
+func TestBuildFromJSON(t *testing.T) {
+	desc := NewMiddleware("desc", counterConfig{})
+	mw, err := desc.buildFromJSON(testCtx, []byte(`{"label": "custom"}`))
 	if err != nil {
-		t.Fatalf("newFromJSON failed: %v", err)
+		t.Fatalf("buildFromJSON failed: %v", err)
 	}
-
-	tm, ok := handler.(*testMiddleware)
-	if !ok {
-		t.Fatalf("expected *testMiddleware, got %T", handler)
-	}
-	if tm.Label != "custom" {
-		t.Errorf("got label %q, want %q", tm.Label, "custom")
-	}
-	// Per-request state should be zeroed by New()
-	if tm.generateCalls != 0 {
-		t.Errorf("got generateCalls %d, want 0", tm.generateCalls)
+	if mw == nil || mw.WrapModel == nil {
+		t.Fatal("expected middleware with WrapModel hook")
 	}
 }
 
-func TestConfigFromJSONPreservesStableState(t *testing.T) {
-	// Simulate a plugin middleware with unexported stable state
-	proto := &stableStateMiddleware{apiKey: "secret123"}
-	desc := NewMiddleware("middleware with stable state", proto)
-
-	handler, err := desc.newFromJSON([]byte(`{"sampleRate": 0.5}`))
-	if err != nil {
-		t.Fatalf("newFromJSON failed: %v", err)
-	}
-
-	sm, ok := handler.(*stableStateMiddleware)
-	if !ok {
-		t.Fatalf("expected *stableStateMiddleware, got %T", handler)
-	}
-	if sm.apiKey != "secret123" {
-		t.Errorf("got apiKey %q, want %q", sm.apiKey, "secret123")
-	}
-	if sm.SampleRate != 0.5 {
-		t.Errorf("got SampleRate %f, want 0.5", sm.SampleRate)
+func TestBuildFromJSON_InvalidJSON(t *testing.T) {
+	desc := NewMiddleware("desc", counterConfig{})
+	_, err := desc.buildFromJSON(testCtx, []byte(`not-json`))
+	if err == nil {
+		t.Fatal("expected error from invalid JSON")
 	}
 }
+
+// --- plugin-level state: prototype unexported fields preserved across calls ---
+
+func TestPluginStateCarriedThroughPrototype(t *testing.T) {
+	// Simulate the plugin's Middlewares() building a prototype that holds
+	// an "expensive client" (here, a shared counter). JSON dispatch must
+	// preserve this plugin-level state across invocations.
+	var shared int32
+	desc := NewMiddleware("desc", counterConfig{sharedModelCalls: &shared})
+
+	r := newTestRegistry(t)
+	m := defineFakeModel(t, r, fakeModelConfig{})
+	desc.Register(r)
+
+	// Simulate Dev UI JSON dispatch: ref.Config is a map, not a typed config.
+	refs := []*MiddlewareRef{{Name: "test/counter", Config: map[string]any{"label": "dev-ui"}}}
+	for i := 0; i < 3; i++ {
+		_, err := GenerateWithRequest(testCtx, r, &GenerateActionOptions{
+			Model:    m.Name(),
+			Messages: []*Message{NewUserTextMessage("go")},
+			Use:      refs,
+		}, nil, nil)
+		assertNoError(t, err)
+	}
+	if got := atomic.LoadInt32(&shared); got != 3 {
+		t.Errorf("shared counter = %d, want 3 (plugin state should persist across JSON dispatches)", got)
+	}
+}
+
+// --- call-level state: each Generate gets fresh BuildMiddleware scope ---
+
+type perCallConfig struct {
+	checker func(n int32)
+}
+
+func (perCallConfig) Name() string { return "test/per-call" }
+
+func (c perCallConfig) New(ctx context.Context) (*Hooks, error) {
+	var counter int32
+	return &Hooks{
+		WrapModel: func(ctx context.Context, p *ModelParams, next ModelNext) (*ModelResponse, error) {
+			n := atomic.AddInt32(&counter, 1)
+			if c.checker != nil {
+				c.checker(n)
+			}
+			return next(ctx, p)
+		},
+	}, nil
+}
+
+func TestCallLevelStateIsolation(t *testing.T) {
+	r := newTestRegistry(t)
+	m := defineFakeModel(t, r, fakeModelConfig{})
+
+	cfg := perCallConfig{checker: func(n int32) {
+		if n != 1 {
+			t.Errorf("call-level counter leaked: got %d, want 1", n)
+		}
+	}}
+	for i := 0; i < 3; i++ {
+		_, err := Generate(testCtx, r, WithModel(m), WithPrompt("go"), WithUse(cfg))
+		assertNoError(t, err)
+	}
+}
+
+// --- pure Go usage: no registration required for local calls ---
+
+func TestWithUseNoRegistrationNeeded(t *testing.T) {
+	// The whole point: user creates a Genkit with no middleware plugins and
+	// still calls WithUse(middleware.Retry{...}). The config's BuildMiddleware
+	// method runs directly; the registry is never consulted.
+	r := newTestRegistry(t)
+	m := defineFakeModel(t, r, fakeModelConfig{})
+
+	var called int32
+	cfg := counterConfig{sharedModelCalls: &called}
+	// Note: no Register call anywhere.
+
+	_, err := Generate(testCtx, r, WithModel(m), WithPrompt("hi"), WithUse(cfg))
+	assertNoError(t, err)
+	if atomic.LoadInt32(&called) != 1 {
+		t.Errorf("expected 1 model-hook call, got %d", called)
+	}
+}
+
+// --- hook invocation: model, tool, generate ---
 
 func TestMiddlewareModelHook(t *testing.T) {
 	r := newTestRegistry(t)
 	m := defineFakeModel(t, r, fakeModelConfig{})
-	DefineMiddleware(r, "tracks calls", &testMiddleware{})
 
-	var modelHookCalled bool
-	mw := &hookTrackingMiddleware{
-		onModel: func() { modelHookCalled = true },
-	}
+	var called int32
+	tracker := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+		return &Hooks{
+			WrapModel: func(ctx context.Context, p *ModelParams, next ModelNext) (*ModelResponse, error) {
+				atomic.AddInt32(&called, 1)
+				return next(ctx, p)
+			},
+		}, nil
+	})
 
-	resp, err := Generate(testCtx, r,
-		WithModel(m),
-		WithPrompt("hello"),
-		WithUse(mw),
-	)
+	_, err := Generate(testCtx, r, WithModel(m), WithPrompt("hello"), WithUse(tracker))
 	assertNoError(t, err)
-	if resp == nil {
-		t.Fatal("expected response, got nil")
-	}
-	if !modelHookCalled {
+	if atomic.LoadInt32(&called) == 0 {
 		t.Error("expected model hook to be called")
 	}
 }
@@ -162,49 +207,85 @@ func TestMiddlewareToolHook(t *testing.T) {
 	})
 	defineFakeTool(t, r, "myTool", "A test tool")
 
-	var toolHookCalled int32
-	mw := &hookTrackingMiddleware{
-		onTool: func() { atomic.AddInt32(&toolHookCalled, 1) },
-	}
-	DefineMiddleware(r, "tracks calls", mw)
+	var called int32
+	tracker := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+		return &Hooks{
+			WrapTool: func(ctx context.Context, p *ToolParams, next ToolNext) (*MultipartToolResponse, error) {
+				atomic.AddInt32(&called, 1)
+				return next(ctx, p)
+			},
+		}, nil
+	})
 
 	_, err := Generate(testCtx, r,
 		WithModelName("test/toolModel"),
 		WithPrompt("use the tool"),
 		WithTools(ToolName("myTool")),
-		WithUse(mw),
+		WithUse(tracker),
 	)
 	assertNoError(t, err)
-	if atomic.LoadInt32(&toolHookCalled) == 0 {
+	if atomic.LoadInt32(&called) == 0 {
 		t.Error("expected tool hook to be called at least once")
 	}
 }
 
-func TestMiddlewareOrdering(t *testing.T) {
-	// First middleware is outermost
-	var order []string
+func TestMiddlewareGenerateHook(t *testing.T) {
 	r := newTestRegistry(t)
 	m := defineFakeModel(t, r, fakeModelConfig{})
 
-	mwA := &orderMiddleware{label: "A", order: &order}
-	mwB := &orderMiddleware{label: "B", order: &order}
-	DefineMiddleware(r, "middleware A", mwA)
-	DefineMiddleware(r, "middleware B", mwB)
+	var called int32
+	tracker := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+		return &Hooks{
+			WrapGenerate: func(ctx context.Context, p *GenerateParams, next GenerateNext) (*ModelResponse, error) {
+				atomic.AddInt32(&called, 1)
+				return next(ctx, p)
+			},
+		}, nil
+	})
+
+	_, err := Generate(testCtx, r, WithModel(m), WithPrompt("hello"), WithUse(tracker))
+	assertNoError(t, err)
+	if atomic.LoadInt32(&called) == 0 {
+		t.Error("expected generate hook to be called")
+	}
+}
+
+// --- ordering: first middleware wraps outermost ---
+
+func TestMiddlewareOrdering(t *testing.T) {
+	var mu sync.Mutex
+	var order []string
+	appendOrder := func(s string) {
+		mu.Lock()
+		defer mu.Unlock()
+		order = append(order, s)
+	}
+	tracker := func(label string) Middleware {
+		return MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+			return &Hooks{
+				WrapModel: func(ctx context.Context, p *ModelParams, next ModelNext) (*ModelResponse, error) {
+					appendOrder(label + "-before")
+					resp, err := next(ctx, p)
+					appendOrder(label + "-after")
+					return resp, err
+				},
+			}, nil
+		})
+	}
+
+	r := newTestRegistry(t)
+	m := defineFakeModel(t, r, fakeModelConfig{})
 
 	_, err := Generate(testCtx, r,
 		WithModel(m),
 		WithPrompt("hello"),
-		WithUse(
-			&orderMiddleware{label: "A", order: &order},
-			&orderMiddleware{label: "B", order: &order},
-		),
+		WithUse(tracker("A"), tracker("B")),
 	)
 	assertNoError(t, err)
 
-	// Expect: A-before, B-before, B-after, A-after (first is outermost)
-	want := []string{"A-model-before", "B-model-before", "B-model-after", "A-model-after"}
+	want := []string{"A-before", "B-before", "B-after", "A-after"}
 	if len(order) != len(want) {
-		t.Fatalf("got order %v, want %v", order, want)
+		t.Fatalf("got %v, want %v", order, want)
 	}
 	for i := range want {
 		if order[i] != want[i] {
@@ -213,74 +294,283 @@ func TestMiddlewareOrdering(t *testing.T) {
 	}
 }
 
-// --- helper middleware types for tests ---
+// --- MiddlewareFunc adapter basics ---
 
-// hookTrackingMiddleware uses callbacks to verify hooks are actually invoked.
-type hookTrackingMiddleware struct {
-	BaseMiddleware
-	onGenerate func()
-	onModel    func()
-	onTool     func()
-}
+func TestMiddlewareFunc(t *testing.T) {
+	r := newTestRegistry(t)
+	m := defineFakeModel(t, r, fakeModelConfig{})
 
-func (m *hookTrackingMiddleware) Name() string { return "hookTracking" }
+	var called bool
+	mw := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+		return &Hooks{
+			WrapGenerate: func(ctx context.Context, p *GenerateParams, next GenerateNext) (*ModelResponse, error) {
+				called = true
+				return next(ctx, p)
+			},
+		}, nil
+	})
 
-func (m *hookTrackingMiddleware) New() Middleware {
-	return &hookTrackingMiddleware{onGenerate: m.onGenerate, onModel: m.onModel, onTool: m.onTool}
-}
-
-func (m *hookTrackingMiddleware) WrapGenerate(ctx context.Context, params *GenerateParams, next GenerateNext) (*ModelResponse, error) {
-	if m.onGenerate != nil {
-		m.onGenerate()
+	_, err := Generate(testCtx, r, WithModel(m), WithPrompt("hello"), WithUse(mw))
+	assertNoError(t, err)
+	if !called {
+		t.Error("inline middleware hook not called")
 	}
-	return next(ctx, params)
 }
 
-func (m *hookTrackingMiddleware) WrapModel(ctx context.Context, params *ModelParams, next ModelNext) (*ModelResponse, error) {
-	if m.onModel != nil {
-		m.onModel()
+func TestMiddlewareFuncCoexist(t *testing.T) {
+	// Two MiddlewareFunc adapter instances should be able to coexist in a
+	// single WithUse call.
+	r := newTestRegistry(t)
+	m := defineFakeModel(t, r, fakeModelConfig{})
+
+	var a, b int32
+	useA := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+		return &Hooks{WrapModel: func(ctx context.Context, p *ModelParams, next ModelNext) (*ModelResponse, error) {
+			atomic.AddInt32(&a, 1)
+			return next(ctx, p)
+		}}, nil
+	})
+	useB := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+		return &Hooks{WrapModel: func(ctx context.Context, p *ModelParams, next ModelNext) (*ModelResponse, error) {
+			atomic.AddInt32(&b, 1)
+			return next(ctx, p)
+		}}, nil
+	})
+
+	_, err := Generate(testCtx, r, WithModel(m), WithPrompt("hi"), WithUse(useA, useB))
+	assertNoError(t, err)
+	if atomic.LoadInt32(&a) != 1 || atomic.LoadInt32(&b) != 1 {
+		t.Errorf("expected both hooks called once, got a=%d b=%d", a, b)
 	}
-	return next(ctx, params)
 }
 
-func (m *hookTrackingMiddleware) WrapTool(ctx context.Context, params *ToolParams, next ToolNext) (*ToolResponse, error) {
-	if m.onTool != nil {
-		m.onTool()
+// --- optional hooks: nil hook fields must pass through ---
+
+func TestNilHookFieldsPassThrough(t *testing.T) {
+	r := newTestRegistry(t)
+	m := defineFakeModel(t, r, fakeModelConfig{})
+
+	passthrough := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+		return &Hooks{}, nil
+	})
+
+	resp, err := Generate(testCtx, r, WithModel(m), WithPrompt("hi"), WithUse(passthrough))
+	assertNoError(t, err)
+	if resp == nil {
+		t.Fatal("expected response")
 	}
-	return next(ctx, params)
 }
 
-// stableStateMiddleware has unexported stable state preserved by New().
-type stableStateMiddleware struct {
-	BaseMiddleware
-	SampleRate float64 `json:"sampleRate"`
-	apiKey     string
+// --- streaming: middleware-emitted chunks accumulate with model chunks ---
+
+func TestMiddlewareStreamsAccumulateWithModel(t *testing.T) {
+	r := newTestRegistry(t)
+	m := defineFakeModel(t, r, fakeModelConfig{
+		name:    "test/streamModel",
+		handler: streamingModelHandler([]string{"model chunk"}, "done"),
+	})
+
+	midChunk := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+		return &Hooks{
+			WrapGenerate: func(ctx context.Context, p *GenerateParams, next GenerateNext) (*ModelResponse, error) {
+				if p.Callback != nil {
+					if err := p.Callback(ctx, &ModelResponseChunk{
+						Content: []*Part{NewTextPart("middleware chunk ")},
+					}); err != nil {
+						return nil, err
+					}
+				}
+				return next(ctx, p)
+			},
+		}, nil
+	})
+
+	var chunks []*ModelResponseChunk
+	_, err := Generate(testCtx, r,
+		WithModel(m),
+		WithPrompt("go"),
+		WithUse(midChunk),
+		WithStreaming(func(_ context.Context, c *ModelResponseChunk) error {
+			chunks = append(chunks, c)
+			return nil
+		}),
+	)
+	assertNoError(t, err)
+
+	if len(chunks) != 2 {
+		t.Fatalf("got %d chunks, want 2", len(chunks))
+	}
 }
 
-func (m *stableStateMiddleware) Name() string { return "stableState" }
+// --- tool contribution: Tools on *Middleware ---
 
-func (m *stableStateMiddleware) New() Middleware {
-	return &stableStateMiddleware{apiKey: m.apiKey}
+func TestMiddlewareContributesTool(t *testing.T) {
+	r := newTestRegistry(t)
+	defineFakeModel(t, r, fakeModelConfig{
+		name:    "test/toolModel",
+		handler: toolCallingModelHandler("mw/tool", map[string]any{"value": "x"}, "done"),
+	})
+
+	injectTool := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+		return &Hooks{
+			Tools: []Tool{NewTool("mw/tool", "injected",
+				func(tc *ToolContext, in struct {
+					Value string `json:"value"`
+				}) (string, error) {
+					return "ok", nil
+				})},
+		}, nil
+	})
+
+	_, err := Generate(testCtx, r,
+		WithModelName("test/toolModel"),
+		WithPrompt("use it"),
+		WithUse(injectTool),
+	)
+	assertNoError(t, err)
 }
 
-// orderMiddleware tracks the order of WrapModel hook invocations.
-type orderMiddleware struct {
-	BaseMiddleware
-	label string
-	order *[]string
+// --- duplicate tool collision: two middleware with same tool name ---
+
+func TestDuplicateMiddlewareToolRejected(t *testing.T) {
+	r := newTestRegistry(t)
+	m := defineFakeModel(t, r, fakeModelConfig{})
+
+	makeInjector := func() Middleware {
+		return MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+			return &Hooks{
+				Tools: []Tool{NewTool("dup/tool", "d",
+					func(tc *ToolContext, in struct{}) (string, error) { return "x", nil })},
+			}, nil
+		})
+	}
+
+	_, err := Generate(testCtx, r, WithModel(m), WithPrompt("hi"),
+		WithUse(makeInjector(), makeInjector()))
+	if err == nil {
+		t.Fatal("expected duplicate tool error, got nil")
+	}
 }
 
-func (m *orderMiddleware) Name() string { return "order-" + m.label }
+// --- error propagation from BuildMiddleware ---
 
-func (m *orderMiddleware) New() Middleware {
-	return &orderMiddleware{label: m.label, order: m.order}
+func TestBuildMiddlewareErrorPropagates(t *testing.T) {
+	r := newTestRegistry(t)
+	m := defineFakeModel(t, r, fakeModelConfig{})
+
+	bad := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+		return nil, errors.New("boom")
+	})
+
+	_, err := Generate(testCtx, r, WithModel(m), WithPrompt("hi"), WithUse(bad))
+	if err == nil {
+		t.Fatal("expected BuildMiddleware error, got nil")
+	}
 }
 
-func (m *orderMiddleware) WrapModel(ctx context.Context, params *ModelParams, next ModelNext) (*ModelResponse, error) {
-	*m.order = append(*m.order, m.label+"-model-before")
-	resp, err := next(ctx, params)
-	*m.order = append(*m.order, m.label+"-model-after")
-	return resp, err
+// --- tool interrupt from WrapTool ---
+
+func TestWrapToolInterrupts(t *testing.T) {
+	r := newTestRegistry(t)
+	defineFakeModel(t, r, fakeModelConfig{
+		name:    "test/toolModel",
+		handler: toolCallingModelHandler("myTool", map[string]any{"value": "x"}, "done"),
+	})
+	defineFakeTool(t, r, "myTool", "A test tool")
+
+	interrupter := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+		return &Hooks{
+			WrapTool: func(ctx context.Context, p *ToolParams, next ToolNext) (*MultipartToolResponse, error) {
+				return nil, NewToolInterruptError(map[string]any{"reason": "blocked"})
+			},
+		}, nil
+	})
+
+	resp, err := Generate(testCtx, r,
+		WithModelName("test/toolModel"),
+		WithPrompt("use it"),
+		WithTools(ToolName("myTool")),
+		WithUse(interrupter),
+	)
+	assertNoError(t, err)
+	if resp.FinishReason != "interrupted" {
+		t.Errorf("expected FinishReason=interrupted, got %q", resp.FinishReason)
+	}
+	if len(resp.Interrupts()) == 0 {
+		t.Error("expected at least one interrupt part in response")
+	}
+}
+
+// --- WrapGenerate fires per tool-loop iteration ---
+
+func TestGenerateHookFiresEachIteration(t *testing.T) {
+	r := newTestRegistry(t)
+	defineFakeModel(t, r, fakeModelConfig{
+		name:    "test/toolLoop",
+		handler: toolCallingModelHandler("myTool", map[string]any{"value": "x"}, "done"),
+	})
+	defineFakeTool(t, r, "myTool", "A test tool")
+
+	var iters int32
+	tracker := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+		return &Hooks{
+			WrapGenerate: func(ctx context.Context, p *GenerateParams, next GenerateNext) (*ModelResponse, error) {
+				atomic.AddInt32(&iters, 1)
+				return next(ctx, p)
+			},
+		}, nil
+	})
+
+	_, err := Generate(testCtx, r,
+		WithModelName("test/toolLoop"),
+		WithPrompt("use it"),
+		WithTools(ToolName("myTool")),
+		WithUse(tracker),
+	)
+	assertNoError(t, err)
+	if got := atomic.LoadInt32(&iters); got < 2 {
+		t.Errorf("expected WrapGenerate to fire >=2 times, got %d", got)
+	}
+}
+
+// --- WrapTool metadata survives round trip ---
+
+func TestWrapToolPreservesMetadata(t *testing.T) {
+	r := newTestRegistry(t)
+	defineFakeModel(t, r, fakeModelConfig{
+		name:    "test/toolModel",
+		handler: toolCallingModelHandler("myTool", map[string]any{"value": "x"}, "done"),
+	})
+	defineFakeTool(t, r, "myTool", "A test tool")
+
+	var sawMetadata map[string]any
+	reader := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+		return &Hooks{
+			WrapTool: func(ctx context.Context, p *ToolParams, next ToolNext) (*MultipartToolResponse, error) {
+				resp, err := next(ctx, p)
+				if err != nil {
+					return nil, err
+				}
+				if resp.Metadata == nil {
+					resp.Metadata = map[string]any{}
+				}
+				resp.Metadata["traced"] = true
+				sawMetadata = resp.Metadata
+				return resp, nil
+			},
+		}, nil
+	})
+
+	_, err := Generate(testCtx, r,
+		WithModelName("test/toolModel"),
+		WithPrompt("use it"),
+		WithTools(ToolName("myTool")),
+		WithUse(reader),
+	)
+	assertNoError(t, err)
+	if sawMetadata == nil || sawMetadata["traced"] != true {
+		t.Errorf("metadata not threaded, got %v", sawMetadata)
+	}
 }
 
 var testCtx = context.Background()

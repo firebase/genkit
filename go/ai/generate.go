@@ -219,26 +219,14 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		return nil, core.NewError(core.NOT_FOUND, "ai.GenerateWithRequest: model %q not found", opts.Model)
 	}
 
-	var mws []Middleware
-	if len(opts.Use) > 0 {
-		mws = make([]Middleware, 0, len(opts.Use))
-		for _, ref := range opts.Use {
-			desc := LookupMiddleware(r, ref.Name)
-			if desc == nil {
-				return nil, core.NewError(core.NOT_FOUND, "ai.GenerateWithRequest: middleware %q not found", ref.Name)
-			}
-			configJSON, err := json.Marshal(ref.Config)
-			if err != nil {
-				return nil, core.NewError(core.INTERNAL, "ai.GenerateWithRequest: failed to marshal config for middleware %q: %v", ref.Name, err)
-			}
-			mw, err := desc.newFromJSON(configJSON)
-			if err != nil {
-				return nil, core.NewError(core.INVALID_ARGUMENT, "ai.GenerateWithRequest: failed to create middleware %q: %v", ref.Name, err)
-			}
-			mws = append(mws, mw)
-		}
+	mws, err := resolveRefs(ctx, r, opts.Use)
+	if err != nil {
+		return nil, err
 	}
 
+	// Tools contributed by middleware bundles are registered on a child
+	// registry so this Generate() call sees them while outer callers do not.
+	// Duplicate names across multiple middleware are rejected explicitly.
 	toolDefMap := make(map[string]*ToolDefinition)
 	for _, t := range opts.Tools {
 		if _, ok := toolDefMap[t]; ok {
@@ -251,6 +239,27 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		}
 
 		toolDefMap[t] = tool.Definition()
+	}
+	var middlewareTools []Tool
+	for _, mw := range mws {
+		if mw == nil {
+			continue
+		}
+		for _, t := range mw.Tools {
+			if _, ok := toolDefMap[t.Name()]; ok {
+				return nil, core.NewError(core.INVALID_ARGUMENT, "ai.GenerateWithRequest: tool %q is contributed by middleware but already declared elsewhere", t.Name())
+			}
+			toolDefMap[t.Name()] = t.Definition()
+			middlewareTools = append(middlewareTools, t)
+		}
+	}
+	if len(middlewareTools) > 0 {
+		if !r.IsChild() {
+			r = r.NewChild()
+		}
+		for _, t := range middlewareTools {
+			t.Register(r)
+		}
 	}
 	toolDefs := make([]*ToolDefinition, 0, len(toolDefMap))
 	for _, t := range toolDefMap {
@@ -322,28 +331,28 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		fn = m.Generate
 	}
 
-	if len(mws) > 0 {
-		modelHook := func(next ModelFunc) ModelFunc {
-			wrapped := next
-			for i := len(mws) - 1; i >= 0; i-- {
-				h := mws[i]
-				inner := wrapped
-				wrapped = func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
-					return h.WrapModel(ctx, &ModelParams{Request: req, Callback: cb}, func(ctx context.Context, params *ModelParams) (*ModelResponse, error) {
-						return inner(ctx, params.Request, params.Callback)
-					})
-				}
-			}
-			return wrapped
-		}
-		mmws = append([]ModelMiddleware{modelHook}, mmws...)
-	}
+	// Build the full hook chains once: wrapping the model function with
+	// WrapModel hooks from middleware, and wrapping the generate iteration
+	// with WrapGenerate hooks. These chains are reused across every tool-loop
+	// iteration rather than rebuilt each turn.
+	fn = buildModelChain(mws, fn)
 	fn = core.ChainMiddleware(mmws...)(fn)
+
+	var streamingHandler StreamingFormatHandler
+	if sfh, ok := formatHandler.(StreamingFormatHandler); ok {
+		streamingHandler = sfh
+	}
+
+	runTool := buildToolRunner(mws)
 
 	// Inline recursive helper function that captures variables from parent scope.
 	var generate func(context.Context, *ModelRequest, int, int) (*ModelResponse, error)
+	var runGenerate func(context.Context, *GenerateParams) (*ModelResponse, error)
 
-	generate = func(ctx context.Context, req *ModelRequest, currentTurn int, messageIndex int) (*ModelResponse, error) {
+	runGenerate = func(ctx context.Context, params *GenerateParams) (*ModelResponse, error) {
+		req := params.Request
+		currentTurn := params.Iteration
+		messageIndex := params.MessageIndex
 		spanMetadata := &tracing.SpanMetadata{
 			Name:    "generate",
 			Type:    "util",
@@ -354,11 +363,6 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 			var wrappedCb ModelStreamCallback
 			currentRole := RoleModel
 			currentIndex := messageIndex
-
-			var streamingHandler StreamingFormatHandler
-			if sfh, ok := formatHandler.(StreamingFormatHandler); ok {
-				streamingHandler = sfh
-			}
 
 			if cb != nil {
 				wrappedCb = func(ctx context.Context, chunk *ModelResponseChunk) error {
@@ -381,7 +385,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 			// current generate span (lifecycle: generate > tool > generate >
 			// model > tool).
 			if currentTurn == 0 && opts.Resume != nil && (len(opts.Resume.Respond) > 0 || len(opts.Resume.Restart) > 0) {
-				resumeOutput, err := handleResumeOption(ctx, r, opts, mws)
+				resumeOutput, err := handleResumeOption(ctx, r, opts, runTool)
 				if err != nil {
 					return nil, err
 				}
@@ -444,7 +448,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 				return nil, core.NewError(core.ABORTED, "exceeded maximum tool call iterations (%d)", maxTurns)
 			}
 
-			newReq, interruptMsg, err := handleToolRequests(ctx, r, req, resp, wrappedCb, currentIndex, mws)
+			newReq, interruptMsg, err := handleToolRequests(ctx, r, req, resp, wrappedCb, currentIndex, runTool)
 			if err != nil {
 				return nil, err
 			}
@@ -462,29 +466,85 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		})
 	}
 
-	// Wrap generate with the Generate hook chain from middleware.
-	if len(mws) > 0 {
-		innerGenerate := generate
-		generate = func(ctx context.Context, req *ModelRequest, currentTurn int, messageIndex int) (*ModelResponse, error) {
-			innerFn := func(ctx context.Context, params *GenerateParams) (*ModelResponse, error) {
-				return innerGenerate(ctx, params.Request, currentTurn, messageIndex)
-			}
-			for i := len(mws) - 1; i >= 0; i-- {
-				h := mws[i]
-				next := innerFn
-				innerFn = func(ctx context.Context, params *GenerateParams) (*ModelResponse, error) {
-					return h.WrapGenerate(ctx, params, next)
-				}
-			}
-			return innerFn(ctx, &GenerateParams{
-				Options:   opts,
-				Request:   req,
-				Iteration: currentTurn,
-			})
-		}
+	// Compose WrapGenerate hooks once; this chain is invoked for every
+	// tool-loop iteration.
+	hookedGenerate := buildGenerateChain(mws, runGenerate)
+
+	generate = func(ctx context.Context, req *ModelRequest, currentTurn int, messageIndex int) (*ModelResponse, error) {
+		return hookedGenerate(ctx, &GenerateParams{
+			Options:      opts,
+			Request:      req,
+			Iteration:    currentTurn,
+			MessageIndex: messageIndex,
+			Callback:     cb,
+		})
 	}
 
 	return generate(ctx, req, 0, 0)
+}
+
+// buildGenerateChain composes the WrapGenerate hooks from mws (outer-to-inner)
+// around run. Middleware with a nil WrapGenerate hook is skipped.
+func buildGenerateChain(mws []*Hooks, run func(ctx context.Context, params *GenerateParams) (*ModelResponse, error)) func(ctx context.Context, params *GenerateParams) (*ModelResponse, error) {
+	chain := run
+	for i := len(mws) - 1; i >= 0; i-- {
+		mw := mws[i]
+		if mw == nil || mw.WrapGenerate == nil {
+			continue
+		}
+		hook := mw.WrapGenerate
+		next := chain
+		chain = func(ctx context.Context, params *GenerateParams) (*ModelResponse, error) {
+			return hook(ctx, params, next)
+		}
+	}
+	return chain
+}
+
+// buildModelChain composes the WrapModel hooks from mws (outer-to-inner)
+// around fn. Middleware with a nil WrapModel hook is skipped.
+func buildModelChain(mws []*Hooks, fn ModelFunc) ModelFunc {
+	chain := fn
+	for i := len(mws) - 1; i >= 0; i-- {
+		mw := mws[i]
+		if mw == nil || mw.WrapModel == nil {
+			continue
+		}
+		hook := mw.WrapModel
+		next := chain
+		chain = func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			return hook(ctx, &ModelParams{Request: req, Callback: cb},
+				func(ctx context.Context, params *ModelParams) (*ModelResponse, error) {
+					return next(ctx, params.Request, params.Callback)
+				})
+		}
+	}
+	return chain
+}
+
+// buildToolRunner composes the WrapTool hooks from mws (outer-to-inner) into
+// a single function that executes a tool. The returned function is safe to
+// invoke from concurrent goroutines; each invocation threads its own params
+// through the shared hook chain.
+func buildToolRunner(mws []*Hooks) func(ctx context.Context, tool Tool, req *ToolRequest) (*MultipartToolResponse, error) {
+	base := func(ctx context.Context, params *ToolParams) (*MultipartToolResponse, error) {
+		return params.Tool.RunRawMultipart(ctx, params.Request.Input)
+	}
+	chain := base
+	for i := len(mws) - 1; i >= 0; i-- {
+		mw := mws[i]
+		if mw == nil || mw.WrapTool == nil {
+			continue
+		}
+		hook := mw.WrapTool
+		next := chain
+		chain = func(ctx context.Context, params *ToolParams) (*MultipartToolResponse, error) {
+			return hook(ctx, params, next)
+		}
+	}
+	return func(ctx context.Context, tool Tool, req *ToolRequest) (*MultipartToolResponse, error) {
+		return chain(ctx, &ToolParams{Request: req, Tool: tool})
+	}
 }
 
 // Generate generates a model response based on the provided options.
@@ -515,14 +575,6 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 	toolNames, dynamicTools, err := resolveUniqueTools(r, genOpts.Tools)
 	if err != nil {
 		return nil, err
-	}
-
-	// Collect tools provided by middleware.
-	for _, mw := range genOpts.Use {
-		for _, t := range mw.Tools() {
-			dynamicTools = append(dynamicTools, t)
-			toolNames = append(toolNames, t.Name())
-		}
 	}
 
 	if len(dynamicTools) > 0 {
@@ -623,15 +675,12 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 		}
 	}
 
-	if len(genOpts.Use) > 0 {
-		for _, mw := range genOpts.Use {
-			ref, newR, err := middlewareToRef(r, mw)
-			if err != nil {
-				return nil, core.NewError(core.INTERNAL, "ai.Generate: %v", err)
-			}
-			r = newR
-			actionOpts.Use = append(actionOpts.Use, ref)
-		}
+	refs, err := configsToRefs(genOpts.Use)
+	if err != nil {
+		return nil, err
+	}
+	if len(refs) > 0 {
+		actionOpts.Use = refs
 	}
 
 	processedMessages, err := processResources(ctx, r, messages)
@@ -868,10 +917,14 @@ func clone[T any](obj *T) *T {
 	return &newObj
 }
 
+// toolRunnerFunc runs a tool through the WrapTool hook chain and returns the
+// raw [MultipartToolResponse]. Returned by [buildToolRunner].
+type toolRunnerFunc = func(ctx context.Context, tool Tool, req *ToolRequest) (*MultipartToolResponse, error)
+
 // handleToolRequests processes any tool requests in the response, returning
 // either a new request to continue the conversation or nil if no tool requests
 // need handling.
-func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback, messageIndex int, mws []Middleware) (*ModelRequest, *Message, error) {
+func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback, messageIndex int, runTool toolRunnerFunc) (*ModelRequest, *Message, error) {
 	toolCount := len(resp.ToolRequests())
 	if toolCount == 0 {
 		return nil, nil, nil
@@ -894,7 +947,7 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 				return
 			}
 
-			multipartResp, err := runToolWithMiddleware(ctx, tool, toolReq, mws)
+			multipartResp, err := runTool(ctx, tool, toolReq)
 			if err != nil {
 				var tie *toolInterruptError
 				if errors.As(err, &tie) {
@@ -975,46 +1028,6 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 	newReq.Messages = append(slices.Clone(req.Messages), resp.Message, toolMsg)
 
 	return newReq, nil, nil
-}
-
-// runToolWithMiddleware runs a tool, wrapping the execution with WrapTool hooks from middleware.
-func runToolWithMiddleware(ctx context.Context, tool Tool, toolReq *ToolRequest, mws []Middleware) (*MultipartToolResponse, error) {
-	if len(mws) == 0 {
-		return tool.RunRawMultipart(ctx, toolReq.Input)
-	}
-
-	// Capture metadata from the raw tool response so it isn't lost through
-	// the ToolResponse conversion (ToolResponse has no Metadata field).
-	var toolMetadata map[string]any
-
-	inner := func(ctx context.Context, params *ToolParams) (*ToolResponse, error) {
-		resp, err := params.Tool.RunRawMultipart(ctx, params.Request.Input)
-		if err != nil {
-			return nil, err
-		}
-		toolMetadata = resp.Metadata
-		return &ToolResponse{
-			Name:    params.Request.Name,
-			Ref:     params.Request.Ref,
-			Output:  resp.Output,
-			Content: resp.Content,
-		}, nil
-	}
-
-	for i := len(mws) - 1; i >= 0; i-- {
-		h := mws[i]
-		next := inner
-		inner = func(ctx context.Context, params *ToolParams) (*ToolResponse, error) {
-			return h.WrapTool(ctx, params, next)
-		}
-	}
-
-	toolResp, err := inner(ctx, &ToolParams{Request: toolReq, Tool: tool})
-	if err != nil {
-		return nil, err
-	}
-
-	return &MultipartToolResponse{Output: toolResp.Output, Content: toolResp.Content, Metadata: toolMetadata}, nil
 }
 
 // Text returns the contents of the first candidate in a
@@ -1256,7 +1269,7 @@ func (m ModelRef) Config() any {
 // handleResumedToolRequest resolves a tool request from a previous, interrupted model turn,
 // when generation is being resumed. It determines the outcome of the tool request based on
 // pending output, or explicit 'respond' or 'restart' directives in the resume options.
-func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *GenerateActionOptions, p *Part, mws []Middleware) (*resumedToolRequestOutput, error) {
+func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *GenerateActionOptions, p *Part, runTool toolRunnerFunc) (*resumedToolRequestOutput, error) {
 	if p == nil || !p.IsToolRequest() {
 		return nil, core.NewError(core.INVALID_ARGUMENT, "handleResumedToolRequest: part is not a tool request")
 	}
@@ -1349,7 +1362,7 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 					Ref:   restartPart.ToolRequest.Ref,
 					Input: restartPart.ToolRequest.Input,
 				}
-				multipartResp, err := runToolWithMiddleware(resumedCtx, tool, restartToolReq, mws)
+				multipartResp, err := runTool(resumedCtx, tool, restartToolReq)
 				if err != nil {
 					var tie *toolInterruptError
 					if errors.As(err, &tie) {
@@ -1376,9 +1389,10 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 				}
 
 				newToolResp := NewToolResponsePart(&ToolResponse{
-					Name:   restartPart.ToolRequest.Name,
-					Ref:    restartPart.ToolRequest.Ref,
-					Output: multipartResp.Output,
+					Name:    restartPart.ToolRequest.Name,
+					Ref:     restartPart.ToolRequest.Ref,
+					Output:  multipartResp.Output,
+					Content: multipartResp.Content,
 				})
 
 				return &resumedToolRequestOutput{
@@ -1398,7 +1412,7 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 
 // handleResumeOption amends message history to handle `resume` arguments.
 // It returns the amended history.
-func handleResumeOption(ctx context.Context, r api.Registry, genOpts *GenerateActionOptions, middlewareHandlers []Middleware) (*resumeOptionOutput, error) {
+func handleResumeOption(ctx context.Context, r api.Registry, genOpts *GenerateActionOptions, runTool toolRunnerFunc) (*resumeOptionOutput, error) {
 	if genOpts.Resume == nil || (len(genOpts.Resume.Respond) == 0 && len(genOpts.Resume.Restart) == 0) {
 		return &resumeOptionOutput{revisedRequest: genOpts}, nil
 	}
@@ -1434,7 +1448,7 @@ func handleResumeOption(ctx context.Context, r api.Registry, genOpts *GenerateAc
 		toolReqCount++
 
 		go func(idx int, p *Part) {
-			output, err := handleResumedToolRequest(ctx, r, genOpts, p, middlewareHandlers)
+			output, err := handleResumedToolRequest(ctx, r, genOpts, p, runTool)
 			resultChan <- result[*resumedToolRequestOutput]{
 				index: idx,
 				value: output,

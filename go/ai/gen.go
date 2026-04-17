@@ -235,8 +235,8 @@ type MiddlewareDesc struct {
 	// Metadata contains additional context for the middleware.
 	Metadata map[string]any `json:"metadata,omitempty"`
 	// Name is the middleware's unique identifier.
-	Name        string `json:"name,omitempty"`
-	newFromJSON middlewareFactory
+	Name          string `json:"name,omitempty"`
+	buildFromJSON middlewareFactoryFunc
 }
 
 // MiddlewareRef is a serializable reference to a registered middleware with config.
