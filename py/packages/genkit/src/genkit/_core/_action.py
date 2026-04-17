@@ -19,6 +19,7 @@
 import asyncio
 import inspect
 import json
+import re
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable, Generator, Mapping
 from contextlib import contextmanager
@@ -245,18 +246,18 @@ def parse_dap_qualified_name(name: str) -> DapQualifiedName | None:
     Used when the action key kind is ``dynamic-action-provider`` and the name
     references a nested action exposed by a provider (e.g. MCP tools).
 
+    Pattern: ``[provider]:[inner_kind]/[inner_name]`` — no slashes in the
+    provider segment (``plugin/foo`` is not a valid provider host).
+
     Returns:
         A :class:`DapQualifiedName` if the string matches; otherwise ``None`` so
         callers can treat the name as a plain dynamic-action-provider id.
     """
-    if ':' not in name or '/' not in name:
+    # Pattern: [provider]:[inner_kind]/[inner_name]; no '/' or ':' in provider.
+    match = re.match(r'^([^/:]+):([^/:]+)/(.+)$', name)
+    if not match:
         return None
-    colon = name.index(':')
-    provider = name[:colon]
-    rest = name[colon + 1 :]
-    if '/' not in rest:
-        return None
-    inner_kind, inner_name = rest.split('/', 1)
+    provider, inner_kind, inner_name = match.groups()
     if not provider or not inner_kind or not inner_name:
         return None
     return DapQualifiedName(provider, inner_kind, inner_name)
