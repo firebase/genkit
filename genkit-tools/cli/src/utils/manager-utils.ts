@@ -65,7 +65,8 @@ export async function startManager(options: {
   reflectionV2Port?: number;
   telemetryServerUrl?: string;
 }): Promise<BaseRuntimeManager> {
-  const telemetryServerUrl = options.telemetryServerUrl ?? await resolveTelemetryServer(options);
+  const telemetryServerUrl =
+    options.telemetryServerUrl ?? (await resolveTelemetryServer(options));
   const manager = RuntimeManager.create({
     telemetryServerUrl,
     manageHealth: options.manageHealth,
@@ -228,7 +229,8 @@ export async function runWithManager(
   fn: (manager: BaseRuntimeManager) => Promise<void>,
   options?: RunWithManagerOptions
 ) {
-  const useEphemeral = options?.runtimeCommand && options.runtimeCommand.length > 0;
+  const useEphemeral =
+    options?.runtimeCommand && options.runtimeCommand.length > 0;
   let manager: BaseRuntimeManager;
   const oldLevel = logger.level;
 
@@ -256,8 +258,8 @@ export async function runWithManager(
       );
       manager = result.manager;
     } else {
-      manager = await startManager({ 
-        projectRoot, 
+      manager = await startManager({
+        projectRoot,
         manageHealth: false,
         experimentalReflectionV2: options?.experimentalReflectionV2,
       });
