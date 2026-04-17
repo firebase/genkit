@@ -292,7 +292,7 @@ export async function runWithManager(
     logger.error('Stack trace:');
     logger.error(`${error.stack}`);
   } finally {
-    if (useEphemeral || manager) {
+    if (manager) {
       await manager.stop();
     }
   }
