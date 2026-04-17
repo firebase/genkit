@@ -242,3 +242,56 @@ async def test_wildcard_tools_in_generate() -> None:
 
     assert response.text == 'finished'
     assert call_log == ['a:hi']
+
+
+@pytest.mark.asyncio
+async def test_wildcard_tools_avoids_shadowing_conflict() -> None:
+    """Explicit wildcard provider paths should not be shadowed by earlier providers."""
+    ai = Genkit()
+    pm, _ = define_programmable_model(ai)
+
+    call_log: list[str] = []
+
+    class Inp(BaseModel):
+        x: str
+
+    async def echo1_fn(inp: Inp) -> str:
+        call_log.append('mcp1')
+        return 'echo 1'
+
+    async def echo2_fn(inp: Inp) -> str:
+        call_log.append('mcp2')
+        return 'echo 2'
+
+    # Detached Actions (not registered in root registry directly)
+    echo1_action = Action(name='echo', kind=ActionKind.TOOL, fn=echo1_fn, metadata={'name': 'echo'})
+    echo2_action = Action(name='echo', kind=ActionKind.TOOL, fn=echo2_fn, metadata={'name': 'echo'})
+
+    async def dap1_fn() -> DapValue:
+        return {'tool': [echo1_action]}
+
+    async def dap2_fn() -> DapValue:
+        return {'tool': [echo2_action]}
+
+    # Register mcp1 first. If resolution falls back to an unqualified lookup, mcp1 will "win".
+    ai.define_dynamic_action_provider('mcp1', dap1_fn)
+    ai.define_dynamic_action_provider('mcp2', dap2_fn)
+
+    # The model calls the 'echo' tool
+    pm.responses = [
+        _tool_call_response('echo', {'x': 'hello'}),
+        _text_response('finished'),
+    ]
+
+    response = await ai.generate(
+        model='programmableModel',
+        prompt='use echo',
+        # Crucially, we explicitly request tools from mcp2 ONLY
+        tools=['mcp2:tool/*'],
+    )
+
+    assert response.text == 'finished'
+
+    # If the bug is present, this will fail because it will fall back to the unqualified
+    # global loop and find mcp1's 'echo' tool instead.
+    assert call_log == ['mcp2']
