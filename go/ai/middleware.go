@@ -118,8 +118,6 @@ type middlewareFactoryFunc = func(ctx context.Context, configJSON []byte) (*Hook
 // descriptors are stored. The reflection API lists values under this prefix.
 const middlewareRegistryPrefix = "/middleware/"
 
-// middlewareRegistryKey returns the registry key for a middleware with the
-// given name.
 func middlewareRegistryKey(name string) string {
 	return middlewareRegistryPrefix + name
 }
@@ -177,7 +175,6 @@ type MiddlewareFunc func(ctx context.Context) (*Hooks, error)
 // in [resolveRefs] and never goes through a name-keyed registry lookup.
 func (MiddlewareFunc) Name() string { return "inline" }
 
-// New invokes the adapted factory to produce a fresh [Hooks] bundle.
 func (f MiddlewareFunc) New(ctx context.Context) (*Hooks, error) { return f(ctx) }
 
 // LookupMiddleware returns the registered middleware descriptor with the

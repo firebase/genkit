@@ -196,40 +196,6 @@ func toolCallingModelHandler(toolName string, toolInput map[string]any, finalRes
 	}
 }
 
-// parallelToolCallingModelHandler returns count copies of the same tool call
-// in a single model response, so the tool loop dispatches them in parallel.
-// Used to verify WrapTool concurrency safety.
-func parallelToolCallingModelHandler(toolName string, count int) func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
-	return func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
-		hasToolResponse := false
-		for _, msg := range req.Messages {
-			for _, part := range msg.Content {
-				if part.IsToolResponse() {
-					hasToolResponse = true
-					break
-				}
-			}
-		}
-		if !hasToolResponse && len(req.Tools) > 0 {
-			parts := make([]*Part, count)
-			for i := range parts {
-				parts[i] = NewToolRequestPart(&ToolRequest{
-					Name:  toolName,
-					Input: map[string]any{"value": fmt.Sprintf("req-%d", i)},
-				})
-			}
-			return &ModelResponse{
-				Request: req,
-				Message: &Message{Role: RoleModel, Content: parts},
-			}, nil
-		}
-		return &ModelResponse{
-			Request: req,
-			Message: NewModelTextMessage("done"),
-		}, nil
-	}
-}
-
 // cmpPartEqual is a Part comparator for cmp.Diff that compares essential fields.
 func cmpPartEqual(a, b *Part) bool {
 	if a == nil || b == nil {

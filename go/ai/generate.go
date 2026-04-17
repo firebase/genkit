@@ -345,7 +345,6 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 
 	runTool := buildToolRunner(mws)
 
-	// Inline recursive helper function that captures variables from parent scope.
 	var generate func(context.Context, *ModelRequest, int, int) (*ModelResponse, error)
 	var runGenerate func(context.Context, *GenerateParams) (*ModelResponse, error)
 
@@ -525,12 +524,24 @@ func buildModelChain(mws []*Hooks, fn ModelFunc) ModelFunc {
 // buildToolRunner composes the WrapTool hooks from mws (outer-to-inner) into
 // a single function that executes a tool. The returned function is safe to
 // invoke from concurrent goroutines; each invocation threads its own params
-// through the shared hook chain.
+// through the shared hook chain. When no WrapTool hooks are configured, the
+// tool is invoked directly without allocating a ToolParams wrapper.
 func buildToolRunner(mws []*Hooks) func(ctx context.Context, tool Tool, req *ToolRequest) (*MultipartToolResponse, error) {
-	base := func(ctx context.Context, params *ToolParams) (*MultipartToolResponse, error) {
+	hasHook := false
+	for _, mw := range mws {
+		if mw != nil && mw.WrapTool != nil {
+			hasHook = true
+			break
+		}
+	}
+	if !hasHook {
+		return func(ctx context.Context, tool Tool, req *ToolRequest) (*MultipartToolResponse, error) {
+			return tool.RunRawMultipart(ctx, req.Input)
+		}
+	}
+	chain := func(ctx context.Context, params *ToolParams) (*MultipartToolResponse, error) {
 		return params.Tool.RunRawMultipart(ctx, params.Request.Input)
 	}
-	chain := base
 	for i := len(mws) - 1; i >= 0; i-- {
 		mw := mws[i]
 		if mw == nil || mw.WrapTool == nil {
