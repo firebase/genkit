@@ -636,30 +636,26 @@ class Registry:
         return None
 
     async def resolve_action(self, kind: ActionKind, name: str) -> Action | None:
-        """Resolve an action by kind and name, supporting both prefixed and unprefixed names.
+        """Resolve an action by kind and name.
 
-        Resolution order:
-
-        - **DAP-qualified names** (``provider:innerKind/innerName``): only the dynamic action
-          provider path for ``provider`` (plus optional exact cache hit on ``name``). Never
-          plugin search, so ``/`` in the name is not treated as ``plugin/local``.
-        - **Otherwise**: registry cache hit, then namespaced or unprefixed plugin resolution.
+        Tries an exact (kind, name) cache hit first. DAP-qualified names
+        (provider:innerKind/innerName) go through that provider only. If the name contains a
+        slash, the first segment is treated as a plugin id: that plugin is initialized and
+        plugin.resolve is used. Falls back to parent registry if nothing found.
 
         Args:
             kind: The type of action to resolve.
-            name: The name of the action (may be prefixed with "plugin/" or unprefixed).
+            name: Action name, optionally plugin/... for a specific plugin.
 
         Returns:
             The Action instance if found, None otherwise.
-
-        Raises:
-            ValueError: If an unprefixed name matches multiple plugins (ambiguous).
         """
-        # Special case for DAP-qualified names. Query the DAP and get the action directly.
+        with self._lock:
+            if kind in self._entries and name in self._entries[kind]:
+                return await self._trigger_lazy_loading(self._entries[kind][name])
+
+        # DAP-qualified names: resolve via that provider only (not plugin slash splitting).
         if kind != ActionKind.DYNAMIC_ACTION_PROVIDER and parse_dap_qualified_name(name) is not None:
-            with self._lock:
-                if kind in self._entries and name in self._entries[kind]:
-                    return await self._trigger_lazy_loading(self._entries[kind][name])
             action = await self._resolve_dap_qualified_action(kind, name)
             if action is not None:
                 return action
@@ -667,24 +663,16 @@ class Registry:
                 return await self._parent.resolve_action(kind, name)
             return None
 
-        # Check for cache hit
-        with self._lock:
-            if kind in self._entries and name in self._entries[kind]:
-                return await self._trigger_lazy_loading(self._entries[kind][name])
-
-        action: Action | None = None
-
-        # If action name is namespaced to a specific plugin, ensure plugin is initialized, then check the cache.
-        # If not namespaced, then try all plugins.
+        # <plugin name>/<action name>: resolve that plugin.
         if '/' in name:
-            plugin_name, local = name.split('/', 1)
+            plugin_name, action_name = name.split('/', 1)
             with self._lock:
                 plugin = self._plugins.get(plugin_name)
 
             if plugin is not None:
                 await self._ensure_plugin_initialized(plugin_name)
 
-                target = f'{plugin_name}/{local}'  # normalized
+                target = f'{plugin_name}/{action_name}'  # normalized
 
                 # Check cache again after init - init() might have registered this action
                 with self._lock:
@@ -696,38 +684,6 @@ class Registry:
                     self.register_action_instance(action, namespace=plugin_name)
                     with self._lock:
                         return await self._trigger_lazy_loading(self._entries.get(kind, {}).get(target))
-        else:
-            # Unprefixed request: try all plugins
-            successes: list[tuple[str, Action]] = []
-            with self._lock:
-                plugins = list(self._plugins.items())
-            for plugin_name, plugin in plugins:
-                await self._ensure_plugin_initialized(plugin_name)
-                target = f'{plugin_name}/{name}'
-
-                # Check cache first - init() might have registered this action
-                with self._lock:
-                    cached_action = self._entries.get(kind, {}).get(target)
-                if cached_action is not None:
-                    successes.append((plugin_name, cached_action))
-                    continue
-
-                action = await plugin.resolve(kind, target)
-                if action is not None:
-                    successes.append((plugin_name, action))
-
-            if len(successes) > 1:
-                plugin_names = [p for p, _ in successes]
-                raise ValueError(
-                    f"Ambiguous {kind} action name '{name}'. "
-                    + f"Matches plugins: {plugin_names}. Use 'plugin/{name}'."
-                )
-
-            if len(successes) == 1:
-                plugin_name, action = successes[0]
-                self.register_action_instance(action, namespace=plugin_name)
-                with self._lock:
-                    return await self._trigger_lazy_loading(self._entries.get(kind, {}).get(f'{plugin_name}/{name}'))
 
         # Final fallback: delegate to parent registry.
         if self._parent is not None:
@@ -753,8 +709,8 @@ class Registry:
             The ``Action`` instance if found, None otherwise.
 
         Raises:
-            ValueError: If the key format is invalid, the kind is not a valid
-                ``ActionKind``, or an unprefixed name is ambiguous.
+            ValueError: If the key format is invalid or the kind is not a valid
+                ``ActionKind``.
         """
         kind, name = parse_action_key(key)
         if kind == ActionKind.DYNAMIC_ACTION_PROVIDER:
