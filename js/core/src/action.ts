@@ -175,19 +175,18 @@ export type Action<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
-  RunOptions extends ActionRunOptions<S> = ActionRunOptions<S>,
+  RunOptions extends ActionRunOptions<z.infer<S>> = ActionRunOptions<
+    z.infer<S>
+  >,
 > = ((input?: z.infer<I>, options?: RunOptions) => Promise<z.infer<O>>) & {
   __action: ActionMetadata<I, O, S>;
   __registry?: Registry;
   run(
     input?: z.infer<I>,
-    options?: ActionRunOptions<z.infer<S>>
+    options?: RunOptions
   ): Promise<ActionResult<z.infer<O>>>;
 
-  stream(
-    input?: z.infer<I>,
-    opts?: ActionRunOptions<z.infer<S>>
-  ): StreamingResponse<O, S>;
+  stream(input?: z.infer<I>, opts?: RunOptions): StreamingResponse<O, S>;
 };
 
 /**

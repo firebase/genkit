@@ -59,8 +59,6 @@ const (
 //	    }),
 //	)
 type Filesystem struct {
-	ai.BaseMiddleware
-
 	// RootDir is the directory that all operations are confined to.
 	RootDir string `json:"rootDirectory,omitempty"`
 	// AllowWriteAccess adds write_file and search_and_replace.
@@ -69,134 +67,107 @@ type Filesystem struct {
 	// when attaching multiple Filesystem middlewares to one call so their
 	// tool names don't collide.
 	ToolNamePrefix string `json:"toolNamePrefix,omitempty"`
-
-	initOnce sync.Once
-	root     *os.Root
-	tools    []ai.Tool
-	toolSet  map[string]struct{}
-	initErr  error
-
-	mu    sync.Mutex
-	queue []*ai.Message
 }
 
 func (f *Filesystem) Name() string { return provider + "/filesystem" }
 
-func (f *Filesystem) New() ai.Middleware {
-	return &Filesystem{
-		RootDir:          f.RootDir,
-		AllowWriteAccess: f.AllowWriteAccess,
-		ToolNamePrefix:   f.ToolNamePrefix,
+// New initializes a per-call instance: opens the [os.Root], builds the tool
+// set, and allocates the message queue used to bridge tool output back to the
+// model on the next turn.
+func (f *Filesystem) New(ctx context.Context) (*ai.Hooks, error) {
+	if strings.TrimSpace(f.RootDir) == "" {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "filesystem middleware: RootDir is required")
 	}
-}
+	abs, err := filepath.Abs(f.RootDir)
+	if err != nil {
+		return nil, core.NewError(core.INTERNAL, "filesystem middleware: resolve %q: %v", f.RootDir, err)
+	}
+	root, err := os.OpenRoot(abs)
+	if err != nil {
+		return nil, core.NewError(core.FAILED_PRECONDITION, "filesystem middleware: open root %q: %v", abs, err)
+	}
 
-func (f *Filesystem) init() error {
-	f.initOnce.Do(func() {
-		if strings.TrimSpace(f.RootDir) == "" {
-			f.initErr = core.NewError(core.INVALID_ARGUMENT, "filesystem middleware: RootDir is required")
+	var (
+		mu    sync.Mutex
+		queue []*ai.Message
+	)
+	enqueueParts := func(parts ...*ai.Part) {
+		mu.Lock()
+		defer mu.Unlock()
+		if n := len(queue); n > 0 && queue[n-1].Role == ai.RoleUser {
+			queue[n-1].Content = append(queue[n-1].Content, parts...)
 			return
 		}
-		abs, err := filepath.Abs(f.RootDir)
-		if err != nil {
-			f.initErr = core.NewError(core.INTERNAL, "filesystem middleware: resolve %q: %v", f.RootDir, err)
-			return
+		queue = append(queue, ai.NewUserMessage(parts...))
+	}
+
+	tools := f.buildTools(root, enqueueParts)
+	toolSet := make(map[string]struct{}, len(tools))
+	for _, t := range tools {
+		toolSet[t.Name()] = struct{}{}
+	}
+
+	wrapGenerate := func(ctx context.Context, params *ai.GenerateParams, next ai.GenerateNext) (*ai.ModelResponse, error) {
+		mu.Lock()
+		queued := queue
+		queue = nil
+		mu.Unlock()
+
+		if len(queued) > 0 {
+			if params.Callback != nil {
+				for _, msg := range queued {
+					if err := params.Callback(ctx, &ai.ModelResponseChunk{
+						Role:    msg.Role,
+						Index:   params.MessageIndex,
+						Content: msg.Content,
+					}); err != nil {
+						return nil, err
+					}
+					params.MessageIndex++
+				}
+			}
+			params.Request.Messages = append(params.Request.Messages, queued...)
 		}
-		root, err := os.OpenRoot(abs)
-		if err != nil {
-			f.initErr = core.NewError(core.FAILED_PRECONDITION, "filesystem middleware: open root %q: %v", abs, err)
-			return
+
+		return next(ctx, params)
+	}
+
+	wrapTool := func(ctx context.Context, params *ai.ToolParams, next ai.ToolNext) (*ai.MultipartToolResponse, error) {
+		if _, ours := toolSet[params.Tool.Name()]; !ours {
+			return next(ctx, params)
 		}
-		f.root = root
-		f.tools = f.buildTools()
-		f.toolSet = make(map[string]struct{}, len(f.tools))
-		for _, t := range f.tools {
-			f.toolSet[t.Name()] = struct{}{}
+
+		resp, err := next(ctx, params)
+		if err == nil {
+			return resp, nil
 		}
-	})
-	return f.initErr
+		if isInterrupt, _ := ai.IsToolInterruptError(err); isInterrupt {
+			return nil, err
+		}
+
+		enqueueParts(ai.NewTextPart(fmt.Sprintf("Tool %q failed: %v", params.Tool.Name(), err)))
+		return &ai.MultipartToolResponse{
+			Output: "Tool call failed; see user message below for details.",
+		}, nil
+	}
+
+	return &ai.Hooks{
+		Tools:        tools,
+		WrapGenerate: wrapGenerate,
+		WrapTool:     wrapTool,
+	}, nil
 }
 
 // toolName returns suffix prefixed with f.ToolNamePrefix.
 func (f *Filesystem) toolName(suffix string) string { return f.ToolNamePrefix + suffix }
 
-// Tools returns nil on a configuration error; WrapGenerate surfaces the error
-// through the first model call so the user sees it instead of "tool not found".
-func (f *Filesystem) Tools() []ai.Tool {
-	if err := f.init(); err != nil {
-		return nil
+func (f *Filesystem) buildTools(root *os.Root, enqueueParts func(parts ...*ai.Part)) []ai.Tool {
+	tools := []ai.Tool{
+		f.newListFilesTool(root),
+		f.newReadFileTool(root, enqueueParts),
 	}
-	return f.tools
-}
-
-func (f *Filesystem) WrapGenerate(ctx context.Context, params *ai.GenerateParams, next ai.GenerateNext) (*ai.ModelResponse, error) {
-	if err := f.init(); err != nil {
-		return nil, err
-	}
-
-	f.mu.Lock()
-	queued := f.queue
-	f.queue = nil
-	f.mu.Unlock()
-
-	if len(queued) > 0 {
-		if params.Callback != nil {
-			for _, msg := range queued {
-				if err := params.Callback(ctx, &ai.ModelResponseChunk{
-					Role:    msg.Role,
-					Index:   params.MessageIndex,
-					Content: msg.Content,
-				}); err != nil {
-					return nil, err
-				}
-				params.MessageIndex++
-			}
-		}
-		params.Request.Messages = append(params.Request.Messages, queued...)
-	}
-
-	return next(ctx, params)
-}
-
-// WrapTool converts failures from this middleware's tools into a placeholder
-// tool response plus an appended user message so the model can retry. Other
-// tools pass through. Interrupts always propagate.
-func (f *Filesystem) WrapTool(ctx context.Context, params *ai.ToolParams, next ai.ToolNext) (*ai.ToolResponse, error) {
-	if _, ours := f.toolSet[params.Tool.Name()]; !ours {
-		return next(ctx, params)
-	}
-
-	resp, err := next(ctx, params)
-	if err == nil {
-		return resp, nil
-	}
-	if isInterrupt, _ := ai.IsToolInterruptError(err); isInterrupt {
-		return nil, err
-	}
-
-	f.enqueueParts(ai.NewTextPart(fmt.Sprintf("Tool %q failed: %v", params.Tool.Name(), err)))
-	return &ai.ToolResponse{
-		Name:   params.Request.Name,
-		Ref:    params.Request.Ref,
-		Output: "Tool call failed; see user message below for details.",
-	}, nil
-}
-
-// enqueueParts appends parts to the last user message in the queue or starts
-// a new one. Safe for concurrent tool calls within a single Generate.
-func (f *Filesystem) enqueueParts(parts ...*ai.Part) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if n := len(f.queue); n > 0 && f.queue[n-1].Role == ai.RoleUser {
-		f.queue[n-1].Content = append(f.queue[n-1].Content, parts...)
-		return
-	}
-	f.queue = append(f.queue, ai.NewUserMessage(parts...))
-}
-
-func (f *Filesystem) buildTools() []ai.Tool {
-	tools := []ai.Tool{f.newListFilesTool(), f.newReadFileTool()}
 	if f.AllowWriteAccess {
-		tools = append(tools, f.newWriteFileTool(), f.newSearchReplaceTool())
+		tools = append(tools, f.newWriteFileTool(root), f.newSearchReplaceTool(root))
 	}
 	return tools
 }
@@ -233,13 +204,13 @@ type fileEntry struct {
 	IsDirectory bool   `json:"isDirectory"`
 }
 
-func (f *Filesystem) newListFilesTool() ai.Tool {
+func (f *Filesystem) newListFilesTool(root *os.Root) ai.Tool {
 	return ai.NewTool(
 		f.toolName("list_files"),
 		"Lists files and directories in a given path. Returns a list of entries with path and type.",
 		func(_ *ai.ToolContext, in listFilesInput) ([]fileEntry, error) {
 			dir := normalizeRel(in.DirPath)
-			fsys := f.root.FS()
+			fsys := root.FS()
 
 			if !in.Recursive {
 				entries, err := fs.ReadDir(fsys, dir)
@@ -283,7 +254,7 @@ type readFileInput struct {
 	FilePath string `json:"filePath" jsonschema:"description=File path relative to root."`
 }
 
-func (f *Filesystem) newReadFileTool() ai.Tool {
+func (f *Filesystem) newReadFileTool(root *os.Root, enqueueParts func(parts ...*ai.Part)) ai.Tool {
 	return ai.NewTool(
 		f.toolName("read_file"),
 		"Reads the contents of a file. The actual contents are delivered as a user message on the next turn.",
@@ -293,19 +264,19 @@ func (f *Filesystem) newReadFileTool() ai.Tool {
 			}
 			rel := normalizeRel(in.FilePath)
 			mimeType := mime.TypeByExtension(strings.ToLower(path.Ext(rel)))
-			data, err := f.root.ReadFile(filepath.FromSlash(rel))
+			data, err := root.ReadFile(filepath.FromSlash(rel))
 			if err != nil {
 				return "", err
 			}
 
 			if strings.HasPrefix(mimeType, "image/") {
 				encoded := "data:" + mimeType + ";base64," + base64.StdEncoding.EncodeToString(data)
-				f.enqueueParts(
+				enqueueParts(
 					ai.NewTextPart(fmt.Sprintf("\n\nread_file result %s %s", mimeType, in.FilePath)),
 					ai.NewMediaPart(mimeType, encoded),
 				)
 			} else {
-				f.enqueueParts(ai.NewTextPart(fmt.Sprintf(
+				enqueueParts(ai.NewTextPart(fmt.Sprintf(
 					"<read_file path=%q>\n%s\n</read_file>", in.FilePath, string(data))))
 			}
 			return fmt.Sprintf("File %s read successfully, see contents below.", in.FilePath), nil
@@ -318,7 +289,7 @@ type writeFileInput struct {
 	Content  string `json:"content" jsonschema:"description=Content to write to the file."`
 }
 
-func (f *Filesystem) newWriteFileTool() ai.Tool {
+func (f *Filesystem) newWriteFileTool(root *os.Root) ai.Tool {
 	return ai.NewTool(
 		f.toolName("write_file"),
 		"Writes content to a file, creating it (and any missing parent directories) or overwriting it if it exists.",
@@ -328,11 +299,11 @@ func (f *Filesystem) newWriteFileTool() ai.Tool {
 			}
 			osPath := filepath.FromSlash(normalizeRel(in.FilePath))
 			if parent := filepath.Dir(osPath); parent != "." {
-				if err := f.root.MkdirAll(parent, 0o755); err != nil {
+				if err := root.MkdirAll(parent, 0o755); err != nil {
 					return "", fmt.Errorf("create parent dirs: %w", err)
 				}
 			}
-			if err := f.root.WriteFile(osPath, []byte(in.Content), 0o644); err != nil {
+			if err := root.WriteFile(osPath, []byte(in.Content), 0o644); err != nil {
 				return "", err
 			}
 			return fmt.Sprintf("File %s written successfully.", in.FilePath), nil
@@ -345,7 +316,7 @@ type searchReplaceInput struct {
 	Edits    []string `json:"edits" jsonschema:"description=SEARCH/REPLACE blocks in the format '<<<<<<< SEARCH\\n[search]\\n=======\\n[replace]\\n>>>>>>> REPLACE'."`
 }
 
-func (f *Filesystem) newSearchReplaceTool() ai.Tool {
+func (f *Filesystem) newSearchReplaceTool(root *os.Root) ai.Tool {
 	return ai.NewTool(
 		f.toolName("search_and_replace"),
 		"Replaces text in a file using one or more SEARCH/REPLACE blocks. Use this to edit existing files.",
@@ -355,7 +326,7 @@ func (f *Filesystem) newSearchReplaceTool() ai.Tool {
 			}
 			osPath := filepath.FromSlash(normalizeRel(in.FilePath))
 
-			data, err := f.root.ReadFile(osPath)
+			data, err := root.ReadFile(osPath)
 			if err != nil {
 				return "", err
 			}
@@ -369,7 +340,7 @@ func (f *Filesystem) newSearchReplaceTool() ai.Tool {
 				content = next
 			}
 
-			if err := f.root.WriteFile(osPath, []byte(content), 0o644); err != nil {
+			if err := root.WriteFile(osPath, []byte(content), 0o644); err != nil {
 				return "", err
 			}
 			return fmt.Sprintf("Successfully applied %d edit(s) to %s.", len(in.Edits), in.FilePath), nil

@@ -19,32 +19,30 @@ package ai
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 )
 
-// middlewareFactory creates a Middleware instance from JSON config.
-type middlewareFactory = func(configJSON []byte) (Middleware, error)
-
-// Middleware provides hooks for different stages of generation.
-type Middleware interface {
-	// Name returns the middleware's unique identifier.
-	Name() string
-	// New returns a fresh instance for each ai.Generate() call, enabling per-invocation state.
-	New() Middleware
-	// WrapGenerate wraps each iteration of the tool loop.
-	WrapGenerate(ctx context.Context, params *GenerateParams, next GenerateNext) (*ModelResponse, error)
-	// WrapModel wraps each model API call.
-	WrapModel(ctx context.Context, params *ModelParams, next ModelNext) (*ModelResponse, error)
-	// WrapTool wraps each tool execution.
-	// WrapTool may be called concurrently when multiple tools execute in parallel.
-	// Implementations must be safe for concurrent use.
-	WrapTool(ctx context.Context, params *ToolParams, next ToolNext) (*ToolResponse, error)
-	// Tools returns additional tools to make available during generation.
-	// These tools are dynamically registered when the middleware is used via [WithUse].
-	Tools() []Tool
+// Hooks is the per-call bundle of hook functions produced by a [Middleware]'s
+// New method. Each field is optional; a nil hook is treated as a pass-through.
+type Hooks struct {
+	// Tools are additional tools to register during the generation this
+	// middleware is attached to. They are available to the model alongside
+	// any user-supplied tools.
+	Tools []Tool
+	// WrapGenerate wraps each iteration of the tool loop. It sees the
+	// accumulated request, the iteration index, and the streaming callback.
+	// A single Generate() with N tool-call turns invokes this hook N+1 times.
+	WrapGenerate func(ctx context.Context, params *GenerateParams, next GenerateNext) (*ModelResponse, error)
+	// WrapModel wraps each model API call. Retry, fallback, and caching
+	// middleware typically hook here.
+	WrapModel func(ctx context.Context, params *ModelParams, next ModelNext) (*ModelResponse, error)
+	// WrapTool wraps each tool execution. It may be called concurrently when
+	// multiple tools execute in parallel for the same Generate() call; any
+	// state closed over from the enclosing scope that this hook mutates must
+	// be guarded with sync primitives.
+	WrapTool func(ctx context.Context, params *ToolParams, next ToolNext) (*MultipartToolResponse, error)
 }
 
 // GenerateParams holds params for the WrapGenerate hook.
@@ -89,109 +87,177 @@ type GenerateNext = func(ctx context.Context, params *GenerateParams) (*ModelRes
 type ModelNext = func(ctx context.Context, params *ModelParams) (*ModelResponse, error)
 
 // ToolNext is the next function in the WrapTool hook chain.
-type ToolNext = func(ctx context.Context, params *ToolParams) (*ToolResponse, error)
+type ToolNext = func(ctx context.Context, params *ToolParams) (*MultipartToolResponse, error)
 
-// BaseMiddleware provides default pass-through for the three hooks.
-// Embed this so you only need to implement Name() and New().
-type BaseMiddleware struct{}
-
-func (b *BaseMiddleware) WrapGenerate(ctx context.Context, params *GenerateParams, next GenerateNext) (*ModelResponse, error) {
-	return next(ctx, params)
+// Middleware is the contract every value passed to [WithUse] satisfies. The
+// config struct both identifies the middleware (via [Name]) and produces a
+// per-call [Hooks] bundle (via [New]).
+//
+// Plugin-level state belongs on unexported fields of the config type. A
+// plugin's [MiddlewarePlugin.Middlewares] sets those fields on a prototype
+// that is preserved across JSON dispatch by value-copy inside the descriptor.
+type Middleware interface {
+	// Name returns the registered middleware's unique identifier. Must be a
+	// stable constant, since it is read from a zero value of the config type
+	// during descriptor creation.
+	Name() string
+	// New produces a fresh [Hooks] bundle for one Generate() call. It is
+	// invoked per-Generate, so any state the bundle's hooks need to share
+	// (counters, caches) may be allocated in this method and closed over by
+	// the returned hooks.
+	New(ctx context.Context) (*Hooks, error)
 }
 
-func (b *BaseMiddleware) WrapModel(ctx context.Context, params *ModelParams, next ModelNext) (*ModelResponse, error) {
-	return next(ctx, params)
+// middlewareFactoryFunc is the closure stored on [MiddlewareDesc] that
+// materializes a [Hooks] bundle from JSON config. It is produced by
+// [NewMiddleware] and captures the prototype so value-copy preserves any
+// unexported plugin-level state across JSON-dispatched calls.
+type middlewareFactoryFunc = func(ctx context.Context, configJSON []byte) (*Hooks, error)
+
+// middlewareRegistryPrefix is the registry-key prefix under which middleware
+// descriptors are stored. The reflection API lists values under this prefix.
+const middlewareRegistryPrefix = "/middleware/"
+
+func middlewareRegistryKey(name string) string {
+	return middlewareRegistryPrefix + name
 }
 
-func (b *BaseMiddleware) WrapTool(ctx context.Context, params *ToolParams, next ToolNext) (*ToolResponse, error) {
-	return next(ctx, params)
-}
-
-func (b *BaseMiddleware) Tools() []Tool { return nil }
-
-// Register registers the descriptor with the registry.
+// Register records this descriptor in the registry under its name so it can
+// be resolved during JSON dispatch and surfaced to the Dev UI.
 func (d *MiddlewareDesc) Register(r api.Registry) {
-	r.RegisterValue("/middleware/"+d.Name, d)
+	r.RegisterValue(middlewareRegistryKey(d.Name), d)
 }
 
-// NewMiddleware creates a middleware descriptor without registering it.
-// The prototype carries stable state; newFromJSON calls prototype.New()
-// then unmarshals user config on top.
-func NewMiddleware[T Middleware](description string, prototype T) *MiddlewareDesc {
+// NewMiddleware constructs a descriptor without registering it. Useful for
+// [MiddlewarePlugin.Middlewares] implementations that defer registration
+// to [genkit.Init]. The prototype argument supplies both the registered name
+// (via its [Middleware.Name] method) and any plugin-level state that should
+// flow into JSON-dispatched invocations via unexported fields preserved by
+// value-copy.
+func NewMiddleware[M Middleware](description string, prototype M) *MiddlewareDesc {
+	name := prototype.Name()
 	return &MiddlewareDesc{
-		Name:         prototype.Name(),
+		Name:         name,
 		Description:  description,
-		ConfigSchema: core.InferSchemaMap(*new(T)),
-		newFromJSON: func(configJSON []byte) (Middleware, error) {
-			inst := prototype.New()
+		ConfigSchema: core.InferSchemaMap(prototype),
+		buildFromJSON: func(ctx context.Context, configJSON []byte) (*Hooks, error) {
+			cfg := prototype // value copy preserves unexported fields, shares pointers
 			if len(configJSON) > 0 {
-				if err := json.Unmarshal(configJSON, inst); err != nil {
-					return nil, fmt.Errorf("middleware %q: %w", prototype.Name(), err)
+				if err := json.Unmarshal(configJSON, &cfg); err != nil {
+					return nil, core.NewError(core.INVALID_ARGUMENT, "middleware %q: %w", name, err)
 				}
 			}
-			return inst, nil
+			return cfg.New(ctx)
 		},
 	}
 }
 
-// DefineMiddleware creates and registers a middleware descriptor.
-func DefineMiddleware[T Middleware](r api.Registry, description string, prototype T) *MiddlewareDesc {
+// DefineMiddleware creates and registers a middleware descriptor in one step.
+func DefineMiddleware[M Middleware](r api.Registry, description string, prototype M) *MiddlewareDesc {
 	d := NewMiddleware(description, prototype)
 	d.Register(r)
 	return d
 }
 
-// LookupMiddleware looks up a registered middleware descriptor by name.
+// MiddlewareFunc adapts a per-call factory closure to the [Middleware]
+// interface for ad-hoc inline use, without a registered descriptor or plugin
+// wiring. The adapted middleware does not appear in the Dev UI.
+//
+// Example:
+//
+//	ai.WithUse(ai.MiddlewareFunc(func(ctx context.Context) (*ai.Hooks, error) {
+//	    return &ai.Hooks{WrapModel: ...}, nil
+//	}))
+type MiddlewareFunc func(ctx context.Context) (*Hooks, error)
+
+// Name returns the placeholder name shared by all [MiddlewareFunc] values.
+// Uniqueness is unnecessary: inline middleware is resolved via the fast path
+// in [resolveRefs] and never goes through a name-keyed registry lookup.
+func (MiddlewareFunc) Name() string { return "inline" }
+
+func (f MiddlewareFunc) New(ctx context.Context) (*Hooks, error) { return f(ctx) }
+
+// LookupMiddleware returns the registered middleware descriptor with the
+// given name, or nil if no such descriptor exists in the registry or any
+// ancestor. Primarily useful for inspection and for the reflection API;
+// callers dispatching middleware should do so through [WithUse].
 func LookupMiddleware(r api.Registry, name string) *MiddlewareDesc {
-	v := r.LookupValue("/middleware/" + name)
+	v := r.LookupValue(middlewareRegistryKey(name))
 	if v == nil {
 		return nil
 	}
-	d, ok := v.(*MiddlewareDesc)
-	if !ok {
-		return nil
-	}
+	d, _ := v.(*MiddlewareDesc)
 	return d
 }
 
-// middlewareToRef registers a Middleware instance (if not already registered) and
-// returns a MiddlewareRef for the action layer. If registration requires a child
-// registry, the returned registry may differ from the input.
-func middlewareToRef(r api.Registry, mw Middleware) (*MiddlewareRef, api.Registry, error) {
-	name := mw.Name()
-	if LookupMiddleware(r, name) == nil {
-		if !r.IsChild() {
-			r = r.NewChild()
-		}
-		// Register directly instead of via DefineMiddleware to avoid generic
-		// type inference losing the concrete type (mw is typed as Middleware
-		// interface here, so InferSchemaMap would receive a nil interface).
-		desc := &MiddlewareDesc{
-			Name: name,
-			newFromJSON: func(configJSON []byte) (Middleware, error) {
-				inst := mw.New()
-				if len(configJSON) > 0 {
-					if err := json.Unmarshal(configJSON, inst); err != nil {
-						return nil, fmt.Errorf("middleware %q: %w", name, err)
-					}
-				}
-				return inst, nil
-			},
-		}
-		desc.Register(r)
-	}
-	configJSON, err := json.Marshal(mw)
-	if err != nil {
-		return nil, r, fmt.Errorf("failed to marshal middleware %q config: %w", name, err)
-	}
-	var config any
-	if err := json.Unmarshal(configJSON, &config); err != nil {
-		return nil, r, fmt.Errorf("failed to unmarshal middleware %q config: %w", name, err)
-	}
-	return &MiddlewareRef{Name: name, Config: config}, r, nil
+// MiddlewarePlugin is implemented by plugins that provide middleware. The
+// returned descriptors are registered in the registry during [genkit.Init],
+// with any plugin-level state captured by the descriptor's build closure via
+// the prototype passed to [NewMiddleware].
+type MiddlewarePlugin interface {
+	Middlewares(ctx context.Context) ([]*MiddlewareDesc, error)
 }
 
-// MiddlewarePlugin is implemented by plugins that provide middleware.
-type MiddlewarePlugin interface {
-	ListMiddleware(ctx context.Context) ([]*MiddlewareDesc, error)
+// configsToRefs converts a user-supplied slice of [Middleware] values into
+// the [MiddlewareRef] entries carried on [GenerateActionOptions.Use]. The Go
+// value is stored on each ref so [resolveRefs] can build the hooks bundle
+// directly without a registry round trip for local calls.
+func configsToRefs(configs []Middleware) ([]*MiddlewareRef, error) {
+	if len(configs) == 0 {
+		return nil, nil
+	}
+	refs := make([]*MiddlewareRef, 0, len(configs))
+	for _, c := range configs {
+		if c == nil {
+			return nil, core.NewError(core.INVALID_ARGUMENT, "ai: nil middleware")
+		}
+		refs = append(refs, &MiddlewareRef{Name: c.Name(), Config: c})
+	}
+	return refs, nil
+}
+
+// resolveRefs resolves [MiddlewareRef] entries to [Hooks] bundles. If
+// ref.Config is a [Middleware] value, its New method is invoked directly
+// (local fast path). Otherwise the descriptor is looked up in the registry
+// and its build closure is invoked with the marshaled config (JSON dispatch,
+// used for cross-runtime / Dev UI calls).
+func resolveRefs(ctx context.Context, r api.Registry, refs []*MiddlewareRef) ([]*Hooks, error) {
+	if len(refs) == 0 {
+		return nil, nil
+	}
+	bundles := make([]*Hooks, 0, len(refs))
+	for _, ref := range refs {
+		if mw, ok := ref.Config.(Middleware); ok {
+			h, err := mw.New(ctx)
+			if err != nil {
+				return nil, core.NewError(core.INVALID_ARGUMENT, "ai: failed to build middleware %q: %v", ref.Name, err)
+			}
+			if h == nil {
+				return nil, core.NewError(core.INTERNAL, "ai: middleware %q returned nil hooks", ref.Name)
+			}
+			bundles = append(bundles, h)
+			continue
+		}
+		d := LookupMiddleware(r, ref.Name)
+		if d == nil {
+			return nil, core.NewError(core.NOT_FOUND, "ai: middleware %q not registered (is the providing plugin installed?)", ref.Name)
+		}
+		var configJSON []byte
+		if ref.Config != nil {
+			b, err := json.Marshal(ref.Config)
+			if err != nil {
+				return nil, core.NewError(core.INTERNAL, "ai: failed to marshal config for middleware %q: %v", ref.Name, err)
+			}
+			configJSON = b
+		}
+		h, err := d.buildFromJSON(ctx, configJSON)
+		if err != nil {
+			return nil, core.NewError(core.INVALID_ARGUMENT, "ai: failed to build middleware %q: %v", ref.Name, err)
+		}
+		if h == nil {
+			return nil, core.NewError(core.INTERNAL, "ai: middleware %q factory returned nil", ref.Name)
+		}
+		bundles = append(bundles, h)
+	}
+	return bundles, nil
 }

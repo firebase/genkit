@@ -33,7 +33,7 @@ func (p *Middleware) Name() string { return provider }
 
 func (p *Middleware) Init(ctx context.Context) []api.Action { return nil }
 
-func (p *Middleware) ListMiddleware(ctx context.Context) ([]*ai.MiddlewareDesc, error) {
+func (p *Middleware) Middlewares(ctx context.Context) ([]*ai.MiddlewareDesc, error) {
 	return []*ai.MiddlewareDesc{
 		ai.NewMiddleware("Retry failed model calls with exponential backoff", &Retry{}),
 		ai.NewMiddleware("Try alternative models when the primary model fails", &Fallback{}),

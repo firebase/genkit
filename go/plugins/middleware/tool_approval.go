@@ -39,7 +39,6 @@ import (
 //	// toolA runs; toolB triggers an interrupt.
 //	// Resume with ai.WithToolRestarts to approve and re-execute.
 type ToolApproval struct {
-	ai.BaseMiddleware
 	// AllowedTools is the list of tool names pre-approved to run without
 	// interruption. Tools not in this list trigger an interrupt. An empty
 	// list interrupts all tools.
@@ -48,11 +47,13 @@ type ToolApproval struct {
 
 func (t *ToolApproval) Name() string { return provider + "/toolApproval" }
 
-func (t *ToolApproval) New() ai.Middleware {
-	return &ToolApproval{AllowedTools: t.AllowedTools}
+func (t *ToolApproval) New(ctx context.Context) (*ai.Hooks, error) {
+	return &ai.Hooks{
+		WrapTool: t.wrapTool,
+	}, nil
 }
 
-func (t *ToolApproval) WrapTool(ctx context.Context, params *ai.ToolParams, next ai.ToolNext) (*ai.ToolResponse, error) {
+func (t *ToolApproval) wrapTool(ctx context.Context, params *ai.ToolParams, next ai.ToolNext) (*ai.MultipartToolResponse, error) {
 	// Resumed tool calls have already been approved by the caller.
 	if ai.IsToolResumed(ctx) {
 		return next(ctx, params)

@@ -21,10 +21,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/goccy/go-yaml"
@@ -65,23 +63,10 @@ const useSkillToolName = "use_skill"
 //	    ai.WithUse(&middleware.Skills{SkillPaths: []string{"skills"}}),
 //	)
 type Skills struct {
-	ai.BaseMiddleware
 	// SkillPaths lists directories that are scanned for skills. Each direct
 	// subdirectory containing a SKILL.md file is exposed as a skill.
 	// Defaults to []string{"skills"}.
 	SkillPaths []string `json:"skillPaths,omitempty"`
-
-	// scan caches the result of scanning SkillPaths. The pointer is shared
-	// across the prototype and per-invocation instances so Tools() and
-	// WrapGenerate see the same data and scan only once.
-	scan *skillScan
-}
-
-// skillScan memoizes a single pass over SkillPaths.
-type skillScan struct {
-	once sync.Once
-	info map[string]skillInfo
-	err  error
 }
 
 // skillInfo records where a skill's SKILL.md lives and its description.
@@ -98,20 +83,46 @@ type skillFrontmatter struct {
 
 func (s *Skills) Name() string { return provider + "/skills" }
 
-// New returns a fresh Skills instance for each ai.Generate() call. The scan
-// cache is shared with the prototype so Tools() (called on the prototype) and
-// WrapGenerate (called on the fresh instance) observe the same skill set and
-// avoid rescanning.
-func (s *Skills) New() ai.Middleware {
-	scan := s.scan
-	if scan == nil {
-		scan = &skillScan{}
-		s.scan = scan
+// New scans the configured skill paths and returns a [ai.Hooks] that injects
+// the skills system prompt and exposes the use_skill tool. Scanning happens
+// once per [ai.Generate] call; the result is captured in the returned hooks
+// so WrapGenerate and the use_skill tool agree on the same skill set.
+func (s *Skills) New(ctx context.Context) (*ai.Hooks, error) {
+	info, err := scanSkills(s.paths())
+	if err != nil {
+		return nil, err
 	}
-	return &Skills{
-		SkillPaths: slices.Clone(s.SkillPaths),
-		scan:       scan,
+
+	useSkill := ai.NewTool(
+		useSkillToolName,
+		"Use a skill by its name.",
+		func(_ *ai.ToolContext, in struct {
+			SkillName string `json:"skillName" jsonschema:"description=The name of the skill to use."`
+		}) (string, error) {
+			si, ok := info[in.SkillName]
+			if !ok {
+				return "", fmt.Errorf("skill %q not found", in.SkillName)
+			}
+			data, err := os.ReadFile(si.Path)
+			if err != nil {
+				return "", fmt.Errorf("failed to read skill %q: %w", in.SkillName, err)
+			}
+			return string(data), nil
+		},
+	)
+
+	wrapGenerate := func(ctx context.Context, params *ai.GenerateParams, next ai.GenerateNext) (*ai.ModelResponse, error) {
+		if len(info) == 0 {
+			return next(ctx, params)
+		}
+		params.Request = injectSkillsPrompt(params.Request, buildSkillsPrompt(info))
+		return next(ctx, params)
 	}
+
+	return &ai.Hooks{
+		Tools:        []ai.Tool{useSkill},
+		WrapGenerate: wrapGenerate,
+	}, nil
 }
 
 // paths returns the directories to scan, falling back to the default.
@@ -120,66 +131,6 @@ func (s *Skills) paths() []string {
 		return []string{defaultSkillsPath}
 	}
 	return s.SkillPaths
-}
-
-// ensureScanned performs the skill scan at most once per instance and returns
-// the cached result. Safe for concurrent use via sync.Once.
-func (s *Skills) ensureScanned() (map[string]skillInfo, error) {
-	if s.scan == nil {
-		// Handles instances created outside of New() (e.g. directly
-		// constructed and used without going through the middleware
-		// registration flow).
-		s.scan = &skillScan{}
-	}
-	s.scan.once.Do(func() {
-		s.scan.info, s.scan.err = scanSkills(s.paths())
-	})
-	return s.scan.info, s.scan.err
-}
-
-// Tools returns the use_skill tool so Generate can register it alongside the
-// user's own tools. The closure captures s so it reads from the shared scan
-// cache populated by WrapGenerate.
-func (s *Skills) Tools() []ai.Tool {
-	return []ai.Tool{
-		ai.NewTool(
-			useSkillToolName,
-			"Use a skill by its name.",
-			func(tc *ai.ToolContext, in struct {
-				SkillName string `json:"skillName" jsonschema:"description=The name of the skill to use."`
-			}) (string, error) {
-				info, err := s.ensureScanned()
-				if err != nil {
-					return "", err
-				}
-				si, ok := info[in.SkillName]
-				if !ok {
-					return "", fmt.Errorf("skill %q not found", in.SkillName)
-				}
-				data, err := os.ReadFile(si.Path)
-				if err != nil {
-					return "", fmt.Errorf("failed to read skill %q: %w", in.SkillName, err)
-				}
-				return string(data), nil
-			},
-		),
-	}
-}
-
-// WrapGenerate injects a system prompt describing the available skills before
-// forwarding to the next middleware. On subsequent tool-loop iterations the
-// previously injected part is refreshed in place rather than duplicated.
-func (s *Skills) WrapGenerate(ctx context.Context, params *ai.GenerateParams, next ai.GenerateNext) (*ai.ModelResponse, error) {
-	info, err := s.ensureScanned()
-	if err != nil {
-		return nil, err
-	}
-	if len(info) == 0 {
-		return next(ctx, params)
-	}
-
-	params.Request = injectSkillsPrompt(params.Request, buildSkillsPrompt(info))
-	return next(ctx, params)
 }
 
 // scanSkills enumerates SKILL.md files under each path and returns a map keyed
@@ -275,7 +226,7 @@ func buildSkillsPrompt(info map[string]skillInfo) string {
 // new system message is prepended.
 func injectSkillsPrompt(req *ai.ModelRequest, promptText string) *ai.ModelRequest {
 	newReq := *req
-	newReq.Messages = slices.Clone(req.Messages)
+	newReq.Messages = append([]*ai.Message(nil), req.Messages...)
 
 	// Refresh an existing injected part in place.
 	for i, msg := range newReq.Messages {

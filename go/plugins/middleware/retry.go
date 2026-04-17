@@ -59,7 +59,6 @@ var sleepFunc = time.Sleep
 //	    ai.WithUse(&middleware.Retry{MaxRetries: 3}),
 //	)
 type Retry struct {
-	ai.BaseMiddleware
 	// MaxRetries is the maximum number of retry attempts. Defaults to 3.
 	MaxRetries int `json:"maxRetries,omitempty"`
 	// Statuses is the set of status codes that trigger a retry for [core.GenkitError] errors.
@@ -79,15 +78,10 @@ type Retry struct {
 
 func (r *Retry) Name() string { return provider + "/retry" }
 
-func (r *Retry) New() ai.Middleware {
-	return &Retry{
-		MaxRetries:     r.MaxRetries,
-		Statuses:       r.Statuses,
-		InitialDelayMs: r.InitialDelayMs,
-		MaxDelayMs:     r.MaxDelayMs,
-		BackoffFactor:  r.BackoffFactor,
-		NoJitter:       r.NoJitter,
-	}
+func (r *Retry) New(ctx context.Context) (*ai.Hooks, error) {
+	return &ai.Hooks{
+		WrapModel: r.wrapModel,
+	}, nil
 }
 
 func (r *Retry) maxRetries() int {
@@ -125,7 +119,7 @@ func (r *Retry) backoffFactor() float64 {
 	return 2
 }
 
-func (r *Retry) WrapModel(ctx context.Context, params *ai.ModelParams, next ai.ModelNext) (*ai.ModelResponse, error) {
+func (r *Retry) wrapModel(ctx context.Context, params *ai.ModelParams, next ai.ModelNext) (*ai.ModelResponse, error) {
 	maxRetries := r.maxRetries()
 	statuses := r.statuses()
 	currentDelay := r.initialDelay()

@@ -57,7 +57,6 @@ var defaultFallbackStatuses = []core.StatusName{
 //	    }}),
 //	)
 type Fallback struct {
-	ai.BaseMiddleware
 	// Models is the ordered list of fallback models to try.
 	// These are tried in order after the primary model fails. Each ref's
 	// Config is used verbatim for that model -- the original request's
@@ -72,11 +71,10 @@ type Fallback struct {
 
 func (f *Fallback) Name() string { return provider + "/fallback" }
 
-func (f *Fallback) New() ai.Middleware {
-	return &Fallback{
-		Models:   f.Models,
-		Statuses: f.Statuses,
-	}
+func (f *Fallback) New(ctx context.Context) (*ai.Hooks, error) {
+	return &ai.Hooks{
+		WrapModel: f.wrapModel,
+	}, nil
 }
 
 func (f *Fallback) statuses() []core.StatusName {
@@ -86,7 +84,7 @@ func (f *Fallback) statuses() []core.StatusName {
 	return defaultFallbackStatuses
 }
 
-func (f *Fallback) WrapModel(ctx context.Context, params *ai.ModelParams, next ai.ModelNext) (*ai.ModelResponse, error) {
+func (f *Fallback) wrapModel(ctx context.Context, params *ai.ModelParams, next ai.ModelNext) (*ai.ModelResponse, error) {
 	resp, err := next(ctx, params)
 	if err == nil {
 		return resp, nil

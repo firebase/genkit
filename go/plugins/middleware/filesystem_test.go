@@ -387,9 +387,12 @@ func TestFilesystemWriteFileRequiresAllowWriteAccess(t *testing.T) {
 	fs := &Filesystem{RootDir: root}
 	ai.DefineMiddleware(r, "filesystem", fs)
 
-	tools := fs.Tools()
+	hooks, err := fs.New(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	names := map[string]bool{}
-	for _, tool := range tools {
+	for _, tool := range hooks.Tools {
 		names[tool.Name()] = true
 	}
 	if !names["list_files"] || !names["read_file"] {
@@ -581,8 +584,12 @@ func TestFilesystemToolNamePrefix(t *testing.T) {
 	root := makeFS(t)
 
 	fs := &Filesystem{RootDir: root, AllowWriteAccess: true, ToolNamePrefix: "fs_"}
+	hooks, err := fs.New(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	names := map[string]bool{}
-	for _, tool := range fs.Tools() {
+	for _, tool := range hooks.Tools {
 		names[tool.Name()] = true
 	}
 	for _, want := range []string{"fs_list_files", "fs_read_file", "fs_write_file", "fs_search_and_replace"} {

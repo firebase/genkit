@@ -249,6 +249,10 @@ func WithMiddleware(middleware ...ModelMiddleware) CommonGenOption {
 
 // WithUse sets middleware to apply to generation. Middleware hooks wrap
 // the generate loop, model calls, and tool executions.
+//
+// Accepts either a middleware config struct (produced by a plugin) or an
+// inline adapter via [MiddlewareFunc]. The chain applies outer-to-inner, so
+// WithUse(A, B) expands to A { B { ... } }.
 func WithUse(middleware ...Middleware) CommonGenOption {
 	return &commonGenOptions{Use: middleware}
 }
