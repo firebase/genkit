@@ -604,7 +604,8 @@ class Registry:
         if dap_action is None:
             raise RuntimeError(
                 f'Dynamic action provider {dap_host!r} is not registered. '
-                'DAPs must be registered using define_dynamic_action_provider before referencing qualified action names.'
+                'DAPs must be registered using define_dynamic_action_provider '
+                'before referencing qualified action names.'
             )
         dap = getattr(dap_action, GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR, None)
         if dap is not None:
