@@ -19,7 +19,6 @@ package ai
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
@@ -147,7 +146,7 @@ func NewMiddleware[M Middleware](description string, prototype M) *MiddlewareDes
 			cfg := prototype // value copy preserves unexported fields, shares pointers
 			if len(configJSON) > 0 {
 				if err := json.Unmarshal(configJSON, &cfg); err != nil {
-					return nil, fmt.Errorf("middleware %q: %w", name, err)
+					return nil, core.NewError(core.INVALID_ARGUMENT, "middleware %q: %w", name, err)
 				}
 			}
 			return cfg.New(ctx)
