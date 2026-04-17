@@ -114,8 +114,7 @@ JSON-RPC 2.0 does not natively support streaming. We extend it by using Notifica
 
 | Method | Direction | Type | Description |
 | :--- | :--- | :--- | :--- |
-| **`register`** | Runtime -> Manager | Request | Registers the runtime with the Manager. |
-| **`configure`** | Manager -> Runtime | Notification | Pushes configuration updates to the Runtime. |
+| **`register`** | Runtime -> Manager | Request | Registers the runtime with the Manager and retrieves initial configuration. |
 | **`listActions`** | Manager -> Runtime | Request | Retrieves the list of available actions. |
 | **`listValues`** | Manager -> Runtime | Request | Retrieves the list of values (prompts, schemas, etc.). |
 | **`runAction`** | Manager -> Runtime | Request | Executes an action. |
@@ -137,18 +136,12 @@ JSON-RPC 2.0 does not natively support streaming. We extend it by using Notifica
 | `reflectionApiSpecVersion` | `number` | Protocol version. |
 | `envs` | `string[]` | Configured environments (optional). |
 
-**Result:** `void`
-
-### 2. Configuration
-**Direction:** Manager -> Runtime  
-**Type:** Notification
-
-**Parameters:**
+**Result:**
 | Field | Type | Description |
 | :--- | :--- | :--- |
 | `telemetryServerUrl` | `string` | URL of the telemetry server (optional). |
 
-### 3. List Actions
+### 2. List Actions
 **Direction:** Manager -> Runtime  
 **Type:** Request
 
@@ -171,7 +164,7 @@ JSON-RPC 2.0 does not natively support streaming. We extend it by using Notifica
 **Result:**
 | Type | Description |
 | :--- | :--- |
-| `Record<string, any>` | Map of value keys to value definitions. |
+| `{ values: Record<string, any> }` | Object with a `values` field containing a map of value keys to value definitions. |
 
 ### 5. Run Action
 **Direction:** Manager -> Runtime  

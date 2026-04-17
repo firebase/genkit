@@ -25,9 +25,9 @@ from typing import Any, ClassVar, Literal
 
 from pydantic import ConfigDict, Field, RootModel
 from pydantic.alias_generators import to_camel
-from strenum import StrEnum
 
 from genkit._core._base import GenkitModel
+from genkit._core._compat import StrEnum
 
 warnings.filterwarnings(
     'ignore', message='Field name "schema" in "OutputConfig" shadows an attribute in parent', category=UserWarning
@@ -38,7 +38,7 @@ class EvalStatusEnum(StrEnum):
     """EvalStatusEnum data type class."""
 
     UNKNOWN = 'UNKNOWN'
-    PASS_ = 'PASS'
+    PASS = 'PASS'
     FAIL = 'FAIL'
 
 
@@ -226,13 +226,12 @@ class DataPart(GenkitModel):
     resource: Any | None = Field(default=None)
 
 
-class GenerateActionOptions(GenkitModel):
-    """Model for generateactionoptions data."""
+class GenerateActionOptionsData(GenkitModel):
+    """Model for generateactionoptionsdata data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     model: str | None = None
     docs: list[DocumentData] | None = None
-    messages: list[MessageData] = Field(...)
     tools: list[str] | None = None
     resources: list[str] | None = None
     tool_choice: ToolChoice | None = None
@@ -360,9 +359,6 @@ class ModelReference(GenkitModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     name: str = Field(...)
-    config_schema: Any | None = Field(default=None)
-    info: Any | None = Field(default=None)
-    version: str | None = None
     config: Any | None = Field(default=None)
 
 
@@ -594,6 +590,7 @@ class ReflectionListValuesResponse(GenkitModel):
     """Model for reflectionlistvaluesresponse data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    values: Values = Field(...)
 
 
 class ReflectionRegisterParams(GenkitModel):
@@ -605,6 +602,7 @@ class ReflectionRegisterParams(GenkitModel):
     name: str | None = None
     genkit_version: str | None = None
     reflection_api_spec_version: float | None = None
+    envs: list[str] | None = None
 
 
 class ReflectionRunActionParams(GenkitModel):
@@ -843,6 +841,12 @@ class Resource(GenkitModel):
 
 class Actions(GenkitModel):
     """Model for actions data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+
+
+class Values(GenkitModel):
+    """Model for values data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
 

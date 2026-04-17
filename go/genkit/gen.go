@@ -53,11 +53,15 @@ type ReflectionListValuesParams struct {
 
 // ReflectionListValuesResponse is the result of a "listValues" request,
 // mapping value names to their definitions.
-type ReflectionListValuesResponse map[string]any
+type ReflectionListValuesResponse struct {
+	Values map[string]any `json:"values,omitempty"`
+}
 
-// ReflectionRegisterParams is the payload for the "register" notification
+// ReflectionRegisterParams is the payload for the "register" request
 // sent by the runtime to the CLI manager on connection.
 type ReflectionRegisterParams struct {
+	// Configured environments (e.g. "dev").
+	Envs []string `json:"envs,omitempty"`
 	// Genkit library version, e.g. "go/1.4.0".
 	GenkitVersion string `json:"genkitVersion,omitempty"`
 	// Unique runtime identifier.

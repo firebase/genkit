@@ -16,6 +16,7 @@
 
 import EventEmitter from 'events';
 import getPort, { makeRange } from 'get-port';
+import path from 'path';
 import { WebSocket, WebSocketServer } from 'ws';
 import {
   Action,
@@ -190,7 +191,7 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
       reflectionApiSpecVersion: params.reflectionApiSpecVersion,
       reflectionServerUrl: `ws://localhost:${this.port}`, // Virtual URL for compatibility
       timestamp: new Date().toISOString(),
-      projectName: params.name || 'Unknown', // Or derive from other means if needed
+      projectName: path.basename(this.projectRoot), // Or derive from other means if needed
     };
 
     this.runtimes.set(runtimeInfo.id, { ws, info: runtimeInfo });
@@ -201,14 +202,13 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
       ws.send(
         JSON.stringify({
           jsonrpc: '2.0',
-          result: null,
+          result: {
+            telemetryServerUrl: this.telemetryServerUrl,
+          },
           id: request.id,
         })
       );
     }
-
-    // Configure the runtime immediately
-    this.notifyRuntime(runtimeInfo.id);
   }
 
   private handleStreamChunk(notification: JsonRpcRequest) {
@@ -355,12 +355,6 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
     runtime.ws.send(JSON.stringify(message));
   }
 
-  private notifyRuntime(runtimeId: string) {
-    this.sendNotification(runtimeId, 'configure', {
-      telemetryServerUrl: this.telemetryServerUrl,
-    });
-  }
-
   listRuntimes(): RuntimeInfo[] {
     return Array.from(this.runtimes.values()).map((r) => r.info);
   }
@@ -434,7 +428,10 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
           : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
       );
     }
-    return this.sendRequest(runtimeId, 'listValues', { type: input.type });
+    const response = await this.sendRequest(runtimeId, 'listValues', {
+      type: input.type,
+    });
+    return response.values;
   }
 
   async stop() {

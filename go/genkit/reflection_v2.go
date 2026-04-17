@@ -25,6 +25,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/coder/websocket"
@@ -41,11 +42,21 @@ const (
 	jsonRPCServerError    = -32000
 )
 
-// jsonRPCRequest represents an incoming JSON-RPC 2.0 request from the manager.
-type jsonRPCRequest struct {
+// Reconnect backoff bounds. Matches the JS client (500ms base, 5s cap).
+const (
+	reconnectBaseDelay = 500 * time.Millisecond
+	reconnectMaxDelay  = 5 * time.Second
+)
+
+// jsonRPCMessage is the union of incoming JSON-RPC 2.0 messages we handle:
+// requests/notifications (identified by Method) and responses (identified
+// by the presence of Result or Error).
+type jsonRPCMessage struct {
 	JSONRPC string          `json:"jsonrpc"`
-	Method  string          `json:"method"`
+	Method  string          `json:"method,omitempty"`
 	Params  json.RawMessage `json:"params,omitempty"`
+	Result  json.RawMessage `json:"result,omitempty"`
+	Error   *jsonRPCError   `json:"error,omitempty"`
 	ID      string          `json:"id,omitempty"`
 }
 
@@ -57,11 +68,13 @@ type jsonRPCResponse struct {
 	ID      string        `json:"id"`
 }
 
-// jsonRPCNotification is an outgoing JSON-RPC 2.0 notification (no ID).
-type jsonRPCNotification struct {
+// jsonRPCRequestOrNotification is an outgoing request (ID set) or
+// notification (ID empty) from the runtime to the manager.
+type jsonRPCRequestOrNotification struct {
 	JSONRPC string `json:"jsonrpc"`
 	Method  string `json:"method"`
 	Params  any    `json:"params,omitempty"`
+	ID      string `json:"id,omitempty"`
 }
 
 // jsonRPCError is the error object in a JSON-RPC 2.0 error response.
@@ -71,6 +84,13 @@ type jsonRPCError struct {
 	Data    any    `json:"data,omitempty"`
 }
 
+// reflectionRegisterResponse is the result payload for a register request.
+// Not in the generated schema because its only field is optional and the
+// JS side reads it structurally.
+type reflectionRegisterResponse struct {
+	TelemetryServerURL string `json:"telemetryServerUrl,omitempty"`
+}
+
 // reflectionRunActionResponse is the success payload for a runAction request.
 // Not in the generated schema because only the runtime produces it.
 type reflectionRunActionResponse struct {
@@ -78,15 +98,28 @@ type reflectionRunActionResponse struct {
 	Telemetry telemetry       `json:"telemetry"`
 }
 
+// pendingResponse is the channel used to deliver a response to a request we
+// originated (e.g. register).
+type pendingResponse struct {
+	result json.RawMessage
+	err    *jsonRPCError
+}
+
 // reflectionServerV2 is a WebSocket client that connects to the CLI's
-// reflection manager and handles JSON-RPC 2.0 requests.
+// reflection manager and handles JSON-RPC 2.0 requests/responses.
 type reflectionServerV2 struct {
 	g             *Genkit
+	opts          reflectionServerV2Options
 	activeActions *activeActionsMap
+	runtimeID     string
 
-	ctx     context.Context
-	writeMu sync.Mutex // Serializes writes to conn.
+	writeMu sync.Mutex
 	conn    *websocket.Conn
+
+	// pending tracks responses for requests originated by the runtime (register).
+	pendingMu  sync.Mutex
+	pending    map[string]chan pendingResponse
+	requestSeq atomic.Uint64
 }
 
 // reflectionServerV2Options configures the V2 reflection client.
@@ -95,82 +128,146 @@ type reflectionServerV2Options struct {
 	URL  string // WebSocket URL of the CLI manager.
 }
 
-// startReflectionServerV2 connects to the CLI's WebSocket server, registers
-// this runtime, and spawns a goroutine to handle incoming reflection requests.
-// Returns once registration has been sent (or an error has been reported).
+// startReflectionServerV2 connects to the CLI's WebSocket server and spawns
+// a goroutine that handles incoming reflection requests. Reconnects with
+// exponential backoff on connection loss until ctx is cancelled.
 func startReflectionServerV2(ctx context.Context, g *Genkit, opts reflectionServerV2Options, errCh chan<- error, serverStartCh chan<- struct{}) *reflectionServerV2 {
 	if g == nil {
 		errCh <- fmt.Errorf("nil Genkit provided")
 		return nil
 	}
 
-	conn, _, err := websocket.Dial(ctx, opts.URL, nil)
-	if err != nil {
-		errCh <- fmt.Errorf("failed to connect to reflection V2 server at %s: %w", opts.URL, err)
-		return nil
-	}
-
-	s := &reflectionServerV2{
-		g:             g,
-		activeActions: newActiveActionsMap(),
-		ctx:           ctx,
-		conn:          conn,
-	}
-
-	slog.Debug("reflection V2: connected", "url", opts.URL)
-
-	if err := s.register(opts.Name); err != nil {
-		conn.Close(websocket.StatusInternalError, "registration failed")
-		errCh <- fmt.Errorf("failed to register with reflection V2 server: %w", err)
-		return nil
-	}
-
-	close(serverStartCh)
-
-	go func() {
-		defer conn.Close(websocket.StatusNormalClosure, "shutting down")
-		s.readLoop(ctx)
-	}()
-
-	return s
-}
-
-// register sends a registration notification to the manager.
-func (s *reflectionServerV2) register(name string) error {
 	runtimeID := os.Getenv("GENKIT_RUNTIME_ID")
 	if runtimeID == "" {
 		runtimeID = strconv.Itoa(os.Getpid())
 	}
-	if name == "" {
-		name = runtimeID
+
+	s := &reflectionServerV2{
+		g:             g,
+		opts:          opts,
+		activeActions: newActiveActionsMap(),
+		runtimeID:     runtimeID,
+		pending:       map[string]chan pendingResponse{},
 	}
 
-	return s.sendNotification("register", &ReflectionRegisterParams{
-		ID:                       runtimeID,
+	// Initial connect so startup errors surface via errCh. Reconnects after
+	// this are internal and logged.
+	if err := s.connect(ctx); err != nil {
+		errCh <- fmt.Errorf("failed to connect to reflection V2 server at %s: %w", opts.URL, err)
+		return nil
+	}
+	close(serverStartCh)
+
+	go s.session(ctx)
+	return s
+}
+
+// connect opens a new WebSocket connection and stores it on s. Safe to call
+// only when no connection is active.
+func (s *reflectionServerV2) connect(ctx context.Context) error {
+	conn, _, err := websocket.Dial(ctx, s.opts.URL, nil)
+	if err != nil {
+		return err
+	}
+	s.conn = conn
+	slog.Debug("reflection V2: connected", "url", s.opts.URL)
+	return nil
+}
+
+// session runs the full connection lifecycle: register, read loop, reconnect.
+// The first connection has already been established by startReflectionServerV2.
+func (s *reflectionServerV2) session(ctx context.Context) {
+	attempt := 0
+	for {
+		// Register runs concurrently with readLoop so the response can be
+		// delivered back to the pending request channel.
+		go s.register(ctx)
+		s.readLoop(ctx)
+
+		// Clean up any pending responses so callers don't block forever.
+		s.drainPending(fmt.Errorf("connection closed"))
+
+		// Close the previous connection (best-effort) before attempting reconnect.
+		_ = s.conn.Close(websocket.StatusNormalClosure, "reconnecting")
+
+		if ctx.Err() != nil {
+			return
+		}
+
+		delay := reconnectBaseDelay << attempt
+		if delay > reconnectMaxDelay {
+			delay = reconnectMaxDelay
+		}
+		slog.Debug("reflection V2: scheduling reconnect", "delay", delay, "attempt", attempt+1)
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(delay):
+		}
+
+		if err := s.connect(ctx); err != nil {
+			slog.Debug("reflection V2: reconnect failed", "err", err)
+			attempt++
+			continue
+		}
+		attempt = 0
+	}
+}
+
+// register sends a register request and processes the response (which may
+// include a telemetry server URL). Errors are logged but do not tear down
+// the connection; the manager may send configure later.
+func (s *reflectionServerV2) register(ctx context.Context) {
+	name := s.opts.Name
+	if name == "" {
+		name = s.runtimeID
+	}
+	params := &ReflectionRegisterParams{
+		ID:                       s.runtimeID,
 		PID:                      os.Getpid(),
 		Name:                     name,
 		GenkitVersion:            "go/" + internal.Version,
 		ReflectionApiSpecVersion: internal.GENKIT_REFLECTION_API_SPEC_VERSION,
-	})
+		Envs:                     []string{"dev"},
+	}
+
+	result, err := s.sendRequest(ctx, "register", params)
+	if err != nil {
+		slog.Error("reflection V2: register failed", "err", err)
+		return
+	}
+	var resp reflectionRegisterResponse
+	if len(result) > 0 {
+		if err := json.Unmarshal(result, &resp); err != nil {
+			slog.Error("reflection V2: invalid register response", "err", err)
+			return
+		}
+	}
+	if resp.TelemetryServerURL != "" {
+		configureTelemetry(resp.TelemetryServerURL)
+	}
 }
 
 // readLoop reads and dispatches JSON-RPC messages until the context is
 // cancelled or the connection is closed.
 func (s *reflectionServerV2) readLoop(ctx context.Context) {
 	for {
-		var req jsonRPCRequest
-		if err := wsjson.Read(ctx, s.conn, &req); err != nil {
+		var msg jsonRPCMessage
+		if err := wsjson.Read(ctx, s.conn, &msg); err != nil {
 			if ctx.Err() == nil && websocket.CloseStatus(err) == -1 {
-				slog.Error("reflection V2: failed to read message", "err", err)
+				slog.Debug("reflection V2: read error", "err", err)
 			}
 			return
 		}
-
-		if req.JSONRPC != "2.0" || req.Method == "" {
+		if msg.JSONRPC != "2.0" {
 			continue
 		}
-
-		go s.handleRequest(ctx, &req)
+		if msg.Method != "" {
+			go s.handleRequest(ctx, &msg)
+		} else if msg.ID != "" {
+			s.deliverResponse(&msg)
+		}
 	}
 }
 
@@ -178,7 +275,7 @@ func (s *reflectionServerV2) readLoop(ctx context.Context) {
 // Each handler is responsible for sending its own response (or none, for
 // notifications). Unknown methods with a request ID return "method not found";
 // unknown notifications are logged and ignored.
-func (s *reflectionServerV2) handleRequest(ctx context.Context, req *jsonRPCRequest) {
+func (s *reflectionServerV2) handleRequest(ctx context.Context, req *jsonRPCMessage) {
 	switch req.Method {
 	case "listActions":
 		s.handleListActions(ctx, req)
@@ -203,7 +300,7 @@ func (s *reflectionServerV2) handleRequest(ctx context.Context, req *jsonRPCRequ
 }
 
 // handleListActions responds with all registered and resolvable actions.
-func (s *reflectionServerV2) handleListActions(ctx context.Context, req *jsonRPCRequest) {
+func (s *reflectionServerV2) handleListActions(ctx context.Context, req *jsonRPCMessage) {
 	if req.ID == "" {
 		return
 	}
@@ -217,29 +314,32 @@ func (s *reflectionServerV2) handleListActions(ctx context.Context, req *jsonRPC
 	}{Actions: actionsMap})
 }
 
-// handleListValues responds with registered values. The "type" param is
-// parsed for protocol compliance but the Go registry does not currently
-// support filtering by type, so all values are returned.
-func (s *reflectionServerV2) handleListValues(req *jsonRPCRequest) {
+// handleListValues responds with registered values. The Go registry does not
+// currently segment values by type, so "type" is accepted but ignored; we
+// still honor the JS restriction to "defaultModel" / "middleware" so the
+// error shape matches.
+func (s *reflectionServerV2) handleListValues(req *jsonRPCMessage) {
 	if req.ID == "" {
 		return
 	}
-
 	var params ReflectionListValuesParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		s.sendErrorResponse(req.ID, jsonRPCInvalidParams, "invalid params: "+err.Error(), nil)
 		return
 	}
-
-	s.sendResponse(req.ID, ReflectionListValuesResponse(s.g.reg.ListValues()))
+	if params.Type != "defaultModel" && params.Type != "middleware" {
+		s.sendErrorResponse(req.ID, jsonRPCInvalidParams,
+			fmt.Sprintf("'type' %s is not supported. Only 'defaultModel' and 'middleware' are supported", params.Type), nil)
+		return
+	}
+	s.sendResponse(req.ID, &ReflectionListValuesResponse{Values: s.g.reg.ListValues()})
 }
 
 // handleRunAction executes an action and sends the result (with optional streaming).
-func (s *reflectionServerV2) handleRunAction(ctx context.Context, req *jsonRPCRequest) {
+func (s *reflectionServerV2) handleRunAction(ctx context.Context, req *jsonRPCMessage) {
 	if req.ID == "" {
 		return
 	}
-
 	var params ReflectionRunActionParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		s.sendErrorResponse(req.ID, jsonRPCInvalidParams, "invalid params: "+err.Error(), nil)
@@ -251,8 +351,6 @@ func (s *reflectionServerV2) handleRunAction(ctx context.Context, req *jsonRPCRe
 	actionCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Capture the trace ID asynchronously so we can both track the action for
-	// cancellation and include the trace ID in any error we send back.
 	var traceIDMu sync.Mutex
 	var traceID string
 
@@ -345,7 +443,7 @@ func (s *reflectionServerV2) sendRunActionError(id string, err error, traceID st
 }
 
 // handleConfigure processes a configuration notification from the manager.
-func (s *reflectionServerV2) handleConfigure(req *jsonRPCRequest) {
+func (s *reflectionServerV2) handleConfigure(req *jsonRPCMessage) {
 	var params ReflectionConfigureParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		slog.Error("reflection V2: invalid configure params", "err", err)
@@ -355,11 +453,10 @@ func (s *reflectionServerV2) handleConfigure(req *jsonRPCRequest) {
 }
 
 // handleCancelAction cancels an in-flight action by trace ID.
-func (s *reflectionServerV2) handleCancelAction(req *jsonRPCRequest) {
+func (s *reflectionServerV2) handleCancelAction(req *jsonRPCMessage) {
 	if req.ID == "" {
 		return
 	}
-
 	var params ReflectionCancelActionParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		s.sendErrorResponse(req.ID, jsonRPCInvalidParams, "invalid params: "+err.Error(), nil)
@@ -372,7 +469,7 @@ func (s *reflectionServerV2) handleCancelAction(req *jsonRPCRequest) {
 
 	action, ok := s.activeActions.Get(params.TraceID)
 	if !ok {
-		s.sendErrorResponse(req.ID, jsonRPCServerError, "Action not found or already completed", nil)
+		s.sendErrorResponse(req.ID, jsonRPCInvalidParams, "Action not found or already completed", nil)
 		return
 	}
 
@@ -381,9 +478,8 @@ func (s *reflectionServerV2) handleCancelAction(req *jsonRPCRequest) {
 	s.sendResponse(req.ID, &ReflectionCancelActionResponse{Message: "Action cancelled"})
 }
 
-// sendResponse sends a JSON-RPC success response. Send errors are logged but
-// not returned: the read loop will pick up on a broken connection on its
-// next read.
+// sendResponse sends a JSON-RPC success response. Send errors are logged:
+// the read loop will detect a broken connection on its next read.
 func (s *reflectionServerV2) sendResponse(id string, result any) {
 	if err := s.send(&jsonRPCResponse{JSONRPC: "2.0", Result: result, ID: id}); err != nil {
 		slog.Error("reflection V2: failed to send response", "err", err, "id", id)
@@ -403,7 +499,65 @@ func (s *reflectionServerV2) sendErrorResponse(id string, code int, message stri
 
 // sendNotification sends a JSON-RPC notification (no ID, no response expected).
 func (s *reflectionServerV2) sendNotification(method string, params any) error {
-	return s.send(&jsonRPCNotification{JSONRPC: "2.0", Method: method, Params: params})
+	return s.send(&jsonRPCRequestOrNotification{JSONRPC: "2.0", Method: method, Params: params})
+}
+
+// sendRequest sends a JSON-RPC request and blocks until a response is
+// received, the context is cancelled, or the connection drops.
+func (s *reflectionServerV2) sendRequest(ctx context.Context, method string, params any) (json.RawMessage, error) {
+	id := strconv.FormatUint(s.requestSeq.Add(1), 10)
+	ch := make(chan pendingResponse, 1)
+
+	s.pendingMu.Lock()
+	s.pending[id] = ch
+	s.pendingMu.Unlock()
+
+	defer func() {
+		s.pendingMu.Lock()
+		delete(s.pending, id)
+		s.pendingMu.Unlock()
+	}()
+
+	if err := s.send(&jsonRPCRequestOrNotification{JSONRPC: "2.0", Method: method, Params: params, ID: id}); err != nil {
+		return nil, err
+	}
+
+	select {
+	case resp := <-ch:
+		if resp.err != nil {
+			return nil, fmt.Errorf("jsonrpc error %d: %s", resp.err.Code, resp.err.Message)
+		}
+		return resp.result, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// deliverResponse routes a response message to the channel of the originating request.
+func (s *reflectionServerV2) deliverResponse(msg *jsonRPCMessage) {
+	s.pendingMu.Lock()
+	ch, ok := s.pending[msg.ID]
+	s.pendingMu.Unlock()
+	if !ok {
+		slog.Debug("reflection V2: response for unknown id", "id", msg.ID)
+		return
+	}
+	ch <- pendingResponse{result: msg.Result, err: msg.Error}
+}
+
+// drainPending fails all outstanding requests. Called when the connection
+// drops so callers don't block forever.
+func (s *reflectionServerV2) drainPending(err error) {
+	s.pendingMu.Lock()
+	defer s.pendingMu.Unlock()
+	errObj := &jsonRPCError{Code: jsonRPCServerError, Message: err.Error()}
+	for id, ch := range s.pending {
+		select {
+		case ch <- pendingResponse{err: errObj}:
+		default:
+		}
+		delete(s.pending, id)
+	}
 }
 
 // send writes a JSON message to the WebSocket connection.
@@ -411,5 +565,5 @@ func (s *reflectionServerV2) sendNotification(method string, params any) error {
 func (s *reflectionServerV2) send(msg any) error {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
-	return wsjson.Write(s.ctx, s.conn, msg)
+	return wsjson.Write(context.Background(), s.conn, msg)
 }

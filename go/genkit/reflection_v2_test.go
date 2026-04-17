@@ -107,8 +107,29 @@ func (m *fakeManager) write(t *testing.T, ctx context.Context, conn *websocket.C
 	}
 }
 
+// ackRegister reads the register request from the runtime and sends back
+// a minimal success response so the runtime's register goroutine completes.
+// Returns the register params for assertion.
+func (m *fakeManager) ackRegister(t *testing.T, ctx context.Context, conn *websocket.Conn) map[string]any {
+	t.Helper()
+	msg := m.read(t, ctx, conn)
+	if msg["method"] != "register" {
+		t.Fatalf("expected register, got method=%v", msg["method"])
+	}
+	id, ok := msg["id"].(string)
+	if !ok || id == "" {
+		t.Fatalf("register must be a request with a string id, got %v", msg["id"])
+	}
+	m.write(t, ctx, conn, map[string]any{
+		"jsonrpc": "2.0",
+		"result":  map[string]any{},
+		"id":      id,
+	})
+	return msg
+}
+
 // startRuntime starts a reflection V2 client connected to the fake manager
-// and waits for registration. Returns a teardown function.
+// and waits for the WebSocket dial to succeed.
 func startRuntime(t *testing.T, g *Genkit, m *fakeManager) (context.Context, func()) {
 	t.Helper()
 	tracing.WriteTelemetryImmediate(tracing.NewTestOnlyTelemetryClient())
@@ -146,6 +167,9 @@ func TestReflectionServerV2_Register(t *testing.T) {
 	if msg["method"] != "register" {
 		t.Fatalf("first message method = %q, want register", msg["method"])
 	}
+	if _, ok := msg["id"].(string); !ok {
+		t.Error("register should be a request with a string id")
+	}
 	params, ok := msg["params"].(map[string]any)
 	if !ok {
 		t.Fatalf("params is not object: %v", msg["params"])
@@ -154,7 +178,7 @@ func TestReflectionServerV2_Register(t *testing.T) {
 		t.Errorf("name = %q, want test-app", params["name"])
 	}
 	if params["id"] == "" || params["id"] == nil {
-		t.Error("id should be set")
+		t.Error("runtime id should be set")
 	}
 	if _, ok := params["pid"].(float64); !ok {
 		t.Errorf("pid should be a number, got %T", params["pid"])
@@ -165,10 +189,32 @@ func TestReflectionServerV2_Register(t *testing.T) {
 	if _, ok := params["reflectionApiSpecVersion"].(float64); !ok {
 		t.Errorf("reflectionApiSpecVersion should be a number, got %T", params["reflectionApiSpecVersion"])
 	}
-	// register is a notification; it must not have an id field.
-	if _, hasID := msg["id"]; hasID {
-		t.Error("register notification should not have id")
+	envs, ok := params["envs"].([]any)
+	if !ok || len(envs) == 0 || envs[0] != "dev" {
+		t.Errorf("envs = %v, want [dev]", params["envs"])
 	}
+}
+
+func TestReflectionServerV2_RegisterHandshakeTelemetry(t *testing.T) {
+	m := newFakeManager(t)
+	defer m.close()
+
+	g := Init(context.Background())
+	_, cancel := startRuntime(t, g, m)
+	defer cancel()
+
+	conn := m.waitForConnection(t)
+	msg := m.read(t, context.Background(), conn)
+	id := msg["id"].(string)
+
+	// Respond with a telemetryServerUrl; runtime should accept without error.
+	m.write(t, context.Background(), conn, map[string]any{
+		"jsonrpc": "2.0",
+		"result":  map[string]any{"telemetryServerUrl": "http://127.0.0.1:9999"},
+		"id":      id,
+	})
+	// Nothing more to assert over the wire; we're just exercising the response
+	// path to make sure it doesn't panic or stall.
 }
 
 func TestReflectionServerV2_ListActions(t *testing.T) {
@@ -183,9 +229,7 @@ func TestReflectionServerV2_ListActions(t *testing.T) {
 	defer cancel()
 
 	conn := m.waitForConnection(t)
-	if got := m.read(t, ctx, conn)["method"]; got != "register" {
-		t.Fatalf("expected register, got %v", got)
-	}
+	m.ackRegister(t, ctx, conn)
 
 	m.write(t, ctx, conn, map[string]any{
 		"jsonrpc": "2.0",
@@ -217,18 +261,18 @@ func TestReflectionServerV2_ListValues(t *testing.T) {
 	defer m.close()
 
 	g := Init(context.Background())
-	g.reg.RegisterValue("prompts/my-prompt", "hello")
+	g.reg.RegisterValue("defaultModel", "my-model")
 
 	ctx, cancel := startRuntime(t, g, m)
 	defer cancel()
 
 	conn := m.waitForConnection(t)
-	m.read(t, ctx, conn) // drain register
+	m.ackRegister(t, ctx, conn)
 
 	m.write(t, ctx, conn, map[string]any{
 		"jsonrpc": "2.0",
 		"method":  "listValues",
-		"params":  map[string]any{"type": "prompt"},
+		"params":  map[string]any{"type": "defaultModel"},
 		"id":      "2",
 	})
 
@@ -240,8 +284,40 @@ func TestReflectionServerV2_ListValues(t *testing.T) {
 	if !ok {
 		t.Fatalf("result is not object: %v", resp["result"])
 	}
-	if result["prompts/my-prompt"] != "hello" {
-		t.Errorf("value = %v, want hello", result["prompts/my-prompt"])
+	values, ok := result["values"].(map[string]any)
+	if !ok {
+		t.Fatalf("values is not object: %v", result["values"])
+	}
+	if values["defaultModel"] != "my-model" {
+		t.Errorf("value = %v, want my-model", values["defaultModel"])
+	}
+}
+
+func TestReflectionServerV2_ListValuesRejectsUnsupportedType(t *testing.T) {
+	m := newFakeManager(t)
+	defer m.close()
+
+	g := Init(context.Background())
+	ctx, cancel := startRuntime(t, g, m)
+	defer cancel()
+
+	conn := m.waitForConnection(t)
+	m.ackRegister(t, ctx, conn)
+
+	m.write(t, ctx, conn, map[string]any{
+		"jsonrpc": "2.0",
+		"method":  "listValues",
+		"params":  map[string]any{"type": "prompt"},
+		"id":      "2a",
+	})
+
+	resp := m.read(t, ctx, conn)
+	errObj, ok := resp["error"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected error, got %v", resp)
+	}
+	if code := errObj["code"].(float64); code != float64(jsonRPCInvalidParams) {
+		t.Errorf("code = %v, want %d", code, jsonRPCInvalidParams)
 	}
 }
 
@@ -256,7 +332,7 @@ func TestReflectionServerV2_RunAction(t *testing.T) {
 	defer cancel()
 
 	conn := m.waitForConnection(t)
-	m.read(t, ctx, conn) // drain register
+	m.ackRegister(t, ctx, conn)
 
 	m.write(t, ctx, conn, map[string]any{
 		"jsonrpc": "2.0",
@@ -288,7 +364,6 @@ func TestReflectionServerV2_RunAction(t *testing.T) {
 	if !ok {
 		t.Fatalf("result is not object: %v", resp["result"])
 	}
-	// action result is json.RawMessage, which unmarshals to a number here.
 	if got := result["result"]; got != float64(4) {
 		t.Errorf("result = %v, want 4", got)
 	}
@@ -318,7 +393,7 @@ func TestReflectionServerV2_StreamingRunAction(t *testing.T) {
 	defer cancel()
 
 	conn := m.waitForConnection(t)
-	m.read(t, ctx, conn) // drain register
+	m.ackRegister(t, ctx, conn)
 
 	m.write(t, ctx, conn, map[string]any{
 		"jsonrpc": "2.0",
@@ -372,7 +447,7 @@ func TestReflectionServerV2_RunActionNotFound(t *testing.T) {
 	defer cancel()
 
 	conn := m.waitForConnection(t)
-	m.read(t, ctx, conn) // drain register
+	m.ackRegister(t, ctx, conn)
 
 	m.write(t, ctx, conn, map[string]any{
 		"jsonrpc": "2.0",
@@ -418,7 +493,7 @@ func TestReflectionServerV2_CancelAction(t *testing.T) {
 	defer cancel()
 
 	conn := m.waitForConnection(t)
-	m.read(t, ctx, conn) // drain register
+	m.ackRegister(t, ctx, conn)
 
 	m.write(t, ctx, conn, map[string]any{
 		"jsonrpc": "2.0",
@@ -427,7 +502,6 @@ func TestReflectionServerV2_CancelAction(t *testing.T) {
 		"id":      "6",
 	})
 
-	// Wait for action to start, then for the runActionState notification with trace ID.
 	<-started
 	var traceID string
 	for traceID == "" {
@@ -445,7 +519,6 @@ func TestReflectionServerV2_CancelAction(t *testing.T) {
 		"id":      "7",
 	})
 
-	// Expect both the cancelAction response and the runAction error response.
 	var sawCancel, sawRunErr bool
 	for !sawCancel || !sawRunErr {
 		msg := m.read(t, ctx, conn)
@@ -477,7 +550,7 @@ func TestReflectionServerV2_MethodNotFound(t *testing.T) {
 	defer cancel()
 
 	conn := m.waitForConnection(t)
-	m.read(t, ctx, conn) // drain register
+	m.ackRegister(t, ctx, conn)
 
 	m.write(t, ctx, conn, map[string]any{
 		"jsonrpc": "2.0",

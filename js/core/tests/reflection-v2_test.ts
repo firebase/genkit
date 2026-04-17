@@ -16,7 +16,7 @@
 
 import * as assert from 'assert';
 import { afterEach, beforeEach, describe, it } from 'node:test';
-import { WebSocketServer } from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 import { z } from 'zod';
 import { action } from '../src/action.js';
 import { initNodeFeatures } from '../src/node.js';
@@ -30,7 +30,7 @@ describe('ReflectionServerV2', () => {
   let server: ReflectionServerV2;
   let registry: Registry;
   let port: number;
-  let serverWs: any;
+  let connections: WebSocket[] = [];
 
   beforeEach(() => {
     return new Promise<void>((resolve) => {
@@ -40,7 +40,7 @@ describe('ReflectionServerV2', () => {
         resolve();
       });
       wss.on('connection', (ws) => {
-        serverWs = ws;
+        connections.push(ws); // Track all connections
       });
       registry = new Registry();
     });
@@ -50,21 +50,35 @@ describe('ReflectionServerV2', () => {
     if (server) {
       await server.stop();
     }
-    if (serverWs) {
-      serverWs.terminate();
+    // Terminate all connections to let wss.close() proceed
+    for (const ws of connections) {
+      ws.terminate();
     }
+    connections = [];
     await new Promise<void>((resolve) => {
       wss.close(() => resolve());
     });
   });
 
   it('should connect to the server and register', async () => {
-    const connected = new Promise<void>((resolve) => {
+    const connected = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error('connect timeout')),
+        2000
+      );
       wss.on('connection', (ws) => {
         ws.on('message', (data) => {
           const msg = JSON.parse(data.toString());
           if (msg.method === 'register') {
             assert.strictEqual(msg.params.name, 'test-app');
+            ws.send(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                result: {},
+                id: msg.id,
+              })
+            );
+            clearTimeout(timer);
             resolve();
           }
         });
@@ -93,11 +107,22 @@ describe('ReflectionServerV2', () => {
     );
     registry.registerAction('custom', testAction);
 
-    const gotListActions = new Promise<void>((resolve) => {
+    const gotListActions = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error('listActions timeout')),
+        2000
+      );
       wss.on('connection', (ws) => {
         ws.on('message', (data) => {
           const msg = JSON.parse(data.toString());
           if (msg.method === 'register') {
+            ws.send(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                result: {},
+                id: msg.id,
+              })
+            );
             // After registration, request listActions
             ws.send(
               JSON.stringify({
@@ -107,11 +132,13 @@ describe('ReflectionServerV2', () => {
               })
             );
           } else if (msg.id === '123') {
-            assert.ok(msg.result['/custom/testAction']);
+            const actions = msg.result.actions;
+            assert.ok(actions['/custom/testAction']);
             assert.strictEqual(
-              msg.result['/custom/testAction'].name,
+              actions['/custom/testAction'].name,
               'testAction'
             );
+            clearTimeout(timer);
             resolve();
           }
         });
@@ -126,9 +153,13 @@ describe('ReflectionServerV2', () => {
   });
 
   it('should handle listValues', async () => {
-    registry.registerValue('prompt', 'my-prompt', { template: 'foo' });
+    registry.registerValue('middleware', 'my-mw', { template: 'foo' });
 
-    const gotListValues = new Promise<void>((resolve) => {
+    const gotListValues = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error('listValues timeout')),
+        2000
+      );
       wss.on('connection', (ws) => {
         ws.on('message', (data) => {
           const msg = JSON.parse(data.toString());
@@ -136,14 +167,22 @@ describe('ReflectionServerV2', () => {
             ws.send(
               JSON.stringify({
                 jsonrpc: '2.0',
+                result: {},
+                id: msg.id,
+              })
+            );
+            ws.send(
+              JSON.stringify({
+                jsonrpc: '2.0',
                 method: 'listValues',
-                params: { type: 'prompt' },
+                params: { type: 'middleware' },
                 id: '124',
               })
             );
           } else if (msg.id === '124') {
-            assert.ok(msg.result['my-prompt']);
-            assert.strictEqual(msg.result['my-prompt'].template, 'foo');
+            assert.ok(msg.result.values['my-mw']);
+            assert.strictEqual(msg.result.values['my-mw'].template, 'foo');
+            clearTimeout(timer);
             resolve();
           }
         });
@@ -155,6 +194,100 @@ describe('ReflectionServerV2', () => {
     });
     await server.start();
     await gotListValues;
+  });
+
+  it('should handle listValues with toJson mapping', async () => {
+    registry.registerValue('middleware', 'mw1', {
+      toJson: () => ({ name: 'mw1' }),
+    });
+    registry.registerValue('middleware', 'mw2', {
+      name: 'mw2',
+    });
+
+    const gotListValues = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error('listValues toJson timeout')),
+        2000
+      );
+      wss.on('connection', (ws) => {
+        ws.on('message', (data) => {
+          const msg = JSON.parse(data.toString());
+          if (msg.method === 'register') {
+            ws.send(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                result: {},
+                id: msg.id,
+              })
+            );
+            ws.send(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                method: 'listValues',
+                params: { type: 'middleware' },
+                id: '125',
+              })
+            );
+          } else if (msg.id === '125') {
+            assert.ok(msg.result.values['mw1']);
+            assert.strictEqual(msg.result.values['mw1'].name, 'mw1');
+            assert.ok(msg.result.values['mw2']);
+            assert.strictEqual(msg.result.values['mw2'].name, 'mw2');
+            clearTimeout(timer);
+            resolve();
+          }
+        });
+      });
+    });
+
+    server = new ReflectionServerV2(registry, {
+      url: `ws://localhost:${port}`,
+    });
+    await server.start();
+    await gotListValues;
+  });
+
+  it('should reject unsupported type parameter for listValues in V2', async () => {
+    const gotError = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error('listValues error timeout')),
+        2000
+      );
+      wss.on('connection', (ws) => {
+        ws.on('message', (data) => {
+          const msg = JSON.parse(data.toString());
+          if (msg.method === 'register') {
+            ws.send(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                result: {},
+                id: msg.id,
+              })
+            );
+            ws.send(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                method: 'listValues',
+                params: { type: 'unsupported_type' },
+                id: '126',
+              })
+            );
+          } else if (msg.id === '126') {
+            assert.ok(msg.error);
+            assert.strictEqual(msg.error.code, -32602);
+            assert.match(msg.error.message, /is not supported/);
+            clearTimeout(timer);
+            resolve();
+          }
+        });
+      });
+    });
+
+    server = new ReflectionServerV2(registry, {
+      url: `ws://localhost:${port}`,
+    });
+    await server.start();
+    await gotError;
   });
 
   it('should handle runAction', async () => {
@@ -179,6 +312,13 @@ describe('ReflectionServerV2', () => {
           try {
             const msg = JSON.parse(data.toString());
             if (msg.method === 'register') {
+              ws.send(
+                JSON.stringify({
+                  jsonrpc: '2.0',
+                  result: {},
+                  id: msg.id,
+                })
+              );
               ws.send(
                 JSON.stringify({
                   jsonrpc: '2.0',
@@ -243,6 +383,13 @@ describe('ReflectionServerV2', () => {
           try {
             const msg = JSON.parse(data.toString());
             if (msg.method === 'register') {
+              ws.send(
+                JSON.stringify({
+                  jsonrpc: '2.0',
+                  result: {},
+                  id: msg.id,
+                })
+              );
               ws.send(
                 JSON.stringify({
                   jsonrpc: '2.0',
@@ -321,6 +468,13 @@ describe('ReflectionServerV2', () => {
           try {
             const msg = JSON.parse(data.toString());
             if (msg.method === 'register') {
+              ws.send(
+                JSON.stringify({
+                  jsonrpc: '2.0',
+                  result: {},
+                  id: msg.id,
+                })
+              );
               // Start action
               ws.send(
                 JSON.stringify({
@@ -373,5 +527,43 @@ describe('ReflectionServerV2', () => {
     });
     await server.start();
     await actionCancelled;
+  });
+
+  it('should reconnect when lost connection and register again', async () => {
+    let connectionCount = 0;
+    const reconnected = new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error('reconnect timeout')),
+        5000
+      );
+      wss.on('connection', (ws) => {
+        connectionCount++;
+        ws.on('message', (data) => {
+          const msg = JSON.parse(data.toString());
+          if (msg.method === 'register') {
+            if (connectionCount === 1) {
+              ws.terminate(); // Simulate server drop
+            } else if (connectionCount === 2) {
+              ws.send(
+                JSON.stringify({
+                  jsonrpc: '2.0',
+                  result: {},
+                  id: msg.id,
+                })
+              );
+              clearTimeout(timeout);
+              resolve();
+            }
+          }
+        });
+      });
+    });
+
+    server = new ReflectionServerV2(registry, {
+      url: `ws://localhost:${port}`,
+    });
+    (server as any).baseDelayMs = 10; // Fast for testing
+    await server.start();
+    await reconnected;
   });
 });

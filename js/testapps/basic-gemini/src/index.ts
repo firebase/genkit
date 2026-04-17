@@ -42,10 +42,64 @@ const ai = genkit({
   ],
 });
 
+ai.defineFlow('maps-grounding', async () => {
+  const { text, raw } = await ai.generate({
+    model: googleAI.model('gemini-3.1-pro-preview'),
+    prompt: 'Describe some sights near me',
+    config: {
+      tools: [
+        {
+          googleMaps: { enableWidget: true },
+        },
+      ],
+      retrievalConfig: {
+        latLng: {
+          latitude: 43.0896,
+          longitude: -79.0849,
+        },
+      },
+    },
+  });
+
+  return {
+    text,
+    groundingMetadata: (raw as any)?.candidates[0]?.groundingMetadata,
+  };
+});
+
+ai.defineFlow('combine tools and builtins', async () => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-3-flash-preview'),
+    prompt:
+      'What is the southernmost city in Canada? What is the weather like there today? Use the getWeather tool.',
+    config: {
+      tools: [{ googleSearch: {} }],
+      toolConfig: {
+        includeServerSideToolInvocations: true,
+      },
+    },
+    tools: [getWeather],
+  });
+
+  return text;
+});
+
 ai.defineFlow('basic-hi', async () => {
   const { text } = await ai.generate({
     model: googleAI.model('gemini-flash-lite-latest'),
     prompt: 'You are a helpful AI assistant named Walt, say hello',
+  });
+
+  return text;
+});
+
+ai.defineFlow('basic-hi-flex-tier', async () => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-flash-lite-latest'),
+    prompt: 'You are a helpful AI assistant named Walt, say hello',
+    config: {
+      serviceTier: 'flex', // or 'standard' or 'priority'
+    },
   });
 
   return text;
@@ -448,7 +502,6 @@ ai.defineFlow('gemini-image-editing', async (_) => {
       { media: { url: `data:image/png;base64,${room}` } },
     ],
     config: {
-      responseModalities: ['TEXT', 'IMAGE'],
       imageConfig: {
         aspectRatio: '1:1',
       },
@@ -464,7 +517,6 @@ ai.defineFlow('nano-banana-pro', async (_) => {
     model: googleAI.model('gemini-3-pro-image-preview'),
     prompt: 'Generate a picture of a sunset in the mountains by a lake',
     config: {
-      responseModalities: ['TEXT', 'IMAGE'],
       imageConfig: {
         aspectRatio: '3:4',
         imageSize: '1K',
@@ -482,10 +534,9 @@ ai.defineFlow('nano-banana-2', async (_) => {
     prompt:
       'Generate an accurate image of the CN Tower. Use webSearch to determine the date, weather and current time in Toronto. The weather and time should be reflected in the image (day, night, rainy, sunny, snowy etc). Also use words to show the date, time and weather on the image.',
     config: {
-      responseModalities: ['TEXT', 'IMAGE'],
       imageConfig: {
         aspectRatio: '1:4',
-        imageSize: '0.5K',
+        imageSize: '512P',
       },
       google_search: {
         searchTypes: { webSearch: {}, imageSearch: {} },
@@ -526,8 +577,62 @@ ai.defineFlow(
     const { media } = await ai.generate({
       model: googleAI.model('gemini-2.5-flash-preview-tts'),
       config: {
-        responseModalities: ['AUDIO'],
         // For all available options see https://ai.google.dev/gemini-api/docs/speech-generation#javascript
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Algenib' },
+          },
+        },
+      },
+      prompt,
+    });
+    if (!media) {
+      throw new Error('no media returned');
+    }
+    const audioBuffer = Buffer.from(
+      media.url.substring(media.url.indexOf(',') + 1),
+      'base64'
+    );
+    return {
+      media: 'data:audio/wav;base64,' + (await toWav(audioBuffer)),
+    };
+  }
+);
+
+ai.defineFlow(
+  {
+    name: 'tts-audio-tags',
+    inputSchema: z.string().default(
+      `DIRECTOR'S NOTES
+Style:
+* The "Vocal Smile": You must hear the grin in the audio. The soft palate is
+always raised to keep the tone bright, sunny, and explicitly inviting.
+* Dynamics: High projection without shouting. Punchy consonants and elongated
+vowels on excitement words (e.g., "Beauuutiful morning").
+
+Pace: Speaks at an energetic pace, keeping up with the fast music.  Speaks
+with A "bouncing" cadence. High-speed delivery with fluid transitions — no dead
+air, no gaps.
+
+Accent: Jaz is from Brixton, London
+
+SAMPLE CONTEXT
+Jaz is the industry standard for Top 40 radio, high-octane event promos, or any
+script that requires a charismatic Estuary accent and 11/10 infectious energy.
+
+TRANSCRIPT
+[excitedly] Yes, massive vibes in the studio! You are locked in and it is
+absolutely popping off in London right now. If you're stuck on the tube, or
+just sat there pretending to work... stop it. Seriously, I see you.
+[shouting] Turn this up! We've got the project roadmap landing in three,
+two... let's go!`
+    ),
+    outputSchema: z.object({ media: z.string() }),
+  },
+  async (prompt: string) => {
+    const { media } = await ai.generate({
+      model: googleAI.model('gemini-3.1-flash-tts-preview'),
+      config: {
         speechConfig: {
           voiceConfig: {
             prebuiltVoiceConfig: { voiceName: 'Algenib' },
@@ -579,23 +684,23 @@ async function toWav(
 
 // An example of using Ver 3 model to make a static photo move.
 ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
-  const startingImage = fs.readFileSync('photo.jpg', { encoding: 'base64' });
+  const startingImage = fs.readFileSync('woman.png', { encoding: 'base64' });
 
   let { operation } = await ai.generate({
-    model: googleAI.model('veo-3.1-fast-generate-preview'),
+    model: googleAI.model('veo-3.1-lite-generate-preview'),
     prompt: [
       {
         text: 'make the subject in the photo move',
       },
       {
         media: {
-          contentType: 'image/jpeg',
-          url: `data:image/jpeg;base64,${startingImage}`,
+          contentType: 'image/png',
+          url: `data:image/png;base64,${startingImage}`,
         },
       },
     ],
     config: {
-      resolution: '4k',
+      resolution: '1080p',
       durationSeconds: 8,
       aspectRatio: '9:16',
       personGeneration: 'allow_adult',
@@ -621,6 +726,7 @@ ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
   // operation done, download generated video to disk
   const video = operation.output?.message?.content.find((p) => !!p.media);
   if (!video) {
+    sendChunk(operation);
     throw new Error('Failed to find the generated video');
   }
   sendChunk('Writing results to photo.mp4');
@@ -962,4 +1068,211 @@ ai.defineFlow('deep-research-cancel', async (_, { sendChunk }) => {
   sendChunk('Operation cancelled');
 
   return JSON.stringify(canceledOp, null, 2);
+});
+
+// Lyria music generation
+ai.defineFlow('lyria-instrumental-clip', async () => {
+  const response = await ai.generate({
+    model: googleAI.model('lyria-3-clip-preview'),
+    prompt:
+      'A bright chiptune melody in C Major, retro 8-bit video game style. Instrumental only, no vocals.',
+  });
+
+  return response;
+});
+
+ai.defineFlow('lyria-music-generation', async () => {
+  const { media, text } = await ai.generate({
+    model: googleAI.model('lyria-3-clip-preview'),
+    prompt:
+      'Create a 30-second cheerful acoustic folk song with guitar and harmonica.',
+  });
+
+  // if (media) {
+  //   const audioBuffer = Buffer.from(
+  //     media.url.substring(media.url.indexOf(',') + 1),
+  //     'base64'
+  //   );
+  //   fs.writeFileSync('clip.mp3', audioBuffer);
+  // }
+
+  return { text, media };
+});
+
+ai.defineFlow('lyria-full-length-song', async () => {
+  const response = await ai.generate({
+    model: googleAI.model('lyria-3-pro-preview'),
+    prompt:
+      'An epic cinematic orchestral piece about a journey home. Starts with a solo piano intro, builds through sweeping strings, and climaxes with a massive wall of sound.',
+  });
+
+  return response;
+});
+
+ai.defineFlow('lyria-from-image', async () => {
+  const photoBase64 = fs.readFileSync('photo.jpg', { encoding: 'base64' });
+
+  const response = await ai.generate({
+    model: googleAI.model('lyria-3-pro-preview'),
+    prompt: [
+      {
+        text: 'An atmospheric ambient track inspired by the mood and colors in this image.',
+      },
+      {
+        media: {
+          contentType: 'image/jpeg',
+          url: `data:image/jpeg;base64,${photoBase64}`,
+        },
+      },
+    ],
+  });
+
+  return response;
+});
+
+ai.defineFlow('lyria-custom-lyrics', async () => {
+  const prompt = `
+Create a dreamy indie pop song with the following lyrics:
+
+[Verse 1]
+Walking through the neon glow,
+city lights reflect below,
+every shadow tells a story,
+every corner, fading glory.
+
+[Chorus]
+We are the echoes in the night,
+burning brighter than the light,
+hold on tight, don't let me go,
+we are the echoes down below.
+
+[Verse 2]
+Footsteps lost on empty streets,
+rhythms sync to heartbeats,
+whispers carried by the breeze,
+dancing through the autumn leaves.
+`;
+
+  const response = await ai.generate({
+    model: googleAI.model('lyria-3-pro-preview'),
+    prompt,
+  });
+
+  return response;
+});
+
+ai.defineFlow('lyria-custom-timing', async () => {
+  const prompt = `
+[0:00 - 0:10] Intro: Begin with a soft lo-fi beat and muffled vinyl crackle.
+[0:10 - 0:30] Verse 1: Add a warm Fender Rhodes piano melody and gentle vocals singing about a rainy morning.
+[0:30 - 0:50] Chorus: Full band with upbeat drums and soaring synth leads. The lyrics are hopeful and uplifting.
+[0:50 - 1:00] Outro: Fade out with the piano melody alone.
+`;
+
+  const response = await ai.generate({
+    model: googleAI.model('lyria-3-pro-preview'),
+    prompt,
+  });
+
+  return response;
+});
+
+ai.defineFlow('lyria-foreign-language', async () => {
+  const response = await ai.generate({
+    model: googleAI.model('lyria-3-pro-preview'),
+    prompt:
+      'Crée une chanson pop romantique en français sur un coucher de soleil à Paris. Utilise du piano et de la guitare acoustique.',
+  });
+
+  return response;
+});
+
+// Gemma 3
+ai.defineFlow('gemma-3', async () => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemma-3-27b-it'),
+    prompt: 'Tell me a short joke about a programmer.',
+  });
+  return text;
+});
+
+// Gemma 4 with thinkingConfig
+ai.defineFlow('gemma-4', async (_, { sendChunk }) => {
+  const { text, message } = await ai.generate({
+    model: googleAI.model('gemma-4-31b-it'),
+    system: 'You are a physics tutor who loves cats. Use cat analogies.',
+    prompt: 'Explain relativity to a 10 year old',
+    config: {
+      thinkingConfig: {
+        thinkingLevel: 'HIGH', // The only possibility is 'HIGH'
+      },
+    },
+    onChunk: sendChunk,
+  });
+  return {
+    text,
+    reasoning: message?.content.find((p) => !!p.reasoning)?.reasoning,
+  };
+});
+
+// Gemma 4 multi-turn
+ai.defineFlow('gemma-4-multi-turn', async (_, { sendChunk }) => {
+  // First turn
+  sendChunk('--- Turn 1 ---');
+  const response1 = await ai.generate({
+    model: googleAI.model('gemma-4-26b-a4b-it'),
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            text: 'Think of a number between 1 and 10. Explain your reasoning, then tell me the number.',
+          },
+        ],
+      },
+    ],
+  });
+
+  sendChunk(
+    'Reasoning 1: ' +
+      response1.message?.content.find((p) => !!p.reasoning)?.reasoning
+  );
+  sendChunk('Text 1: ' + response1.text);
+
+  // Second turn - passes the previous model response which includes reasoning,
+  // but the plugin should strip the reasoning before sending to the API.
+  sendChunk('\n--- Turn 2 ---');
+  const response2 = await ai.generate({
+    model: googleAI.model('gemma-4-26b-a4b-it'),
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            text: 'Think of a number between 1 and 10. Explain your reasoning, then tell me the number.',
+          },
+        ],
+      },
+      response1.message!,
+      {
+        role: 'user',
+        content: [
+          {
+            text: 'Now multiply that number by 5. Again, explain your reasoning.',
+          },
+        ],
+      },
+    ],
+  });
+
+  sendChunk(
+    'Reasoning 2: ' +
+      response2.message?.content.find((p) => !!p.reasoning)?.reasoning
+  );
+  sendChunk('Text 2: ' + response2.text);
+
+  return {
+    turn1: response1.text,
+    turn2: response2.text,
+  };
 });

@@ -15,17 +15,16 @@
  */
 
 import WebSocket from 'ws';
-import z from 'zod';
 import { StatusCodes, type Status } from './action.js';
 import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
 import {
   ReflectionCancelActionParamsSchema,
   ReflectionConfigureParamsSchema,
-  ReflectionListActionsResponseSchema,
+  ReflectionListActionsResponse,
   ReflectionListValuesParamsSchema,
   ReflectionListValuesResponseSchema,
-  ReflectionRegisterParamsSchema,
+  ReflectionRegisterParams,
   ReflectionRunActionParamsSchema,
   ReflectionRunActionStateParamsSchema,
   ReflectionStreamChunkParamsSchema,
@@ -75,6 +74,19 @@ export class ReflectionServerV2 {
       startTime: Date;
     }
   >();
+  private reconnectCount = 0;
+  private isStopped = false;
+  private reconnectTimeout: NodeJS.Timeout | null = null;
+  private baseDelayMs = 500;
+  private maxDelayMs = 5000;
+  private pendingRequests = new Map<
+    string,
+    {
+      resolve: (value: any) => void;
+      reject: (reason?: any) => void;
+    }
+  >();
+  private requestIdCounter = 0;
 
   constructor(registry: Registry, options: ReflectionServerV2Options) {
     this.registry = registry;
@@ -87,19 +99,31 @@ export class ReflectionServerV2 {
   }
 
   async start() {
-    logger.debug(`Connecting to Reflection V2 server at ${this.url}`);
-    this.ws = new WebSocket(this.url);
+    this.isStopped = false;
+    this.reconnectCount = 0;
+    await this.connect();
+  }
 
-    this.ws.on('open', () => {
+  private async connect() {
+    if (this.isStopped) return;
+
+    logger.debug(`Connecting to Reflection V2 server at ${this.url}`);
+    const ws = new WebSocket(this.url);
+    this.ws = ws;
+
+    this.ws.on('open', async () => {
       logger.debug('Connected to Reflection V2 server.');
-      this.register();
+      this.reconnectCount = 0;
+      await this.register();
     });
 
     this.ws.on('message', async (data) => {
       try {
-        const message = JSON.parse(data.toString()) as JsonRpcMessage;
+        const message = JSON.parse(data.toString()) as any;
         if ('method' in message) {
-          await this.handleRequest(message as JsonRpcRequest);
+          await this.handleRequest(message);
+        } else if ('id' in message) {
+          this.handleResponse(message);
         }
       } catch (error) {
         logger.error(`Failed to parse message: ${error}`);
@@ -110,12 +134,50 @@ export class ReflectionServerV2 {
       logger.error(`Reflection V2 WebSocket error: ${error}`);
     });
 
-    this.ws.on('close', () => {
-      logger.debug('Reflection V2 WebSocket closed.');
+    this.ws.on('close', (code, reason) => {
+      logger.debug(
+        `Reflection V2 WebSocket closed. Code: ${code}, Reason: ${reason}`
+      );
+      for (const [id, resolver] of this.pendingRequests.entries()) {
+        resolver.reject(
+          new Error(
+            `Connection closed before response was received (id: ${id})`
+          )
+        );
+      }
+      this.pendingRequests.clear();
+
+      if (!this.isStopped) {
+        this.scheduleReconnect();
+      }
     });
   }
 
+  private scheduleReconnect() {
+    if (this.reconnectTimeout) return;
+
+    const delay = Math.min(
+      this.baseDelayMs * Math.pow(2, this.reconnectCount),
+      this.maxDelayMs
+    );
+    this.reconnectCount++;
+
+    logger.debug(
+      `Scheduling reconnection in ${delay}ms (attempt ${this.reconnectCount})`
+    );
+
+    this.reconnectTimeout = setTimeout(async () => {
+      this.reconnectTimeout = null;
+      await this.connect();
+    }, delay);
+  }
+
   async stop() {
+    this.isStopped = true;
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -152,20 +214,59 @@ export class ReflectionServerV2 {
     });
   }
 
-  private register() {
-    const params = ReflectionRegisterParamsSchema.parse({
+  private sendRequest(method: string, params: any): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const id = (++this.requestIdCounter).toString();
+      this.pendingRequests.set(id, { resolve, reject });
+      this.send({
+        jsonrpc: '2.0',
+        id,
+        method,
+        params,
+      });
+    });
+  }
+
+  private async register() {
+    const params: ReflectionRegisterParams = {
       id: process.env.GENKIT_RUNTIME_ID || this.runtimeId,
       pid: process.pid,
       name: this.options.name || this.runtimeId,
       genkitVersion: GENKIT_VERSION,
       reflectionApiSpecVersion: GENKIT_REFLECTION_API_SPEC_VERSION,
       envs: this.options.configuredEnvs,
-    });
-    this.sendNotification('register', params);
+    };
+    try {
+      const response = await this.sendRequest('register', params);
+      if (response && response.telemetryServerUrl) {
+        if (!process.env.GENKIT_TELEMETRY_SERVER) {
+          setTelemetryServerUrl(response.telemetryServerUrl);
+          logger.debug(
+            `Connected to telemetry server on ${response.telemetryServerUrl} via handshake`
+          );
+        }
+      }
+    } catch (err) {
+      logger.error(`Failed to register with CLI: ${err}`);
+    }
   }
 
   get runtimeId() {
     return `${process.pid}${this.index ? `-${this.index}` : ''}`;
+  }
+
+  private handleResponse(response: any) {
+    const resolver = this.pendingRequests.get(response.id);
+    if (!resolver) {
+      logger.error(`Unknown response ID: ${response.id}`);
+      return;
+    }
+    this.pendingRequests.delete(response.id);
+    if ('error' in response) {
+      resolver.reject(response.error);
+    } else {
+      resolver.resolve(response.result);
+    }
   }
 
   private async handleRequest(request: JsonRpcRequest) {
@@ -237,19 +338,36 @@ export class ReflectionServerV2 {
       }
     });
 
-    this.sendResponse(
-      request.id,
-      ReflectionListActionsResponseSchema.parse({ actions: convertedActions })
-    );
+    this.sendResponse(request.id, <ReflectionListActionsResponse>{
+      actions: convertedActions,
+    });
   }
 
   private async handleListValues(request: JsonRpcRequest) {
     if (!request.id) return;
     const { type } = ReflectionListValuesParamsSchema.parse(request.params);
+    if (type !== 'defaultModel' && type !== 'middleware') {
+      this.sendError(
+        request.id,
+        -32602,
+        `'type' ${type} is not supported. Only 'defaultModel' and 'middleware' are supported`
+      );
+      return;
+    }
     const values = await this.registry.listValues(type);
+    const mappedValues: Record<string, any> = {};
+    for (const [key, value] of Object.entries(values)) {
+      mappedValues[key] =
+        value &&
+        typeof value === 'object' &&
+        'toJson' in value &&
+        typeof (value as any).toJson === 'function'
+          ? (value as any).toJson()
+          : value;
+    }
     this.sendResponse(
       request.id,
-      ReflectionListValuesResponseSchema.parse(values)
+      ReflectionListValuesResponseSchema.parse({ values: mappedValues })
     );
   }
 
@@ -261,7 +379,7 @@ export class ReflectionServerV2 {
     const action = await this.registry.lookupAction(key);
 
     if (!action) {
-      this.sendError(request.id, 404, `action ${key} not found`);
+      this.sendError(request.id, -32602, `action ${key} not found`);
       return;
     }
 
@@ -376,7 +494,11 @@ export class ReflectionServerV2 {
       this.activeActions.delete(traceId);
       this.sendResponse(request.id, { message: 'Action cancelled' });
     } else {
-      this.sendError(request.id, 404, 'Action not found or already completed');
+      this.sendError(
+        request.id,
+        -32602,
+        'Action not found or already completed'
+      );
     }
   }
 

@@ -17,14 +17,14 @@
     "genai",
     "generative-ai"
   ],
-  "version": "1.30.1",
+  "version": "1.33.0-rc.0",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
     "compile": "cross-env NODE_OPTIONS=\"--max-old-space-size=16384\" npx tsup-node",
     "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean check compile",
-    "build:watch": "tsup-node --watch",
+    "build:watch": "cross-env NODE_OPTIONS=\"--max-old-space-size=16384\" tsup-node --watch",
     "test": "tsx --test ./tests/*_test.ts ./tests/**/*_test.ts ./tests/**/**/*_test.ts"
   },
   "repository": {
