@@ -75,13 +75,16 @@ async def test_dynamic_action_provider_resource() -> None:
     """Test dynamic action provider with resources."""
     registry = Registry()
 
-    # Register a dynamic provider that handles any "dynamic://*" uri (DAP-qualified ref only).
+    # Register a dynamic provider that handles any "dynamic://*" uri (DAP-qualified: provider:resource/<uri>).
     async def provider_fn(input: dict[str, object], ctx: ActionRunContext) -> object:
         kind = cast(ActionKind, input['kind'])
         name = cast(str, input['name'])
         if kind != ActionKind.RESOURCE:
             return None
-        inner_uri = name.split(':', 1)[1] if ':' in name else name
+        # DAP-qualified resource refs only: ``provider:resource/<uri>`` (see run() full name).
+        if ':resource/' not in name:
+            return None
+        inner_uri = name.split(':resource/', 1)[1]
         if not inner_uri.startswith('dynamic://'):
             return None
 
@@ -102,7 +105,7 @@ async def test_dynamic_action_provider_resource() -> None:
     options = GenerateActionOptions(
         model='mock-model',
         messages=[Message(role=Role.USER, content=[Part(root=ResourcePart(resource=Resource1(uri='dynamic://bar')))])],
-        resources=['test-provider:dynamic://bar'],
+        resources=['test-provider:resource/dynamic://bar'],
     )
 
     response = await generate_action(registry, options)

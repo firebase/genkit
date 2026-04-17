@@ -662,9 +662,7 @@ def assert_valid_tool_names(tools: list[Action[Any, Any, Any]]) -> None:
         if short in seen:
             raise GenkitError(
                 status='INVALID_ARGUMENT',
-                message=(
-                    f"Cannot provide two tools with the same name: '{tool.name}' and '{seen[short]}'"
-                ),
+                message=(f"Cannot provide two tools with the same name: '{tool.name}' and '{seen[short]}'"),
             )
         seen[short] = tool.name
 

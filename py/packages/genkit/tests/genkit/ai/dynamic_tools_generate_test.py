@@ -78,7 +78,10 @@ async def test_expand_wildcard_all() -> None:
     define_dynamic_action_provider(registry, 'mcp', dap_fn)
 
     result = await expand_wildcard_tools(registry, ['mcp:tool/*'])
-    assert sorted(result) == ['echo', 'ping']
+    assert sorted(result) == [
+        '/dynamic-action-provider/mcp:tool/echo',
+        '/dynamic-action-provider/mcp:tool/ping',
+    ]
 
 
 @pytest.mark.asyncio
@@ -101,7 +104,10 @@ async def test_expand_wildcard_prefix() -> None:
     define_dynamic_action_provider(registry, 'mcp', dap_fn)
 
     result = await expand_wildcard_tools(registry, ['mcp:tool/get_*'])
-    assert sorted(result) == ['get_time', 'get_weather']
+    assert sorted(result) == [
+        '/dynamic-action-provider/mcp:tool/get_time',
+        '/dynamic-action-provider/mcp:tool/get_weather',
+    ]
 
 
 @pytest.mark.asyncio
@@ -156,7 +162,7 @@ async def test_dap_tool_resolved_in_generate() -> None:
     response = await ai.generate(
         model='programmableModel',
         prompt='use echo',
-        tools=['echo'],
+        tools=['mcp:tool/echo'],
     )
 
     assert response.text == 'done'
@@ -191,7 +197,7 @@ async def test_dap_tools_do_not_pollute_root_registry() -> None:
     await ai.generate(
         model='programmableModel',
         prompt='hi',
-        tools=['dap_only_tool'],
+        tools=['mcp:tool/dap_only_tool'],
     )
 
     # Root registry should NOT have dap_only_tool cached — it was never registered there

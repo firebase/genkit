@@ -384,8 +384,8 @@ class Registry:
                         action.name,
                     )
                     continue
-               
-                canonical = create_action_key(inner_kind, inner_name)
+
+                canonical = create_action_key(inner_kind_str, inner_name)
                 if canonical in local:
                     continue
                 try:
@@ -611,9 +611,7 @@ class Registry:
             try:
                 resolved = await dap.get_action(qualified.inner_kind, qualified.inner_name)
             except Exception as e:
-                raise ValueError(
-                    f'Dynamic action provider {dap_host!r} get_action failed for {kind} {name!r}'
-                ) from e
+                raise ValueError(f'Dynamic action provider {dap_host!r} get_action failed for {kind} {name!r}') from e
             if resolved is not None and resolved.kind == kind:
                 return resolved
             if resolved is None:
@@ -622,8 +620,7 @@ class Registry:
                     f'{qualified.inner_kind!r}/{qualified.inner_name!r} for {name!r}'
                 )
             raise ValueError(
-                f'Dynamic action provider {dap_host!r} returned {resolved.kind!r} for {name!r}, '
-                f'expected {kind!r}'
+                f'Dynamic action provider {dap_host!r} returned {resolved.kind!r} for {name!r}, expected {kind!r}'
             )
         try:
             response = await dap_action.run({'kind': kind, 'name': name})
