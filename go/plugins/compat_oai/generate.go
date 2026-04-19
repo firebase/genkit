@@ -18,11 +18,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/packages/param"
+	"github.com/openai/openai-go/packages/respjson"
 	"github.com/openai/openai-go/shared"
 )
 
@@ -80,6 +82,13 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 			}
 			if len(toolCalls) > 0 {
 				am.ToolCalls = (toolCalls)
+				reasoningKey, ok := firstReasoningMetadataKey(msg.Content)
+				reasoning := concatenateReasoningContent(msg.Content)
+				if ok && reasoning != "" {
+					am.SetExtraFields(map[string]any{
+						reasoningKey: reasoning,
+					})
+				}
 			}
 			oaiMessages = append(oaiMessages, openai.ChatCompletionMessageParamUnion{
 				OfAssistant: &am,
@@ -275,6 +284,31 @@ func (g *ModelGenerator) concatenateContent(parts []*ai.Part) string {
 	return content
 }
 
+// concatenateReasoningContent works the same as concatenateContent
+// but does it only for the reasoning parts
+func concatenateReasoningContent(parts []*ai.Part) string {
+	var sb strings.Builder
+	for _, part := range parts {
+		if part.IsReasoning() {
+			sb.WriteString(part.Text)
+		}
+	}
+	return sb.String()
+}
+
+// firstReasoningMetadataKey returns the key which is used for the reasoning values
+func firstReasoningMetadataKey(parts []*ai.Part) (string, bool) {
+	for _, part := range parts {
+		if !part.IsReasoning() || part.Metadata == nil {
+			continue
+		}
+		if key, ok := part.Metadata["reasoningKey"].(string); ok && key != "" {
+			return key, true
+		}
+	}
+	return "", false
+}
+
 // generateStream generates a streaming model response
 func (g *ModelGenerator) generateStream(ctx context.Context, handleChunk func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
 	stream := g.client.Chat.Completions.NewStreaming(ctx, *g.request)
@@ -421,6 +455,16 @@ func convertChatCompletionToModelResponse(completion *openai.ChatCompletion) (*a
 		}))
 	}
 
+	// Add reasoning content if present (for Kimi/Moonshot compatibility)
+	// Check ExtraFields for reasoning fields when tool calls are present
+	reasoning, ok, err := firstReasoningField(choice.Message.JSON.ExtraFields)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse reasoning field: %w", err)
+	}
+	if ok {
+		resp.Message.Content = append([]*ai.Part{reasoning.ToPart()}, resp.Message.Content...)
+	}
+
 	// Store additional metadata in custom field if needed
 	if completion.SystemFingerprint != "" {
 		resp.Custom = map[string]any{
@@ -504,4 +548,48 @@ func anyToJSONString(data any) (string, error) {
 		return "", fmt.Errorf("failed to marshal any to JSON string: data, %#v %w", data, err)
 	}
 	return string(jsonBytes), nil
+}
+
+var reasoningFieldNames = []string{
+	"reasoning_content",
+	"reasoning",
+	"reasoning_text",
+}
+
+type reasoningField struct {
+	key   string
+	value string
+}
+
+// firstReasoningField returns the first non-empty reasoning field from an
+// OpenAI-compatible response using the compatibility order in reasoningFieldNames.
+func firstReasoningField(fields map[string]respjson.Field) (reasoningField, bool, error) {
+	for _, name := range reasoningFieldNames {
+		raw := fields[name].Raw()
+		if raw == "" || raw == "null" {
+			continue
+		}
+
+		var val string
+		if err := json.Unmarshal([]byte(raw), &val); err != nil {
+			return reasoningField{}, false, err
+		}
+		if val != "" {
+			return reasoningField{key: name, value: val}, true, nil
+		}
+	}
+	return reasoningField{}, false, nil
+}
+
+// ToPart converts the reasoning field to an ai.Part with appropriate metadata.
+func (rf reasoningField) ToPart() *ai.Part {
+	part := ai.NewReasoningPart(rf.value, nil)
+	if rf.key == "" {
+		return part
+	}
+	if part.Metadata == nil {
+		part.Metadata = make(map[string]any)
+	}
+	part.Metadata["reasoningKey"] = rf.key
+	return part
 }
