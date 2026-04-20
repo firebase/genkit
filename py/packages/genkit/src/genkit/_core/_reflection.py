@@ -156,7 +156,7 @@ def create_reflection_asgi_app(
         return JSONResponse({'status': 'OK'})
 
     async def actions(_: Request) -> JSONResponse:
-        # Full catalog via Registry.list_resolvable_actions (plugins on this node + registered + DAP, merged with parent).
+        # Full catalog: list_resolvable_actions (plugins, registered, DAP; merged with parent).
         return JSONResponse(await registry.list_resolvable_actions(), headers={'x-genkit-version': version})
 
     async def values(req: Request) -> JSONResponse:

@@ -384,8 +384,8 @@ class Registry:
                         action.name,
                     )
                     continue
-               
-                canonical = create_action_key(inner_kind, inner_name)
+
+                canonical = create_action_key(inner_kind_str, inner_name)
                 if canonical in local:
                     continue
                 try:

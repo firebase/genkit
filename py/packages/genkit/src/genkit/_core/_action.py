@@ -274,7 +274,7 @@ def parse_action_key(key: str) -> tuple[ActionKind, str]:
     return kind, name
 
 
-def create_action_key(kind: ActionKind, name: str) -> str:
+def create_action_key(kind: ActionKind | str, name: str) -> str:
     """Create '/<kind>/<name>' key."""
     return f'/{kind}/{name}'
 
