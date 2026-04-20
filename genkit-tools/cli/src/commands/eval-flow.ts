@@ -39,10 +39,7 @@ import {
 } from '@genkit-ai/tools-common/utils';
 import * as clc from 'colorette';
 import { Command } from 'commander';
-import {
-  runWithEphemeralManager,
-  runWithManager,
-} from '../utils/manager-utils';
+import { runWithManager } from '../utils/manager-utils';
 
 interface EvalFlowRunCliOptions {
   input?: string;
@@ -215,12 +212,7 @@ export const evalFlow = new Command('eval:flow')
         }
       };
 
-      if (runtimeCommand && runtimeCommand.length > 0) {
-        logger.debug(`Starting ephemeral runtime: ${runtimeCommand.join(' ')}`);
-        await runWithEphemeralManager(projectRoot, runtimeCommand, runAction);
-      } else {
-        await runWithManager(projectRoot, runAction);
-      }
+      await runWithManager(projectRoot, runAction, { runtimeCommand });
     }
   );
 

@@ -19,10 +19,7 @@ import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
 import * as clc from 'colorette';
 import { Command } from 'commander';
 import { readFile, writeFile } from 'fs/promises';
-import {
-  runWithEphemeralManager,
-  runWithManager,
-} from '../utils/manager-utils';
+import { runWithManager } from '../utils/manager-utils';
 
 interface FlowBatchRunOptions {
   wait?: boolean;
@@ -120,10 +117,6 @@ export const flowBatchRun = new Command('flow:batchRun')
         }
       };
 
-      if (runtimeCommand && runtimeCommand.length > 0) {
-        await runWithEphemeralManager(projectRoot, runtimeCommand, runAction);
-      } else {
-        await runWithManager(projectRoot, runAction);
-      }
+      await runWithManager(projectRoot, runAction, { runtimeCommand });
     }
   );
