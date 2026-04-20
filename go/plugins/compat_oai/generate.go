@@ -18,8 +18,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"log/slog"
+	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/internal/base"
@@ -342,6 +342,119 @@ func (g *ModelGenerator) generateStream(ctx context.Context, handleChunk func(co
 	return collector.ToModelResponse()
 }
 
+// convertChatCompletionToModelResponse converts openai.ChatCompletion to ai.ModelResponse
+func convertChatCompletionToModelResponse(completion *openai.ChatCompletion) (*ai.ModelResponse, error) {
+	if len(completion.Choices) == 0 {
+		return nil, fmt.Errorf("no choices in completion")
+	}
+
+	choice := completion.Choices[0]
+
+	// Build usage information with detailed token breakdown
+	usage := &ai.GenerationUsage{
+		InputTokens:  int(completion.Usage.PromptTokens),
+		OutputTokens: int(completion.Usage.CompletionTokens),
+		TotalTokens:  int(completion.Usage.TotalTokens),
+	}
+
+	// Add reasoning tokens (thoughts tokens) if available
+	if completion.Usage.CompletionTokensDetails.ReasoningTokens > 0 {
+		usage.ThoughtsTokens = int(completion.Usage.CompletionTokensDetails.ReasoningTokens)
+	}
+
+	// Add cached tokens if available
+	if completion.Usage.PromptTokensDetails.CachedTokens > 0 {
+		usage.CachedContentTokens = int(completion.Usage.PromptTokensDetails.CachedTokens)
+	}
+
+	// Add audio tokens to custom field if available
+	if completion.Usage.CompletionTokensDetails.AudioTokens > 0 {
+		if usage.Custom == nil {
+			usage.Custom = make(map[string]float64)
+		}
+		usage.Custom["audioTokens"] = float64(completion.Usage.CompletionTokensDetails.AudioTokens)
+	}
+
+	// Add prediction tokens to custom field if available
+	if completion.Usage.CompletionTokensDetails.AcceptedPredictionTokens > 0 {
+		if usage.Custom == nil {
+			usage.Custom = make(map[string]float64)
+		}
+		usage.Custom["acceptedPredictionTokens"] = float64(completion.Usage.CompletionTokensDetails.AcceptedPredictionTokens)
+	}
+	if completion.Usage.CompletionTokensDetails.RejectedPredictionTokens > 0 {
+		if usage.Custom == nil {
+			usage.Custom = make(map[string]float64)
+		}
+		usage.Custom["rejectedPredictionTokens"] = float64(completion.Usage.CompletionTokensDetails.RejectedPredictionTokens)
+	}
+
+	resp := &ai.ModelResponse{
+		Request: &ai.ModelRequest{},
+		Usage:   usage,
+		Message: &ai.Message{
+			Role:    ai.RoleModel,
+			Content: make([]*ai.Part, 0),
+		},
+	}
+
+	// Map finish reason
+	switch choice.FinishReason {
+	case "stop", "tool_calls":
+		resp.FinishReason = ai.FinishReasonStop
+	case "length":
+		resp.FinishReason = ai.FinishReasonLength
+	case "content_filter":
+		resp.FinishReason = ai.FinishReasonBlocked
+	case "function_call":
+		resp.FinishReason = ai.FinishReasonOther
+	default:
+		resp.FinishReason = ai.FinishReasonUnknown
+	}
+
+	// Set finish message if there's a refusal
+	if choice.Message.Refusal != "" {
+		resp.FinishMessage = choice.Message.Refusal
+		resp.FinishReason = ai.FinishReasonBlocked
+	}
+
+	// Add text content
+	if choice.Message.Content != "" {
+		resp.Message.Content = append(resp.Message.Content, ai.NewTextPart(choice.Message.Content))
+	}
+
+	// Add tool calls
+	for _, toolCall := range choice.Message.ToolCalls {
+		args, err := jsonStringToMap(toolCall.Function.Arguments)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse tool args: %w", err)
+		}
+		resp.Message.Content = append(resp.Message.Content, ai.NewToolRequestPart(&ai.ToolRequest{
+			Ref:   toolCall.ID,
+			Name:  toolCall.Function.Name,
+			Input: args,
+		}))
+	}
+
+	// Add reasoning content if present (for Kimi/Moonshot compatibility)
+	// Check ExtraFields for reasoning fields when tool calls are present
+	reasoning, ok := firstReasoningField(choice.Message.JSON.ExtraFields)
+	if ok {
+		resp.Message.Content = append([]*ai.Part{reasoning.ToPart()}, resp.Message.Content...)
+	}
+
+	// Store additional metadata in custom field if needed
+	if completion.SystemFingerprint != "" {
+		resp.Custom = map[string]any{
+			"systemFingerprint": completion.SystemFingerprint,
+			"model":             completion.Model,
+			"id":                completion.ID,
+		}
+	}
+
+	return resp, nil
+}
+
 // generateComplete generates a complete model response
 func (g *ModelGenerator) generateComplete(ctx context.Context, req *ai.ModelRequest) (*ai.ModelResponse, error) {
 	completion, err := g.client.Chat.Completions.New(ctx, *g.request)
@@ -501,119 +614,6 @@ func (c *streamResponseCollector) AddChunk(chunk openai.ChatCompletionChunk) (*a
 func (c *streamResponseCollector) ToModelResponse() (*ai.ModelResponse, error) {
 	c.reasoning.MergeInto(&c.accumulator.ChatCompletion)
 	return convertChatCompletionToModelResponse(&c.accumulator.ChatCompletion)
-}
-
-// convertChatCompletionToModelResponse converts openai.ChatCompletion to ai.ModelResponse
-func convertChatCompletionToModelResponse(completion *openai.ChatCompletion) (*ai.ModelResponse, error) {
-	if len(completion.Choices) == 0 {
-		return nil, fmt.Errorf("no choices in completion")
-	}
-
-	choice := completion.Choices[0]
-
-	// Build usage information with detailed token breakdown
-	usage := &ai.GenerationUsage{
-		InputTokens:  int(completion.Usage.PromptTokens),
-		OutputTokens: int(completion.Usage.CompletionTokens),
-		TotalTokens:  int(completion.Usage.TotalTokens),
-	}
-
-	// Add reasoning tokens (thoughts tokens) if available
-	if completion.Usage.CompletionTokensDetails.ReasoningTokens > 0 {
-		usage.ThoughtsTokens = int(completion.Usage.CompletionTokensDetails.ReasoningTokens)
-	}
-
-	// Add cached tokens if available
-	if completion.Usage.PromptTokensDetails.CachedTokens > 0 {
-		usage.CachedContentTokens = int(completion.Usage.PromptTokensDetails.CachedTokens)
-	}
-
-	// Add audio tokens to custom field if available
-	if completion.Usage.CompletionTokensDetails.AudioTokens > 0 {
-		if usage.Custom == nil {
-			usage.Custom = make(map[string]float64)
-		}
-		usage.Custom["audioTokens"] = float64(completion.Usage.CompletionTokensDetails.AudioTokens)
-	}
-
-	// Add prediction tokens to custom field if available
-	if completion.Usage.CompletionTokensDetails.AcceptedPredictionTokens > 0 {
-		if usage.Custom == nil {
-			usage.Custom = make(map[string]float64)
-		}
-		usage.Custom["acceptedPredictionTokens"] = float64(completion.Usage.CompletionTokensDetails.AcceptedPredictionTokens)
-	}
-	if completion.Usage.CompletionTokensDetails.RejectedPredictionTokens > 0 {
-		if usage.Custom == nil {
-			usage.Custom = make(map[string]float64)
-		}
-		usage.Custom["rejectedPredictionTokens"] = float64(completion.Usage.CompletionTokensDetails.RejectedPredictionTokens)
-	}
-
-	resp := &ai.ModelResponse{
-		Request: &ai.ModelRequest{},
-		Usage:   usage,
-		Message: &ai.Message{
-			Role:    ai.RoleModel,
-			Content: make([]*ai.Part, 0),
-		},
-	}
-
-	// Map finish reason
-	switch choice.FinishReason {
-	case "stop", "tool_calls":
-		resp.FinishReason = ai.FinishReasonStop
-	case "length":
-		resp.FinishReason = ai.FinishReasonLength
-	case "content_filter":
-		resp.FinishReason = ai.FinishReasonBlocked
-	case "function_call":
-		resp.FinishReason = ai.FinishReasonOther
-	default:
-		resp.FinishReason = ai.FinishReasonUnknown
-	}
-
-	// Set finish message if there's a refusal
-	if choice.Message.Refusal != "" {
-		resp.FinishMessage = choice.Message.Refusal
-		resp.FinishReason = ai.FinishReasonBlocked
-	}
-
-	// Add text content
-	if choice.Message.Content != "" {
-		resp.Message.Content = append(resp.Message.Content, ai.NewTextPart(choice.Message.Content))
-	}
-
-	// Add tool calls
-	for _, toolCall := range choice.Message.ToolCalls {
-		args, err := jsonStringToMap(toolCall.Function.Arguments)
-		if err != nil {
-			return nil, fmt.Errorf("could not parse tool args: %w", err)
-		}
-		resp.Message.Content = append(resp.Message.Content, ai.NewToolRequestPart(&ai.ToolRequest{
-			Ref:   toolCall.ID,
-			Name:  toolCall.Function.Name,
-			Input: args,
-		}))
-	}
-
-	// Add reasoning content if present (for Kimi/Moonshot compatibility)
-	// Check ExtraFields for reasoning fields when tool calls are present
-	reasoning, ok := firstReasoningField(choice.Message.JSON.ExtraFields)
-	if ok {
-		resp.Message.Content = append([]*ai.Part{reasoning.ToPart()}, resp.Message.Content...)
-	}
-
-	// Store additional metadata in custom field if needed
-	if completion.SystemFingerprint != "" {
-		resp.Custom = map[string]any{
-			"systemFingerprint": completion.SystemFingerprint,
-			"model":             completion.Model,
-			"id":                completion.ID,
-		}
-	}
-
-	return resp, nil
 }
 
 type reasoningAccumulator struct {
