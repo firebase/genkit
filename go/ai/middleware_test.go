@@ -595,4 +595,110 @@ func TestWrapToolPreservesMetadata(t *testing.T) {
 	}
 }
 
+// --- hook ordering on tool restart: outer generate > restarted tool > inner generate > model ---
+
+func TestMiddlewareHookOrderOnToolRestart(t *testing.T) {
+	r := newTestRegistry(t)
+
+	type restartInput struct {
+		Interrupt bool `json:"interrupt"`
+	}
+
+	tool := DefineTool(r, "restartable", "interrupts, then runs on resume",
+		func(ctx *ToolContext, in restartInput) (string, error) {
+			if in.Interrupt {
+				return "", ctx.Interrupt(&InterruptOptions{})
+			}
+			return "ok", nil
+		},
+	)
+
+	// Requests the tool on the first turn, returns a final text response once a
+	// tool response is present in history.
+	model := DefineModel(r, "test/restartModel", &ModelOptions{
+		Supports: &ModelSupports{Multiturn: true, Tools: true},
+	}, func(ctx context.Context, req *ModelRequest, _ ModelStreamCallback) (*ModelResponse, error) {
+		for _, msg := range req.Messages {
+			for _, p := range msg.Content {
+				if p.IsToolResponse() {
+					return &ModelResponse{
+						Request: req,
+						Message: NewModelTextMessage("done"),
+					}, nil
+				}
+			}
+		}
+		return &ModelResponse{
+			Request: req,
+			Message: &Message{
+				Role: RoleModel,
+				Content: []*Part{NewToolRequestPart(&ToolRequest{
+					Name:  "restartable",
+					Ref:   "t1",
+					Input: map[string]any{"interrupt": true},
+				})},
+			},
+		}, nil
+	})
+
+	first, err := Generate(testCtx, r, WithModel(model), WithPrompt("go"), WithTools(tool))
+	assertNoError(t, err)
+	if first.FinishReason != "interrupted" {
+		t.Fatalf("expected FinishReason=interrupted, got %q", first.FinishReason)
+	}
+	interruptedPart := first.Message.Content[0]
+
+	var mu sync.Mutex
+	var order []string
+	record := func(s string) {
+		mu.Lock()
+		defer mu.Unlock()
+		order = append(order, s)
+	}
+
+	tracker := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+		return &Hooks{
+			WrapGenerate: func(ctx context.Context, p *GenerateParams, next GenerateNext) (*ModelResponse, error) {
+				record("generate")
+				return next(ctx, p)
+			},
+			WrapModel: func(ctx context.Context, p *ModelParams, next ModelNext) (*ModelResponse, error) {
+				record("model")
+				return next(ctx, p)
+			},
+			WrapTool: func(ctx context.Context, p *ToolParams, next ToolNext) (*MultipartToolResponse, error) {
+				record("tool")
+				return next(ctx, p)
+			},
+		}, nil
+	})
+
+	restartPart, err := tool.RestartWith(interruptedPart, WithNewInput[restartInput](restartInput{Interrupt: false}))
+	assertNoError(t, err)
+
+	resumed, err := Generate(testCtx, r,
+		WithModel(model),
+		WithMessages(first.History()...),
+		WithTools(tool),
+		WithToolRestarts(restartPart),
+		WithUse(tracker),
+	)
+	assertNoError(t, err)
+	if resumed.FinishReason == "interrupted" {
+		t.Fatalf("expected completion after restart, got interrupted")
+	}
+
+	// Resume handling lives inside the outer generate span, so the restarted
+	// tool fires before the recursive follow-up iteration's generate+model.
+	want := []string{"generate", "tool", "generate", "model"}
+	if len(order) != len(want) {
+		t.Fatalf("hook order: got %v, want %v", order, want)
+	}
+	for i := range want {
+		if order[i] != want[i] {
+			t.Errorf("order[%d] = %q, want %q", i, order[i], want[i])
+		}
+	}
+}
+
 var testCtx = context.Background()
