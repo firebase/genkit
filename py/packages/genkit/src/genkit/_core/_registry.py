@@ -585,108 +585,106 @@ class Registry:
                 self._loading_actions.discard(action_id)
         return action
 
-    async def resolve_action(self, kind: ActionKind, name: str) -> Action | None:
-        """Resolve an action by kind and name, supporting both prefixed and unprefixed names.
+    async def _resolve_dap_qualified_action(self, kind: ActionKind, name: str) -> Action | None:
+        """Resolve through the one registered DAP for ``provider:innerKind/innerName`` names.
 
-        This method supports:
-        1. Cache hit: Returns immediately if action is already registered
-        2. Namespaced request (e.g., "plugin/model"): Resolves via specific plugin
-        3. Unprefixed request (e.g., "model"): Tries all plugins, errors on ambiguity
-        4. Dynamic action providers: Last-resort fallback for dynamic action creation
+        Caller must ensure :func:`parse_dap_qualified_name` accepts ``name``. Does not consult
+        plugins. Returns ``None`` if the provider is not registered here (caller may delegate
+        to a parent registry).
+        """
+        qualified = parse_dap_qualified_name(name)
+        if qualified is None:
+            return None
+        dap_host = qualified.provider
+        with self._lock:
+            provider = self._entries.get(ActionKind.DYNAMIC_ACTION_PROVIDER, {}).get(dap_host)
+        if provider is None:
+            return None
+        dap_action = await self._trigger_lazy_loading(provider)
+        if dap_action is None:
+            raise RuntimeError(
+                f'Dynamic action provider {dap_host!r} is not registered. '
+                'DAPs must be registered using define_dynamic_action_provider '
+                'before referencing qualified action names.'
+            )
+        dap = getattr(dap_action, GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR, None)
+        if dap is not None:
+            try:
+                resolved = await dap.get_action(qualified.inner_kind, qualified.inner_name)
+            except Exception as e:
+                raise ValueError(f'Dynamic action provider {dap_host!r} get_action failed for {kind} {name!r}') from e
+            if resolved is not None and resolved.kind == kind:
+                return resolved
+            if resolved is None:
+                raise ValueError(
+                    f'Dynamic action provider {dap_host!r} has no action '
+                    f'{qualified.inner_kind!r}/{qualified.inner_name!r} for {name!r}'
+                )
+            raise ValueError(
+                f'Dynamic action provider {dap_host!r} returned {resolved.kind!r} for {name!r}, expected {kind!r}'
+            )
+        try:
+            response = await dap_action.run({'kind': kind, 'name': name})
+            if response.response:
+                self.register_action_instance(response.response)
+                return await self._trigger_lazy_loading(response.response)
+        except Exception as e:
+            logger.debug(
+                f'Dynamic action provider {dap_host} failed for {kind}/{name}',
+                exc_info=e,
+            )
+        return None
+
+    async def resolve_action(self, kind: ActionKind, name: str) -> Action | None:
+        """Resolve an action by kind and name.
+
+        Tries an exact (kind, name) cache hit first. DAP-qualified names
+        (provider:innerKind/innerName) go through that provider only. If the name contains a
+        slash, the first segment is treated as a plugin id: that plugin is initialized and
+        plugin.resolve is used. Falls back to parent registry if nothing found.
 
         Args:
             kind: The type of action to resolve.
-            name: The name of the action (may be prefixed with "plugin/" or unprefixed).
+            name: Action name, optionally plugin/... for a specific plugin.
 
         Returns:
             The Action instance if found, None otherwise.
-
-        Raises:
-            ValueError: If an unprefixed name matches multiple plugins (ambiguous).
         """
-        # Cache hit
         with self._lock:
             if kind in self._entries and name in self._entries[kind]:
                 return await self._trigger_lazy_loading(self._entries[kind][name])
 
-        action: Action | None = None
+        # DAP-qualified names: resolve via that provider only (not plugin slash splitting).
+        if kind != ActionKind.DYNAMIC_ACTION_PROVIDER and parse_dap_qualified_name(name) is not None:
+            action = await self._resolve_dap_qualified_action(kind, name)
+            if action is not None:
+                return action
+            if self._parent is not None:
+                return await self._parent.resolve_action(kind, name)
+            return None
 
-        # Namespaced request
+        # <plugin name>/<action name>: resolve that plugin.
         if '/' in name:
-            plugin_name, local = name.split('/', 1)
+            plugin_name, action_name = name.split('/', 1)
             with self._lock:
                 plugin = self._plugins.get(plugin_name)
 
             if plugin is not None:
                 await self._ensure_plugin_initialized(plugin_name)
 
-                target = f'{plugin_name}/{local}'  # normalized
+                target = f'{plugin_name}/{action_name}'  # normalized
 
                 # Check cache again after init - init() might have registered this action
                 with self._lock:
                     if kind in self._entries and target in self._entries[kind]:
                         return await self._trigger_lazy_loading(self._entries[kind][target])
 
+                # On-demand resolution: target may not have been in init()'s registered set.
                 action = await plugin.resolve(kind, target)
                 if action is not None:
                     self.register_action_instance(action, namespace=plugin_name)
                     with self._lock:
                         return await self._trigger_lazy_loading(self._entries.get(kind, {}).get(target))
-        else:
-            # Unprefixed request: try all plugins
-            successes: list[tuple[str, Action]] = []
-            with self._lock:
-                plugins = list(self._plugins.items())
-            for plugin_name, plugin in plugins:
-                await self._ensure_plugin_initialized(plugin_name)
-                target = f'{plugin_name}/{name}'
-
-                # Check cache first - init() might have registered this action
-                with self._lock:
-                    cached_action = self._entries.get(kind, {}).get(target)
-                if cached_action is not None:
-                    successes.append((plugin_name, cached_action))
-                    continue
-
-                action = await plugin.resolve(kind, target)
-                if action is not None:
-                    successes.append((plugin_name, action))
-
-            if len(successes) > 1:
-                plugin_names = [p for p, _ in successes]
-                raise ValueError(
-                    f"Ambiguous {kind} action name '{name}'. "
-                    + f"Matches plugins: {plugin_names}. Use 'plugin/{name}'."
-                )
-
-            if len(successes) == 1:
-                plugin_name, action = successes[0]
-                self.register_action_instance(action, namespace=plugin_name)
-                with self._lock:
-                    return await self._trigger_lazy_loading(self._entries.get(kind, {}).get(f'{plugin_name}/{name}'))
-
-        # Fallback: try dynamic action providers (for MCP, dynamic resources, etc.)
-        # Skip if we're looking up a dynamic action provider itself to avoid recursion
-        if kind != ActionKind.DYNAMIC_ACTION_PROVIDER:
-            with self._lock:
-                if ActionKind.DYNAMIC_ACTION_PROVIDER in self._entries:
-                    providers_dict = self._entries[ActionKind.DYNAMIC_ACTION_PROVIDER]
-                else:
-                    providers_dict = {}
-                providers = list(providers_dict.values())
-            for provider_action in providers:
-                dap = getattr(provider_action, GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR, None)
-                if dap is None:
-                    continue
-                try:
-                    resolved = await dap.get_action(str(kind), name)
-                    if resolved is not None:
-                        return resolved
-                except Exception as e:
-                    logger.debug(
-                        f'Dynamic action provider {provider_action.name} failed for {kind}/{name}',
-                        exc_info=e,
-                    )
 
         # Final fallback: delegate to parent registry.
         if self._parent is not None:
@@ -712,17 +710,16 @@ class Registry:
             The ``Action`` instance if found, None otherwise.
 
         Raises:
-            ValueError: If the key format is invalid, the kind is not a valid
-                ``ActionKind``, or an unprefixed name is ambiguous.
+            ValueError: If the key format is invalid or the kind is not a valid
+                ``ActionKind``.
         """
         kind, name = parse_action_key(key)
         if kind == ActionKind.DYNAMIC_ACTION_PROVIDER:
             dap_parts = parse_dap_qualified_name(name)
             if dap_parts is not None:
-                provider_name, inner_kind_str, inner_name = dap_parts
                 provider_action = await self.resolve_action(
                     ActionKind.DYNAMIC_ACTION_PROVIDER,
-                    provider_name,
+                    dap_parts.provider,
                 )
                 if provider_action is None:
                     return None
@@ -730,11 +727,11 @@ class Registry:
                 if dap is None:
                     return None
                 try:
-                    resolved = await dap.get_action(inner_kind_str, inner_name)
+                    resolved = await dap.get_action(dap_parts.inner_kind, dap_parts.inner_name)
                 except Exception as e:
                     logger.debug(
-                        f'Dynamic action provider {provider_name} failed for '
-                        f'qualified key {inner_kind_str}/{inner_name}',
+                        f'Dynamic action provider {dap_parts.provider} failed for '
+                        f'qualified key {dap_parts.inner_kind}/{dap_parts.inner_name}',
                         exc_info=e,
                     )
                     return None

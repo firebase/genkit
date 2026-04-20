@@ -24,7 +24,7 @@ import time
 from collections.abc import AsyncIterator, Awaitable, Callable, Generator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Any, ClassVar, Generic, cast, get_type_hints
+from typing import Any, ClassVar, Generic, NamedTuple, cast, get_type_hints
 
 from opentelemetry import trace as trace_api
 from opentelemetry.trace import Span
@@ -232,7 +232,15 @@ def extract_action_args_and_types(
 GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR = '_genkit_dynamic_action_provider'
 
 
-def parse_dap_qualified_name(name: str) -> tuple[str, str, str] | None:
+class DapQualifiedName(NamedTuple):
+    """Segments of a DAP-qualified name ``provider:innerKind/innerName``."""
+
+    provider: str
+    inner_kind: str
+    inner_name: str
+
+
+def parse_dap_qualified_name(name: str) -> DapQualifiedName | None:
     """Parse DAP-qualified segment ``provider:innerKind/innerName``.
 
     Used when the action key kind is ``dynamic-action-provider`` and the name
@@ -242,9 +250,8 @@ def parse_dap_qualified_name(name: str) -> tuple[str, str, str] | None:
     provider segment (``plugin/foo`` is not a valid provider host).
 
     Returns:
-        ``(provider_name, inner_kind, inner_name)`` if the string matches the
-        pattern; otherwise ``None`` so callers can treat the name as a plain
-        dynamic-action-provider id.
+        A :class:`DapQualifiedName` if the string matches; otherwise ``None`` so
+        callers can treat the name as a plain dynamic-action-provider id.
     """
     # Pattern: [provider]:[inner_kind]/[inner_name]; no '/' or ':' in provider.
     match = re.match(r'^([^/:]+):([^/:]+)/(.+)$', name)
@@ -253,7 +260,7 @@ def parse_dap_qualified_name(name: str) -> tuple[str, str, str] | None:
     provider, inner_kind, inner_name = match.groups()
     if not provider or not inner_kind or not inner_name:
         return None
-    return (provider, inner_kind, inner_name)
+    return DapQualifiedName(provider, inner_kind, inner_name)
 
 
 def parse_action_key(key: str) -> tuple[ActionKind, str]:
@@ -277,6 +284,20 @@ def parse_action_key(key: str) -> tuple[ActionKind, str]:
 def create_action_key(kind: ActionKind | str, name: str) -> str:
     """Create '/<kind>/<name>' key."""
     return f'/{kind}/{name}'
+
+
+def parse_dap_provider_host(name: str) -> str | None:
+    """Return the segment before the first ``:`` when the name has multiple ``:``-split parts.
+
+    If there is no ``:``, or the first segment is empty, returns ``None``.
+    """
+    parts = name.split(':')
+    if len(parts) < 2:
+        return None
+    host = parts[0]
+    if not host:
+        return None
+    return host
 
 
 # =============================================================================
