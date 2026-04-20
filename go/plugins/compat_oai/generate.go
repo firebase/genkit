@@ -339,7 +339,7 @@ func (g *ModelGenerator) generateStream(ctx context.Context, handleChunk func(co
 		return nil, fmt.Errorf("stream error: %w", err)
 	}
 
-	return collector.Response()
+	return collector.ToModelResponse()
 }
 
 // generateComplete generates a complete model response
@@ -498,13 +498,9 @@ func (c *streamResponseCollector) AddChunk(chunk openai.ChatCompletionChunk) (*a
 	return modelChunk, true
 }
 
-func (c *streamResponseCollector) Response() (*ai.ModelResponse, error) {
+func (c *streamResponseCollector) ToModelResponse() (*ai.ModelResponse, error) {
 	c.reasoning.MergeInto(&c.accumulator.ChatCompletion)
-	resp, err := convertChatCompletionToModelResponse(&c.accumulator.ChatCompletion)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return convertChatCompletionToModelResponse(&c.accumulator.ChatCompletion)
 }
 
 // convertChatCompletionToModelResponse converts openai.ChatCompletion to ai.ModelResponse
