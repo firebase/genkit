@@ -67,14 +67,18 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 	}
 
 	oaiMessages := make([]openai.ChatCompletionMessageParamUnion, 0, len(messages))
+
+	filterAll := func(p *ai.Part) bool { return true }
+	filterReasoning := func(p *ai.Part) bool { return p.IsReasoning() }
+	filterExceptReasoning := func(p *ai.Part) bool { return !p.IsReasoning() }
+
 	for _, msg := range messages {
-		content := g.concatenateContent(msg.Content)
 		switch msg.Role {
 		case ai.RoleSystem:
+			content := g.concatenateContent(msg.Content, filterAll)
 			oaiMessages = append(oaiMessages, openai.SystemMessage(content))
 		case ai.RoleModel:
 			am := openai.ChatCompletionAssistantMessageParam{}
-			am.Content.OfString = param.NewOpt(content)
 			toolCalls, err := convertToolCalls(msg.Content)
 			if err != nil {
 				g.err = err
@@ -82,14 +86,22 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 			}
 			if len(toolCalls) > 0 {
 				am.ToolCalls = (toolCalls)
-				reasoningKey, ok := firstReasoningMetadataKey(msg.Content)
-				reasoning := concatenateReasoningContent(msg.Content)
-				if ok && reasoning != "" {
-					am.SetExtraFields(map[string]any{
-						reasoningKey: reasoning,
-					})
-				}
 			}
+
+			// Store reasoning in extra fields if present
+			reasoningKey, ok := g.firstReasoningMetadataKey(msg.Content)
+			reasoning := g.concatenateContent(msg.Content, filterReasoning)
+			var content string
+			if ok && reasoning != "" {
+				am.SetExtraFields(map[string]any{
+					reasoningKey: reasoning,
+				})
+				content = g.concatenateContent(msg.Content, filterExceptReasoning)
+			} else {
+				content = g.concatenateContent(msg.Content, filterAll)
+			}
+
+			am.Content.OfString = param.NewOpt(content)
 			oaiMessages = append(oaiMessages, openai.ChatCompletionMessageParamUnion{
 				OfAssistant: &am,
 			})
@@ -275,21 +287,12 @@ func getResponseFormat(output *ai.ModelOutputConfig) openai.ChatCompletionNewPar
 	return format
 }
 
-// concatenateContent concatenates text content into a single string
-func (g *ModelGenerator) concatenateContent(parts []*ai.Part) string {
-	content := ""
-	for _, part := range parts {
-		content += part.Text
-	}
-	return content
-}
-
-// concatenateReasoningContent works the same as concatenateContent
-// but does it only for the reasoning parts
-func concatenateReasoningContent(parts []*ai.Part) string {
+// concatenateContent concatenates text content into a single string.
+// Only parts matching the filter are included.
+func (g *ModelGenerator) concatenateContent(parts []*ai.Part, filter func(*ai.Part) bool) string {
 	var sb strings.Builder
 	for _, part := range parts {
-		if part.IsReasoning() {
+		if filter(part) {
 			sb.WriteString(part.Text)
 		}
 	}
@@ -297,7 +300,7 @@ func concatenateReasoningContent(parts []*ai.Part) string {
 }
 
 // firstReasoningMetadataKey returns the key which is used for the reasoning values
-func firstReasoningMetadataKey(parts []*ai.Part) (string, bool) {
+func (g *ModelGenerator) firstReasoningMetadataKey(parts []*ai.Part) (string, bool) {
 	for _, part := range parts {
 		if !part.IsReasoning() || part.Metadata == nil {
 			continue
