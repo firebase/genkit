@@ -83,7 +83,7 @@ function commonRef(
   });
 }
 
-const KNOWN_MODELS: Record<string, ModelReference<ConfigSchemaType>> = {
+const KNOWN_MODELS = {
   'claude-opus-4-7': commonRef('claude-opus-4-7', ADVANCED_MODEL_INFO),
   'claude-opus-4-6': commonRef('claude-opus-4-6', ADVANCED_MODEL_INFO),
   'claude-opus-4-5': commonRef('claude-opus-4-5', ADVANCED_MODEL_INFO),
@@ -93,9 +93,9 @@ const KNOWN_MODELS: Record<string, ModelReference<ConfigSchemaType>> = {
   'claude-opus-4-1': commonRef('claude-opus-4-1', ADVANCED_MODEL_INFO),
   'claude-sonnet-4': commonRef('claude-sonnet-4'),
   'claude-opus-4': commonRef('claude-opus-4'),
-};
+} as const;
 export type KnownClaudeModels = keyof typeof KNOWN_MODELS;
-export type ClaudeModelName = string;
+export type ClaudeModelName = `claude-${string}`;
 
 export function listKnownModels(
   client: any,
