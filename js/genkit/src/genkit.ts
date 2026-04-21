@@ -788,8 +788,13 @@ export function genkit(options: GenkitOptions): Genkit {
 if (isDevEnv()) {
   const shutdown = async () => {
     logger.debug('Shutting down all Genkit servers...');
-    await ReflectionServer.stopAll();
-    process.exit(0);
+    try {
+      await ReflectionServer.stopAll();
+    } catch (e) {
+      logger.error('Error during Genkit shutdown: ' + e);
+    } finally {
+      process.exit(0);
+    }
   };
 
   process.on('SIGTERM', shutdown);
