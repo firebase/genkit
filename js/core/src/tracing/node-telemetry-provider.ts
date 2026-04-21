@@ -77,7 +77,7 @@ async function enableTelemetry(
   nodeOtelConfig.spanProcessors = processors;
 
   // Add LogRecordProcessors
-  if (process.env.GENKIT_ENABLE_LOGS === 'true') {
+  if (process.env.GENKIT_OTEL_ENABLE_LOGS === 'true') {
     const enableRealTimeTelemetry =
       process.env.GENKIT_ENABLE_REALTIME_TELEMETRY === 'true';
     const logExporter = new LogServerExporter();

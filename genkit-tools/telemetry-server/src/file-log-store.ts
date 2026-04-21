@@ -63,7 +63,7 @@ export class LocalFileLogStore implements LogStore {
   async save(logs: LogRecordData[]): Promise<void> {
     if (logs.length === 0) return;
 
-    await this.mutex.runExclusive(() => {
+    await this.mutex.runExclusive(async () => {
       const logFile = this.getCurrentLogFile();
       const relativeFileName = path.basename(logFile);
 
@@ -99,7 +99,7 @@ export class LocalFileLogStore implements LogStore {
       });
 
       fs.appendFileSync(logFile, linesToAppend.join(''));
-      this.index.add(indexEntries);
+      await this.index.add(indexEntries);
     });
   }
 
@@ -117,20 +117,45 @@ export class LocalFileLogStore implements LogStore {
     });
 
     const logs: LogRecordData[] = [];
+    const fdCache = new Map<string, number>();
 
-    for (const entry of searchResult.entries) {
-      const logFile = path.resolve(this.storeRoot, entry.file);
-      if (fs.existsSync(logFile)) {
-        const buffer = Buffer.alloc(entry.length);
-        const fd = fs.openSync(logFile, 'r');
-        fs.readSync(fd, buffer, 0, entry.length, entry.offset);
-        fs.closeSync(fd);
+    try {
+      for (const entry of searchResult.entries) {
+        const logFile = path.resolve(this.storeRoot, entry.file);
+        let fd = fdCache.get(logFile);
+
+        if (fd === undefined) {
+          if (fs.existsSync(logFile)) {
+            try {
+              fd = fs.openSync(logFile, 'r');
+              fdCache.set(logFile, fd);
+            } catch (e) {
+              logger.error(`Error opening log file ${logFile}: ${e}`);
+              continue;
+            }
+          }
+        }
+
+        if (fd !== undefined) {
+          const buffer = Buffer.alloc(entry.length);
+          try {
+            fs.readSync(fd, buffer, 0, entry.length, entry.offset);
+            logs.push(
+              JSON.parse(buffer.toString('utf8').trim()) as LogRecordData
+            );
+          } catch (e) {
+            logger.error(
+              `Error reading or parsing log at ${entry.file}:${entry.offset}: ${e}`
+            );
+          }
+        }
+      }
+    } finally {
+      for (const fd of fdCache.values()) {
         try {
-          logs.push(
-            JSON.parse(buffer.toString('utf8').trim()) as LogRecordData
-          );
+          fs.closeSync(fd);
         } catch (e) {
-          logger.error(`Error parsing log at ${entry.file}:${entry.offset}`);
+          logger.error(`Error closing file descriptor for log file: ${e}`);
         }
       }
     }
@@ -179,10 +204,19 @@ export class LogIndex {
     return fs.readdirSync(this.indexRoot).filter((f) => f.startsWith('idx_'));
   }
 
-  add(entries: LogIndexEntry[]) {
+  async add(entries: LogIndexEntry[]) {
     if (entries.length === 0) return;
     try {
-      lockfile.lockSync(lockFile(this.currentIndexFile));
+      await new Promise<void>((resolve, reject) => {
+        lockfile.lock(
+          lockFile(this.currentIndexFile),
+          { wait: 1000, retries: 5, retryWait: 100 },
+          (err) => {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
       const lines = entries.map((e) => JSON.stringify(e) + '\n').join('');
       fs.appendFileSync(this.currentIndexFile, lines);
     } catch (err) {

@@ -225,6 +225,8 @@ export class LogServerExporter implements LogRecordExporter {
           });
         }
 
+        // TODO: Handle more complex types (arrays, maps, etc.).
+        // See https://opentelemetry.io/docs/specs/otel/common/#anyvalue.
         const attributes: any[] = [];
         for (const [k, v] of Object.entries(log.attributes)) {
           if (typeof v === 'string')

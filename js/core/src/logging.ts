@@ -55,7 +55,16 @@ class Logger {
     explicitBody?: string,
     explicitAttributes?: Record<string, any>
   ) {
+    if (process.env.GENKIT_OTEL_ENABLE_LOGS !== 'true') {
+      return;
+    }
+
     try {
+      const currentLevel = getLogger().level || 'info';
+      if (LOG_LEVELS.indexOf(currentLevel) > LOG_LEVELS.indexOf(level)) {
+        return;
+      }
+
       const otelLogger = logs.getLogger('genkit-logger');
       let severityNumber: SeverityNumber;
       switch (level) {

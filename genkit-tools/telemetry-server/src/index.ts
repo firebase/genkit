@@ -322,6 +322,7 @@ export async function startTelemetryServer(params: {
         }
       }
 
+      // TODO: Add real time support and broadcast log events
       if (request.body.resourceLogs?.length) {
         const logs = logDataFromOtlp(request.body);
         if (logs.length > 0) {
