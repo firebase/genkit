@@ -226,6 +226,7 @@ def test_respond_to_interrupt_wire_format_with_metadata() -> None:
     assert result.metadata is not None
     assert result.metadata.get('interruptResponse') == {'by': 'admin'}
 
+
 @pytest.mark.asyncio
 async def test_restart_tool_matches_method_no_replace_input() -> None:
     """``restart_tool`` is equivalent to calling ``tool.restart`` (no replace_input)."""
