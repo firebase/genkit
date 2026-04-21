@@ -161,8 +161,7 @@ class Interrupt(Exception):  # noqa: N818 - public Genkit name; not renamed *Err
     with ``cause=Interrupt``; generation attaches interrupt metadata to the pending tool
     request.
 
-    To resume, use ``respond_to_interrupt`` or ``tool.restart(...)`` on the
-    registered Tool.
+    To resume, use ``respond_to_interrupt`` or ``restart_tool``.
     """
 
     def __init__(self, metadata: dict[str, Any] | None = None) -> None:
@@ -210,6 +209,36 @@ def respond_to_interrupt(
         metadata: Optional metadata for the interrupt response channel.
     """
     return _tool_response_part(interrupt, response, metadata)
+
+
+def restart_tool(
+    replace_input: Any | None = None,  # noqa: ANN401 - new tool input; shape is per tool
+    *,
+    tool: Tool,
+    interrupt: ToolRequestPart,
+    resumed_metadata: dict[str, Any] | None = None,
+) -> ToolRequestPart:
+    """Build a restart ``ToolRequestPart`` for a pending tool interrupt.
+
+    Thin wrapper around :meth:`Tool.restart` for symmetry with
+    :func:`respond_to_interrupt`. Pass the return value to
+    ``generate(..., resume_restart=...)``.
+
+    Args:
+        replace_input: Optional new ``tool_request.input`` for this run (previous input is
+            stored in ``metadata.replacedInput`` when this is set).
+        tool: The registered :class:`Tool` that was interrupted.
+        interrupt: The interrupted ``ToolRequestPart`` (e.g. from ``response.interrupts``).
+        resumed_metadata: Passed to the tool as ``ToolRunContext.resumed_metadata``.
+
+    Returns:
+        A ``ToolRequestPart`` for ``resume_restart`` / message history.
+
+    Example:
+        ``restart_tool({**trp.tool_request.input, "confirmed": True}, tool=pay_invoice,``
+        ``interrupt=trp, resumed_metadata={"by": "bob"})``
+    """
+    return tool.restart(replace_input, interrupt=interrupt, resumed_metadata=resumed_metadata)
 
 
 async def run_tool_after_restart(tool: Action[Any, Any, Any], restart_trp: ToolRequestPart) -> ToolResponsePart:

@@ -17,7 +17,7 @@
 """**Bank transfer approval** — human-in-the-loop before a transfer tool finishes.
 
 The model calls ``request_transfer``; the CLI asks **approve (y)** or **decline (n)**.
-**Approve** → ``tool.restart(...)`` / ``resume_restart`` so the tool **runs again**
+**Approve** → ``restart_tool(...)`` / ``resume_restart`` so the tool **runs again**
 with ``ToolRunContext.is_resumed``. **Decline** → ``respond_to_interrupt`` /
 ``resume_respond`` (no second tool run).
 
@@ -38,6 +38,7 @@ from genkit import (
     Interrupt,
     ToolRunContext,
     respond_to_interrupt,
+    restart_tool,
 )
 from genkit.model import ModelResponse
 from genkit.plugins.google_genai import GoogleAI  # pyright: ignore[reportMissingImports]
@@ -156,7 +157,8 @@ async def interactive_restart_cli() -> None:
         ans = input('Approve transfer? [y/N]: ').strip().lower()
 
         if ans in ('y', 'yes'):
-            restart = request_transfer.restart(
+            restart = restart_tool(
+                tool=request_transfer,
                 interrupt=interrupt,
                 resumed_metadata={'via': 'cli', 'path': 'restart'},
             )
