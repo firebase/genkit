@@ -221,7 +221,6 @@ export async function waitForRuntime(
 export interface RunWithManagerOptions {
   /** Command to start the runtime process. If provided, an ephemeral manager is used. */
   runtimeCommand?: string[];
-  experimentalReflectionV2?: boolean;
 }
 
 export async function runWithManager(
@@ -237,7 +236,7 @@ export async function runWithManager(
   try {
     if (useEphemeral) {
       const devEnv = await getDevEnvVars(projectRoot, {
-        experimentalReflectionV2: options?.experimentalReflectionV2 ?? true,
+        experimentalReflectionV2: true,
       });
       const { envVars, telemetryServerUrl, reflectionV2Port } = devEnv;
 
@@ -248,7 +247,7 @@ export async function runWithManager(
         options!.runtimeCommand![0],
         options!.runtimeCommand!.slice(1),
         {
-          experimentalReflectionV2: options?.experimentalReflectionV2 ?? true,
+          experimentalReflectionV2: true,
           healthCheck: true,
           envVars,
           telemetryServerUrl,
@@ -261,7 +260,6 @@ export async function runWithManager(
       manager = await startManager({
         projectRoot,
         manageHealth: false,
-        experimentalReflectionV2: options?.experimentalReflectionV2,
       });
     }
   } catch (e) {
