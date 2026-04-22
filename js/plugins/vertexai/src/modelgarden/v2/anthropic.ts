@@ -55,11 +55,37 @@ import { checkModelName } from './utils.js';
 export const ThinkingConfigSchema = z
   .object({
     enabled: z.boolean().optional(),
-    budgetTokens: z.number().optional(),
+    budgetTokens: z.number().min(1_024).optional(),
     adaptive: z.boolean().optional(),
     display: z.enum(['summarized', 'omitted']).optional(),
   })
-  .passthrough();
+  .passthrough()
+  .superRefine((value, ctx) => {
+    if (value.enabled && value.adaptive) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['adaptive'],
+        message:
+          'Cannot use both enabled and adaptive thinking modes simultaneously',
+      });
+    }
+
+    if (value.enabled) {
+      if (value.budgetTokens === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['budgetTokens'],
+          message: 'budgetTokens is required when thinking is enabled',
+        });
+      } else if (!Number.isInteger(value.budgetTokens)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['budgetTokens'],
+          message: 'budgetTokens must be an integer',
+        });
+      }
+    }
+  });
 
 export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
   location: z.string().optional(),
@@ -331,7 +357,7 @@ function toAnthropicThinking(
 
   if (enabled === true) {
     if (budgetTokens === undefined) {
-      return undefined;
+      throw new Error('budgetTokens is required when thinking is enabled');
     }
     return { type: 'enabled', budget_tokens: budgetTokens };
   }
