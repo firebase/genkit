@@ -94,6 +94,12 @@ const KNOWN_MODELS = {
       input: ['text', 'image', 'video'],
     },
   }),
+  'gemini-embedding-2': commonRef('gemini-embedding-2', {
+    dimensions: 3072,
+    supports: {
+      input: ['text', 'image', 'video'],
+    },
+  }),
   'gemini-embedding-001': commonRef('gemini-embedding-001'),
 } as const;
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete

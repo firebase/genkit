@@ -941,6 +941,28 @@ ai.defineFlow('embed-multimodal', async () => {
   return embeddings;
 });
 
+ai.defineFlow('embed-multimodal-gemini-embedding-2', async () => {
+  const photoBase64 = fs.readFileSync('photo.jpg', { encoding: 'base64' });
+
+  const embeddings = await ai.embed({
+    embedder: googleAI.embedder('gemini-embedding-2'),
+    content: Document.fromParts([
+      { text: 'A picture of Albert Einstein.' },
+      {
+        media: {
+          contentType: 'image/jpeg',
+          url: `data:image/jpeg;base64,${photoBase64}`,
+        },
+      },
+    ]),
+    options: {
+      outputDimensionality: 256,
+    },
+  });
+
+  return embeddings;
+});
+
 // Deep research example
 ai.defineFlow('deep-research', async (_, { sendChunk }) => {
   let { operation } = await ai.generate({
