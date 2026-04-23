@@ -96,6 +96,13 @@ func generateGemini31Image(ctx context.Context, g *genkit.Genkit, modelName, inp
 func main() {
 	ctx := context.Background()
 
+	// Initialize Genkit with the Google AI plugin. When you pass nil for the
+	// Config parameter, the Google AI plugin will get the API key from the
+	// GEMINI_API_KEY or GOOGLE_API_KEY environment variable, which is the recommended
+	// practice. The Vertex AI plugin is added conditionally when GOOGLE_CLOUD_PROJECT
+	// and a location are set, so the gemini-3.1 Vertex flows only register when
+	// that config is present. Vertex's gemini-3.1-flash-*-preview models are
+	// Global-only — set GOOGLE_CLOUD_LOCATION=global.
 	plugins := []api.Plugin{&googlegenai.GoogleAI{}}
 	hasVertex := hasVertexAIConfig()
 	if hasVertex {
