@@ -26,12 +26,23 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-// Mock findProjectRoot in utils
+// Define mock function with 'mock' prefix so it can be used in jest.mock
+const mockFindProjectRoot = jest.fn();
+
+// Mock both potential resolution paths for utils
+jest.mock('../../src/utils', () => {
+  const actual = jest.requireActual('../../src/utils') as any;
+  return {
+    ...actual,
+    findProjectRoot: mockFindProjectRoot,
+  };
+});
+
 jest.mock('../../src/utils/utils', () => {
   const actual = jest.requireActual('../../src/utils/utils') as any;
   return {
     ...actual,
-    findProjectRoot: jest.fn(),
+    findProjectRoot: mockFindProjectRoot,
   };
 });
 
@@ -40,16 +51,13 @@ import {
   getProjectSettings,
   setProjectSettings,
 } from '../../src/utils/configstore';
-import { findProjectRoot } from '../../src/utils/utils';
 
 describe('configstore', () => {
   let tempDir: string;
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'configstore-test-'));
-    (
-      findProjectRoot as jest.MockedFunction<typeof findProjectRoot>
-    ).mockResolvedValue(tempDir);
+    (mockFindProjectRoot as any).mockResolvedValue(tempDir);
   });
 
   afterEach(() => {
