@@ -74,7 +74,7 @@ def test_embedder_action_metadata_with_supports_and_config_schema() -> None:
     )
     assert isinstance(action_metadata, ActionMetadata)
     assert action_metadata.metadata is not None
-    metadata = cast(dict[str, Any], action_metadata.metadata)
+    metadata = action_metadata.metadata
     embedder_meta = cast(dict[str, Any], metadata['embedder'])
     assert embedder_meta['label'] == 'Advanced Embedder'
     assert embedder_meta['dimensions'] == options.dimensions

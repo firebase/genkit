@@ -18,7 +18,6 @@
 
 # Base class and framework primitives
 from genkit._core._action import Action, ActionKind, ActionRunContext
-from genkit._core._typing import ActionMetadata
 from genkit._core._constants import GENKIT_CLIENT_HEADER, GENKIT_VERSION
 from genkit._core._context import ContextProvider, RequestData
 from genkit._core._environment import is_dev_environment
@@ -30,6 +29,7 @@ from genkit._core._schema import to_json_schema
 from genkit._core._trace._adjusting_exporter import AdjustingTraceExporter, RedactedSpan
 from genkit._core._trace._path import to_display_path
 from genkit._core._tracing import add_custom_exporter, tracer
+from genkit._core._typing import ActionMetadata
 
 # Embedder domain re-exports
 from genkit.embedder import (

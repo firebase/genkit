@@ -13,9 +13,9 @@ import pytest
 
 from genkit import Genkit, Plugin
 from genkit._core._action import Action, ActionKind, create_action_key
-from genkit._core._typing import ActionMetadata
 from genkit._core._dap import DapValue, define_dynamic_action_provider
 from genkit._core._registry import Registry
+from genkit._core._typing import ActionMetadata
 
 
 async def _identity(x: object) -> object:
