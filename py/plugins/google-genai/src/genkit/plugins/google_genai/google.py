@@ -424,11 +424,7 @@ class GoogleAI(Plugin):
         # Imagen Models: union the SDK-discovered list with the hardcoded
         # Google AI known-model list so users can select Imagen 4 even when
         # the SDK's models.list() doesn't surface them.
-        imagen_names: list[str] = list(genai_models.imagen)
-        for known in GOOGLEAI_KNOWN_IMAGEN_MODELS:
-            if known not in imagen_names:
-                imagen_names.append(known)
-        for name in imagen_names:
+        for name in dict.fromkeys(genai_models.imagen + list(GOOGLEAI_KNOWN_IMAGEN_MODELS)):
             actions.append(self._resolve_model(googleai_name(name)))
 
         # Veo Models (background models)
@@ -640,11 +636,7 @@ class GoogleAI(Plugin):
                 )
             )
 
-        imagen_names: list[str] = list(genai_models.imagen)
-        for known in GOOGLEAI_KNOWN_IMAGEN_MODELS:
-            if known not in imagen_names:
-                imagen_names.append(known)
-        for name in imagen_names:
+        for name in dict.fromkeys(genai_models.imagen + list(GOOGLEAI_KNOWN_IMAGEN_MODELS)):
             actions_list.append(
                 model_action_metadata(
                     name=googleai_name(name),
