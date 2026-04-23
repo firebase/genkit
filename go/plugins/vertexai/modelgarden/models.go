@@ -77,4 +77,8 @@ var AnthropicModels = map[string]ai.ModelOptions{
 		Label:    "Claude 4.6 Opus",
 		Supports: &internal.Multimodal,
 	},
+	"claude-opus-4-7": {
+		Label:    "Claude 4.7 Opus",
+		Supports: &internal.Multimodal,
+	},
 }

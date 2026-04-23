@@ -86,5 +86,23 @@ func main() {
 		)
 	})
 
+	// Vertex Model Garden - Claude Opus 4.7.
+	genkit.DefineFlow(g, "claudeOpus47VertexModelGardenFlow", func(ctx context.Context, input string) (string, error) {
+		if input == "" {
+			input = "airplane food"
+		}
+		m := modelgarden.AnthropicModel(g, "claude-opus-4-7")
+		if m == nil {
+			return "", errors.New("claudeOpus47VertexModelGardenFlow: failed to find model")
+		}
+		return genkit.GenerateText(ctx, g,
+			ai.WithModel(m),
+			ai.WithConfig(&anthropic.MessageNewParams{
+				MaxTokens: 1024,
+			}),
+			ai.WithPrompt("Share a joke about %s.", input),
+		)
+	})
+
 	<-ctx.Done()
 }
