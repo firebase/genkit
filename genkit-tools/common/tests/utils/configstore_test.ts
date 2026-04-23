@@ -94,5 +94,15 @@ describe('configstore', () => {
       const readSettings = await getProjectSettings();
       expect(readSettings).toEqual({});
     });
+
+    it('does not create .genkit directory on read if it does not exist', async () => {
+      const dotGenkitDir = path.join(tempDir, '.genkit');
+      expect(fs.existsSync(dotGenkitDir)).toBe(false);
+
+      const settings = await getProjectSettings();
+
+      expect(settings).toEqual({});
+      expect(fs.existsSync(dotGenkitDir)).toBe(false);
+    });
   });
 });
