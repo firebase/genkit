@@ -26,16 +26,12 @@ import type { BaseRuntimeManager } from '@genkit-ai/tools-common/manager';
 import {
   confirmLlmUse,
   findProjectRoot,
-  getProjectSettings,
   loadEvaluationDatasetFile,
   logger,
 } from '@genkit-ai/tools-common/utils';
 import * as clc from 'colorette';
 import { Command } from 'commander';
-import {
-  runWithEphemeralManager,
-  runWithManager,
-} from '../utils/manager-utils';
+import { runWithManager } from '../utils/manager-utils';
 
 interface EvalRunCliOptions {
   output?: string;
@@ -89,13 +85,6 @@ export const evalRun = new Command('eval:run')
     }
 
     const projectRoot = await findProjectRoot();
-
-    if (!runtimeCommand || runtimeCommand.length === 0) {
-      const settings = await getProjectSettings();
-      if (settings.runtimeCommand) {
-        runtimeCommand = (settings.runtimeCommand as string).split(' ');
-      }
-    }
 
     const runAction = async (manager: BaseRuntimeManager) => {
       if (!actualDataset) {
@@ -160,10 +149,5 @@ export const evalRun = new Command('eval:run')
       }
     };
 
-    if (runtimeCommand && runtimeCommand.length > 0) {
-      logger.debug(`Starting ephemeral runtime: ${runtimeCommand.join(' ')}`);
-      await runWithEphemeralManager(projectRoot, runtimeCommand, runAction);
-    } else {
-      await runWithManager(projectRoot, runAction);
-    }
+    await runWithManager(projectRoot, runAction, { runtimeCommand });
   });

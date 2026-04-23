@@ -15,18 +15,11 @@
  */
 
 import type { BaseRuntimeManager } from '@genkit-ai/tools-common/manager';
-import {
-  findProjectRoot,
-  getProjectSettings,
-  logger,
-} from '@genkit-ai/tools-common/utils';
+import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
 import * as clc from 'colorette';
 import { Command } from 'commander';
 import { writeFile } from 'fs/promises';
-import {
-  runWithEphemeralManager,
-  runWithManager,
-} from '../utils/manager-utils';
+import { runWithManager } from '../utils/manager-utils';
 
 interface FlowRunOptions {
   wait?: boolean;
@@ -71,13 +64,6 @@ export const flowRun = new Command('flow:run')
 
     const projectRoot = await findProjectRoot();
 
-    if (!runtimeCommand || runtimeCommand.length === 0) {
-      const settings = await getProjectSettings();
-      if (settings.runtimeCommand) {
-        runtimeCommand = (settings.runtimeCommand as string).split(' ');
-      }
-    }
-
     const runAction = async (manager: BaseRuntimeManager) => {
       let traceId: string | undefined;
       const response = await manager.runAction(
@@ -111,10 +97,5 @@ export const flowRun = new Command('flow:run')
       }
     };
 
-    if (runtimeCommand && runtimeCommand.length > 0) {
-      logger.debug(`Starting ephemeral runtime: ${runtimeCommand.join(' ')}`);
-      await runWithEphemeralManager(projectRoot, runtimeCommand, runAction);
-    } else {
-      await runWithManager(projectRoot, runAction);
-    }
+    await runWithManager(projectRoot, runAction, { runtimeCommand });
   });
