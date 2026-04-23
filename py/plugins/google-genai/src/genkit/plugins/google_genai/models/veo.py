@@ -138,10 +138,8 @@ class VeoConfigSchema(BaseModel):
     duration_seconds: int | None = Field(
         default=None, alias='durationSeconds', description='Length of video in seconds.'
     )
-    resolution: str | None = Field(
-        default=None, alias='resolution', description='Desired output resolution (e.g. "720p").'
-    )
-    seed: int | None = Field(default=None, alias='seed', description='Random seed for deterministic generation.')
+    resolution: str | None = Field(default=None, description='Desired output resolution (e.g. "720p").')
+    seed: int | None = Field(default=None, description='Random seed for deterministic generation.')
     enhance_prompt: bool | None = Field(default=None, alias='enhancePrompt', description='Enable prompt enhancement.')
 
 

@@ -18,7 +18,7 @@
 
 import asyncio
 import time
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -47,21 +47,24 @@ class ImageInput(BaseModel):
 class VideoInput(BaseModel):
     """Input for Veo."""
 
-    model: str = Field(
-        default='googleai/veo-3.1-generate-preview',
-        description=(
-            'Veo model for generation, e.g. '
-            'googleai/veo-3.1-generate-preview, googleai/veo-3.1-fast-generate-preview, '
-            'googleai/veo-3.0-generate-001, googleai/veo-3.0-fast-generate-001'
-        ),
-    )
+    model: Literal[
+        'googleai/veo-3.1-generate-preview',
+        'googleai/veo-3.1-fast-generate-preview',
+        'googleai/veo-3.1-generate-001',
+        'googleai/veo-3.1-fast-generate-001',
+        'googleai/veo-3.0-generate-001',
+        'googleai/veo-3.0-fast-generate-001',
+        'googleai/veo-2.0-generate-001',
+    ] = Field(default='googleai/veo-3.1-generate-preview', description='Veo model for generation')
     prompt: str = Field(
         default='A paper airplane gliding through a bright classroom, cinematic slow motion',
         description='Video prompt',
     )
     aspect_ratio: str = Field(default='16:9', description='Video aspect ratio')
     duration_seconds: int = Field(default=5, description='Video duration in seconds')
-    resolution: str | None = Field(default='720p', description='Output resolution (for supported models)')
+    resolution: str | None = Field(
+        default=None, description='Output resolution (for supported models, e.g. "720p", "1080p")'
+    )
     seed: int | None = Field(default=None, description='Optional RNG seed')
 
 
@@ -118,17 +121,6 @@ async def _poll_video(operation: Operation, model_name: str) -> Operation:
     return operation
 
 
-def _video_config(input: VideoInput) -> dict[str, Any]:
-    """Build Veo config while omitting unset optional fields."""
-    config = {
-        'aspect_ratio': input.aspect_ratio,
-        'duration_seconds': input.duration_seconds,
-        'resolution': input.resolution,
-        'seed': input.seed,
-    }
-    return {k: v for k, v in config.items() if v is not None}
-
-
 @ai.flow(name='generate_video')
 async def veo_video_generator(input: VideoInput) -> dict[str, str | int | None]:
     """Generate one video by starting and polling a background model."""
@@ -140,7 +132,7 @@ async def veo_video_generator(input: VideoInput) -> dict[str, str | int | None]:
     operation = await action.start(
         ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=input.prompt))])],
-            config=_video_config(input),
+            config=input.model_dump(exclude_none=True, exclude={'prompt', 'model'}),
         )
     )
     operation = await _poll_video(operation, input.model)
