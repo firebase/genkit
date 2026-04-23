@@ -12,7 +12,8 @@ functionality, ensuring proper registration and management of Genkit resources.
 import pytest
 
 from genkit import Genkit, Plugin
-from genkit._core._action import Action, ActionKind, ActionMetadata, create_action_key
+from genkit._core._action import Action, ActionKind, create_action_key
+from genkit._core._typing import ActionMetadata
 from genkit._core._dap import DapValue, define_dynamic_action_provider
 from genkit._core._registry import Registry
 
@@ -124,7 +125,7 @@ async def test_resolve_action_from_plugin() -> None:
             return Action(name=name, fn=model_fn, kind=action_type)
 
         async def list_actions(self) -> list[ActionMetadata]:
-            return [ActionMetadata(kind=ActionKind.MODEL, name='foo')]
+            return [ActionMetadata(action_type=ActionKind.MODEL, name='myplugin/foo')]
 
     ai = Genkit(plugins=[MyPlugin()])
 
@@ -285,7 +286,7 @@ async def test_child_resolvable_includes_parent_plugin() -> None:
             return None
 
         async def list_actions(self) -> list[ActionMetadata]:
-            return [ActionMetadata(kind=ActionKind.MODEL, name='my-model')]
+            return [ActionMetadata(action_type=ActionKind.MODEL, name='parentplugin/my-model')]
 
     parent = Registry()
     parent.register_plugin(ParentPlugin())
@@ -312,7 +313,7 @@ async def test_child_resolvable_local_tool_shadows_parent_plugin_metadata() -> N
         async def list_actions(self) -> list[ActionMetadata]:
             return [
                 ActionMetadata(
-                    kind=ActionKind.TOOL,
+                    action_type=ActionKind.TOOL,
                     name='parentplugin/shared-name',
                     description='from parent plugin',
                 )
@@ -353,7 +354,7 @@ async def test_child_resolvable_dap_tool_shadows_parent_plugin_metadata() -> Non
         async def list_actions(self) -> list[ActionMetadata]:
             return [
                 ActionMetadata(
-                    kind=ActionKind.TOOL,
+                    action_type=ActionKind.TOOL,
                     name='parentplugin/mcp-tool',
                     description='stale parent schema',
                 )
@@ -379,19 +380,14 @@ async def test_child_resolvable_dap_tool_shadows_parent_plugin_metadata() -> Non
     define_dynamic_action_provider(child, 'mcp', dap_fn)
 
     catalog = await child.list_resolvable_actions()
-    entry = catalog['/tool/parentplugin/mcp-tool']
-    assert entry['description'] == 'from mcp'
-    assert entry['description'] != 'stale parent schema'
+    qualified = create_action_key(ActionKind.DYNAMIC_ACTION_PROVIDER, 'mcp:tool/parentplugin/mcp-tool')
+    assert catalog[qualified]['description'] == 'from mcp'
+    assert catalog['/tool/parentplugin/mcp-tool']['description'] == 'stale parent schema'
 
 
 @pytest.mark.asyncio
 async def test_list_resolvable_registered_canonical_coexists_with_qualified_dap_rows() -> None:
-    """Same canonical tool path from registration and from DAP: both catalog shapes appear.
-
-    The qualified DAP metadata row (under ``dynamic-action-provider``) is always merged;
-    the canonical ``/tool/...`` row prefers the action already in the registry when both
-    would describe the same path.
-    """
+    """Registered ``/tool/...`` row coexists with DAP ``/dynamic-action-provider/...`` rows when shortnames collide."""
     tool_name = 'suite/same-canonical'
 
     async def registered_fn(_: str) -> str:

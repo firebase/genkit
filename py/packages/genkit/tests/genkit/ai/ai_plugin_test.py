@@ -23,7 +23,8 @@
 import pytest
 
 from genkit import Genkit, Message, ModelResponse, Part, Plugin, Role, TextPart
-from genkit._core._action import Action, ActionMetadata, ActionRunContext
+from genkit._core._action import Action, ActionRunContext
+from genkit._core._typing import ActionMetadata
 from genkit._core._model import ModelRequest
 from genkit._core._registry import ActionKind
 from genkit._core._typing import FinishReason
@@ -62,7 +63,7 @@ class AsyncResolveOnlyPlugin(Plugin):
         """List available actions."""
         return [
             ActionMetadata(
-                kind=ActionKind.MODEL,
+                action_type=ActionKind.MODEL,
                 name=f'{self.name}/lazy-model',
             )
         ]
@@ -101,7 +102,7 @@ class AsyncInitPlugin(Plugin):
         """List available actions."""
         return [
             ActionMetadata(
-                kind=ActionKind.MODEL,
+                action_type=ActionKind.MODEL,
                 name=f'{self.name}/init-model',
             )
         ]

@@ -546,20 +546,6 @@ class Action(Generic[InputT, OutputT, ChunkT]):
             self._metadata[ActionMetadataKey.OUTPUT_KEY] = self._output_schema
 
 
-class ActionMetadata(BaseModel):
-    """Action metadata for registry and reflection."""
-
-    kind: ActionKind
-    name: str
-    description: str | None = None
-    input_schema: object | None = None
-    input_json_schema: dict[str, object] | None = None
-    output_schema: object | None = None
-    output_json_schema: dict[str, object] | None = None
-    stream_schema: object | None = None
-    metadata: dict[str, object] | None = None
-
-
 def _make_tracing_wrapper(
     name: str,
     kind: ActionKind,

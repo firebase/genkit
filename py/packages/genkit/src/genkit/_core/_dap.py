@@ -25,8 +25,10 @@ from genkit._core._action import (
     GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR,
     Action,
     ActionKind,
+    create_action_key,
 )
 from genkit._core._registry import Registry
+from genkit._core._typing import ActionMetadata
 
 ActionMetadataLike = Mapping[str, object]
 DapValue = dict[str, list[Action[Any, Any]]]
@@ -114,15 +116,27 @@ class DynamicActionProvider:
             return [m for m in metadata_list if str(m.get('name', '')).startswith(prefix)]
         return [m for m in metadata_list if m.get('name') == action_name]
 
-    async def get_action_metadata_record(self, dap_prefix: str) -> dict[str, ActionMetadataLike]:
-        """Get all actions as metadata record for reflection API."""
+    async def get_action_metadata_record(self, dap_prefix: str) -> dict[str, ActionMetadata]:
+        """Get all actions as a reflection metadata record, keyed by full DAP key."""
         result = await self._get_or_fetch(skip_trace=True)
-        dap_actions: dict[str, ActionMetadataLike] = {}
+        dap_actions: dict[str, ActionMetadata] = {}
         for action_type, actions in result.items():
             for action in actions:
                 if not action.name:
                     raise ValueError(f'Invalid metadata from {dap_prefix} - name required')
-                dap_actions[f'{dap_prefix}:{action_type}/{action.name}'] = action.metadata or {}
+                key = create_action_key(
+                    ActionKind.DYNAMIC_ACTION_PROVIDER,
+                    f'{dap_prefix}:{action_type}/{action.name}',
+                )
+                dap_actions[key] = ActionMetadata(
+                    key=key,
+                    action_type=action_type,
+                    name=action.name,
+                    description=action.description,
+                    input_schema=action.input_schema,
+                    output_schema=action.output_schema,
+                    metadata=dict(action.metadata) if action.metadata else None,
+                )
         return dap_actions
 
 

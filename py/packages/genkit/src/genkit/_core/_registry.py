@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable
 from typing import Any, cast
 
 from dotpromptz.dotprompt import Dotprompt
@@ -31,7 +31,6 @@ from genkit._core._action import (
     GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR,
     Action,
     ActionKind,
-    ActionMetadata,
     ActionName,
     ActionRunContext,
     SpanAttributeValue,
@@ -47,6 +46,7 @@ from genkit._core._model import (
 )
 from genkit._core._plugin import Plugin
 from genkit._core._typing import (
+    ActionMetadata,
     EmbedRequest,
     EmbedResponse,
     EvalRequest,
@@ -94,28 +94,17 @@ def _reflection_payload_for_registered_action(action: Action) -> dict[str, Any]:
     }
 
 
-def _reflection_payload_for_plugin_metadata(meta: ActionMetadata) -> dict[str, Any]:
-    key = f'/{meta.kind}/{meta.name}'
+def _reflection_payload_for_action_metadata(meta: ActionMetadata) -> dict[str, Any]:
+    """Adapt an :class:`ActionMetadata` into the reflection payload dict shape."""
+    key = meta.key or f'/{meta.action_type}/{meta.name}'
     return {
         'key': key,
         'name': meta.name,
-        'type': meta.kind,
+        'type': meta.action_type,
         'description': meta.description,
-        'inputSchema': meta.input_json_schema,
-        'outputSchema': meta.output_json_schema,
-        'metadata': meta.metadata,
-    }
-
-
-def _reflection_payload_for_dap_metadata(full_key: str, meta: Mapping[str, object]) -> dict[str, Any]:
-    return {
-        'key': full_key,
-        'name': meta.get('name'),
-        'type': meta.get('type'),
-        'description': meta.get('description'),
-        'inputSchema': meta.get('inputSchema') or meta.get('input_json_schema'),
-        'outputSchema': meta.get('outputSchema') or meta.get('output_json_schema'),
-        'metadata': dict(meta),
+        'inputSchema': meta.input_schema or meta.input_json_schema,
+        'outputSchema': meta.output_schema or meta.output_json_schema,
+        'metadata': dict(meta.metadata) if meta.metadata else None,
     }
 
 
@@ -345,10 +334,10 @@ class Registry:
             for meta in plugin_metas or []:
                 if not meta.name:
                     raise ValueError(f'Invalid ActionMetadata from {plugin_name}: name required')
-                if '/' not in meta.name:
-                    meta = meta.model_copy(update={'name': f'{plugin_name}/{meta.name}'})
-                key = f'/{meta.kind}/{meta.name}'
-                local[key] = _reflection_payload_for_plugin_metadata(meta)
+                if not meta.action_type:
+                    raise ValueError(f'Invalid ActionMetadata from {plugin_name}: action_type required')
+                key = f'/{meta.action_type}/{meta.name}'
+                local[key] = _reflection_payload_for_action_metadata(meta)
 
         actions_dict = await self.list_actions()
         actions = actions_dict.items()
@@ -367,46 +356,8 @@ class Registry:
                     action.name,
                 )
                 continue
-            for record_key, meta in record.items():
-                full_key = create_action_key(ActionKind.DYNAMIC_ACTION_PROVIDER, record_key)
-                local[full_key] = _reflection_payload_for_dap_metadata(full_key, meta)
-                parts = parse_dap_qualified_name(record_key)
-                if parts is None:
-                    continue
-                _provider, inner_kind_str, inner_name = parts
-                try:
-                    inner_kind = ActionKind(inner_kind_str)
-                except ValueError:
-                    logger.debug(
-                        "Unrecognized ActionKind '%s' in DAP record key '%s' from provider '%s'",
-                        inner_kind_str,
-                        record_key,
-                        action.name,
-                    )
-                    continue
-
-                canonical = create_action_key(inner_kind_str, inner_name)
-                if canonical in local:
-                    continue
-                try:
-                    nested = await dap.get_action(inner_kind_str, inner_name)
-                except Exception as e:
-                    logger.debug(
-                        'DAP %s failed resolving nested action %s/%s for canonical catalog row',
-                        action.name,
-                        inner_kind_str,
-                        inner_name,
-                        exc_info=e,
-                    )
-                    nested = None
-                if nested is not None:
-                    local[canonical] = _reflection_payload_for_registered_action(nested)
-                else:
-                    canon_payload = dict(_reflection_payload_for_dap_metadata(full_key, meta))
-                    canon_payload['key'] = canonical
-                    canon_payload['name'] = inner_name
-                    canon_payload['type'] = inner_kind
-                    local[canonical] = canon_payload
+            for full_key, meta in record.items():
+                local[full_key] = _reflection_payload_for_action_metadata(meta)
 
         if self._parent is None:
             return local
