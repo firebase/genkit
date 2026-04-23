@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { context } from '@opentelemetry/api';
 import { logs, SeverityNumber } from '@opentelemetry/api-logs';
 
 const LOG_LEVELS = ['debug', 'info', 'warn', 'error'];
@@ -98,7 +99,6 @@ class Logger {
 
       let activeContext;
       try {
-        const { context } = require('@opentelemetry/api');
         activeContext = context.active();
       } catch (e) {
         // No-op if @opentelemetry/api trace is uninitialized or missing right now
