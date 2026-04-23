@@ -44,7 +44,7 @@ func generateGemini31Lite(ctx context.Context, g *genkit.Genkit, modelName, inpu
 	return genkit.GenerateText(ctx, g,
 		ai.WithModel(googlegenai.ModelRef(modelName, &genai.GenerateContentConfig{
 			ThinkingConfig: &genai.ThinkingConfig{
-				ThinkingBudget: genai.Ptr[int32](0),
+				ThinkingLevel: genai.ThinkingLevelMinimal,
 			},
 		})),
 		ai.WithPrompt("Write one funny sentence about %s.", prompt),
@@ -61,7 +61,7 @@ func generateGemini31Image(ctx context.Context, g *genkit.Genkit, modelName, inp
 		ai.WithModel(googlegenai.ModelRef(modelName, &genai.GenerateContentConfig{
 			ResponseModalities: []string{"IMAGE", "TEXT"},
 			ThinkingConfig: &genai.ThinkingConfig{
-				ThinkingBudget: genai.Ptr[int32](0),
+				ThinkingLevel: genai.ThinkingLevelMinimal,
 			},
 		})),
 		ai.WithPrompt("Generate an image of %s and include a short caption.", prompt),
