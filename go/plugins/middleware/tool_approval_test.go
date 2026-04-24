@@ -219,11 +219,11 @@ func TestToolApprovalResumedCallRuns(t *testing.T) {
 		t.Fatalf("got finish reason %q, want %q", resp.FinishReason, "interrupted")
 	}
 
-	// Build a restart part for each interrupt and resume.
+	// Build a restart part for each interrupt with explicit approval metadata.
 	var restarts []*ai.Part
 	for _, p := range resp.Interrupts() {
 		restart := ai.NewToolRequestPart(p.ToolRequest)
-		restart.Metadata = map[string]any{"resumed": true}
+		restart.Metadata = map[string]any{"resumed": map[string]any{"toolApproved": true}}
 		restarts = append(restarts, restart)
 	}
 
@@ -239,5 +239,68 @@ func TestToolApprovalResumedCallRuns(t *testing.T) {
 	}
 	if resp.Text() != "done" {
 		t.Errorf("got %q, want %q", resp.Text(), "done")
+	}
+}
+
+// Resuming without the explicit toolApproved flag must still interrupt, so
+// unrelated resume flows cannot bypass approval.
+func TestToolApprovalResumedWithoutApprovalInterrupts(t *testing.T) {
+	r := newTestRegistry(t)
+
+	m := defineToolModel(t, r, "test/singletool", func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+		for _, msg := range req.Messages {
+			for _, part := range msg.Content {
+				if part.IsToolResponse() {
+					return &ai.ModelResponse{Request: req, Message: ai.NewModelTextMessage("done")}, nil
+				}
+			}
+		}
+		return &ai.ModelResponse{
+			Request: req,
+			Message: &ai.Message{
+				Role: ai.RoleModel,
+				Content: []*ai.Part{
+					ai.NewToolRequestPart(&ai.ToolRequest{Name: "needsApproval", Input: map[string]any{"v": "1"}}),
+				},
+			},
+		}, nil
+	})
+	needsApproval := defineTool(t, r, "needsApproval")
+
+	ta := &ToolApproval{}
+	ai.DefineMiddleware(r, "toolApproval", ta)
+
+	resp, err := ai.Generate(ctx, r,
+		ai.WithModel(m),
+		ai.WithPrompt("go"),
+		ai.WithTools(needsApproval),
+		ai.WithUse(ta),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.FinishReason != "interrupted" {
+		t.Fatalf("got finish reason %q, want %q", resp.FinishReason, "interrupted")
+	}
+
+	// Bare `resumed: true` without `toolApproved: true` must NOT bypass approval;
+	// the tool re-interrupts, which surfaces as a FAILED_PRECONDITION error from
+	// ai.Generate for the restarted turn.
+	var restarts []*ai.Part
+	for _, p := range resp.Interrupts() {
+		restart := ai.NewToolRequestPart(p.ToolRequest)
+		restart.Metadata = map[string]any{"resumed": true}
+		restarts = append(restarts, restart)
+	}
+
+	_, err = ai.Generate(ctx, r,
+		ai.WithModel(m),
+		ai.WithMessages(resp.History()...),
+		ai.WithTools(needsApproval),
+		ai.WithToolRestarts(restarts...),
+		ai.WithUse(ta),
+	)
+	if err == nil {
+		t.Fatal("expected error from re-interrupted restart, got nil")
 	}
 }

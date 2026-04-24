@@ -43,7 +43,7 @@ func defineModel(t *testing.T, r *registry.Registry, name string, fn ai.ModelFun
 
 func init() {
 	// Disable real sleeping in tests.
-	sleepFunc = func(time.Duration) {}
+	sleepFunc = func(context.Context, time.Duration) error { return nil }
 }
 
 func TestRetrySucceedsOnFirstAttempt(t *testing.T) {
@@ -194,7 +194,7 @@ func TestRetryBackoffDelays(t *testing.T) {
 
 	var delays []time.Duration
 	origSleep := sleepFunc
-	sleepFunc = func(d time.Duration) { delays = append(delays, d) }
+	sleepFunc = func(_ context.Context, d time.Duration) error { delays = append(delays, d); return nil }
 	defer func() { sleepFunc = origSleep }()
 
 	retry := &Retry{
@@ -227,7 +227,7 @@ func TestRetryMaxDelayClamp(t *testing.T) {
 
 	var delays []time.Duration
 	origSleep := sleepFunc
-	sleepFunc = func(d time.Duration) { delays = append(delays, d) }
+	sleepFunc = func(_ context.Context, d time.Duration) error { delays = append(delays, d); return nil }
 	defer func() { sleepFunc = origSleep }()
 
 	retry := &Retry{
@@ -250,6 +250,37 @@ func TestRetryMaxDelayClamp(t *testing.T) {
 		if got != want[i] {
 			t.Errorf("delay[%d] = %v, want %v", i, got, want[i])
 		}
+	}
+}
+
+// If the caller cancels while we are sleeping between attempts, the retry
+// loop should bail out immediately rather than running more attempts.
+func TestRetryStopsWhenContextCanceledDuringBackoff(t *testing.T) {
+	r := newTestRegistry(t)
+	calls := 0
+	m := defineModel(t, r, "test/ctxcancel", func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+		calls++
+		return nil, core.NewError(core.UNAVAILABLE, "down")
+	})
+
+	reqCtx, cancel := context.WithCancel(context.Background())
+	origSleep := sleepFunc
+	sleepFunc = func(c context.Context, _ time.Duration) error {
+		cancel() // simulate caller disconnecting mid-backoff
+		return c.Err()
+	}
+	defer func() { sleepFunc = origSleep }()
+
+	retry := &Retry{MaxRetries: 5}
+	ai.DefineMiddleware(r, "retry", retry)
+
+	_, err := ai.Generate(reqCtx, r, ai.WithModel(m), ai.WithPrompt("hello"), ai.WithUse(retry))
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	// Only the initial attempt should have run; the backoff was aborted.
+	if calls != 1 {
+		t.Errorf("got %d calls, want 1 (aborted after first attempt)", calls)
 	}
 }
 

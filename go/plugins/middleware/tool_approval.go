@@ -26,7 +26,17 @@ import (
 )
 
 // ToolApproval is a middleware that interrupts tool execution unless the tool
-// is in [AllowedTools] or the call has been resumed after approval.
+// is in [AllowedTools] or the call has been explicitly approved on resume.
+//
+// To approve on resume, attach a "toolApproved" flag to the restart metadata:
+//
+//	restart := tool.Restart(interruptPart, &ai.RestartOptions{
+//	    ResumedMetadata: map[string]any{"toolApproved": true},
+//	})
+//
+// The bare [ai.IsToolResumed] flag alone is NOT treated as approval; callers
+// must opt in so that unrelated resume flows (e.g. respond-only turns) cannot
+// bypass approval.
 //
 // Usage:
 //
@@ -37,7 +47,7 @@ import (
 //	    ai.WithUse(&middleware.ToolApproval{AllowedTools: []string{"toolA"}}),
 //	)
 //	// toolA runs; toolB triggers an interrupt.
-//	// Resume with ai.WithToolRestarts to approve and re-execute.
+//	// Resume with ai.WithToolRestarts carrying {"toolApproved": true} to re-execute.
 type ToolApproval struct {
 	// AllowedTools is the list of tool names pre-approved to run without
 	// interruption. Tools not in this list trigger an interrupt. An empty
@@ -54,13 +64,12 @@ func (t *ToolApproval) New(ctx context.Context) (*ai.Hooks, error) {
 }
 
 func (t *ToolApproval) wrapTool(ctx context.Context, params *ai.ToolParams, next ai.ToolNext) (*ai.MultipartToolResponse, error) {
-	// Resumed tool calls have already been approved by the caller.
-	if ai.IsToolResumed(ctx) {
+	name := params.Tool.Name()
+	if slices.Contains(t.AllowedTools, name) {
 		return next(ctx, params)
 	}
 
-	name := params.Tool.Name()
-	if slices.Contains(t.AllowedTools, name) {
+	if approved, _ := ai.ResumedValue[bool](ctx, "toolApproved"); approved {
 		return next(ctx, params)
 	}
 

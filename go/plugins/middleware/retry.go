@@ -39,8 +39,18 @@ var defaultRetryStatuses = []core.StatusName{
 	core.INTERNAL,
 }
 
-// sleepFunc is the function used for delays. Overridable for testing.
-var sleepFunc = time.Sleep
+// sleepFunc is the function used for delays. It blocks for d or until ctx is
+// canceled, returning ctx.Err() in the latter case. Overridable for testing.
+var sleepFunc = func(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
 
 // Retry is a middleware that retries failed model calls with exponential backoff.
 //
@@ -146,7 +156,11 @@ func (r *Retry) wrapModel(ctx context.Context, params *ai.ModelParams, next ai.M
 			delay += jitter
 		}
 
-		sleepFunc(delay)
+		// Bail out if the caller disconnected mid-backoff; no reason to wait
+		// out the delay (or issue another retry) for a caller who has left.
+		if err := sleepFunc(ctx, delay); err != nil {
+			return nil, lastErr
+		}
 
 		currentDelay = min(time.Duration(float64(currentDelay)*r.backoffFactor()), r.maxDelay())
 	}

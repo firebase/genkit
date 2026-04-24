@@ -251,14 +251,17 @@ func IsToolResumed(ctx context.Context) bool {
 	return resumedCtxKey.FromContext(ctx) != nil
 }
 
-// ResumedValue retrieves a typed value from the Resumed metadata.
+// ResumedValue retrieves a typed value from the resumed metadata on ctx.
 // Returns the zero value and false if the key doesn't exist or the type doesn't match.
-func ResumedValue[T any](tc *ToolContext, key string) (T, bool) {
+// Accepts either a plain [context.Context] (useful in middleware) or a [*ToolContext],
+// which embeds [context.Context].
+func ResumedValue[T any](ctx context.Context, key string) (T, bool) {
 	var zero T
-	if tc.Resumed == nil {
+	m := resumedCtxKey.FromContext(ctx)
+	if m == nil {
 		return zero, false
 	}
-	v, ok := tc.Resumed[key]
+	v, ok := m[key]
 	if !ok {
 		return zero, false
 	}
