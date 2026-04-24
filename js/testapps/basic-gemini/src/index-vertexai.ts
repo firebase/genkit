@@ -41,8 +41,7 @@ ai.defineFlow('basic-hi', async () => {
 ai.defineFlow('paygo', async () => {
   const response = await ai.generate({
     model: vertexAI.model('gemini-3.1-flash-lite-preview'),
-    prompt:
-      'You are a helpful AI assistant named Walt, say hello.',
+    prompt: 'You are a helpful AI assistant named Walt, say hello.',
     config: {
       payGo: 'priority', // or priority-only, flex, flex-only.
     },
