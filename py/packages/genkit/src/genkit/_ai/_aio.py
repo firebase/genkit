@@ -668,7 +668,7 @@ class Genkit:
         """Initialize the registry with default model and plugins."""
         self.registry.default_model = model
         if model:
-            self.registry.register_value('defaultModel', model, model)
+            self.registry.register_value('defaultModel', 'defaultModel', model)
         for fmt in built_in_formats:
             self.define_format(fmt)
 
