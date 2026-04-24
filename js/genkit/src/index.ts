@@ -26,4 +26,5 @@
  * @module /
  */
 export * from './common.js';
+export * from './datasets.js';
 export { Genkit, genkit, type GenkitOptions } from './genkit.js';

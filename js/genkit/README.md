@@ -150,6 +150,34 @@ For more details see: https://genkit.dev/docs/deploy-node
 
 But you can also deploy to [Firebase](https://genkit.dev/docs/firebase/) or [Cloud Run](https://genkit.dev/docs/cloud-run/), etc.
 
+## Manage local eval datasets
+
+Genkit also exposes a local dataset store for the current Developer UI dataset
+format. That lets you define datasets programmatically and still have them
+render in the UI.
+
+```ts
+import { datasetStoreForProjectRoot } from 'genkit';
+
+const store = await datasetStoreForProjectRoot();
+
+await store.createDataset({
+  datasetId: 'recipes-123456',
+  datasetType: 'FLOW',
+  targetAction: '/flow/recipeGeneratorFlow',
+  data: [
+    {
+      input: { ingredient: 'avocado' },
+      reference: { title: 'Avocado Toast' },
+    },
+  ],
+});
+```
+
+Today the default store writes `.genkit/datasets/index.json` plus one
+`${datasetId}.json` file per dataset. Keeping callers on the store API leaves
+room for a different backend later without changing call sites.
+
 ## Next steps
 
 Now that you’re set up to make model requests with Genkit, learn how to use more

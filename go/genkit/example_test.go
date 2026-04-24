@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
@@ -319,4 +320,34 @@ func ExampleLookupPrompt() {
 
 	fmt.Println("Found prompt:", prompt.Name())
 	// Output: Found prompt: greeting
+}
+
+// This example demonstrates creating a dataset in the same local format used by
+// the Developer UI today.
+func ExampleLocalFileDatasetStore_CreateDataset() {
+	root, err := os.MkdirTemp("", "genkit-datasets-example-")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(root)
+
+	store, err := genkit.NewLocalFileDatasetStore(root)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	metadata, err := store.CreateDataset(genkit.CreateDatasetRequest{
+		DatasetID:    "recipes-123456",
+		DatasetType:  genkit.DatasetTypeFlow,
+		TargetAction: "/flow/recipeGenerator",
+		Data: []genkit.InferenceSample{
+			{Input: map[string]any{"ingredient": "avocado"}},
+		},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("%s v%d (%d samples)\n", metadata.DatasetID, metadata.Version, metadata.Size)
+	// Output: recipes-123456 v1 (1 samples)
 }
