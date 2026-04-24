@@ -384,7 +384,7 @@ export class Genkit extends GenkitAI implements HasRegistry {
       input?: I,
       opts?: PromptGenerateOptions<O, CustomOptions>
     ): GenerateStreamResponse<O> => {
-      let channel = new Channel<GenerateResponseChunk>();
+      let channel = new Channel<GenerateResponseChunk<O>>();
 
       const generated = runInNewSpan(
         this.registry,
