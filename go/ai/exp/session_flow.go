@@ -1143,38 +1143,6 @@ func (af *SessionFlow[Stream, State]) RunText(
 	}, opts...)
 }
 
-// RunBackground starts a single-turn session flow invocation that runs in
-// the background: the input is sent with Detach=true so the server writes
-// a pending snapshot and continues processing after the connection closes.
-// The returned output carries the pending snapshot ID; use GetSnapshot to
-// observe its progression and CancelSnapshot to stop it.
-//
-// Requires a session store to be configured via WithSessionStore.
-func (af *SessionFlow[Stream, State]) RunBackground(
-	ctx context.Context,
-	input *SessionFlowInput,
-	opts ...InvocationOption[State],
-) (*SessionFlowOutput[State], error) {
-	conn, err := af.StreamBidi(ctx, opts...)
-	if err != nil {
-		return nil, err
-	}
-	bg := SessionFlowInput{Detach: true}
-	if input != nil {
-		bg = *input
-		bg.Detach = true
-	}
-	if err := conn.Send(&bg); err != nil {
-		return nil, err
-	}
-	for _, err := range conn.Receive() {
-		if err != nil {
-			return nil, err
-		}
-	}
-	return conn.Output()
-}
-
 // GetSnapshot returns the metadata and (when settled) the state for a
 // snapshot. State is omitted for snapshots in pending or error status;
 // PendingInputs is populated for pending snapshots. If
