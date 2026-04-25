@@ -46,6 +46,13 @@ type SessionFlowInit[State any] struct {
 
 // SessionFlowInput is the input sent to an session flow during a conversation turn.
 type SessionFlowInput struct {
+	// Detach signals that the client wishes to disconnect after this input is
+	// accepted. The server writes a single pending snapshot capturing the
+	// queued inputs (this one and any others already buffered), returns
+	// [SessionFlowOutput] with that snapshot ID, and continues processing in
+	// a background context. The pending snapshot is finalized once all queued
+	// inputs are processed (or the snapshot is cancelled via cancelSnapshot).
+	Detach bool `json:"detach,omitempty"`
 	// Messages contains the user's input for this turn.
 	Messages []*ai.Message `json:"messages,omitempty"`
 	// ToolRestarts contains tool request parts to re-execute interrupted tools.
@@ -119,6 +126,11 @@ const (
 	SnapshotEventTurnEnd SnapshotEvent = "turnEnd"
 	// InvocationEnd indicates the snapshot was triggered at the end of the invocation.
 	SnapshotEventInvocationEnd SnapshotEvent = "invocationEnd"
+	// Detach indicates the snapshot was created when the client detached the
+	// invocation and the flow continues in the background. The snapshot is
+	// initially written with [SnapshotStatusPending] and rewritten with a
+	// terminal status once the background work finishes.
+	SnapshotEventDetach SnapshotEvent = "detach"
 )
 
 // TurnEnd groups the signals emitted when a session flow turn finishes.
@@ -127,6 +139,14 @@ const (
 type TurnEnd struct {
 	// SnapshotID is the ID of the snapshot persisted at the end of this turn.
 	// Empty if no snapshot was created (callback returned false or no store
-	// configured).
+	// configured, or snapshots were suspended after detach).
 	SnapshotID string `json:"snapshotId,omitempty"`
+	// TurnIndex is the zero-based index of the turn that just ended within
+	// this invocation. It restarts at 0 for each new invocation (resume,
+	// reconnect). Clients consuming a durable chunk stream use this field
+	// to anchor chunks to inputs: chunks emitted between TurnEnd{turnIndex:N-1}
+	// and TurnEnd{turnIndex:N} belong to the input at turn N. After detach,
+	// pair with [SessionSnapshot.StartingTurnIndex] and
+	// [SessionSnapshot.PendingInputs] to recover input correspondence.
+	TurnIndex int `json:"turnIndex"`
 }

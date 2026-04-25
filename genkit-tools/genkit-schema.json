@@ -23,6 +23,82 @@
       ],
       "additionalProperties": false
     },
+    "CancelSnapshotRequest": {
+      "type": "object",
+      "properties": {
+        "snapshotId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "snapshotId"
+      ],
+      "additionalProperties": false
+    },
+    "CancelSnapshotResponse": {
+      "type": "object",
+      "properties": {
+        "snapshotId": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/SnapshotStatus"
+        }
+      },
+      "required": [
+        "snapshotId"
+      ],
+      "additionalProperties": false
+    },
+    "GetSnapshotRequest": {
+      "type": "object",
+      "properties": {
+        "snapshotId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "snapshotId"
+      ],
+      "additionalProperties": false
+    },
+    "GetSnapshotResponse": {
+      "type": "object",
+      "properties": {
+        "snapshotId": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/SnapshotStatus"
+        },
+        "error": {
+          "type": "string"
+        },
+        "startingTurnIndex": {
+          "type": "number"
+        },
+        "pendingInputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SessionFlowInput"
+          }
+        },
+        "state": {
+          "$ref": "#/$defs/SessionState"
+        }
+      },
+      "required": [
+        "snapshotId",
+        "startingTurnIndex"
+      ],
+      "additionalProperties": false
+    },
     "SessionFlowInit": {
       "type": "object",
       "properties": {
@@ -38,6 +114,9 @@
     "SessionFlowInput": {
       "type": "object",
       "properties": {
+        "detach": {
+          "type": "boolean"
+        },
         "messages": {
           "type": "array",
           "items": {
@@ -105,6 +184,52 @@
       },
       "additionalProperties": false
     },
+    "SessionSnapshot": {
+      "type": "object",
+      "properties": {
+        "snapshotId": {
+          "type": "string"
+        },
+        "parentId": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "event": {
+          "$ref": "#/$defs/SnapshotEvent"
+        },
+        "status": {
+          "$ref": "#/$defs/SnapshotStatus"
+        },
+        "error": {
+          "type": "string"
+        },
+        "startingTurnIndex": {
+          "type": "number"
+        },
+        "pendingInputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SessionFlowInput"
+          }
+        },
+        "state": {
+          "$ref": "#/$defs/SessionState"
+        }
+      },
+      "required": [
+        "snapshotId",
+        "createdAt",
+        "event",
+        "startingTurnIndex",
+        "state"
+      ],
+      "additionalProperties": false
+    },
     "SessionState": {
       "type": "object",
       "properties": {
@@ -129,7 +254,53 @@
       "type": "string",
       "enum": [
         "turnEnd",
-        "invocationEnd"
+        "invocationEnd",
+        "detach"
+      ]
+    },
+    "SnapshotMetadata": {
+      "type": "object",
+      "properties": {
+        "snapshotId": {
+          "$ref": "#/$defs/SessionSnapshot/properties/snapshotId"
+        },
+        "parentId": {
+          "$ref": "#/$defs/SessionSnapshot/properties/parentId"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/SessionSnapshot/properties/createdAt"
+        },
+        "updatedAt": {
+          "$ref": "#/$defs/SessionSnapshot/properties/updatedAt"
+        },
+        "event": {
+          "$ref": "#/$defs/SnapshotEvent"
+        },
+        "status": {
+          "$ref": "#/$defs/SessionSnapshot/properties/status"
+        },
+        "error": {
+          "$ref": "#/$defs/SessionSnapshot/properties/error"
+        },
+        "startingTurnIndex": {
+          "$ref": "#/$defs/SessionSnapshot/properties/startingTurnIndex"
+        }
+      },
+      "required": [
+        "snapshotId",
+        "createdAt",
+        "event",
+        "startingTurnIndex"
+      ],
+      "additionalProperties": false
+    },
+    "SnapshotStatus": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "complete",
+        "canceled",
+        "error"
       ]
     },
     "TurnEnd": {
@@ -137,8 +308,14 @@
       "properties": {
         "snapshotId": {
           "type": "string"
+        },
+        "turnIndex": {
+          "type": "number"
         }
       },
+      "required": [
+        "turnIndex"
+      ],
       "additionalProperties": false
     },
     "DocumentData": {
