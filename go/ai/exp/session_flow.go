@@ -47,7 +47,9 @@ type SessionFlowFunc[Stream, State any] = func(ctx context.Context, resp Respond
 
 // SessionFlow is a bidirectional streaming flow with automatic snapshot management.
 type SessionFlow[Stream, State any] struct {
-	flow *core.Flow[*SessionFlowInit[State], *SessionFlowOutput[State], *SessionFlowStreamChunk[Stream], *SessionFlowInput]
+	flow           *core.Flow[*SessionFlowInit[State], *SessionFlowOutput[State], *SessionFlowStreamChunk[Stream], *SessionFlowInput]
+	getSnapshot    *core.Action[*GetSnapshotRequest, *GetSnapshotResponse[State], struct{}, struct{}]
+	cancelSnapshot *core.Action[*CancelSnapshotRequest, *CancelSnapshotResponse, struct{}, struct{}]
 }
 
 // DefineSessionFlow creates an SessionFlow with automatic snapshot management and registers it.
@@ -80,9 +82,13 @@ func DefineSessionFlow[Stream, State any](
 		return rt.run(ctx, fn)
 	})
 
-	registerSnapshotActions(r, name, cfg.store, cfg.transform)
+	getAction, cancelAction := registerSnapshotActions(r, name, cfg.store, cfg.transform)
 
-	return &SessionFlow[Stream, State]{flow: flow}
+	return &SessionFlow[Stream, State]{
+		flow:           flow,
+		getSnapshot:    getAction,
+		cancelSnapshot: cancelAction,
+	}
 }
 
 // --- sessionFlowRuntime ---
@@ -908,8 +914,17 @@ func (i *detachIntake) enqueue(input *SessionFlowInput) {
 // handleDetach drains any buffered src inputs into the queue and signals
 // the detach handler. The detach handler then calls suspendAndCapture for
 // the atomic read of the full state.
+//
+// A pure detach signal (no Messages, no ToolRestarts) is dropped rather
+// than enqueued: it carries no payload to process, so adding it to
+// PendingInputs would just leave a stray empty input there. Callers that
+// want to ride a final input on the detach signal can do so by calling
+// Send(&SessionFlowInput{Detach: true, Messages: ...}) explicitly.
 func (i *detachIntake) handleDetach(first *SessionFlowInput) {
-	drained := []*SessionFlowInput{first}
+	var drained []*SessionFlowInput
+	if hasInputPayload(first) {
+		drained = append(drained, first)
+	}
 drainLoop:
 	for {
 		select {
@@ -923,15 +938,24 @@ drainLoop:
 		}
 	}
 
-	i.mu.Lock()
-	i.queue = append(i.queue, drained...)
-	i.mu.Unlock()
-	i.signal()
+	if len(drained) > 0 {
+		i.mu.Lock()
+		i.queue = append(i.queue, drained...)
+		i.mu.Unlock()
+		i.signal()
+	}
 
 	select {
 	case i.detachCh <- struct{}{}:
 	case <-i.stop:
 	}
+}
+
+// hasInputPayload reports whether the input carries data the runner would
+// otherwise process. Used to filter pure detach signals out of
+// PendingInputs.
+func hasInputPayload(in *SessionFlowInput) bool {
+	return in != nil && (len(in.Messages) > 0 || len(in.ToolRestarts) > 0)
 }
 
 // forward pops the queue and writes to dst at the runner's pace. The
@@ -1119,6 +1143,59 @@ func (af *SessionFlow[Stream, State]) RunText(
 	}, opts...)
 }
 
+// RunBackground starts a single-turn session flow invocation that runs in
+// the background: the input is sent with Detach=true so the server writes
+// a pending snapshot and continues processing after the connection closes.
+// The returned output carries the pending snapshot ID; use GetSnapshot to
+// observe its progression and CancelSnapshot to stop it.
+//
+// Requires a session store to be configured via WithSessionStore.
+func (af *SessionFlow[Stream, State]) RunBackground(
+	ctx context.Context,
+	input *SessionFlowInput,
+	opts ...InvocationOption[State],
+) (*SessionFlowOutput[State], error) {
+	conn, err := af.StreamBidi(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	bg := SessionFlowInput{Detach: true}
+	if input != nil {
+		bg = *input
+		bg.Detach = true
+	}
+	if err := conn.Send(&bg); err != nil {
+		return nil, err
+	}
+	for _, err := range conn.Receive() {
+		if err != nil {
+			return nil, err
+		}
+	}
+	return conn.Output()
+}
+
+// GetSnapshot returns the metadata and (when settled) the state for a
+// snapshot. State is omitted for snapshots in pending or error status;
+// PendingInputs is populated for pending snapshots. If
+// WithSnapshotTransform is configured, it is applied to the returned state.
+//
+// This is a typed wrapper over the {flowName}/getSnapshot companion action
+// and produces the same observable behavior.
+func (af *SessionFlow[Stream, State]) GetSnapshot(ctx context.Context, snapshotID string) (*GetSnapshotResponse[State], error) {
+	return af.getSnapshot.Run(ctx, &GetSnapshotRequest{SnapshotID: snapshotID}, nil)
+}
+
+// CancelSnapshot atomically transitions a pending snapshot to canceled.
+// On a non-pending snapshot it is a no-op and the existing terminal status
+// is returned.
+//
+// This is a typed wrapper over the {flowName}/cancelSnapshot companion
+// action and produces the same observable behavior.
+func (af *SessionFlow[Stream, State]) CancelSnapshot(ctx context.Context, snapshotID string) (*CancelSnapshotResponse, error) {
+	return af.cancelSnapshot.Run(ctx, &CancelSnapshotRequest{SnapshotID: snapshotID}, nil)
+}
+
 // resolveOptions applies invocation options and returns the init struct.
 func (af *SessionFlow[Stream, State]) resolveOptions(opts []InvocationOption[State]) (*SessionFlowInit[State], error) {
 	cfg := &invocationOptions[State]{}
@@ -1197,20 +1274,16 @@ func (c *SessionFlowConnection[Stream, State]) SendToolRestarts(parts ...*ai.Par
 	return c.conn.Send(&SessionFlowInput{ToolRestarts: parts})
 }
 
-// Detach asks the server to write a pending snapshot capturing this input
-// (and any others already buffered), close the connection, and continue
-// processing in the background. Output() returns the pending snapshot ID;
-// the client can later call cancelSnapshot to stop the background work or
-// poll getSnapshot/getSnapshotMetadata to observe its progression.
+// Detach asks the server to write a pending snapshot capturing any inputs
+// already buffered, close the connection, and continue processing in the
+// background. Output() returns the pending snapshot ID; the client can
+// later call CancelSnapshot to stop the background work or GetSnapshot to
+// observe its progression.
 //
-// The caller's input is not mutated.
-func (c *SessionFlowConnection[Stream, State]) Detach(input *SessionFlowInput) error {
-	var detach SessionFlowInput
-	if input != nil {
-		detach = *input
-	}
-	detach.Detach = true
-	return c.conn.Send(&detach)
+// To send a final input as part of the same wire message, use
+// Send(&SessionFlowInput{Detach: true, Messages: ...}) directly.
+func (c *SessionFlowConnection[Stream, State]) Detach() error {
+	return c.conn.Send(&SessionFlowInput{Detach: true})
 }
 
 // Close signals that no more inputs will be sent.

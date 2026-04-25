@@ -329,14 +329,20 @@ type CancelSnapshotResponse struct {
 }
 
 // registerSnapshotActions registers the getSnapshot and cancelSnapshot
-// companion actions for a session flow, both keyed under the flow's name.
+// companion actions for a session flow, both keyed under the flow's name,
+// and returns references to them so the SessionFlow can expose typed
+// methods that delegate to the actions without callers having to call
+// ResolveActionFor.
 func registerSnapshotActions[State any](
 	r api.Registry,
 	flowName string,
 	store SessionStore[State],
 	transform SnapshotTransform[State],
+) (
+	*core.Action[*GetSnapshotRequest, *GetSnapshotResponse[State], struct{}, struct{}],
+	*core.Action[*CancelSnapshotRequest, *CancelSnapshotResponse, struct{}, struct{}],
 ) {
-	core.DefineAction(r, flowName+"/getSnapshot", api.ActionTypeUtil, nil, nil,
+	getAction := core.DefineAction(r, flowName+"/getSnapshot", api.ActionTypeUtil, nil, nil,
 		func(ctx context.Context, req *GetSnapshotRequest) (*GetSnapshotResponse[State], error) {
 			if store == nil {
 				return nil, core.NewError(core.FAILED_PRECONDITION,
@@ -377,7 +383,7 @@ func registerSnapshotActions[State any](
 			return resp, nil
 		})
 
-	core.DefineAction(r, flowName+"/cancelSnapshot", api.ActionTypeUtil, nil, nil,
+	cancelAction := core.DefineAction(r, flowName+"/cancelSnapshot", api.ActionTypeUtil, nil, nil,
 		func(ctx context.Context, req *CancelSnapshotRequest) (*CancelSnapshotResponse, error) {
 			if store == nil {
 				return nil, core.NewError(core.FAILED_PRECONDITION,
@@ -401,6 +407,8 @@ func registerSnapshotActions[State any](
 			}
 			return &CancelSnapshotResponse{SnapshotID: meta.SnapshotID, Status: meta.Status}, nil
 		})
+
+	return getAction, cancelAction
 }
 
 // --- Session ---

@@ -25,8 +25,6 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
@@ -1859,11 +1857,12 @@ func TestSessionFlow_Detach_CapturesInFlightAndQueued(t *testing.T) {
 		t.Fatal("A did not enter fn")
 	}
 
-	// Send D with detach=true. The eager intake reader should observe
-	// this immediately even though the runner is blocked on A.
-	if err := conn.Detach(&SessionFlowInput{
-		Messages: []*ai.Message{ai.NewUserTextMessage("D")},
-	}); err != nil {
+	// Send D, then Detach. The eager intake reader sees D queued and the
+	// detach signal immediately, even though the runner is blocked on A.
+	if err := conn.SendText("D"); err != nil {
+		t.Fatalf("SendText D: %v", err)
+	}
+	if err := conn.Detach(); err != nil {
 		t.Fatalf("Detach: %v", err)
 	}
 
@@ -1993,10 +1992,11 @@ func TestSessionFlow_Detach_AfterPriorTurns_StartingTurnIndex(t *testing.T) {
 	}
 	<-enter // third turn entered fn
 
-	// Detach.
-	if err := conn.Detach(&SessionFlowInput{
-		Messages: []*ai.Message{ai.NewUserTextMessage("detach-msg")},
-	}); err != nil {
+	// Send the queued input and detach.
+	if err := conn.SendText("detach-msg"); err != nil {
+		t.Fatalf("SendText detach-msg: %v", err)
+	}
+	if err := conn.Detach(); err != nil {
 		t.Fatalf("Detach: %v", err)
 	}
 
@@ -2043,7 +2043,7 @@ func TestSessionFlow_Detach_RequiresStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("StreamBidi: %v", err)
 	}
-	if err := conn.Detach(&SessionFlowInput{Messages: []*ai.Message{ai.NewUserTextMessage("hi")}}); err != nil {
+	if err := conn.Detach(); err != nil {
 		t.Fatalf("Detach send: %v", err)
 	}
 	conn.Close()
@@ -2099,9 +2099,10 @@ func TestSessionFlow_Detach_PendingThenComplete(t *testing.T) {
 		}
 	}()
 
-	if err := conn.Detach(&SessionFlowInput{
-		Messages: []*ai.Message{ai.NewUserTextMessage("go")},
-	}); err != nil {
+	if err := conn.SendText("go"); err != nil {
+		t.Fatalf("SendText: %v", err)
+	}
+	if err := conn.Detach(); err != nil {
 		t.Fatalf("Detach: %v", err)
 	}
 
@@ -2193,9 +2194,10 @@ func TestSessionFlow_Detach_FlowErrorsBecomesError(t *testing.T) {
 		}
 	}()
 
-	if err := conn.Detach(&SessionFlowInput{
-		Messages: []*ai.Message{ai.NewUserTextMessage("go")},
-	}); err != nil {
+	if err := conn.SendText("go"); err != nil {
+		t.Fatalf("SendText: %v", err)
+	}
+	if err := conn.Detach(); err != nil {
 		t.Fatalf("Detach: %v", err)
 	}
 	<-entered
@@ -2263,9 +2265,10 @@ func TestSessionFlow_Detach_CancelSnapshotStopsFlow(t *testing.T) {
 		}
 	}()
 
-	if err := conn.Detach(&SessionFlowInput{
-		Messages: []*ai.Message{ai.NewUserTextMessage("go")},
-	}); err != nil {
+	if err := conn.SendText("go"); err != nil {
+		t.Fatalf("SendText: %v", err)
+	}
+	if err := conn.Detach(); err != nil {
 		t.Fatalf("Detach: %v", err)
 	}
 	<-entered
@@ -2278,18 +2281,13 @@ func TestSessionFlow_Detach_CancelSnapshotStopsFlow(t *testing.T) {
 		t.Fatal("expected pending snapshot ID")
 	}
 
-	// Issue cancel via the cancelSnapshot action.
-	cancelAction := core.ResolveActionFor[*CancelSnapshotRequest, *CancelSnapshotResponse, struct{}, struct{}](
-		reg, api.ActionTypeUtil, "detachCancel/cancelSnapshot")
-	if cancelAction == nil {
-		t.Fatal("cancelSnapshot action not registered")
-	}
-	resp, err := cancelAction.Run(context.Background(), &CancelSnapshotRequest{SnapshotID: out.SnapshotID}, nil)
+	// Cancel via the typed wrapper on the flow.
+	resp, err := af.CancelSnapshot(context.Background(), out.SnapshotID)
 	if err != nil {
-		t.Fatalf("cancelSnapshot: %v", err)
+		t.Fatalf("CancelSnapshot: %v", err)
 	}
 	if resp.Status != SnapshotStatusCanceled {
-		t.Errorf("cancelSnapshot status = %q, want canceled", resp.Status)
+		t.Errorf("CancelSnapshot status = %q, want canceled", resp.Status)
 	}
 
 	// The heartbeat poller picks this up within ~20ms, cancels work, and
@@ -2444,7 +2442,7 @@ func TestSessionFlow_ResumeFromErrorSnapshot_Rejected(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_GetSnapshotAction_ReturnsTransformedState(t *testing.T) {
+func TestSessionFlow_GetSnapshot_ReturnsTransformedState(t *testing.T) {
 	reg := newTestRegistry(t)
 	store := NewInMemorySessionStore[testState]()
 
@@ -2477,15 +2475,9 @@ func TestSessionFlow_GetSnapshotAction_ReturnsTransformedState(t *testing.T) {
 		t.Fatalf("RunText: %v", err)
 	}
 
-	action := core.ResolveActionFor[*GetSnapshotRequest, *GetSnapshotResponse[testState], struct{}, struct{}](
-		reg, api.ActionTypeUtil, "transformedFlow/getSnapshot")
-	if action == nil {
-		t.Fatal("getSnapshot action not registered")
-	}
-
-	resp, err := action.Run(ctx, &GetSnapshotRequest{SnapshotID: out.SnapshotID}, nil)
+	resp, err := af.GetSnapshot(ctx, out.SnapshotID)
 	if err != nil {
-		t.Fatalf("getSnapshot action: %v", err)
+		t.Fatalf("GetSnapshot: %v", err)
 	}
 	if resp.SnapshotID != out.SnapshotID {
 		t.Errorf("SnapshotID mismatch: got %q want %q", resp.SnapshotID, out.SnapshotID)
@@ -2524,24 +2516,18 @@ func TestSessionFlow_GetSnapshotAction_ReturnsTransformedState(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_GetSnapshotAction_NotFound(t *testing.T) {
+func TestSessionFlow_GetSnapshot_NotFound(t *testing.T) {
 	reg := newTestRegistry(t)
 	store := NewInMemorySessionStore[testState]()
 
-	DefineSessionFlow(reg, "nfFlow",
+	af := DefineSessionFlow(reg, "nfFlow",
 		func(ctx context.Context, resp Responder[testStatus], sess *SessionRunner[testState]) (*SessionFlowResult, error) {
 			return nil, nil
 		},
 		WithSessionStore(store),
 	)
 
-	action := core.ResolveActionFor[*GetSnapshotRequest, *GetSnapshotResponse[testState], struct{}, struct{}](
-		reg, api.ActionTypeUtil, "nfFlow/getSnapshot")
-	if action == nil {
-		t.Fatal("getSnapshot action not registered")
-	}
-
-	_, err := action.Run(context.Background(), &GetSnapshotRequest{SnapshotID: "nope"}, nil)
+	_, err := af.GetSnapshot(context.Background(), "nope")
 	if err == nil {
 		t.Fatal("expected NOT_FOUND error")
 	}
@@ -2550,22 +2536,18 @@ func TestSessionFlow_GetSnapshotAction_NotFound(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_GetSnapshotAction_NoStore(t *testing.T) {
+func TestSessionFlow_GetSnapshot_NoStore(t *testing.T) {
 	reg := newTestRegistry(t)
 
-	DefineSessionFlow(reg, "noStoreFlow",
+	af := DefineSessionFlow(reg, "noStoreFlow",
 		func(ctx context.Context, resp Responder[testStatus], sess *SessionRunner[testState]) (*SessionFlowResult, error) {
 			return nil, nil
 		},
 	)
 
-	action := core.ResolveActionFor[*GetSnapshotRequest, *GetSnapshotResponse[testState], struct{}, struct{}](
-		reg, api.ActionTypeUtil, "noStoreFlow/getSnapshot")
-	if action == nil {
-		t.Fatal("getSnapshot action should still be registered even without a store")
-	}
-
-	_, err := action.Run(context.Background(), &GetSnapshotRequest{SnapshotID: "any"}, nil)
+	// Action remains registered even without a store, so the typed wrapper
+	// still dispatches; the action returns FAILED_PRECONDITION.
+	_, err := af.GetSnapshot(context.Background(), "any")
 	if err == nil {
 		t.Fatal("expected error when store is not configured")
 	}
@@ -2644,9 +2626,10 @@ func TestSessionFlow_ResumeFromFinalizedDetachedSnapshot(t *testing.T) {
 			}
 		}
 	}()
-	if err := conn.Detach(&SessionFlowInput{
-		Messages: []*ai.Message{ai.NewUserTextMessage("turn 1")},
-	}); err != nil {
+	if err := conn.SendText("turn 1"); err != nil {
+		t.Fatalf("SendText: %v", err)
+	}
+	if err := conn.Detach(); err != nil {
 		t.Fatalf("Detach: %v", err)
 	}
 	first, err := conn.Output()
@@ -2783,9 +2766,10 @@ func TestSessionFlow_Detach_FinalizeRespectsConcurrentCancel(t *testing.T) {
 		}
 	}()
 
-	if err := conn.Detach(&SessionFlowInput{
-		Messages: []*ai.Message{ai.NewUserTextMessage("go")},
-	}); err != nil {
+	if err := conn.SendText("go"); err != nil {
+		t.Fatalf("SendText: %v", err)
+	}
+	if err := conn.Detach(); err != nil {
 		t.Fatalf("Detach: %v", err)
 	}
 	<-entered
@@ -2857,8 +2841,8 @@ func TestInMemorySessionStore_GetSnapshotMetadata(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_CancelSnapshotAction_NoOpOnTerminal(t *testing.T) {
-	// Calling cancelSnapshot on an already-terminal snapshot is a no-op
+func TestSessionFlow_CancelSnapshot_NoOpOnTerminal(t *testing.T) {
+	// Calling CancelSnapshot on an already-terminal snapshot is a no-op
 	// that returns the existing status.
 	reg := newTestRegistry(t)
 	store := NewInMemorySessionStore[testState]()
@@ -2879,14 +2863,9 @@ func TestSessionFlow_CancelSnapshotAction_NoOpOnTerminal(t *testing.T) {
 		t.Fatalf("RunText: %v", err)
 	}
 
-	action := core.ResolveActionFor[*CancelSnapshotRequest, *CancelSnapshotResponse, struct{}, struct{}](
-		reg, api.ActionTypeUtil, "cancelNoop/cancelSnapshot")
-	if action == nil {
-		t.Fatal("cancelSnapshot action not registered")
-	}
-	resp, err := action.Run(ctx, &CancelSnapshotRequest{SnapshotID: out.SnapshotID}, nil)
+	resp, err := af.CancelSnapshot(ctx, out.SnapshotID)
 	if err != nil {
-		t.Fatalf("cancelSnapshot: %v", err)
+		t.Fatalf("CancelSnapshot: %v", err)
 	}
 	if resp.Status != SnapshotStatusComplete {
 		t.Errorf("expected status=%q (existing terminal), got %q", SnapshotStatusComplete, resp.Status)
