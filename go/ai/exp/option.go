@@ -19,7 +19,13 @@ package exp
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
 )
+
+// DefaultHeartbeatInterval is the cadence at which a detached invocation
+// polls the cancelSnapshot status when [WithHeartbeatInterval] is not set.
+const DefaultHeartbeatInterval = 10 * time.Second
 
 // --- SessionFlowOption ---
 
@@ -28,9 +34,20 @@ type SessionFlowOption[State any] interface {
 	applySessionFlow(*sessionFlowOptions[State]) error
 }
 
+// SnapshotTransform rewrites session state before it is surfaced to a client.
+// It is applied to the State returned by the getSnapshot companion action and
+// to [SessionFlowOutput.State] when state is client-managed (no store).
+//
+// The input is a deep copy owned by the caller; the transform may mutate and
+// return it, or return a freshly-constructed value. The transform must not
+// modify any state that is persisted in the store.
+type SnapshotTransform[State any] = func(state SessionState[State]) SessionState[State]
+
 type sessionFlowOptions[State any] struct {
-	store    SessionStore[State]
-	callback SnapshotCallback[State]
+	store             SessionStore[State]
+	callback          SnapshotCallback[State]
+	transform         SnapshotTransform[State]
+	heartbeatInterval time.Duration
 }
 
 func (o *sessionFlowOptions[State]) applySessionFlow(opts *sessionFlowOptions[State]) error {
@@ -45,6 +62,18 @@ func (o *sessionFlowOptions[State]) applySessionFlow(opts *sessionFlowOptions[St
 			return errors.New("cannot set snapshot callback more than once (WithSnapshotCallback)")
 		}
 		opts.callback = o.callback
+	}
+	if o.transform != nil {
+		if opts.transform != nil {
+			return errors.New("cannot set snapshot transform more than once (WithSnapshotTransform)")
+		}
+		opts.transform = o.transform
+	}
+	if o.heartbeatInterval != 0 {
+		if opts.heartbeatInterval != 0 {
+			return errors.New("cannot set heartbeat interval more than once (WithHeartbeatInterval)")
+		}
+		opts.heartbeatInterval = o.heartbeatInterval
 	}
 	return nil
 }
@@ -72,6 +101,31 @@ func WithSnapshotOn[State any](events ...SnapshotEvent) SessionFlowOption[State]
 		_, ok := set[sc.Event]
 		return ok
 	})
+}
+
+// WithSnapshotTransform registers a transform that is applied to snapshot
+// state before it is returned to a client via the getSnapshot companion action
+// or via [SessionFlowOutput.State] when state is client-managed. Typical use
+// is PII redaction or stripping secrets. The transform is not applied to state
+// persisted in the store or to state passed to the user flow function.
+func WithSnapshotTransform[State any](transform SnapshotTransform[State]) SessionFlowOption[State] {
+	return &sessionFlowOptions[State]{transform: transform}
+}
+
+// WithHeartbeatInterval sets the cadence at which a detached invocation
+// polls its pending snapshot's status via the getSnapshotMetadata companion
+// action. If the polled status flips to [SnapshotStatusCanceled], the
+// invocation's context is cancelled so the flow stops promptly.
+//
+// The interval applies only after a client sends [SessionFlowInput.Detach]
+// and the flow transitions to background processing; foreground invocations
+// rely on normal context cancellation. The default is
+// [DefaultHeartbeatInterval]. Must be positive.
+func WithHeartbeatInterval[State any](d time.Duration) SessionFlowOption[State] {
+	if d <= 0 {
+		panic(fmt.Errorf("WithHeartbeatInterval: interval must be positive, got %s", d))
+	}
+	return &sessionFlowOptions[State]{heartbeatInterval: d}
 }
 
 // --- InvocationOption ---
