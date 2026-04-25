@@ -85,7 +85,7 @@ export async function findServersDir(projectRoot: string): Promise<string> {
  * @returns project name
  */
 export function projectNameFromGenkitFilePath(filePath: string): string {
-  const parts = filePath.split(/[/\\]/); // <-- Supports Windows & POSIX
+  const parts = filePath.split(path.sep);
   const basePath = parts
     .slice(
       0,
