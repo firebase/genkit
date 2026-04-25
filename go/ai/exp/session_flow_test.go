@@ -25,6 +25,8 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
@@ -2281,13 +2283,14 @@ func TestSessionFlow_Detach_CancelSnapshotStopsFlow(t *testing.T) {
 		t.Fatal("expected pending snapshot ID")
 	}
 
-	// Cancel via the typed wrapper on the flow.
-	resp, err := af.CancelSnapshot(context.Background(), out.SnapshotID)
+	// Cancel via the store. The local caller already has the store
+	// reference from WithSessionStore.
+	meta, err := store.CancelSnapshot(context.Background(), out.SnapshotID)
 	if err != nil {
 		t.Fatalf("CancelSnapshot: %v", err)
 	}
-	if resp.Status != SnapshotStatusCanceled {
-		t.Errorf("CancelSnapshot status = %q, want canceled", resp.Status)
+	if meta.Status != SnapshotStatusCanceled {
+		t.Errorf("CancelSnapshot status = %q, want canceled", meta.Status)
 	}
 
 	// The heartbeat poller picks this up within ~20ms, cancels work, and
@@ -2442,7 +2445,7 @@ func TestSessionFlow_ResumeFromErrorSnapshot_Rejected(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_GetSnapshot_ReturnsTransformedState(t *testing.T) {
+func TestSessionFlow_GetSnapshotAction_ReturnsTransformedState(t *testing.T) {
 	reg := newTestRegistry(t)
 	store := NewInMemorySessionStore[testState]()
 
@@ -2475,9 +2478,16 @@ func TestSessionFlow_GetSnapshot_ReturnsTransformedState(t *testing.T) {
 		t.Fatalf("RunText: %v", err)
 	}
 
-	resp, err := af.GetSnapshot(ctx, out.SnapshotID)
+	// Transform is action-layer behavior: invoke the registered action
+	// directly the way a non-Go client would.
+	action := core.ResolveActionFor[*GetSnapshotRequest, *GetSnapshotResponse[testState], struct{}, struct{}](
+		reg, api.ActionTypeUtil, "transformedFlow/getSnapshot")
+	if action == nil {
+		t.Fatal("getSnapshot action not registered")
+	}
+	resp, err := action.Run(ctx, &GetSnapshotRequest{SnapshotID: out.SnapshotID}, nil)
 	if err != nil {
-		t.Fatalf("GetSnapshot: %v", err)
+		t.Fatalf("getSnapshot action: %v", err)
 	}
 	if resp.SnapshotID != out.SnapshotID {
 		t.Errorf("SnapshotID mismatch: got %q want %q", resp.SnapshotID, out.SnapshotID)
@@ -2516,38 +2526,35 @@ func TestSessionFlow_GetSnapshot_ReturnsTransformedState(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_GetSnapshot_NotFound(t *testing.T) {
-	reg := newTestRegistry(t)
+func TestInMemorySessionStore_GetSnapshot_NotFound(t *testing.T) {
 	store := NewInMemorySessionStore[testState]()
 
-	af := DefineSessionFlow(reg, "nfFlow",
-		func(ctx context.Context, resp Responder[testStatus], sess *SessionRunner[testState]) (*SessionFlowResult, error) {
-			return nil, nil
-		},
-		WithSessionStore(store),
-	)
-
-	_, err := af.GetSnapshot(context.Background(), "nope")
-	if err == nil {
-		t.Fatal("expected NOT_FOUND error")
+	snap, err := store.GetSnapshot(context.Background(), "nope")
+	if err != nil {
+		t.Fatalf("GetSnapshot: %v", err)
 	}
-	if !strings.Contains(err.Error(), "not found") {
-		t.Errorf("unexpected error: %v", err)
+	if snap != nil {
+		t.Errorf("expected nil for missing snapshot, got %+v", snap)
 	}
 }
 
-func TestSessionFlow_GetSnapshot_NoStore(t *testing.T) {
+func TestSessionFlow_GetSnapshotAction_NoStore(t *testing.T) {
 	reg := newTestRegistry(t)
 
-	af := DefineSessionFlow(reg, "noStoreFlow",
+	DefineSessionFlow(reg, "noStoreFlow",
 		func(ctx context.Context, resp Responder[testStatus], sess *SessionRunner[testState]) (*SessionFlowResult, error) {
 			return nil, nil
 		},
 	)
 
-	// Action remains registered even without a store, so the typed wrapper
-	// still dispatches; the action returns FAILED_PRECONDITION.
-	_, err := af.GetSnapshot(context.Background(), "any")
+	// Action remains registered even without a store; it returns
+	// FAILED_PRECONDITION when invoked.
+	action := core.ResolveActionFor[*GetSnapshotRequest, *GetSnapshotResponse[testState], struct{}, struct{}](
+		reg, api.ActionTypeUtil, "noStoreFlow/getSnapshot")
+	if action == nil {
+		t.Fatal("getSnapshot action should be registered even without a store")
+	}
+	_, err := action.Run(context.Background(), &GetSnapshotRequest{SnapshotID: "any"}, nil)
 	if err == nil {
 		t.Fatal("expected error when store is not configured")
 	}
@@ -2863,7 +2870,7 @@ func TestSessionFlow_CancelSnapshot_NoOpOnTerminal(t *testing.T) {
 		t.Fatalf("RunText: %v", err)
 	}
 
-	resp, err := af.CancelSnapshot(ctx, out.SnapshotID)
+	resp, err := store.CancelSnapshot(ctx, out.SnapshotID)
 	if err != nil {
 		t.Fatalf("CancelSnapshot: %v", err)
 	}

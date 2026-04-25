@@ -47,9 +47,7 @@ type SessionFlowFunc[Stream, State any] = func(ctx context.Context, resp Respond
 
 // SessionFlow is a bidirectional streaming flow with automatic snapshot management.
 type SessionFlow[Stream, State any] struct {
-	flow           *core.Flow[*SessionFlowInit[State], *SessionFlowOutput[State], *SessionFlowStreamChunk[Stream], *SessionFlowInput]
-	getSnapshot    *core.Action[*GetSnapshotRequest, *GetSnapshotResponse[State], struct{}, struct{}]
-	cancelSnapshot *core.Action[*CancelSnapshotRequest, *CancelSnapshotResponse, struct{}, struct{}]
+	flow *core.Flow[*SessionFlowInit[State], *SessionFlowOutput[State], *SessionFlowStreamChunk[Stream], *SessionFlowInput]
 }
 
 // DefineSessionFlow creates an SessionFlow with automatic snapshot management and registers it.
@@ -82,13 +80,9 @@ func DefineSessionFlow[Stream, State any](
 		return rt.run(ctx, fn)
 	})
 
-	getAction, cancelAction := registerSnapshotActions(r, name, cfg.store, cfg.transform)
+	registerSnapshotActions(r, name, cfg.store, cfg.transform)
 
-	return &SessionFlow[Stream, State]{
-		flow:           flow,
-		getSnapshot:    getAction,
-		cancelSnapshot: cancelAction,
-	}
+	return &SessionFlow[Stream, State]{flow: flow}
 }
 
 // --- sessionFlowRuntime ---
@@ -1141,27 +1135,6 @@ func (af *SessionFlow[Stream, State]) RunText(
 	return af.Run(ctx, &SessionFlowInput{
 		Messages: []*ai.Message{ai.NewUserTextMessage(text)},
 	}, opts...)
-}
-
-// GetSnapshot returns the metadata and (when settled) the state for a
-// snapshot. State is omitted for snapshots in pending or error status;
-// PendingInputs is populated for pending snapshots. If
-// WithSnapshotTransform is configured, it is applied to the returned state.
-//
-// This is a typed wrapper over the {flowName}/getSnapshot companion action
-// and produces the same observable behavior.
-func (af *SessionFlow[Stream, State]) GetSnapshot(ctx context.Context, snapshotID string) (*GetSnapshotResponse[State], error) {
-	return af.getSnapshot.Run(ctx, &GetSnapshotRequest{SnapshotID: snapshotID}, nil)
-}
-
-// CancelSnapshot atomically transitions a pending snapshot to canceled.
-// On a non-pending snapshot it is a no-op and the existing terminal status
-// is returned.
-//
-// This is a typed wrapper over the {flowName}/cancelSnapshot companion
-// action and produces the same observable behavior.
-func (af *SessionFlow[Stream, State]) CancelSnapshot(ctx context.Context, snapshotID string) (*CancelSnapshotResponse, error) {
-	return af.cancelSnapshot.Run(ctx, &CancelSnapshotRequest{SnapshotID: snapshotID}, nil)
 }
 
 // resolveOptions applies invocation options and returns the init struct.
