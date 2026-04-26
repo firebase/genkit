@@ -9,6 +9,7 @@ import type {
   Part as A2APart,
   TextPart as A2ATextPart,
   FilePart as A2AFilePart,
+  DataPart as A2ADataPart,
   FileWithUri as A2AFileWithUri,
   FileWithBytes as A2AFileWithBytes,
   Task as A2ATask,
@@ -91,7 +92,7 @@ export function mapGenkitPartToA2A(part: Part): A2APart {
   }
 
   // Fallback for complex parts (toolRequest, toolResponse, etc.)
-  return { kind: 'text', text: JSON.stringify(part) } as A2ATextPart;
+  return { kind: 'data', data: part as Record<string, unknown> } as A2ADataPart;
 }
 
 /**
@@ -111,6 +112,14 @@ export function mapA2APartToGenkit(part: A2APart): Part {
       // not JSON — fall through to plain text
     }
     return { text: textPart.text };
+  }
+
+  if (part.kind === 'data') {
+    const dataPart = part as A2ADataPart;
+    if (isGenkitPart(dataPart.data)) {
+      return dataPart.data as Part;
+    }
+    return { data: dataPart.data } as Part;
   }
 
   if (part.kind === 'file') {
@@ -153,8 +162,8 @@ export function mapGenkitArtifactToA2A(artifact: Artifact): A2AArtifact {
     );
   }
 
-  const { a2a: a2aMeta, ...restMetadata } = (artifact.metadata || {}) as Record<string, any>;
-  const a2aOverrides: Record<string, any> = a2aMeta || {};
+  const { a2a: a2aMeta, ...restMetadata } = (artifact.metadata || {}) as Record<string, unknown>;
+  const a2aOverrides = (a2aMeta as { name?: string; description?: string; extensions?: string[] }) || {};
 
   return {
     artifactId: artifact.name,
@@ -232,11 +241,14 @@ export class SessionFlowAgentExecutor implements AgentExecutor {
       final: false,
     } as A2ATaskStatusUpdateEvent);
 
+    const mappedParts = (userMessage as A2AMessage).parts.map(mapA2APartToGenkit);
+    const isToolResponse = mappedParts.some((p) => 'toolResponse' in p && p.toolResponse !== undefined);
+
     const genkitInput = {
       messages: [
         {
-          role: 'user' as const,
-          content: (userMessage as A2AMessage).parts.map(mapA2APartToGenkit),
+          role: (isToolResponse ? 'tool' : 'user') as 'user' | 'tool',
+          content: mappedParts,
         },
       ],
     };
@@ -287,17 +299,20 @@ export class SessionFlowAgentExecutor implements AgentExecutor {
       if (!output.state) {
         throw new Error(
           `SessionFlowAgentExecutor requires a client-managed state flow (no store). ` +
-          `The flow '${(this.sessionFlow as any).__action?.name ?? 'unknown'}' appears to ` +
+          `The flow '${(this.sessionFlow as unknown as { __action?: { name?: string } }).__action?.name ?? 'unknown'}' appears to ` +
           `have a session store configured, which is not supported with the A2A adapter.`
         );
       }
       this.contextStates.set(contextId, output.state as Record<string, unknown>);
 
+      const lastMessage = output.message;
+      const isInputRequired = lastMessage?.content?.some((p) => 'toolRequest' in p && p.toolRequest !== undefined);
+
       eventBus.publish({
         kind: 'status-update',
         taskId,
         contextId,
-        status: { state: 'completed', timestamp: new Date().toISOString() },
+        status: { state: isInputRequired ? 'input-required' : 'completed', timestamp: new Date().toISOString() },
         final: true,
       } as A2ATaskStatusUpdateEvent);
     } catch (error: unknown) {
@@ -371,15 +386,20 @@ export function defineA2ASessionFlow(
       const a2aContextId = uuidv4();
 
       await sess.run(async (input) => {
-        const userMessage = input.messages?.[input.messages.length - 1];
-        if (!userMessage) return;
+        let partsToMap = input.messages?.[input.messages.length - 1]?.content;
+
+        if (!partsToMap && input.toolRestarts && input.toolRestarts.length > 0) {
+          partsToMap = input.toolRestarts;
+        }
+
+        if (!partsToMap || partsToMap.length === 0) return;
 
         const a2aParams: A2AMessageSendParams = {
           message: {
             kind: 'message',
             messageId: uuidv4(),
             role: 'user',
-            parts: userMessage.content.map(mapGenkitPartToA2A),
+            parts: partsToMap.map(mapGenkitPartToA2A),
             contextId: a2aContextId,
           },
         };

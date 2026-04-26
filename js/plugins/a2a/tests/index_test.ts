@@ -3,7 +3,7 @@ import * as assert from 'node:assert';
 import { SessionFlowAgentExecutor, defineA2ASessionFlow, mapGenkitPartToA2A, mapA2APartToGenkit, mapGenkitArtifactToA2A, mapA2AArtifactToGenkit } from '../src/index.js';
 import { genkit } from 'genkit/beta';
 import { RequestContext, ExecutionEventBus } from '@a2a-js/sdk/server';
-import type { Message as A2AMessage, TaskStatusUpdateEvent as A2ATaskStatusUpdateEvent } from '@a2a-js/sdk';
+import type { Message as A2AMessage, TaskStatusUpdateEvent as A2ATaskStatusUpdateEvent, DataPart as A2ADataPart, MessageSendParams as A2AMessageSendParams, Part as A2APart } from '@a2a-js/sdk';
 
 test('SessionFlowAgentExecutor can be instantiated', () => {
   const ai = genkit({});
@@ -65,11 +65,11 @@ test('mapGenkitPartToA2A maps inline file parts', () => {
   });
 });
 
-test('mapGenkitPartToA2A falls back to JSON for complex parts', () => {
+test('mapGenkitPartToA2A uses DataPart for complex parts', () => {
   const part = { custom: { foo: 'bar' } };
   const mapped = mapGenkitPartToA2A(part);
-  assert.strictEqual(mapped.kind, 'text');
-  assert.strictEqual(mapped.text, JSON.stringify(part));
+  assert.strictEqual(mapped.kind, 'data');
+  assert.deepStrictEqual((mapped as A2ADataPart).data, part);
 });
 
 test('mapA2APartToGenkit maps text parts', () => {
@@ -122,6 +122,13 @@ test('mapA2APartToGenkit does not restore JSON objects with unknown keys', () =>
   assert.deepStrictEqual(mapped, { text: JSON.stringify(unknownObj) });
 });
 
+test('mapA2APartToGenkit maps DataPart to Genkit data part for unknown keys', () => {
+  const unknownObj = { toolCall: { name: 'myTool', args: {} } };
+  const part = { kind: 'data', data: unknownObj } as const;
+  const mapped = mapA2APartToGenkit(part as unknown as A2APart);
+  assert.deepStrictEqual(mapped, { data: unknownObj });
+});
+
 // Execution Flow Tests
 
 test('SessionFlowAgentExecutor execute publishes messages', async () => {
@@ -161,6 +168,76 @@ test('SessionFlowAgentExecutor execute publishes messages', async () => {
   assert.equal(parts[0].text, 'response');
 });
 
+test('SessionFlowAgentExecutor emits input-required when flow returns toolRequest', async () => {
+  const ai = genkit({});
+  const toolFlow = ai.defineSessionFlow(
+    { name: 'toolFlow' },
+    async (sess) => {
+      await sess.run(async () => {});
+      return { 
+        message: { 
+          role: 'model', 
+          content: [{ toolRequest: { name: 'myTool', input: {}, ref: '123' } }] 
+        } 
+      };
+    }
+  );
+
+  const executor = new SessionFlowAgentExecutor(toolFlow);
+  
+  const publishedEvents: Record<string, unknown>[] = [];
+  const mockEventBus = {
+    publish: (event: Record<string, unknown>) => { publishedEvents.push(event); },
+    finished: () => {},
+  };
+  
+  const mockRequestContext = {
+    taskId: 'task-1',
+    contextId: 'context-1',
+    userMessage: {
+      parts: [{ kind: 'text' as const, text: 'hello' }],
+    },
+  };
+  
+  await executor.execute(mockRequestContext as unknown as RequestContext, mockEventBus as unknown as ExecutionEventBus);
+
+  const statusEvents = publishedEvents.filter((e) => e.kind === 'status-update' && e.final === true) as unknown as A2ATaskStatusUpdateEvent[];
+  assert.equal(statusEvents.length, 1);
+  assert.equal(statusEvents[0].status.state, 'input-required');
+});
+
+test('SessionFlowAgentExecutor maps A2A user messages with toolResponses to role: tool', async () => {
+  const ai = genkit({});
+  const toolResponseFlow = ai.defineSessionFlow(
+    { name: 'toolResponseFlow' },
+    async (sess) => {
+      await sess.run(async () => {
+        const msgs = sess.session.getMessages();
+        assert.equal(msgs[msgs.length - 1].role, 'tool');
+      });
+      return { message: { role: 'model', content: [] } };
+    }
+  );
+
+  const executor = new SessionFlowAgentExecutor(toolResponseFlow);
+  
+  const publishedEvents: Record<string, unknown>[] = [];
+  const mockEventBus = {
+    publish: (event: Record<string, unknown>) => { publishedEvents.push(event); },
+    finished: () => {},
+  };
+  
+  const mockRequestContext = {
+    taskId: 'task-1',
+    contextId: 'context-1',
+    userMessage: {
+      parts: [{ kind: 'data' as const, data: { toolResponse: { name: 'myTool', ref: '123', output: 'done' } } }],
+    },
+  };
+  
+  await executor.execute(mockRequestContext as unknown as RequestContext, mockEventBus as unknown as ExecutionEventBus);
+});
+
 test('SessionFlowAgentExecutor execute publishes status updates', async () => {
   const ai = genkit({});
   const statusFlow = ai.defineSessionFlow(
@@ -192,7 +269,7 @@ test('SessionFlowAgentExecutor execute publishes status updates', async () => {
   await executor.execute(mockRequestContext as unknown as RequestContext, mockEventBus as unknown as ExecutionEventBus);
 
   // Lifecycle: task(submitted) + working + <status from flow> + completed
-  const statusEvents = publishedEvents.filter((e) => e.kind === 'status-update') as any[];
+  const statusEvents = publishedEvents.filter((e) => e.kind === 'status-update') as unknown as A2ATaskStatusUpdateEvent[];
   // working (lifecycle), working (flow), completed (lifecycle)
   assert.equal(statusEvents.length, 3);
   assert.equal(statusEvents[0].status.state, 'working');   // lifecycle working
@@ -334,11 +411,46 @@ test('artifact round-trip: Genkit → A2A → Genkit preserves name and parts', 
   assert.equal(restored.metadata?.a2a?.description, 'output file');
 });
 
+test('defineA2ASessionFlow forwards toolRestarts to remote agent', async () => {
+  const ai = genkit({});
+  
+  let sentParams: A2AMessageSendParams | undefined;
+  const mockClient = {
+    sendMessageStream: (params: A2AMessageSendParams) => {
+      sentParams = params;
+      return (async function* () {
+        yield {
+          kind: 'status-update' as const,
+          taskId: 't1',
+          contextId: 'c1',
+          status: { state: 'working' as const },
+          final: false,
+        } as A2ATaskStatusUpdateEvent;
+      })();
+    }
+  };
+
+  const flow = defineA2ASessionFlow(ai, {
+    name: 'testToolRestartAgent',
+    agentUrl: 'http://localhost:4000',
+    clientFactory: { createFromUrl: async () => mockClient }
+  });
+
+  await flow.run(
+    { toolRestarts: [{ toolResponse: { name: 'myTool', ref: '123', output: { success: true } } }] },
+    { init: {}, onChunk: () => {} }
+  );
+  
+  assert.ok(sentParams);
+  assert.equal(sentParams!.message.parts[0].kind, 'data');
+  assert.deepStrictEqual(((sentParams!.message.parts[0] as A2ADataPart).data as { toolResponse: unknown }).toolResponse, { name: 'myTool', ref: '123', output: { success: true } });
+});
+
 test('defineA2ASessionFlow executes and maps incoming stream', async () => {
   const ai = genkit({});
   
   const mockClient = {
-    sendMessageStream: (_params: any) => {
+    sendMessageStream: (_params: A2AMessageSendParams) => {
       return (async function* () {
         yield {
           kind: 'message' as const,
@@ -418,6 +530,13 @@ test('mapA2APartToGenkit restores toolRequest parts from JSON', () => {
   assert.deepStrictEqual(mapped, original);
 });
 
+test('mapA2APartToGenkit restores toolRequest parts from DataPart', () => {
+  const original = { toolRequest: { name: 'myTool', input: { x: 1 } } };
+  const part = { kind: 'data' as const, data: original };
+  const mapped = mapA2APartToGenkit(part as unknown as A2APart);
+  assert.deepStrictEqual(mapped, original);
+});
+
 // Multi-turn state continuity
 
 function makeRequestContext(taskId: string, contextId: string, text: string) {
@@ -460,10 +579,10 @@ test('SessionFlowAgentExecutor maintains conversation history across turns (no s
   const { bus: bus2, events: events2 } = makeMockEventBus();
   await executor.execute(ctx2, bus2);
 
-  const msgEvents1 = events1.filter((e) => (e as any).kind === 'message');
-  const msgEvents2 = events2.filter((e) => (e as any).kind === 'message');
-  const turn1Count = parseInt((msgEvents1[0] as any).parts[0].text.split(' ')[1]);
-  const turn2Count = parseInt((msgEvents2[0] as any).parts[0].text.split(' ')[1]);
+  const msgEvents1 = events1.filter((e) => (e as { kind?: string }).kind === 'message');
+  const msgEvents2 = events2.filter((e) => (e as { kind?: string }).kind === 'message');
+  const turn1Count = parseInt(((msgEvents1[0] as unknown as A2AMessage).parts[0] as { text: string }).text.split(' ')[1]);
+  const turn2Count = parseInt(((msgEvents2[0] as unknown as A2AMessage).parts[0] as { text: string }).text.split(' ')[1]);
   assert.ok(turn2Count > turn1Count, 'second turn should see more messages than first');
 });
 
@@ -491,8 +610,8 @@ test('SessionFlowAgentExecutor uses separate histories for different contextIds'
   await executor.execute(makeRequestContext('t2', 'ctx-Y', 'hi'), busB);
 
   // ctx-Y is a fresh conversation — should start at 1 message
-  const msgEventsB = eventsB.filter((e) => (e as any).kind === 'message');
-  const countY = parseInt((msgEventsB[0] as any).parts[0].text);
+  const msgEventsB = eventsB.filter((e) => (e as { kind?: string }).kind === 'message');
+  const countY = parseInt(((msgEventsB[0] as unknown as A2AMessage).parts[0] as { text: string }).text);
   assert.equal(countY, 1);
 });
 
@@ -536,13 +655,13 @@ test('SessionFlowAgentExecutor cancelTask stops stream consumption', async () =>
   // Pre-register cancellation before execute runs
   const taskId = 'task-cancel';
   const contextId = 'ctx-cancel';
-  (executor as any).cancelledTasks.add(taskId);
+  (executor as unknown as { cancelledTasks: Set<string> }).cancelledTasks.add(taskId);
 
   const { bus, events } = makeMockEventBus();
   await executor.execute(makeRequestContext(taskId, contextId, 'go'), bus);
 
   // No message events should be published because the loop breaks immediately
-  const msgEvents = events.filter((e) => (e as any).kind === 'message');
+  const msgEvents = events.filter((e) => (e as { kind?: string }).kind === 'message');
   assert.equal(msgEvents.length, 0);
 });
 
@@ -558,12 +677,12 @@ test('SessionFlowAgentExecutor cancelTask publishes canceled status with correct
 
   const executor = new SessionFlowAgentExecutor(flow);
   // Seed the taskContexts map as execute would
-  (executor as any).taskContexts.set('task-99', 'ctx-99');
+  (executor as unknown as { taskContexts: Map<string, string> }).taskContexts.set('task-99', 'ctx-99');
 
   const { bus, events } = makeMockEventBus();
   await executor.cancelTask('task-99', bus);
 
-  const statusEvent = events.find((e) => (e as any).kind === 'status-update') as any;
+  const statusEvent = events.find((e) => (e as { kind?: string }).kind === 'status-update') as unknown as A2ATaskStatusUpdateEvent;
   assert.ok(statusEvent);
   assert.equal(statusEvent.status.state, 'canceled');
   assert.equal(statusEvent.contextId, 'ctx-99');
