@@ -263,6 +263,52 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  plugins/a2a:
+    dependencies:
+      '@a2a-js/sdk':
+        specifier: ^0.3.0
+        version: 0.3.13(@grpc/grpc-js@1.14.3)(express@4.22.1)
+      '@genkit-ai/ai':
+        specifier: workspace:^
+        version: link:../../ai
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
+      uuid:
+        specifier: ^9.0.1
+        version: 9.0.1
+    devDependencies:
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
+      '@types/node':
+        specifier: ^20.11.16
+        version: 20.19.37
+      '@types/uuid':
+        specifier: ^9.0.7
+        version: 9.0.8
+      express:
+        specifier: ^4.21.1
+        version: 4.22.1
+      get-port:
+        specifier: ^5.1.0
+        version: 5.1.1
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.1.3
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(postcss@8.4.31)(tsx@4.20.3)(typescript@5.9.3)(yaml@2.8.2)
+      tsx:
+        specifier: ^4.19.2
+        version: 4.20.3
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   plugins/anthropic:
     dependencies:
       '@anthropic-ai/sdk':
@@ -1054,6 +1100,37 @@ importers:
       firebase-admin:
         specifier: '>=12.2'
         version: 13.7.0(encoding@0.1.13)
+
+  testapps/a2a:
+    dependencies:
+      '@a2a-js/sdk':
+        specifier: ^0.3.0
+        version: 0.3.13(@grpc/grpc-js@1.14.3)(express@4.22.1)
+      '@genkit-ai/a2a':
+        specifier: workspace:*
+        version: link:../../plugins/a2a
+      '@genkit-ai/google-genai':
+        specifier: workspace:*
+        version: link:../../plugins/google-genai
+      express:
+        specifier: ^4.21.1
+        version: 4.22.1
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+    devDependencies:
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
+      '@types/node':
+        specifier: ^20.11.16
+        version: 20.19.37
+      tsx:
+        specifier: ^4.19.2
+        version: 4.20.3
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
   testapps/agents:
     dependencies:
@@ -2167,6 +2244,21 @@ importers:
         version: 5.9.3
 
 packages:
+
+  '@a2a-js/sdk@0.3.13':
+    resolution: {integrity: sha512-BZr0f9JVNQs3GKOM9xINWCh6OKIJWZFPyqqVqTym5mxO2Eemc6I/0zL7zWnljHzGdaf5aZQyQN5xa6PSH62q+A==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@bufbuild/protobuf': ^2.10.2
+      '@grpc/grpc-js': ^1.11.0
+      express: ^4.21.2 || ^5.1.0
+    peerDependenciesMeta:
+      '@bufbuild/protobuf':
+        optional: true
+      '@grpc/grpc-js':
+        optional: true
+      express:
+        optional: true
 
   '@anthropic-ai/sdk@0.71.2':
     resolution: {integrity: sha512-TGNDEUuEstk/DKu0/TflXAEt+p+p/WhTlFzEnoosvbaDU2LTjm42igSdlL0VijrKpWejtOKxX0b8A7uc+XiSAQ==}
@@ -8938,6 +9030,13 @@ packages:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
 snapshots:
+
+  '@a2a-js/sdk@0.3.13(@grpc/grpc-js@1.14.3)(express@4.22.1)':
+    dependencies:
+      uuid: 11.1.0
+    optionalDependencies:
+      '@grpc/grpc-js': 1.14.3
+      express: 4.22.1
 
   '@anthropic-ai/sdk@0.71.2(zod@3.25.76)':
     dependencies:
