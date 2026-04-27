@@ -400,6 +400,28 @@ func TestMiddlewareStreamsAccumulateWithModel(t *testing.T) {
 	if len(chunks) != 2 {
 		t.Fatalf("got %d chunks, want 2", len(chunks))
 	}
+	if chunks[0].Role != RoleModel {
+		t.Errorf("chunks[0].Role = %q, want %q", chunks[0].Role, RoleModel)
+	}
+	if chunks[0].Index != chunks[1].Index {
+		t.Errorf("chunks[0].Index=%d chunks[1].Index=%d; want equal", chunks[0].Index, chunks[1].Index)
+	}
+
+	var midText string
+	if err := chunks[0].Output(&midText); err != nil {
+		t.Fatalf("middleware chunk Output error: %v", err)
+	}
+	if midText != "middleware chunk " {
+		t.Errorf("middleware chunk Output = %q, want %q", midText, "middleware chunk ")
+	}
+
+	var modelText string
+	if err := chunks[1].Output(&modelText); err != nil {
+		t.Fatalf("model chunk Output error: %v", err)
+	}
+	if modelText != "middleware chunk model chunk" {
+		t.Errorf("model chunk Output = %q, want %q", modelText, "middleware chunk model chunk")
+	}
 }
 
 // --- tool contribution: Tools on *Middleware ---

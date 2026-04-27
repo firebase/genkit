@@ -31,6 +31,7 @@ import (
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/google/uuid"
+	"github.com/invopop/jsonschema"
 )
 
 // Model represents a model that can generate content based on a request.
@@ -49,6 +50,10 @@ type ModelArg interface {
 }
 
 // ModelRef is a struct to hold model name and configuration.
+//
+// ModelRef supports JSON marshaling: it serializes as a plain string when
+// only a name is present, or as {"name": "...", "config": ...} when
+// configuration is also set.
 type ModelRef struct {
 	name   string
 	config any
@@ -338,9 +343,27 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 	fn = buildModelChain(mws, fn)
 	fn = core.ChainMiddleware(mmws...)(fn)
 
+	// Share one streaming format handler across middleware- and model-emitted
+	// chunks so its per-index accumulation (e.g. accumulatedText) spans both.
 	var streamingHandler StreamingFormatHandler
 	if sfh, ok := formatHandler.(StreamingFormatHandler); ok {
 		streamingHandler = sfh
+	}
+
+	// middlewareCb is the callback given to WrapGenerate hooks. It attaches the
+	// shared streamingHandler so middleware-emitted chunks can be parsed and
+	// contribute to accumulation, while preserving any Index/Role the middleware
+	// set explicitly (the model path in wrappedCb assigns those from role-based
+	// state).
+	var middlewareCb ModelStreamCallback
+	if cb != nil {
+		middlewareCb = func(ctx context.Context, chunk *ModelResponseChunk) error {
+			if chunk.Role == "" {
+				chunk.Role = RoleModel
+			}
+			chunk.formatHandler = streamingHandler
+			return cb(ctx, chunk)
+		}
 	}
 
 	runTool := buildToolRunner(mws)
@@ -475,7 +498,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 			Request:      req,
 			Iteration:    currentTurn,
 			MessageIndex: messageIndex,
-			Callback:     cb,
+			Callback:     middlewareCb,
 		})
 	}
 
@@ -1275,6 +1298,66 @@ func (m ModelRef) Name() string {
 // Config returns the configuration to use by default for this model.
 func (m ModelRef) Config() any {
 	return m.config
+}
+
+// MarshalJSON implements [json.Marshaler]. ModelRef always marshals as a
+// JSON object with "name" and optional "config" fields.
+func (m ModelRef) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Name   string `json:"name"`
+		Config any    `json:"config,omitempty"`
+	}{
+		Name:   m.name,
+		Config: m.config,
+	})
+}
+
+// UnmarshalJSON implements [json.Unmarshaler]. It accepts either a JSON
+// object with "name" and optional "config" fields, or a plain string
+// (interpreted as the model name).
+func (m *ModelRef) UnmarshalJSON(data []byte) error {
+	// Try string shorthand first.
+	var name string
+	if err := json.Unmarshal(data, &name); err == nil {
+		m.name = name
+		m.config = nil
+		return nil
+	}
+	var obj struct {
+		Name   string          `json:"name"`
+		Config json.RawMessage `json:"config,omitempty"`
+	}
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return err
+	}
+	m.name = obj.Name
+	if len(obj.Config) > 0 {
+		var config any
+		if err := json.Unmarshal(obj.Config, &config); err != nil {
+			return err
+		}
+		m.config = config
+	}
+	return nil
+}
+
+// JSONSchema implements the invopop/jsonschema customSchemaImpl interface
+// so that schema reflection produces the correct object schema instead of
+// an empty object (ModelRef has only unexported fields).
+func (ModelRef) JSONSchema() *jsonschema.Schema {
+	props := jsonschema.NewProperties()
+	props.Set("name", &jsonschema.Schema{
+		Type:        "string",
+		Description: "Model name (e.g. \"googleai/gemini-2.5-flash\")",
+	})
+	props.Set("config", &jsonschema.Schema{
+		Description: "Optional model configuration",
+	})
+	return &jsonschema.Schema{
+		Type:       "object",
+		Properties: props,
+		Required:   []string{"name"},
+	}
 }
 
 // handleResumedToolRequest resolves a tool request from a previous, interrupted model turn,
