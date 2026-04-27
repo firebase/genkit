@@ -31,8 +31,6 @@ from typing import Any, TypeVar, cast, overload
 
 import anyio
 import uvicorn
-from opentelemetry import trace as trace_api
-from opentelemetry.sdk.trace import TracerProvider
 from pydantic import BaseModel
 
 from genkit._ai._embedding import EmbedderFn, EmbedderOptions, EmbedderRef, define_embedder
@@ -1057,12 +1055,6 @@ class Genkit:
     def current_context() -> dict[str, Any] | None:
         """Get the current execution context, or None if not in an action."""
         return ActionRunContext._current_context()  # pyright: ignore[reportPrivateUsage]
-
-    async def flush_tracing(self) -> None:
-        """Flush all pending trace spans to exporters."""
-        provider = trace_api.get_tracer_provider()
-        if isinstance(provider, TracerProvider):
-            await asyncio.to_thread(provider.force_flush)
 
     async def run(
         self,
