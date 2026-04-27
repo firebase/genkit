@@ -278,29 +278,31 @@ The `middleware` plugin also ships with [`ToolApproval`](plugins/middleware/tool
 
 ### Custom Middleware
 
-Implement the `ai.Middleware` interface to build your own. Embed `ai.BaseMiddleware` to inherit pass-through defaults for the hooks you don't need, then override `WrapGenerate`, `WrapModel`, or `WrapTool`:
+Implement the `ai.Middleware` interface to build your own: a config struct with two methods, `Name()` and `New(ctx)`. `New` returns a `*ai.Hooks` bundle whose `WrapGenerate`, `WrapModel`, `WrapTool`, and `Tools` fields are all optional (a nil hook is a pass-through):
 
 ```go
 type Logger struct {
-    ai.BaseMiddleware
     Prefix string `json:"prefix,omitempty"`
 }
 
-func (l *Logger) Name() string      { return "mine/logger" }
-func (l *Logger) New() ai.Middleware { return &Logger{Prefix: l.Prefix} }
+func (Logger) Name() string { return "mine/logger" }
 
-func (l *Logger) WrapModel(ctx context.Context, params *ai.ModelParams, next ai.ModelNext) (*ai.ModelResponse, error) {
-    start := time.Now()
-    resp, err := next(ctx, params)
-    log.Printf("%s model call took %s", l.Prefix, time.Since(start))
-    return resp, err
+func (l Logger) New(ctx context.Context) (*ai.Hooks, error) {
+    return &ai.Hooks{
+        WrapModel: func(ctx context.Context, params *ai.ModelParams, next ai.ModelNext) (*ai.ModelResponse, error) {
+            start := time.Now()
+            resp, err := next(ctx, params)
+            log.Printf("%s model call took %s", l.Prefix, time.Since(start))
+            return resp, err
+        },
+    }, nil
 }
 
 // Use it like any built-in middleware.
-ai.WithUse(&Logger{Prefix: "[trace]"})
+ai.WithUse(Logger{Prefix: "[trace]"})
 ```
 
-`New()` is called once per `Generate` invocation, so middleware can hold per-call state without worrying about concurrent use across calls. `Name()` must be unique and stable since it's the key used to register and reference the middleware from the Dev UI and across runtimes.
+`New` is called once per `Generate` invocation, so per-call state can live in closures captured by `New` without worrying about concurrent use across calls. Note that `WrapTool` may run concurrently for parallel tool calls within a single call, so any state it mutates needs synchronization. `Name()` must be unique and stable since it's the key used to register and reference the middleware from the Dev UI and across runtimes.
 
 ### Define Flows
 
