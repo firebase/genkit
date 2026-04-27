@@ -114,7 +114,7 @@ async def ack_register(fm: FakeReflectionManager) -> dict[str, Any]:
     return msg
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(loop_scope='function')
 async def fake_manager() -> Any:
     fm = FakeReflectionManager()
     await fm.start()
