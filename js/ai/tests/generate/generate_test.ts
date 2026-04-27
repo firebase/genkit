@@ -1115,31 +1115,39 @@ describe('countTokens', () => {
     assert.ok(toolAct);
   });
 
-  it('runs model-level middleware that modifies the request during countTokens', async () => {
+  it('extracts tools from middleware during countTokens but does not run hooks', async () => {
     let receivedRequest: any;
 
-    const modifyingMiddleware: ModelMiddleware = async (req, next) => {
-      const modifiedReq = {
-        ...req,
-        messages: [
-          ...req.messages,
-          {
-            role: 'user' as const,
-            content: [{ text: 'appended by model middleware' }],
-          },
-        ],
-      };
-      return next(modifiedReq);
-    };
+    const mwTool = defineTool(
+      registry,
+      {
+        name: 'mwTool',
+        description: 'test tool',
+        inputSchema: z.string(),
+        outputSchema: z.string(),
+      },
+      async () => 'hello'
+    );
+
+    const toolMiddleware = generateMiddleware(
+      { name: 'toolMiddleware' },
+      () => ({
+        tools: [mwTool],
+        model: async (req, ctx, next) => {
+          throw new Error(
+            'Middleware model hook should not be executed during countTokens!'
+          );
+        },
+      })
+    );
 
     const countTokensModelWithModelMiddleware = defineModel(
       registry,
       {
         name: 'countTokensModelWithModelMiddleware',
-        use: [modifyingMiddleware],
         countTokens: async (req) => {
           receivedRequest = req;
-          return { totalTokens: JSON.stringify(req).length };
+          return { totalTokens: req.tools?.length || 0 };
         },
       },
       async (request) => {
@@ -1149,92 +1157,16 @@ describe('countTokens', () => {
         };
       }
     );
-
-    const countTokensModelNoMiddleware = defineModel(
-      registry,
-      {
-        name: 'countTokensModelNoMiddleware',
-        countTokens: async (req) => {
-          return { totalTokens: JSON.stringify(req).length };
-        },
-      },
-      async (request) => {
-        return {
-          message: { role: 'model', content: [{ text: 'response' }] },
-          finishReason: 'stop',
-        };
-      }
-    );
-
-    const withoutMiddleware = await countTokens(registry, {
-      model: countTokensModelNoMiddleware,
-      prompt: 'hello world',
-    });
 
     const withMiddleware = await countTokens(registry, {
       model: countTokensModelWithModelMiddleware,
       prompt: 'hello world',
+      use: [toolMiddleware()],
     });
 
-    assert.ok(withMiddleware.totalTokens! > withoutMiddleware.totalTokens!);
-    assert.strictEqual(receivedRequest.messages.length, 2);
-    assert.strictEqual(
-      receivedRequest.messages[1].content[0].text,
-      'appended by model middleware'
-    );
-  });
-
-  it('runs request-level middleware that modifies the request during countTokens', async () => {
-    let receivedRequest: any;
-
-    const countTokensModel = defineModel(
-      registry,
-      {
-        name: 'countTokensModelWithMiddleware',
-        countTokens: async (req) => {
-          receivedRequest = req;
-          return { totalTokens: JSON.stringify(req).length };
-        },
-      },
-      async (request) => {
-        return {
-          message: { role: 'model', content: [{ text: 'response' }] },
-          finishReason: 'stop',
-        };
-      }
-    );
-
-    const modifyingMiddleware: ModelMiddleware = async (req, next) => {
-      const modifiedReq = {
-        ...req,
-        messages: [
-          ...req.messages,
-          {
-            role: 'user' as const,
-            content: [{ text: 'appended by middleware' }],
-          },
-        ],
-      };
-      return next(modifiedReq);
-    };
-
-    const withoutMiddleware = await countTokens(registry, {
-      model: countTokensModel,
-      prompt: 'hello world',
-    });
-
-    const withMiddleware = await countTokens(registry, {
-      model: countTokensModel,
-      prompt: 'hello world',
-      use: [modifyingMiddleware],
-    });
-
-    assert.ok(withMiddleware.totalTokens! > withoutMiddleware.totalTokens!);
-    assert.strictEqual(receivedRequest.messages.length, 2);
-    assert.strictEqual(
-      receivedRequest.messages[1].content[0].text,
-      'appended by middleware'
-    );
+    assert.strictEqual(withMiddleware.totalTokens, 1);
+    assert.strictEqual(receivedRequest.tools.length, 1);
+    assert.strictEqual(receivedRequest.tools[0].name, 'mwTool');
   });
 
   it('counts tokens using a dynamic unregistered model', async () => {

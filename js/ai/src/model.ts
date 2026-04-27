@@ -476,54 +476,6 @@ function getTokenCounterMiddleware(options: {
     z.infer<typeof GenerationUsageSchema>
   >[] = [];
 
-  if (options.use && options.use.length > 0) {
-    middleware.push(async (req, next) => {
-      let interceptedReq = req;
-
-      const dispatchModel = async (
-        index: number,
-        currentReq: GenerateRequest
-      ): Promise<GenerateResponseData> => {
-        if (index === options.use!.length) {
-          interceptedReq = currentReq;
-          // Token counting returns GenerationUsage, but ModelMiddleware functions strongly
-          // expect a GenerateResponseData object. To execute user middleware (which may mutate
-          // the request before counting tokens) safely, we capture the fully mutated request
-          // and short-circuit the execution stack by returning a dummy GenerateResponseData.
-          return {
-            message: { role: 'model', content: [] },
-            finishReason: 'stop',
-          };
-        }
-
-        const currentMiddleware = options.use![index];
-
-        // ModelMiddlewareArgument can be 'SimpleMiddleware' (length 2) or 'MiddlewareWithOptions' (length 3).
-        // Since we're only extracting the request for token counting, we pass 'undefined' for the RunOptions
-        // parameter expected by the length 3 middleware.
-        if (currentMiddleware.length === 3) {
-          return (currentMiddleware as ModelMiddlewareWithOptions)(
-            currentReq,
-            undefined,
-            async (modifiedReq) =>
-              dispatchModel(index + 1, modifiedReq || currentReq)
-          );
-        } else {
-          return (currentMiddleware as ModelMiddleware)(
-            currentReq,
-            async (modifiedReq) =>
-              dispatchModel(index + 1, modifiedReq || currentReq)
-          );
-        }
-      };
-
-      await dispatchModel(0, req);
-
-      // Pass the fully mutated request to the actual token counter logic
-      return next(interceptedReq);
-    });
-  }
-
   if (!options?.supports?.context)
     middleware.push(
       augmentWithContext<z.infer<typeof GenerationUsageSchema>>()

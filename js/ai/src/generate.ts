@@ -858,31 +858,15 @@ export async function countTokens<
   );
   maybeRegisterDynamicMiddlewareTools(childRegistry, resolvedMiddleware);
 
-  let interceptedRequest = request;
-  if (resolvedMiddleware && resolvedMiddleware.length > 0) {
-    const dispatchModel = async (
-      index: number,
-      req: GenerateRequest
-    ): Promise<GenerateResponseData> => {
-      if (index === resolvedMiddleware.length) {
-        interceptedRequest = req;
-        // Return a dummy response to safely unwind the middleware chain without
-        // executing the actual model generation, since we only want to intercept the mutated request.
-        return {
-          message: { role: 'model', content: [] },
-          finishReason: 'stop',
-        };
-      }
-      const currentMiddleware = resolvedMiddleware[index];
-      if (currentMiddleware.model) {
-        return currentMiddleware.model(req, {}, async (modifiedReq) =>
-          dispatchModel(index + 1, modifiedReq || req)
-        );
-      } else {
-        return dispatchModel(index + 1, req);
-      }
-    };
-    await dispatchModel(0, request);
+  if (resolvedMiddleware) {
+    // Warning: We are not allowed to apply the middleware to the request.
+    // We only extract the tools. If your middleware modifies the request,
+    // this will result in incorrect token counts.
+    const mwTools = resolvedMiddleware.flatMap((m) => m.tools || []);
+    if (mwTools.length > 0) {
+      request.tools = request.tools || [];
+      request.tools.push(...mwTools.map(toToolDefinition));
+    }
   }
 
   const counterActionName = `/model-token-counter/${resolvedModel.modelAction.__action.name}`;
@@ -901,5 +885,5 @@ export async function countTokens<
     });
   }
 
-  return await counterAction(interceptedRequest);
+  return await counterAction(request);
 }
