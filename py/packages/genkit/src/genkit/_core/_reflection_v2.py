@@ -311,7 +311,7 @@ class ReflectionServerV2:
                 await self._send_error(str(req_id), JSON_RPC_SERVER_ERROR, 'internal error')
 
     async def _handle_input_stream_unimplemented(self, req_id: str | int | None, method: str) -> None:
-        if req_id is None or req_id == '':
+        if req_id is None:
             logger.debug('reflection V2: input stream method not implemented (notification)', method=method)
             return
         try:
@@ -327,13 +327,13 @@ class ReflectionServerV2:
 
     async def _handle_list_actions(self, req_id: str | int | None, _: dict[str, Any]) -> None:
         """Stub: return empty ``actions`` until ``list_resolvable_actions`` is implemented."""
-        if req_id is None or req_id == '':
+        if req_id is None:
             return
         sid = str(req_id)
         await self._send_response(sid, {'actions': {}})
 
     async def _handle_list_values(self, req_id: str | int | None, params: dict[str, Any]) -> None:
-        if req_id is None or req_id == '':
+        if req_id is None:
             return
         sid = str(req_id)
         try:
@@ -368,7 +368,7 @@ class ReflectionServerV2:
             self._apply_handshake_telemetry(p.telemetry_server_url)
 
     async def _handle_cancel_action(self, req_id: str | int | None, params: dict[str, Any]) -> None:
-        if req_id is None or req_id == '':
+        if req_id is None:
             return
         sid = str(req_id)
         try:
@@ -398,7 +398,7 @@ class ReflectionServerV2:
             await asyncio.to_thread(provider.force_flush)
 
     async def _handle_run_action(self, req_id: str | int | None, params: dict[str, Any]) -> None:
-        if req_id is None or req_id == '':
+        if req_id is None:
             return
         sid = str(req_id)
         try:
