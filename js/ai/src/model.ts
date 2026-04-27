@@ -469,7 +469,6 @@ function getModelMiddleware(options: {
 function getTokenCounterMiddleware(options: {
   name: string;
   supports?: ModelInfo['supports'];
-  use?: ModelMiddlewareArgument[];
 }) {
   const middleware: SimpleMiddleware<
     z.infer<typeof GenerateRequestSchema>,
