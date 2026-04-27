@@ -16,7 +16,7 @@
 
 """Tests for Reflection API v2 (WebSocket JSON-RPC client).
 
-Design notes (borrowed from ``go/genkit/reflection_v2_test.go``):
+Design notes:
 
 - **fakeManager pattern**: A minimal in-process WebSocket *server* stands in for
   the CLI ``RuntimeManagerV2``. The runtime under test is the *client*. This
@@ -26,13 +26,11 @@ Design notes (borrowed from ``go/genkit/reflection_v2_test.go``):
   wrong ordering (e.g. ``register`` vs first ``listActions``) deterministically.
 - **ackRegister helper**: The runtime sends ``register`` and awaits a result;
   most tests must reply with a minimal ``result`` so the client does not stall.
-- **Draining notifications**: ``runAction`` may emit ``runActionState`` before
-  the final ``result`` or ``error``; tests loop until they see the response
-  shape they need (same as Go).
+- **Draining notifications**: ``runAction`` may emit ``runActionState`` frames
+  before the final ``result`` or ``error``; tests loop until they see the
+  response shape they need rather than asserting on the very next frame.
 - **Parallel failure modes**: ``cancelAction`` tests assert on *two* correlated
   replies (cancel ack + runAction error) without assuming order.
-
-We mirror Go's cases so cross-language behavior stays aligned.
 """
 
 from __future__ import annotations

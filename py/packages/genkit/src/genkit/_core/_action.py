@@ -409,7 +409,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         input: InputT | None = None,
         on_chunk: Callable[[ChunkT], None] | None = None,
         context: dict[str, object] | None = None,
-        on_trace_start: Callable[[str, str], Any] | None = None,
+        on_trace_start: Callable[[str, str], Awaitable[None]] | None = None,
         telemetry_labels: dict[str, object] | None = None,
     ) -> ActionResponse[OutputT]:
         """Execute the action with optional input validation.
@@ -565,7 +565,7 @@ def _make_tracing_wrapper(
         input: object | None,
         ctx: ActionRunContext,
         on_chunk: StreamingCallback | None,
-        on_trace_start: Callable[[str, str], Any] | None,
+        on_trace_start: Callable[[str, str], Awaitable[None]] | None,
         telemetry_labels: dict[str, object] | None,
     ) -> ActionResponse[Any]:
         start_time = time.perf_counter()
@@ -579,9 +579,7 @@ def _make_tracing_wrapper(
                     trace_id = format(span.get_span_context().trace_id, '032x')
                     span_id = format(span.get_span_context().span_id, '016x')
                     if on_trace_start:
-                        maybe_coro = on_trace_start(trace_id, span_id)
-                        if inspect.isawaitable(maybe_coro):
-                            await maybe_coro
+                        await on_trace_start(trace_id, span_id)
 
                     # Set telemetry labels as direct span attributes (matches JS/Go behavior)
                     if telemetry_labels:
