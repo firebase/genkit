@@ -37,7 +37,7 @@ from typing import Any
 import websockets
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, JsonValue, ValidationError
 from websockets.exceptions import ConnectionClosed
 
 from genkit._core._constants import GENKIT_VERSION
@@ -106,7 +106,7 @@ class ReflectionServerV2:
         self._app_name = app_name
         self._ws: Any = None
         self._write_lock = asyncio.Lock()
-        self._pending: dict[str, asyncio.Future[object]] = {}
+        self._pending: dict[str, asyncio.Future[JsonValue]] = {}
         self._request_seq = 0
         self._active_actions: dict[str, asyncio.Task[Any]] = {}
         self._stop = False
@@ -192,11 +192,11 @@ class ReflectionServerV2:
     async def _send_notification(self, method: str, params: object) -> None:
         await self._send_message({'jsonrpc': '2.0', 'method': method, 'params': params})
 
-    async def _send_request(self, method: str, params: object) -> object:
+    async def _send_request(self, method: str, params: object) -> JsonValue:
         self._request_seq += 1
         req_id = str(self._request_seq)
         loop = asyncio.get_running_loop()
-        fut: asyncio.Future[object] = loop.create_future()
+        fut: asyncio.Future[JsonValue] = loop.create_future()
         self._pending[req_id] = fut
         try:
             await self._send_message({'jsonrpc': '2.0', 'id': req_id, 'method': method, 'params': params})
@@ -217,8 +217,8 @@ class ReflectionServerV2:
         ).model_dump(by_alias=True, exclude_none=True)
         try:
             result = await self._send_request('register', params)
-            if isinstance(result, dict) and result.get('telemetryServerUrl'):
-                self._apply_handshake_telemetry(str(result['telemetryServerUrl']))
+            if isinstance(result, dict) and (telemetry_url := result.get('telemetryServerUrl')):
+                self._apply_handshake_telemetry(str(telemetry_url))
         except JsonRpcCallError as e:
             logger.error('reflection V2: register failed', code=e.code, message=e.message)
         except Exception as e:
@@ -310,9 +310,7 @@ class ReflectionServerV2:
             if req_id is not None:
                 await self._send_error(str(req_id), JSON_RPC_SERVER_ERROR, 'internal error')
 
-    async def _handle_input_stream_unimplemented(
-        self, req_id: str | int | None, method: str
-    ) -> None:
+    async def _handle_input_stream_unimplemented(self, req_id: str | int | None, method: str) -> None:
         if req_id is None or req_id == '':
             logger.debug('reflection V2: input stream method not implemented (notification)', method=method)
             return
@@ -353,8 +351,9 @@ class ReflectionServerV2:
         mapped: dict[str, Any] = {}
         for name in self._registry.list_values(p.type):
             value = self._registry.lookup_value(p.type, name)
-            if value is not None and hasattr(value, 'to_json') and callable(getattr(value, 'to_json', None)):
-                mapped[name] = value.to_json()
+            to_json_fn = getattr(value, 'to_json', None) if value is not None else None
+            if callable(to_json_fn):
+                mapped[name] = to_json_fn()
             else:
                 mapped[name] = value
         await self._send_response(sid, {'values': mapped})
@@ -447,9 +446,7 @@ class ReflectionServerV2:
 
             on_chunk = on_chunk_fn
 
-        ctx: dict[str, object] = (
-            {} if p.context is None else {str(k): v for k, v in p.context.items()}
-        )
+        ctx: dict[str, object] = {} if p.context is None else {str(k): v for k, v in p.context.items()}
 
         labels: dict[str, object] | None = None
         if p.telemetry_labels is not None:

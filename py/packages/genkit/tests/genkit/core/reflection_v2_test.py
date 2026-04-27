@@ -81,7 +81,8 @@ class FakeReflectionManager:
         self._ready = asyncio.get_running_loop().create_future()
         self._serve_ctx = serve(self._handler, self._host, 0)
         self._server = await self._serve_ctx.__aenter__()
-        self._port = self._server.sockets[0].getsockname()[1]
+        first_socket = next(iter(self._server.sockets))
+        self._port = first_socket.getsockname()[1]
 
     async def aclose(self) -> None:
         self._stop.set()
