@@ -255,8 +255,14 @@ export class SessionFlowAgentExecutor implements AgentExecutor {
 
     try {
       const existingState = this.contextStates.get(contextId);
+      const contextOptions = {
+        auth: requestContext.context?.user as Record<string, unknown> | undefined,
+        a2aRequestContext: requestContext as unknown as Record<string, unknown>,
+      };
+
       const session = this.sessionFlow.streamBidi(
-        existingState ? { state: existingState } : {}
+        existingState ? { state: existingState } : {},
+        { context: contextOptions }
       );
 
       session.send(genkitInput);

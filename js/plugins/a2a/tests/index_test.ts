@@ -172,8 +172,10 @@ test('SessionFlowAgentExecutor emits input-required when flow returns toolReques
   const ai = genkit({});
   const toolFlow = ai.defineSessionFlow(
     { name: 'toolFlow' },
-    async (sess) => {
-      await sess.run(async () => {});
+    async (sess, { sendChunk }) => {
+      await sess.run(async () => {
+        sendChunk({ modelChunk: { role: 'model', content: [{ toolRequest: { name: 'myTool', input: {}, ref: '123' } }] } });
+      });
       return { 
         message: { 
           role: 'model', 
@@ -201,9 +203,17 @@ test('SessionFlowAgentExecutor emits input-required when flow returns toolReques
   
   await executor.execute(mockRequestContext as unknown as RequestContext, mockEventBus as unknown as ExecutionEventBus);
 
-  const statusEvents = publishedEvents.filter((e) => e.kind === 'status-update' && e.final === true) as unknown as A2ATaskStatusUpdateEvent[];
+  // Assert status is input-required
+  const statusEvents = publishedEvents.filter((e) => e.kind === 'status-update' && (e as any).final === true) as unknown as A2ATaskStatusUpdateEvent[];
   assert.equal(statusEvents.length, 1);
   assert.equal(statusEvents[0].status.state, 'input-required');
+
+  // Assert toolRequest was correctly streamed to the client as a DataPart
+  const messageEvents = publishedEvents.filter((e) => e.kind === 'message');
+  assert.equal(messageEvents.length, 1);
+  const dataPart = (messageEvents[0] as unknown as A2AMessage).parts[0] as A2ADataPart;
+  assert.equal(dataPart.kind, 'data');
+  assert.deepStrictEqual(dataPart.data.toolRequest, { name: 'myTool', input: {}, ref: '123' });
 });
 
 test('SessionFlowAgentExecutor maps A2A user messages with toolResponses to role: tool', async () => {
@@ -631,7 +641,8 @@ test('SessionFlowAgentExecutor maintains conversation history across turns (no s
   const msgEvents2 = events2.filter((e) => (e as { kind?: string }).kind === 'message');
   const turn1Count = parseInt(((msgEvents1[0] as unknown as A2AMessage).parts[0] as { text: string }).text.split(' ')[1]);
   const turn2Count = parseInt(((msgEvents2[0] as unknown as A2AMessage).parts[0] as { text: string }).text.split(' ')[1]);
-  assert.ok(turn2Count > turn1Count, 'second turn should see more messages than first');
+  assert.equal(turn1Count, 1);
+  assert.equal(turn2Count, 2);
 });
 
 test('SessionFlowAgentExecutor end-to-end interrupt flow (ask -> input-required -> resume -> completed)', async () => {
@@ -729,6 +740,56 @@ test('SessionFlowAgentExecutor uses separate histories for different contextIds'
   const msgEventsB = eventsB.filter((e) => (e as { kind?: string }).kind === 'message');
   const countY = parseInt(((msgEventsB[0] as unknown as A2AMessage).parts[0] as { text: string }).text);
   assert.equal(countY, 1);
+});
+
+test('SessionFlowAgentExecutor passes A2A RequestContext as context to session flow', async () => {
+  const ai = genkit({});
+
+  const contextFlow = ai.defineSessionFlow(
+    { name: 'contextFlow' },
+    async (sess, { context, sendChunk }) => {
+      await sess.run(async () => {
+        sendChunk({ modelChunk: { role: 'model', content: [{ text: JSON.stringify(context) }] } });
+      });
+      return { 
+        message: { 
+          role: 'model', 
+          content: [{ text: JSON.stringify(context) }] 
+        } 
+      };
+    }
+  );
+
+  const executor = new SessionFlowAgentExecutor(contextFlow);
+  
+  const mockUser = {
+    isAuthenticated: true,
+    userName: 'test-user',
+  };
+
+  const mockRequestContext = {
+    taskId: 't1',
+    contextId: 'c1',
+    context: {
+      user: mockUser,
+    },
+    userMessage: {
+      parts: [{ kind: 'text' as const, text: 'hello' }],
+    },
+  };
+  
+  const { bus: bus1, events: events1 } = makeMockEventBus();
+  await executor.execute(mockRequestContext as unknown as RequestContext, bus1);
+
+  const msgEvents = events1.filter((e) => (e as { kind?: string }).kind === 'message');
+  assert.equal(msgEvents.length, 1);
+  
+  const textPart = (msgEvents[0] as unknown as A2AMessage).parts[0] as { text: string };
+  const receivedContext = JSON.parse(textPart.text);
+  
+  assert.deepStrictEqual(receivedContext.auth, mockUser);
+  assert.equal(receivedContext.a2aRequestContext.taskId, 't1');
+  assert.equal(receivedContext.a2aRequestContext.contextId, 'c1');
 });
 
 test('SessionFlowAgentExecutor throws when flow has a store (server-managed state)', async () => {
