@@ -411,6 +411,54 @@ test('artifact round-trip: Genkit → A2A → Genkit preserves name and parts', 
   assert.equal(restored.metadata?.a2a?.description, 'output file');
 });
 
+test('defineA2ASessionFlow handles incoming toolRequest interrupts from remote agent', async () => {
+  const ai = genkit({});
+  
+  const mockClient = {
+    sendMessageStream: (_params: A2AMessageSendParams) => {
+      return (async function* () {
+        yield {
+          kind: 'message' as const,
+          messageId: '1',
+          role: 'agent' as const,
+          parts: [{ kind: 'data' as const, data: { toolRequest: { name: 'myTool', input: { query: 'test' }, ref: '123' } } }],
+        } as A2AMessage;
+        yield {
+          kind: 'status-update' as const,
+          taskId: 't1',
+          contextId: 'c1',
+          status: { state: 'input-required' as const },
+          final: false,
+        } as A2ATaskStatusUpdateEvent;
+      })();
+    }
+  };
+
+  const flow = defineA2ASessionFlow(ai, {
+    name: 'testIncomingInterrupt',
+    agentUrl: 'http://localhost:4000',
+    clientFactory: { createFromUrl: async () => mockClient }
+  });
+
+  const chunks: Record<string, unknown>[] = [];
+  const result = await flow.run(
+    { messages: [{ role: 'user', content: [{ text: 'hello' }] }] },
+    { init: {}, onChunk: (chunk) => chunks.push(chunk as Record<string, unknown>) }
+  );
+  
+  const modelChunk = chunks.find((c) => !!c.modelChunk) as any;
+  assert.ok(modelChunk);
+  assert.deepStrictEqual(modelChunk.modelChunk.content[0].toolRequest, { name: 'myTool', input: { query: 'test' }, ref: '123' });
+  
+  const statusChunk = chunks.find((c) => !!c.status) as any;
+  assert.ok(statusChunk);
+  assert.equal(statusChunk.status, 'input-required');
+
+  // Verify that the final message in the session state includes the tool request
+  assert.ok(result.result.message);
+  assert.deepStrictEqual((result.result.message.content[0] as any).toolRequest, { name: 'myTool', input: { query: 'test' }, ref: '123' });
+});
+
 test('defineA2ASessionFlow forwards toolRestarts to remote agent', async () => {
   const ai = genkit({});
   
@@ -584,6 +632,74 @@ test('SessionFlowAgentExecutor maintains conversation history across turns (no s
   const turn1Count = parseInt(((msgEvents1[0] as unknown as A2AMessage).parts[0] as { text: string }).text.split(' ')[1]);
   const turn2Count = parseInt(((msgEvents2[0] as unknown as A2AMessage).parts[0] as { text: string }).text.split(' ')[1]);
   assert.ok(turn2Count > turn1Count, 'second turn should see more messages than first');
+});
+
+test('SessionFlowAgentExecutor end-to-end interrupt flow (ask -> input-required -> resume -> completed)', async () => {
+  const ai = genkit({});
+
+  const interruptingFlow = ai.defineSessionFlow(
+    { name: 'interruptingFlow' },
+    async (sess, { sendChunk }) => {
+      await sess.run(async (input) => {
+        const msgs = sess.session.getMessages();
+        const lastMsg = msgs[msgs.length - 1];
+
+        if (lastMsg.role === 'tool') {
+          // Resumed with a tool response!
+          sendChunk({ modelChunk: { content: [{ text: `Resumed! Tool returned: ${(lastMsg.content[0] as any).toolResponse.output}` }] } });
+          return;
+        }
+
+        // Interrupt with a tool request
+        const requestPart = { toolRequest: { name: 'askUser', input: {}, ref: 'req-1' } };
+        sess.session.addMessages([{ role: 'model', content: [requestPart] }]);
+        sendChunk({ modelChunk: { content: [requestPart] } });
+      });
+
+      const msgs = sess.session.getMessages();
+      return { message: msgs[msgs.length - 1] };
+    }
+  );
+
+  const executor = new SessionFlowAgentExecutor(interruptingFlow);
+  const contextId = 'ctx-interrupt-test';
+  
+  // Turn 1: User sends a message
+  const { bus: bus1, events: events1 } = makeMockEventBus();
+  await executor.execute(makeRequestContext('t1', contextId, 'Hello, please ask me something.'), bus1);
+
+  const statusEvents1 = events1.filter((e) => (e as { kind?: string }).kind === 'status-update' && (e as any).final === true);
+  assert.equal(statusEvents1.length, 1);
+  assert.equal((statusEvents1[0] as any).status.state, 'input-required', 'Task should halt requiring input');
+
+  // Check the message sent by the agent (it should contain the tool request)
+  const agentMsgEvents1 = events1.filter((e) => (e as { kind?: string }).kind === 'message');
+  assert.equal(agentMsgEvents1.length, 1);
+  const dataPart = (agentMsgEvents1[0] as any).parts[0];
+  assert.equal(dataPart.kind, 'data');
+  assert.equal(dataPart.data.toolRequest.name, 'askUser');
+
+  // Turn 2: User provides the requested tool response
+  const { bus: bus2, events: events2 } = makeMockEventBus();
+  const ctx2 = {
+    taskId: 't1',
+    contextId,
+    userMessage: {
+      parts: [{ kind: 'data' as const, data: { toolResponse: { name: 'askUser', ref: 'req-1', output: 'User says YES' } } }],
+    },
+  } as unknown as RequestContext;
+  await executor.execute(ctx2, bus2);
+
+  const statusEvents2 = events2.filter((e) => (e as { kind?: string }).kind === 'status-update' && (e as any).final === true);
+  assert.equal(statusEvents2.length, 1);
+  assert.equal((statusEvents2[0] as any).status.state, 'completed', 'Task should now complete successfully');
+
+  // Check the final response from the agent
+  const agentMsgEvents2 = events2.filter((e) => (e as { kind?: string }).kind === 'message');
+  assert.equal(agentMsgEvents2.length, 1);
+  const textPart = (agentMsgEvents2[0] as any).parts[0];
+  assert.equal(textPart.kind, 'text');
+  assert.equal(textPart.text, 'Resumed! Tool returned: User says YES');
 });
 
 test('SessionFlowAgentExecutor uses separate histories for different contextIds', async () => {
