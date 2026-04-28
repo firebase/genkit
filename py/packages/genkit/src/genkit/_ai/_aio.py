@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import os
 import signal
 import socket
 import threading
@@ -92,6 +93,7 @@ from genkit._core._logger import get_logger
 from genkit._core._model import Document
 from genkit._core._plugin import Plugin
 from genkit._core._reflection import ReflectionServer, ServerSpec, create_reflection_asgi_app
+from genkit._core._reflection_v2 import ReflectionServerV2
 from genkit._core._registry import Registry
 from genkit._core._tracing import run_in_new_span
 from genkit._core._typing import (
@@ -626,9 +628,22 @@ class Genkit:
     # -------------------------------------------------------------------------
 
     def _start_reflection_background(self) -> None:
-        """Start the Dev UI reflection server in a background daemon thread."""
+        """Start the Dev UI reflection server in a background daemon thread.
+
+        If GENKIT_REFLECTION_V2_SERVER is set (the CLI launches the runtime in
+        v2 mode and provides a WebSocket URL), run the v2 JSON-RPC client.
+        Otherwise start the v1 HTTP server.
+        """
 
         async def _run_server() -> None:
+            v2_url = os.environ.get('GENKIT_REFLECTION_V2_SERVER')
+            if v2_url:
+                await logger.ainfo(f'Genkit Dev UI reflection v2 client connecting to {v2_url}')
+                server_v2 = ReflectionServerV2(self.registry, v2_url)
+                self._reflection_ready.set()
+                await server_v2.run_forever()
+                return
+
             sockets: list[socket.socket] | None = None
             spec = self._reflection_server_spec
             if spec is None:
