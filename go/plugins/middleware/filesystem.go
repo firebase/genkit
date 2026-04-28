@@ -35,8 +35,15 @@ import (
 	"github.com/firebase/genkit/go/core"
 )
 
-// readMaxBytes caps a single full read. Models can step past it via offset/limit.
-const readMaxBytes = 256 * 1024
+// readMaxBytes caps a single full read or returned slice. Models can step
+// past it on the read side via offset/limit, but the resulting slice still
+// has to fit. fileMaxBytes is the absolute on-disk file-size ceiling: even
+// a sliced read materializes the whole file via root.ReadFile, so without
+// this cap a 1 GB log could OOM the process before sliceLines runs.
+const (
+	readMaxBytes = 256 * 1024
+	fileMaxBytes = 10 * 1024 * 1024
+)
 
 // fileStateCacheMaxEntries bounds the per-call cache. Eviction is FIFO on insert.
 const fileStateCacheMaxEntries = 200
@@ -242,7 +249,7 @@ func (f *Filesystem) buildTools(
 ) []ai.Tool {
 	tools := []ai.Tool{
 		f.newListFilesTool(root),
-		f.newReadFileTool(root, rootAbs, cache, enqueueParts),
+		f.newReadFileTool(root, rootAbs, cache, locks, enqueueParts),
 	}
 	if f.AllowWriteAccess {
 		tools = append(tools,
@@ -359,6 +366,7 @@ func (f *Filesystem) newReadFileTool(
 	root *os.Root,
 	rootAbs string,
 	cache *fileStateCache,
+	locks *pathLocks,
 	enqueueParts func(parts ...*ai.Part),
 ) ai.Tool {
 	return ai.NewTool(
@@ -373,6 +381,13 @@ func (f *Filesystem) newReadFileTool(
 			osPath := filepath.FromSlash(rel)
 			isImage := strings.HasPrefix(mimeType, "image/")
 			key := cacheKey(rootAbs, rel)
+
+			// Serialize the stat → dedup-check → read → cache-set sequence
+			// against concurrent edit_file/write_file on the same path. genkit
+			// runs tool calls in parallel goroutines, so an interleaved write
+			// could otherwise let the read clobber the cache with stale state.
+			unlock := locks.lock(key)
+			defer unlock()
 
 			info, err := root.Stat(osPath)
 			if err != nil {
@@ -393,6 +408,12 @@ func (f *Filesystem) newReadFileTool(
 			}
 
 			fullSize := info.Size()
+			if fullSize > fileMaxBytes {
+				return "", fmt.Errorf(
+					"file %s is %d bytes (>%d); too large to read until streaming line-slicing is supported",
+					in.FilePath, fullSize, fileMaxBytes,
+				)
+			}
 			if !isImage && in.Offset == 0 && in.Limit == 0 && fullSize > readMaxBytes {
 				return "", fmt.Errorf(
 					"file %s is %d bytes (>%d); use offset/limit to read a slice",
@@ -448,7 +469,11 @@ func (f *Filesystem) newReadFileTool(
 				summary = fmt.Sprintf("File %s read successfully (%d lines). See contents below.",
 					in.FilePath, totalLines)
 			}
-			enqueueParts(ai.NewTextPart(header + "\n" + string(content) + "\n</read_file>"))
+			// No "\n" before the closing tag: when content already ends with a
+			// newline, the file's own terminator separates it from </read_file>;
+			// when content doesn't, we shouldn't fabricate one — the model could
+			// pick it up and pass it into edit_file.oldString and miss the match.
+			enqueueParts(ai.NewTextPart(header + "\n" + string(content) + "</read_file>"))
 			cache.set(key, &fileState{
 				Content: append([]byte(nil), data...),
 				ModTime: info.ModTime(),
@@ -473,23 +498,39 @@ func countLines(data []byte) int {
 	return n
 }
 
-// sliceLines returns the [offset, offset+limit) line window of data, 1-indexed.
-// offset <= 1 starts at the beginning; limit == 0 reads to end. The result
-// preserves the trailing newline when the original window did.
+// sliceLines returns the byte-range covering lines [offset, offset+limit)
+// of data, 1-indexed. offset <= 1 starts at the beginning; limit <= 0 reads
+// to end. Returns nil when offset is past EOF. The window is sliced directly
+// out of data, so any line terminators present in the original are preserved
+// — preserving byte-for-byte fidelity for downstream edit_file calls.
 func sliceLines(data []byte, offset, limit int) []byte {
 	if offset < 1 {
 		offset = 1
 	}
-	lines := strings.Split(string(data), "\n")
-	start := offset - 1
-	if start >= len(lines) {
+	start := 0
+	for i := 1; i < offset; i++ {
+		idx := bytes.IndexByte(data[start:], '\n')
+		if idx == -1 {
+			return nil
+		}
+		start += idx + 1
+	}
+	if start >= len(data) {
 		return nil
 	}
-	end := len(lines)
-	if limit > 0 && start+limit < end {
-		end = start + limit
+	if limit <= 0 {
+		return data[start:]
 	}
-	return []byte(strings.Join(lines[start:end], "\n"))
+	end := start
+	for i := 0; i < limit && end < len(data); i++ {
+		idx := bytes.IndexByte(data[end:], '\n')
+		if idx == -1 {
+			end = len(data)
+			break
+		}
+		end += idx + 1
+	}
+	return data[start:end]
 }
 
 type writeFileInput struct {
