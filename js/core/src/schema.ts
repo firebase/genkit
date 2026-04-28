@@ -94,7 +94,9 @@ export interface ValidationErrorDetail {
   message: string;
 }
 
-function toErrorDetail(error: ErrorObject): ValidationErrorDetail {
+function ajvErrorToValidationErrorDetail(
+  error: ErrorObject
+): ValidationErrorDetail {
   return {
     path: error.instancePath.substring(1).replace(/\//g, '.') || '(root)',
     message: error.message!,
@@ -174,7 +176,7 @@ export function validateSchema(
   if (!valid) {
     return {
       valid: false,
-      errors: (validator.errors ?? []).map(toErrorDetail),
+      errors: (validator.errors ?? []).map(ajvErrorToValidationErrorDetail),
       schema: toValidate,
     };
   }
