@@ -311,6 +311,17 @@ def _create_embedder_action(
     return action
 
 
+def _is_global_vertex_gemini_model(name: str) -> bool:
+    """Return True when a Vertex Gemini model should use global location.
+
+    Gemini 3.1 preview models are only available in `global` for many projects.
+    Keep this predicate narrow so other models continue using the plugin's
+    configured location.
+    """
+    lower_name = name.lower()
+    return lower_name.startswith('gemini-3.1-') and 'preview' in lower_name
+
+
 class GoogleAI(Plugin):
     """GoogleAI plugin for Genkit with dynamic model discovery.
 
@@ -395,15 +406,17 @@ class GoogleAI(Plugin):
                 'Gemini api key should be passed in plugin params or as a GEMINI_API_KEY environment variable'
             )
 
-        self._client_kwargs: dict[str, Any] = {
-            'vertexai': self._vertexai,
-            'api_key': api_key,
-            'credentials': credentials,
-            'debug_config': debug_config,
-            'http_options': _inject_attribution_headers(http_options, base_url, api_version),
-        }
+        resolved_http_options = _inject_attribution_headers(http_options, base_url, api_version)
         # Single loop-local client accessor used everywhere in plugin runtime paths.
-        self._runtime_client = loop_local_client(lambda: genai.client.Client(**self._client_kwargs))
+        self._runtime_client = loop_local_client(
+            lambda: genai.client.Client(
+                vertexai=self._vertexai,
+                api_key=api_key,
+                credentials=credentials,
+                debug_config=debug_config,
+                http_options=resolved_http_options,
+            )
+        )
         self._list_actions_cache: list[ActionMetadata] | None = None
 
     async def init(self) -> list[Action]:
@@ -754,17 +767,31 @@ class VertexAI(Plugin):
         self._project = project if project else os.getenv(const.GCLOUD_PROJECT)
         self._location = location if location else const.DEFAULT_REGION
 
-        self._client_kwargs: dict[str, Any] = {
-            'vertexai': self._vertexai,
-            'api_key': api_key,
-            'credentials': credentials,
-            'project': self._project,
-            'location': self._location,
-            'debug_config': debug_config,
-            'http_options': _inject_attribution_headers(http_options, base_url, api_version),
-        }
+        resolved_http_options = _inject_attribution_headers(http_options, base_url, api_version)
         # Single loop-local client accessor used everywhere in plugin runtime paths.
-        self._runtime_client = loop_local_client(lambda: genai.client.Client(**self._client_kwargs))
+        self._runtime_client = loop_local_client(
+            lambda: genai.client.Client(
+                vertexai=self._vertexai,
+                api_key=api_key,
+                credentials=credentials,
+                project=self._project,
+                location=self._location,
+                debug_config=debug_config,
+                http_options=resolved_http_options,
+            )
+        )
+        # Gemini 3.1 preview models frequently require `global` location.
+        self._global_runtime_client = loop_local_client(
+            lambda: genai.client.Client(
+                vertexai=self._vertexai,
+                api_key=api_key,
+                credentials=credentials,
+                project=self._project,
+                location='global',
+                debug_config=debug_config,
+                http_options=resolved_http_options,
+            )
+        )
         self._list_actions_cache: list[ActionMetadata] | None = None
 
     async def init(self) -> list[Action]:
@@ -907,12 +934,15 @@ class VertexAI(Plugin):
             config_schema = get_model_config_schema(clean_name)
 
         async def _run(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+            model_client_getter = (
+                self._global_runtime_client if _is_global_vertex_gemini_model(clean_name) else self._runtime_client
+            )
             if clean_name.lower().startswith('image'):
                 model = ImagenModel(clean_name, self._runtime_client())
             elif is_veo_model(clean_name):
                 model = VeoModel(clean_name, self._runtime_client())
             else:
-                model = GeminiModel(clean_name, self._runtime_client())
+                model = GeminiModel(clean_name, model_client_getter())
             return await model.generate(request, ctx)
 
         return Action(

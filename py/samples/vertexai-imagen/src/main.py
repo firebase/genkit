@@ -53,11 +53,35 @@ async def draw_image_with_imagen() -> ModelResponse:
     )
 
 
+@ai.flow()
+async def summarize_with_gemini_31_pro() -> str:
+    """Summarize text with Gemini 3.1 Pro Preview on Vertex AI."""
+
+    response = await ai.generate(
+        model='vertexai/gemini-3.1-pro-preview',
+        prompt='Summarize why multimodal models are useful in two short bullet points.',
+    )
+    return response.text
+
+
+@ai.flow()
+async def rewrite_with_gemini_31_flash_lite() -> str:
+    """Rewrite text with Gemini 3.1 Flash Lite Preview on Vertex AI."""
+
+    response = await ai.generate(
+        model='vertexai/gemini-3.1-flash-lite-preview',
+        prompt='Rewrite this sentence to be clearer: "The build maybe failed because env was not configured right".',
+    )
+    return response.text
+
+
 async def main() -> None:
-    """Run the Imagen sample once."""
+    """Run the Vertex AI sample once."""
     try:
         response = await draw_image_with_imagen()
         print(response.model_dump_json(indent=2))  # noqa: T201
+        print(await summarize_with_gemini_31_pro())  # noqa: T201
+        print(await rewrite_with_gemini_31_flash_lite())  # noqa: T201
     except Exception as error:
         message = 'Set GOOGLE_CLOUD_PROJECT and Application Default Credentials before running this sample directly.'
         print(f'{message}\n{error}')  # noqa: T201

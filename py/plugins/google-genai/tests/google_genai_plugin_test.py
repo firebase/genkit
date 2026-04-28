@@ -20,11 +20,11 @@ import asyncio
 import os
 import queue
 import threading
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from genkit import ActionKind
+from genkit import ActionKind, Message, ModelRequest, ModelResponse, Part, Role, TextPart
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     GeminiConfigSchema,
@@ -273,6 +273,66 @@ async def test_vertexai_resolve_embedder(mock_list_models: MagicMock, mock_clien
     assert action.name == 'vertexai/gemini-embedding-001'
 
 
+@patch('genkit.plugins.google_genai.google.genai.client.Client')
+@patch('genkit.plugins.google_genai.google.GeminiModel')
+@pytest.mark.asyncio
+async def test_vertexai_uses_global_client_for_gemini_31_preview(
+    mock_gemini_model: MagicMock, mock_client_ctor: MagicMock
+) -> None:
+    """VertexAI routes Gemini 3.1 preview calls to global location."""
+    clients_by_location: dict[str | None, MagicMock] = {}
+
+    def _new_client(**kwargs: object) -> MagicMock:
+        location = kwargs.get('location') if isinstance(kwargs, dict) else None
+        location_str = str(location) if location is not None else None
+        client = MagicMock(name=f'client-{location_str}')
+        clients_by_location[location_str] = client
+        return client
+
+    mock_client_ctor.side_effect = _new_client
+    mock_gemini_model.return_value.generate = AsyncMock(
+        return_value=ModelResponse(message=Message(role=Role.MODEL, content=[]))
+    )
+
+    plugin = VertexAI(project='test-project', location='us-central1')
+    action = plugin._resolve_model('vertexai/gemini-3.1-pro-preview')
+    await action(ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='ping'))])]))
+
+    assert mock_gemini_model.call_args is not None
+    used_client = mock_gemini_model.call_args.args[1]
+    assert used_client is clients_by_location.get('global')
+
+
+@patch('genkit.plugins.google_genai.google.genai.client.Client')
+@patch('genkit.plugins.google_genai.google.GeminiModel')
+@pytest.mark.asyncio
+async def test_vertexai_uses_default_client_for_non_gemini_31_preview(
+    mock_gemini_model: MagicMock, mock_client_ctor: MagicMock
+) -> None:
+    """VertexAI keeps configured location for non-Gemini 3.1 preview models."""
+    clients_by_location: dict[str | None, MagicMock] = {}
+
+    def _new_client(**kwargs: object) -> MagicMock:
+        location = kwargs.get('location') if isinstance(kwargs, dict) else None
+        location_str = str(location) if location is not None else None
+        client = MagicMock(name=f'client-{location_str}')
+        clients_by_location[location_str] = client
+        return client
+
+    mock_client_ctor.side_effect = _new_client
+    mock_gemini_model.return_value.generate = AsyncMock(
+        return_value=ModelResponse(message=Message(role=Role.MODEL, content=[]))
+    )
+
+    plugin = VertexAI(project='test-project', location='us-central1')
+    action = plugin._resolve_model('vertexai/gemini-2.0-flash')
+    await action(ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='ping'))])]))
+
+    assert mock_gemini_model.call_args is not None
+    used_client = mock_gemini_model.call_args.args[1]
+    assert used_client is clients_by_location.get('us-central1')
+
+
 def test_embedding_task_types() -> None:
     """Test EmbeddingTaskType enum values."""
     assert EmbeddingTaskType.RETRIEVAL_QUERY is not None
@@ -298,12 +358,17 @@ def test_googleai_gemini_version_enum() -> None:
     """Test GoogleAIGeminiVersion enum has values."""
     # Check that the enum has at least one value
     assert len(list(GoogleAIGeminiVersion)) > 0
+    assert GoogleAIGeminiVersion.GEMINI_3_1_FLASH_LITE_PREVIEW.value == 'gemini-3.1-flash-lite-preview'
+    assert GoogleAIGeminiVersion.GEMINI_3_1_PRO_PREVIEW_CUSTOMTOOLS.value == 'gemini-3.1-pro-preview-customtools'
+    assert GoogleAIGeminiVersion.GEMINI_3_1_PRO_PREVIEW.value == 'gemini-3.1-pro-preview'
 
 
 def test_vertexai_gemini_version_enum() -> None:
     """Test VertexAIGeminiVersion enum has values."""
     # Check that the enum has at least one value
     assert len(list(VertexAIGeminiVersion)) > 0
+    assert VertexAIGeminiVersion.GEMINI_3_1_FLASH_LITE_PREVIEW.value == 'gemini-3.1-flash-lite-preview'
+    assert VertexAIGeminiVersion.GEMINI_3_1_PRO_PREVIEW.value == 'gemini-3.1-pro-preview'
 
 
 def test_gemini_config_schema() -> None:
