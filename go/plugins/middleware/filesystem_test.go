@@ -24,6 +24,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/internal/registry"
@@ -398,7 +399,7 @@ func TestFilesystemWriteFileRequiresAllowWriteAccess(t *testing.T) {
 	if !names["list_files"] || !names["read_file"] {
 		t.Errorf("read-only config missing expected tools; got %v", names)
 	}
-	if names["write_file"] || names["search_and_replace"] {
+	if names["write_file"] || names["edit_file"] {
 		t.Errorf("read-only config exposed write tools; got %v", names)
 	}
 }
@@ -434,17 +435,25 @@ func TestFilesystemWriteFileCreatesAndOverwrites(t *testing.T) {
 	}
 }
 
-func TestFilesystemSearchAndReplace(t *testing.T) {
+func TestFilesystemEditFile(t *testing.T) {
 	r := newTestRegistry(t)
 	root := makeFS(t)
 
-	edit := "<<<<<<< SEARCH\nhello world\n=======\nhello there\n>>>>>>> REPLACE"
-	m, _ := scriptedModel(t, r, "test/fs-sr", []modelTurn{
+	m, _ := scriptedModel(t, r, "test/fs-edit", []modelTurn{
 		{Tools: []*ai.ToolRequest{{
-			Name: "search_and_replace",
+			Name:  "read_file",
+			Input: map[string]any{"filePath": "hello.txt"},
+		}}},
+		{Tools: []*ai.ToolRequest{{
+			Name: "edit_file",
 			Input: map[string]any{
 				"filePath": "hello.txt",
-				"edits":    []any{edit},
+				"edits": []any{
+					map[string]any{
+						"oldString": "hello world",
+						"newString": "hello there",
+					},
+				},
 			},
 		}}},
 		{Text: "done"},
@@ -466,20 +475,28 @@ func TestFilesystemSearchAndReplace(t *testing.T) {
 	}
 }
 
-func TestFilesystemSearchAndReplaceNotFound(t *testing.T) {
-	// When the search content can't be located, the tool call should fail,
-	// and the failure should surface to the model as a placeholder tool
-	// response plus a user message, rather than crashing the generation.
+func TestFilesystemEditFileNotFound(t *testing.T) {
+	// When oldString can't be located, the tool call should fail, and the
+	// failure should surface to the model as a placeholder tool response
+	// plus a user message, rather than crashing the generation.
 	r := newTestRegistry(t)
 	root := makeFS(t)
 
-	edit := "<<<<<<< SEARCH\nNOT THERE\n=======\nREPLACED\n>>>>>>> REPLACE"
-	m, seen := scriptedModel(t, r, "test/fs-sr-miss", []modelTurn{
+	m, seen := scriptedModel(t, r, "test/fs-edit-miss", []modelTurn{
 		{Tools: []*ai.ToolRequest{{
-			Name: "search_and_replace",
+			Name:  "read_file",
+			Input: map[string]any{"filePath": "hello.txt"},
+		}}},
+		{Tools: []*ai.ToolRequest{{
+			Name: "edit_file",
 			Input: map[string]any{
 				"filePath": "hello.txt",
-				"edits":    []any{edit},
+				"edits": []any{
+					map[string]any{
+						"oldString": "NOT THERE",
+						"newString": "REPLACED",
+					},
+				},
 			},
 		}}},
 		{Text: "recovered"},
@@ -496,7 +513,6 @@ func TestFilesystemSearchAndReplaceNotFound(t *testing.T) {
 		t.Errorf("final text = %q, want %q", resp.Text(), "recovered")
 	}
 
-	// File must be untouched.
 	got, err := os.ReadFile(filepath.Join(root, "hello.txt"))
 	if err != nil {
 		t.Fatal(err)
@@ -505,18 +521,16 @@ func TestFilesystemSearchAndReplaceNotFound(t *testing.T) {
 		t.Errorf("file modified despite failed edit: %q", got)
 	}
 
-	// The second turn should have received an injected user message carrying
-	// the tool failure.
-	if len(*seen) < 2 {
-		t.Fatalf("expected 2 model calls, got %d", len(*seen))
+	if len(*seen) < 3 {
+		t.Fatalf("expected 3 model calls, got %d", len(*seen))
 	}
 	found := false
-	for _, msg := range (*seen)[1].Messages {
+	for _, msg := range (*seen)[2].Messages {
 		if msg.Role != ai.RoleUser {
 			continue
 		}
 		for _, p := range msg.Content {
-			if p.IsText() && strings.Contains(p.Text, `Tool "search_and_replace" failed`) {
+			if p.IsText() && strings.Contains(p.Text, `Tool "edit_file" failed`) {
 				found = true
 			}
 		}
@@ -592,7 +606,7 @@ func TestFilesystemToolNamePrefix(t *testing.T) {
 	for _, tool := range hooks.Tools {
 		names[tool.Name()] = true
 	}
-	for _, want := range []string{"fs_list_files", "fs_read_file", "fs_write_file", "fs_search_and_replace"} {
+	for _, want := range []string{"fs_list_files", "fs_read_file", "fs_write_file", "fs_edit_file"} {
 		if !names[want] {
 			t.Errorf("expected prefixed tool %q; got %v", want, names)
 		}
@@ -676,34 +690,419 @@ func TestFilesystemMissingRootDirIsAnError(t *testing.T) {
 	}
 }
 
-func TestApplySearchReplaceAmbiguousSeparators(t *testing.T) {
-	// When the same "=======" string appears in the SEARCH half (e.g. because
-	// the file contains it), both split positions parse as valid blocks. The
-	// longer matching search must win.
-	content := "line1\n=======\nline2"
+// TestFilesystemListFilesIncludesSize verifies list_files reports byte size
+// for files (and omits it for directories).
+func TestFilesystemListFilesIncludesSize(t *testing.T) {
+	r := newTestRegistry(t)
+	root := makeFS(t)
 
-	block := "<<<<<<< SEARCH\nline1\n=======\nline2\n=======\nREPLACED\n>>>>>>> REPLACE"
+	m, _ := scriptedModel(t, r, "test/fs-list-size", []modelTurn{
+		{Tools: []*ai.ToolRequest{{
+			Name:  "list_files",
+			Input: map[string]any{"dirPath": ""},
+		}}},
+		{Text: "done"},
+	})
 
-	got, err := applySearchReplace(content, block, "x.txt")
+	fs := &Filesystem{RootDir: root}
+	ai.DefineMiddleware(r, "filesystem", fs)
+	resp, err := ai.Generate(ctx, r, ai.WithModel(m), ai.WithPrompt("go"), ai.WithUse(fs))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "REPLACED" {
-		t.Errorf("got %q, want %q", got, "REPLACED")
+
+	var helloSize float64
+	var sawDir bool
+	for _, msg := range resp.History() {
+		for _, p := range msg.Content {
+			if p.IsToolResponse() && p.ToolResponse.Name == "list_files" {
+				list, _ := p.ToolResponse.Output.([]any)
+				for _, e := range list {
+					em, _ := e.(map[string]any)
+					name, _ := em["path"].(string)
+					isDir, _ := em["isDirectory"].(bool)
+					sz, _ := em["sizeBytes"].(float64)
+					if name == "hello.txt" && !isDir {
+						helloSize = sz
+					}
+					if name == "docs" && isDir {
+						sawDir = true
+						if _, has := em["sizeBytes"]; has {
+							t.Errorf("directory entry should not include sizeBytes")
+						}
+					}
+				}
+			}
+		}
+	}
+	if helloSize != float64(len("hello world")) {
+		t.Errorf("hello.txt size = %v, want %d", helloSize, len("hello world"))
+	}
+	if !sawDir {
+		t.Errorf("expected docs directory entry")
 	}
 }
 
-func TestApplySearchReplaceInvalidBlock(t *testing.T) {
-	cases := []string{
-		"no markers at all",
-		"<<<<<<< SEARCH\nonly search\n>>>>>>> REPLACE",
-		"<<<<<<< SEARCH\na\n=======\n",   // missing end
-		"a\n=======\nb\n>>>>>>> REPLACE", // missing start
+// TestFilesystemReadFileIncludesLineMetadata verifies read_file emits
+// totalLines and a lines window for sliced reads.
+func TestFilesystemReadFileIncludesLineMetadata(t *testing.T) {
+	r := newTestRegistry(t)
+	root := t.TempDir()
+	body := "a\nb\nc\nd\ne\n"
+	if err := os.WriteFile(filepath.Join(root, "lines.txt"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
 	}
-	for _, b := range cases {
-		if _, err := applySearchReplace("anything", b, "x"); err == nil {
-			t.Errorf("expected error for block %q", b)
+
+	m, seen := scriptedModel(t, r, "test/fs-read-meta", []modelTurn{
+		{Tools: []*ai.ToolRequest{{
+			Name:  "read_file",
+			Input: map[string]any{"filePath": "lines.txt"},
+		}}},
+		{Tools: []*ai.ToolRequest{{
+			Name:  "read_file",
+			Input: map[string]any{"filePath": "lines.txt", "offset": 2, "limit": 2},
+		}}},
+		{Text: "done"},
+	})
+
+	fs := &Filesystem{RootDir: root}
+	ai.DefineMiddleware(r, "filesystem", fs)
+	if _, err := ai.Generate(ctx, r, ai.WithModel(m), ai.WithPrompt("go"), ai.WithUse(fs)); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(*seen) < 3 {
+		t.Fatalf("expected 3 model calls, got %d", len(*seen))
+	}
+
+	fullOK := false
+	for _, msg := range (*seen)[1].Messages {
+		for _, p := range msg.Content {
+			if p.IsText() && strings.Contains(p.Text, `totalLines="5"`) &&
+				strings.Contains(p.Text, `path="lines.txt"`) {
+				fullOK = true
+			}
 		}
+	}
+	if !fullOK {
+		t.Errorf("full-read body missing totalLines metadata")
+	}
+
+	sliceOK := false
+	for _, msg := range (*seen)[2].Messages {
+		for _, p := range msg.Content {
+			if p.IsText() && strings.Contains(p.Text, `lines="2-3"`) &&
+				strings.Contains(p.Text, `totalLines="5"`) {
+				sliceOK = true
+			}
+		}
+	}
+	if !sliceOK {
+		t.Errorf("sliced-read body missing line-window metadata")
+	}
+}
+
+// TestFilesystemEditFileRequiresPriorRead verifies the read-first guard:
+// editing a file the model never read must fail before any bytes are touched.
+func TestFilesystemEditFileRequiresPriorRead(t *testing.T) {
+	r := newTestRegistry(t)
+	root := makeFS(t)
+
+	m, _ := scriptedModel(t, r, "test/fs-edit-noread", []modelTurn{
+		{Tools: []*ai.ToolRequest{{
+			Name: "edit_file",
+			Input: map[string]any{
+				"filePath": "hello.txt",
+				"edits": []any{
+					map[string]any{
+						"oldString": "hello world",
+						"newString": "hello there",
+					},
+				},
+			},
+		}}},
+		{Text: "ok"},
+	})
+
+	fs := &Filesystem{RootDir: root, AllowWriteAccess: true}
+	ai.DefineMiddleware(r, "filesystem", fs)
+	if _, err := ai.Generate(ctx, r, ai.WithModel(m), ai.WithPrompt("go"), ai.WithUse(fs)); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(root, "hello.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "hello world" {
+		t.Errorf("file modified despite no prior read: %q", got)
+	}
+}
+
+// TestFilesystemEditFileDetectsExternalModification verifies the staleness
+// check: if a file changes on disk between read and edit, the edit must fail
+// rather than overwrite the external change.
+func TestFilesystemEditFileDetectsExternalModification(t *testing.T) {
+	r := newTestRegistry(t)
+	root := makeFS(t)
+
+	helloPath := filepath.Join(root, "hello.txt")
+	scripted := []modelTurn{
+		{Tools: []*ai.ToolRequest{{
+			Name:  "read_file",
+			Input: map[string]any{"filePath": "hello.txt"},
+		}}},
+		{Tools: []*ai.ToolRequest{{
+			Name: "edit_file",
+			Input: map[string]any{
+				"filePath": "hello.txt",
+				"edits": []any{
+					map[string]any{
+						"oldString": "hello world",
+						"newString": "hello there",
+					},
+				},
+			},
+		}}},
+		{Text: "done"},
+	}
+
+	turn := 0
+	m := ai.DefineModel(r, "test/fs-edit-stale", &ai.ModelOptions{
+		Supports: &ai.ModelSupports{Multiturn: true, SystemRole: true, Tools: true},
+	}, func(ctx context.Context, req *ai.ModelRequest, _ ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+		// Between the read and the edit, simulate the user editing the file.
+		if turn == 1 {
+			// Make sure the new mtime is strictly after the cached one.
+			time.Sleep(10 * time.Millisecond)
+			if err := os.WriteFile(helloPath, []byte("user changed it"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		t := scripted[turn]
+		turn++
+		if len(t.Tools) > 0 {
+			content := make([]*ai.Part, 0, len(t.Tools))
+			for _, tr := range t.Tools {
+				content = append(content, ai.NewToolRequestPart(tr))
+			}
+			return &ai.ModelResponse{Request: req, Message: &ai.Message{Role: ai.RoleModel, Content: content}}, nil
+		}
+		return &ai.ModelResponse{Request: req, Message: ai.NewModelTextMessage(t.Text)}, nil
+	})
+
+	fs := &Filesystem{RootDir: root, AllowWriteAccess: true}
+	ai.DefineMiddleware(r, "filesystem", fs)
+	if _, err := ai.Generate(ctx, r, ai.WithModel(m), ai.WithPrompt("go"), ai.WithUse(fs)); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := os.ReadFile(helloPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "user changed it" {
+		t.Errorf("user's external change was clobbered: got %q", got)
+	}
+}
+
+// TestFilesystemReadFileDedupsUnchanged verifies that re-reading the same file
+// at the same range without any disk change returns the unchanged-stub instead
+// of injecting the bytes a second time.
+func TestFilesystemReadFileDedupsUnchanged(t *testing.T) {
+	r := newTestRegistry(t)
+	root := makeFS(t)
+
+	m, seen := scriptedModel(t, r, "test/fs-read-dedup", []modelTurn{
+		{Tools: []*ai.ToolRequest{{
+			Name:  "read_file",
+			Input: map[string]any{"filePath": "hello.txt"},
+		}}},
+		{Tools: []*ai.ToolRequest{{
+			Name:  "read_file",
+			Input: map[string]any{"filePath": "hello.txt"},
+		}}},
+		{Text: "done"},
+	})
+
+	fs := &Filesystem{RootDir: root}
+	ai.DefineMiddleware(r, "filesystem", fs)
+	if _, err := ai.Generate(ctx, r, ai.WithModel(m), ai.WithPrompt("go"), ai.WithUse(fs)); err != nil {
+		t.Fatal(err)
+	}
+
+	// The second read's tool_response output must be the unchanged stub, and
+	// turn 3 must NOT receive a second injected user message with the bytes.
+	if len(*seen) < 3 {
+		t.Fatalf("expected 3 model calls, got %d", len(*seen))
+	}
+
+	stubFound := false
+	for _, msg := range (*seen)[2].Messages {
+		for _, p := range msg.Content {
+			if p.IsToolResponse() && p.ToolResponse.Name == "read_file" {
+				if s, ok := p.ToolResponse.Output.(string); ok && strings.Contains(s, "File unchanged since last read") {
+					stubFound = true
+				}
+			}
+		}
+	}
+	if !stubFound {
+		t.Errorf("expected dedup stub in second read tool response")
+	}
+
+	bodyCount := 0
+	for _, msg := range (*seen)[2].Messages {
+		if msg.Role != ai.RoleUser {
+			continue
+		}
+		for _, p := range msg.Content {
+			if p.IsText() && strings.Contains(p.Text, "hello world") &&
+				strings.Contains(p.Text, `path="hello.txt"`) {
+				bodyCount++
+			}
+		}
+	}
+	if bodyCount != 1 {
+		t.Errorf("expected exactly one injected file-content body across history, got %d", bodyCount)
+	}
+}
+
+// TestFilesystemWriteFileRequiresReadOnOverwrite verifies that overwriting an
+// existing file requires a prior read, while creating a new file does not.
+func TestFilesystemWriteFileRequiresReadOnOverwrite(t *testing.T) {
+	r := newTestRegistry(t)
+	root := makeFS(t)
+
+	m, _ := scriptedModel(t, r, "test/fs-write-noread", []modelTurn{
+		{Tools: []*ai.ToolRequest{{
+			Name: "write_file",
+			Input: map[string]any{
+				"filePath": "hello.txt",
+				"content":  "clobbered",
+			},
+		}}},
+		{Text: "ok"},
+	})
+
+	fs := &Filesystem{RootDir: root, AllowWriteAccess: true}
+	ai.DefineMiddleware(r, "filesystem", fs)
+	if _, err := ai.Generate(ctx, r, ai.WithModel(m), ai.WithPrompt("go"), ai.WithUse(fs)); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(root, "hello.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "hello world" {
+		t.Errorf("existing file overwritten without prior read: %q", got)
+	}
+}
+
+// TestFilesystemReadFileOffsetLimit verifies that line-windowed reads return
+// only the requested slice.
+func TestFilesystemReadFileOffsetLimit(t *testing.T) {
+	r := newTestRegistry(t)
+	root := t.TempDir()
+	body := "a\nb\nc\nd\ne\n"
+	if err := os.WriteFile(filepath.Join(root, "lines.txt"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	m, seen := scriptedModel(t, r, "test/fs-offset", []modelTurn{
+		{Tools: []*ai.ToolRequest{{
+			Name:  "read_file",
+			Input: map[string]any{"filePath": "lines.txt", "offset": 2, "limit": 2},
+		}}},
+		{Text: "done"},
+	})
+
+	fs := &Filesystem{RootDir: root}
+	ai.DefineMiddleware(r, "filesystem", fs)
+	if _, err := ai.Generate(ctx, r, ai.WithModel(m), ai.WithPrompt("go"), ai.WithUse(fs)); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(*seen) < 2 {
+		t.Fatalf("expected 2 model calls, got %d", len(*seen))
+	}
+	found := false
+	for _, msg := range (*seen)[1].Messages {
+		for _, p := range msg.Content {
+			if p.IsText() && strings.Contains(p.Text, "b\nc") &&
+				!strings.Contains(p.Text, "a\nb") {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Errorf("offset/limit did not produce the expected line window")
+	}
+}
+
+func TestApplyEditDeletesWithEmptyNewString(t *testing.T) {
+	content := "keep\n- [ ] Write a smoke test for /health.\nkeep\n"
+	got, err := applyEdit(content, editSpec{
+		OldString: "- [ ] Write a smoke test for /health.\n",
+		NewString: "",
+	}, "todo.txt")
+	if err != nil {
+		t.Fatalf("delete via empty newString rejected: %v", err)
+	}
+	want := "keep\nkeep\n"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestApplyEditMultiMatchRequiresReplaceAll(t *testing.T) {
+	content := "foo\nfoo\nbar"
+
+	if _, err := applyEdit(content, editSpec{
+		OldString: "foo",
+		NewString: "baz",
+	}, "x.txt"); err == nil {
+		t.Error("expected error when oldString matches multiple times without replaceAll")
+	}
+
+	got, err := applyEdit(content, editSpec{
+		OldString:  "foo",
+		NewString:  "baz",
+		ReplaceAll: true,
+	}, "x.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "baz\nbaz\nbar" {
+		t.Errorf("got %q, want %q", got, "baz\nbaz\nbar")
+	}
+}
+
+func TestApplyEditEqualOldAndNew(t *testing.T) {
+	if _, err := applyEdit("hello", editSpec{
+		OldString: "hello",
+		NewString: "hello",
+	}, "x.txt"); err == nil {
+		t.Error("expected error when oldString and newString are identical")
+	}
+}
+
+func TestApplyEditNotFound(t *testing.T) {
+	if _, err := applyEdit("hello", editSpec{
+		OldString: "missing",
+		NewString: "x",
+	}, "x.txt"); err == nil {
+		t.Error("expected error when oldString does not appear in content")
+	}
+}
+
+func TestApplyEditEmptyOldString(t *testing.T) {
+	if _, err := applyEdit("hello", editSpec{
+		OldString: "",
+		NewString: "x",
+	}, "x.txt"); err == nil {
+		t.Error("expected error when oldString is empty")
 	}
 }
 

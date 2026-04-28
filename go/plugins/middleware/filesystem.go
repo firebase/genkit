@@ -17,6 +17,7 @@
 package middleware
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
@@ -28,21 +29,90 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 )
 
-// SEARCH/REPLACE block markers used by the search_and_replace tool.
-const (
-	searchReplaceStart     = "<<<<<<< SEARCH\n"
-	searchReplaceEnd       = "\n>>>>>>> REPLACE"
-	searchReplaceSeparator = "\n=======\n"
-)
+// readMaxBytes caps a single full read. Models can step past it via offset/limit.
+const readMaxBytes = 256 * 1024
+
+// fileStateCacheMaxEntries bounds the per-call cache. Eviction is FIFO on insert.
+const fileStateCacheMaxEntries = 200
+
+// fileUnchangedStub is returned by read_file when a prior read at the same range
+// is still current. The earlier tool result is still in conversation history.
+const fileUnchangedStub = "File unchanged since last read. The content from the earlier read_file result in this conversation is still current — refer to that instead of re-reading."
+
+// fileState records what the model has been shown for a given absolute path,
+// plus the on-disk mtime at the time of read. Used to gate edits against
+// external modifications and to dedup re-reads.
+type fileState struct {
+	Content []byte
+	ModTime time.Time
+	Offset  int // 0 when the read covered the whole file
+	Limit   int // 0 when the read covered the whole file
+}
+
+// fileStateCache is a per-call, bounded path→state map. The middleware's New()
+// allocates one per Hooks instance so cache lifetime equals call lifetime.
+type fileStateCache struct {
+	mu      sync.Mutex
+	max     int
+	entries map[string]*fileState
+	order   []string
+}
+
+func newFileStateCache(max int) *fileStateCache {
+	return &fileStateCache{max: max, entries: make(map[string]*fileState)}
+}
+
+func (c *fileStateCache) get(p string) *fileState {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.entries[p]
+}
+
+func (c *fileStateCache) set(p string, s *fileState) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if _, ok := c.entries[p]; !ok {
+		if len(c.entries) >= c.max && len(c.order) > 0 {
+			delete(c.entries, c.order[0])
+			c.order = c.order[1:]
+		}
+		c.order = append(c.order, p)
+	}
+	c.entries[p] = s
+}
+
+// pathLocks serializes read-modify-write on a per-path basis so two concurrent
+// edits on the same file can't interleave their staleness check and write.
+type pathLocks struct {
+	mu    sync.Mutex
+	locks map[string]*sync.Mutex
+}
+
+func newPathLocks() *pathLocks {
+	return &pathLocks{locks: make(map[string]*sync.Mutex)}
+}
+
+func (p *pathLocks) lock(path string) func() {
+	p.mu.Lock()
+	m, ok := p.locks[path]
+	if !ok {
+		m = &sync.Mutex{}
+		p.locks[path] = m
+	}
+	p.mu.Unlock()
+	m.Lock()
+	return m.Unlock
+}
 
 // Filesystem is a middleware that grants the LLM scoped file access under a
 // single root directory. It registers list_files and read_file, plus
-// write_file and search_and_replace when AllowWriteAccess is true.
+// write_file and edit_file when AllowWriteAccess is true.
 //
 // Path safety is enforced by [os.Root] (Go 1.25+), which rejects any path
 // that resolves outside the root, including via "..", absolute paths, or
@@ -61,7 +131,7 @@ const (
 type Filesystem struct {
 	// RootDir is the directory that all operations are confined to.
 	RootDir string `json:"rootDirectory,omitempty"`
-	// AllowWriteAccess adds write_file and search_and_replace.
+	// AllowWriteAccess adds write_file and edit_file.
 	AllowWriteAccess bool `json:"allowWriteAccess,omitempty"`
 	// ToolNamePrefix is prepended to each tool name. Use distinct prefixes
 	// when attaching multiple Filesystem middlewares to one call so their
@@ -101,7 +171,9 @@ func (f *Filesystem) New(ctx context.Context) (*ai.Hooks, error) {
 		queue = append(queue, ai.NewUserMessage(parts...))
 	}
 
-	tools := f.buildTools(root, enqueueParts)
+	cache := newFileStateCache(fileStateCacheMaxEntries)
+	locks := newPathLocks()
+	tools := f.buildTools(root, abs, cache, locks, enqueueParts)
 	toolSet := make(map[string]struct{}, len(tools))
 	for _, t := range tools {
 		toolSet[t.Name()] = struct{}{}
@@ -161,15 +233,29 @@ func (f *Filesystem) New(ctx context.Context) (*ai.Hooks, error) {
 // toolName returns suffix prefixed with f.ToolNamePrefix.
 func (f *Filesystem) toolName(suffix string) string { return f.ToolNamePrefix + suffix }
 
-func (f *Filesystem) buildTools(root *os.Root, enqueueParts func(parts ...*ai.Part)) []ai.Tool {
+func (f *Filesystem) buildTools(
+	root *os.Root,
+	rootAbs string,
+	cache *fileStateCache,
+	locks *pathLocks,
+	enqueueParts func(parts ...*ai.Part),
+) []ai.Tool {
 	tools := []ai.Tool{
 		f.newListFilesTool(root),
-		f.newReadFileTool(root, enqueueParts),
+		f.newReadFileTool(root, rootAbs, cache, enqueueParts),
 	}
 	if f.AllowWriteAccess {
-		tools = append(tools, f.newWriteFileTool(root), f.newSearchReplaceTool(root))
+		tools = append(tools,
+			f.newWriteFileTool(root, rootAbs, cache, locks),
+			f.newEditFileTool(root, rootAbs, cache, locks),
+		)
 	}
 	return tools
+}
+
+// cacheKey returns the absolute path used as the fileStateCache key.
+func cacheKey(rootAbs, rel string) string {
+	return filepath.Join(rootAbs, filepath.FromSlash(rel))
 }
 
 // normalizeRel canonicalises an LLM-supplied path into a slash-separated
@@ -202,6 +288,7 @@ type listFilesInput struct {
 type fileEntry struct {
 	Path        string `json:"path"`
 	IsDirectory bool   `json:"isDirectory"`
+	SizeBytes   int64  `json:"sizeBytes,omitempty"`
 }
 
 func (f *Filesystem) newListFilesTool(root *os.Root) ai.Tool {
@@ -219,7 +306,13 @@ func (f *Filesystem) newListFilesTool(root *os.Root) ai.Tool {
 				}
 				out := make([]fileEntry, 0, len(entries))
 				for _, e := range entries {
-					out = append(out, fileEntry{Path: e.Name(), IsDirectory: e.IsDir()})
+					fe := fileEntry{Path: e.Name(), IsDirectory: e.IsDir()}
+					if !e.IsDir() {
+						if info, err := e.Info(); err == nil {
+							fe.SizeBytes = info.Size()
+						}
+					}
+					out = append(out, fe)
 				}
 				return out, nil
 			}
@@ -236,10 +329,16 @@ func (f *Filesystem) newListFilesTool(root *os.Root) ai.Tool {
 				if relErr != nil {
 					rel = p
 				}
-				out = append(out, fileEntry{
+				fe := fileEntry{
 					Path:        filepath.ToSlash(rel),
 					IsDirectory: d.IsDir(),
-				})
+				}
+				if !d.IsDir() {
+					if info, err := d.Info(); err == nil {
+						fe.SizeBytes = info.Size()
+					}
+				}
+				out = append(out, fe)
 				return nil
 			})
 			if err != nil {
@@ -252,36 +351,145 @@ func (f *Filesystem) newListFilesTool(root *os.Root) ai.Tool {
 
 type readFileInput struct {
 	FilePath string `json:"filePath" jsonschema:"description=File path relative to root."`
+	Offset   int    `json:"offset,omitempty" jsonschema:"description=1-indexed line to start reading from. 0 or 1 means start at the beginning."`
+	Limit    int    `json:"limit,omitempty" jsonschema:"description=Maximum number of lines to read. 0 means read to end of file."`
 }
 
-func (f *Filesystem) newReadFileTool(root *os.Root, enqueueParts func(parts ...*ai.Part)) ai.Tool {
+func (f *Filesystem) newReadFileTool(
+	root *os.Root,
+	rootAbs string,
+	cache *fileStateCache,
+	enqueueParts func(parts ...*ai.Part),
+) ai.Tool {
 	return ai.NewTool(
 		f.toolName("read_file"),
-		"Reads the contents of a file. The actual contents are delivered as a user message on the next turn.",
+		"Reads the contents of a file. The actual contents are delivered as a user message on the next turn. Use offset and limit (1-indexed lines) for large files.",
 		func(_ *ai.ToolContext, in readFileInput) (string, error) {
 			if err := requireFilePath(in.FilePath); err != nil {
 				return "", err
 			}
 			rel := normalizeRel(in.FilePath)
 			mimeType := mime.TypeByExtension(strings.ToLower(path.Ext(rel)))
-			data, err := root.ReadFile(filepath.FromSlash(rel))
+			osPath := filepath.FromSlash(rel)
+			isImage := strings.HasPrefix(mimeType, "image/")
+			key := cacheKey(rootAbs, rel)
+
+			info, err := root.Stat(osPath)
+			if err != nil {
+				return "", err
+			}
+			if info.IsDir() {
+				return "", fmt.Errorf("path %s is a directory; use list_files", in.FilePath)
+			}
+
+			// Dedup: text re-reads of an unchanged file at the same range get a stub
+			// instead of a fresh inject.
+			if !isImage {
+				if prev := cache.get(key); prev != nil &&
+					prev.ModTime.Equal(info.ModTime()) &&
+					prev.Offset == in.Offset && prev.Limit == in.Limit {
+					return fileUnchangedStub, nil
+				}
+			}
+
+			fullSize := info.Size()
+			if !isImage && in.Offset == 0 && in.Limit == 0 && fullSize > readMaxBytes {
+				return "", fmt.Errorf(
+					"file %s is %d bytes (>%d); use offset/limit to read a slice",
+					in.FilePath, fullSize, readMaxBytes,
+				)
+			}
+
+			data, err := root.ReadFile(osPath)
 			if err != nil {
 				return "", err
 			}
 
-			if strings.HasPrefix(mimeType, "image/") {
-				encoded := "data:" + mimeType + ";base64," + base64.StdEncoding.EncodeToString(data)
+			content := data
+			if !isImage && (in.Offset > 0 || in.Limit > 0) {
+				content = sliceLines(data, in.Offset, in.Limit)
+				if len(content) > readMaxBytes {
+					return "", fmt.Errorf(
+						"requested slice of %s is %d bytes (>%d); narrow the range",
+						in.FilePath, len(content), readMaxBytes,
+					)
+				}
+			}
+
+			if isImage {
+				encoded := "data:" + mimeType + ";base64," + base64.StdEncoding.EncodeToString(content)
 				enqueueParts(
 					ai.NewTextPart(fmt.Sprintf("\n\nread_file result %s %s", mimeType, in.FilePath)),
 					ai.NewMediaPart(mimeType, encoded),
 				)
-			} else {
-				enqueueParts(ai.NewTextPart(fmt.Sprintf(
-					"<read_file path=%q>\n%s\n</read_file>", in.FilePath, string(data))))
+				return fmt.Sprintf("File %s read successfully, see contents below.", in.FilePath), nil
 			}
-			return fmt.Sprintf("File %s read successfully, see contents below.", in.FilePath), nil
+
+			totalLines := countLines(data)
+			shownLines := countLines(content)
+			sliced := in.Offset > 0 || in.Limit > 0
+
+			var header, summary string
+			if sliced {
+				startLine := in.Offset
+				if startLine < 1 {
+					startLine = 1
+				}
+				endLine := startLine + shownLines - 1
+				if endLine < startLine {
+					endLine = startLine
+				}
+				header = fmt.Sprintf(`<read_file path=%q lines="%d-%d" totalLines="%d">`,
+					in.FilePath, startLine, endLine, totalLines)
+				summary = fmt.Sprintf("File %s read successfully (lines %d-%d of %d total). See contents below.",
+					in.FilePath, startLine, endLine, totalLines)
+			} else {
+				header = fmt.Sprintf(`<read_file path=%q totalLines="%d">`, in.FilePath, totalLines)
+				summary = fmt.Sprintf("File %s read successfully (%d lines). See contents below.",
+					in.FilePath, totalLines)
+			}
+			enqueueParts(ai.NewTextPart(header + "\n" + string(content) + "\n</read_file>"))
+			cache.set(key, &fileState{
+				Content: append([]byte(nil), data...),
+				ModTime: info.ModTime(),
+				Offset:  in.Offset,
+				Limit:   in.Limit,
+			})
+			return summary, nil
 		},
 	)
+}
+
+// countLines returns the number of lines in data. A trailing newline does not
+// add a phantom empty line; an unterminated final line still counts.
+func countLines(data []byte) int {
+	if len(data) == 0 {
+		return 0
+	}
+	n := bytes.Count(data, []byte{'\n'})
+	if data[len(data)-1] != '\n' {
+		n++
+	}
+	return n
+}
+
+// sliceLines returns the [offset, offset+limit) line window of data, 1-indexed.
+// offset <= 1 starts at the beginning; limit == 0 reads to end. The result
+// preserves the trailing newline when the original window did.
+func sliceLines(data []byte, offset, limit int) []byte {
+	if offset < 1 {
+		offset = 1
+	}
+	lines := strings.Split(string(data), "\n")
+	start := offset - 1
+	if start >= len(lines) {
+		return nil
+	}
+	end := len(lines)
+	if limit > 0 && start+limit < end {
+		end = start + limit
+	}
+	return []byte(strings.Join(lines[start:end], "\n"))
 }
 
 type writeFileInput struct {
@@ -289,15 +497,41 @@ type writeFileInput struct {
 	Content  string `json:"content" jsonschema:"description=Content to write to the file."`
 }
 
-func (f *Filesystem) newWriteFileTool(root *os.Root) ai.Tool {
+func (f *Filesystem) newWriteFileTool(
+	root *os.Root,
+	rootAbs string,
+	cache *fileStateCache,
+	locks *pathLocks,
+) ai.Tool {
 	return ai.NewTool(
 		f.toolName("write_file"),
-		"Writes content to a file, creating it (and any missing parent directories) or overwriting it if it exists.",
+		"Writes content to a file, creating it (and any missing parent directories) or overwriting it if it exists. Overwriting an existing file requires a prior read_file in this session.",
 		func(_ *ai.ToolContext, in writeFileInput) (string, error) {
 			if err := requireFilePath(in.FilePath); err != nil {
 				return "", err
 			}
-			osPath := filepath.FromSlash(normalizeRel(in.FilePath))
+			rel := normalizeRel(in.FilePath)
+			osPath := filepath.FromSlash(rel)
+			key := cacheKey(rootAbs, rel)
+
+			unlock := locks.lock(key)
+			defer unlock()
+
+			info, statErr := root.Stat(osPath)
+			exists := statErr == nil
+			if exists && info.IsDir() {
+				return "", fmt.Errorf("path %s is a directory", in.FilePath)
+			}
+			if exists {
+				prev := cache.get(key)
+				if prev == nil {
+					return "", fmt.Errorf("file %s exists but has not been read yet; read_file it first before overwriting", in.FilePath)
+				}
+				if !info.ModTime().Equal(prev.ModTime) {
+					return "", fmt.Errorf("file %s has been modified since last read; re-read it before overwriting", in.FilePath)
+				}
+			}
+
 			if parent := filepath.Dir(osPath); parent != "." {
 				if err := root.MkdirAll(parent, 0o755); err != nil {
 					return "", fmt.Errorf("create parent dirs: %w", err)
@@ -306,25 +540,63 @@ func (f *Filesystem) newWriteFileTool(root *os.Root) ai.Tool {
 			if err := root.WriteFile(osPath, []byte(in.Content), 0o644); err != nil {
 				return "", err
 			}
+			if newInfo, err := root.Stat(osPath); err == nil {
+				cache.set(key, &fileState{
+					Content: []byte(in.Content),
+					ModTime: newInfo.ModTime(),
+				})
+			}
 			return fmt.Sprintf("File %s written successfully.", in.FilePath), nil
 		},
 	)
 }
 
-type searchReplaceInput struct {
-	FilePath string   `json:"filePath" jsonschema:"description=File path relative to root."`
-	Edits    []string `json:"edits" jsonschema:"description=SEARCH/REPLACE blocks in the format '<<<<<<< SEARCH\\n[search]\\n=======\\n[replace]\\n>>>>>>> REPLACE'."`
+type editSpec struct {
+	OldString  string `json:"oldString" jsonschema:"description=The exact text to find. Match is byte-for-byte including whitespace and indentation."`
+	NewString  string `json:"newString" jsonschema:"description=The replacement text. Use an empty string to delete oldString."`
+	ReplaceAll bool   `json:"replaceAll,omitempty" jsonschema:"description=If true, replace every occurrence of oldString. If false (default), oldString must match exactly once in the file."`
 }
 
-func (f *Filesystem) newSearchReplaceTool(root *os.Root) ai.Tool {
+type editFileInput struct {
+	FilePath string     `json:"filePath" jsonschema:"description=File path relative to root."`
+	Edits    []editSpec `json:"edits" jsonschema:"description=One or more edits to apply in order. Each edit is applied to the result of the previous edit."`
+}
+
+func (f *Filesystem) newEditFileTool(
+	root *os.Root,
+	rootAbs string,
+	cache *fileStateCache,
+	locks *pathLocks,
+) ai.Tool {
 	return ai.NewTool(
-		f.toolName("search_and_replace"),
-		"Replaces text in a file using one or more SEARCH/REPLACE blocks. Use this to edit existing files.",
-		func(_ *ai.ToolContext, in searchReplaceInput) (string, error) {
+		f.toolName("edit_file"),
+		"Applies one or more structured edits to a file. Requires a prior read_file in this session. Edits are applied sequentially; later edits see the changes from earlier ones. Each edit's oldString must match the file byte-for-byte (including whitespace), and by default must be unique — set replaceAll on the edit to rename across all occurrences.",
+		func(_ *ai.ToolContext, in editFileInput) (string, error) {
 			if err := requireFilePath(in.FilePath); err != nil {
 				return "", err
 			}
-			osPath := filepath.FromSlash(normalizeRel(in.FilePath))
+			if len(in.Edits) == 0 {
+				return "", errors.New("edits is required")
+			}
+			rel := normalizeRel(in.FilePath)
+			osPath := filepath.FromSlash(rel)
+			key := cacheKey(rootAbs, rel)
+
+			unlock := locks.lock(key)
+			defer unlock()
+
+			prev := cache.get(key)
+			if prev == nil {
+				return "", fmt.Errorf("file %s has not been read yet; read_file it first before editing", in.FilePath)
+			}
+
+			info, err := root.Stat(osPath)
+			if err != nil {
+				return "", err
+			}
+			if !info.ModTime().Equal(prev.ModTime) {
+				return "", fmt.Errorf("file %s has been modified since last read; re-read it before editing", in.FilePath)
+			}
 
 			data, err := root.ReadFile(osPath)
 			if err != nil {
@@ -332,8 +604,8 @@ func (f *Filesystem) newSearchReplaceTool(root *os.Root) ai.Tool {
 			}
 			content := string(data)
 
-			for i, block := range in.Edits {
-				next, err := applySearchReplace(content, block, in.FilePath)
+			for i, e := range in.Edits {
+				next, err := applyEdit(content, e, in.FilePath)
 				if err != nil {
 					return "", fmt.Errorf("edit %d: %w", i, err)
 				}
@@ -343,48 +615,35 @@ func (f *Filesystem) newSearchReplaceTool(root *os.Root) ai.Tool {
 			if err := root.WriteFile(osPath, []byte(content), 0o644); err != nil {
 				return "", err
 			}
+			if newInfo, err := root.Stat(osPath); err == nil {
+				cache.set(key, &fileState{
+					Content: []byte(content),
+					ModTime: newInfo.ModTime(),
+				})
+			}
 			return fmt.Sprintf("Successfully applied %d edit(s) to %s.", len(in.Edits), in.FilePath), nil
 		},
 	)
 }
 
-// applySearchReplace applies one SEARCH/REPLACE block to content. The separator
-// may legitimately appear in either half of the block, so every candidate
-// split is tried and the longest (most specific) matching search wins.
-func applySearchReplace(content, block, filePath string) (string, error) {
-	if !strings.HasPrefix(block, searchReplaceStart) || !strings.HasSuffix(block, searchReplaceEnd) {
-		return "", errors.New(`invalid edit block: must start with "<<<<<<< SEARCH\n" and end with "\n>>>>>>> REPLACE"`)
+// applyEdit replaces oldString with newString in content. With replaceAll,
+// every occurrence is replaced; without it, oldString must match exactly once.
+func applyEdit(content string, e editSpec, filePath string) (string, error) {
+	if e.OldString == "" {
+		return "", errors.New("oldString is required")
 	}
-	inner := block[len(searchReplaceStart) : len(block)-len(searchReplaceEnd)]
-
-	var splits []int
-	for i := 0; i < len(inner); {
-		off := strings.Index(inner[i:], searchReplaceSeparator)
-		if off < 0 {
-			break
-		}
-		splits = append(splits, i+off)
-		i = i + off + 1 // +1 so the same match isn't re-found next iteration
+	if e.OldString == e.NewString {
+		return "", errors.New("oldString and newString are identical")
 	}
-	if len(splits) == 0 {
-		return "", errors.New(`invalid edit block: missing separator "\n=======\n"`)
+	count := strings.Count(content, e.OldString)
+	if count == 0 {
+		return "", fmt.Errorf("oldString not found in %s; the match must be byte-for-byte, including whitespace and indentation", filePath)
 	}
-
-	var bestSearch, bestReplace string
-	matched := false
-	for _, idx := range splits {
-		search := inner[:idx]
-		replace := inner[idx+len(searchReplaceSeparator):]
-		if strings.Contains(content, search) {
-			if !matched || len(search) > len(bestSearch) {
-				bestSearch, bestReplace = search, replace
-			}
-			matched = true
-		}
+	if count > 1 && !e.ReplaceAll {
+		return "", fmt.Errorf("oldString matches %d locations in %s; add more surrounding context to make it unique, or set replaceAll=true", count, filePath)
 	}
-
-	if !matched {
-		return "", fmt.Errorf("search content not found in file %s; the search block must match byte-for-byte, including whitespace and indentation", filePath)
+	if e.ReplaceAll {
+		return strings.ReplaceAll(content, e.OldString, e.NewString), nil
 	}
-	return strings.Replace(content, bestSearch, bestReplace, 1), nil
+	return strings.Replace(content, e.OldString, e.NewString, 1), nil
 }
