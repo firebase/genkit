@@ -28,6 +28,7 @@ import {
   type DynamicResourceAction,
   type ExecutablePrompt,
   type Genkit,
+  type MultipartToolAction,
   type PromptGenerateOptions,
   type ToolAction,
 } from 'genkit';
@@ -108,6 +109,11 @@ export type McpClientOptions = {
    * simplified for better compatibility with Genkit's typical data structures.
    */
   rawToolResponses?: boolean;
+  /**
+   * If true, MCP tools will be registered as Genkit multipart tools. This enables
+   * returning rich media (like images) natively. Defaults to false for backward compatibility.
+   */
+  multipart?: boolean;
   /** The server configuration to connect. */
   mcpServer: McpServerConfig;
   /** Manually supply a session id for HTTP streaming clients if desired. */
@@ -136,6 +142,7 @@ export class GenkitMcpClient {
   private version: string;
   private serverConfig: McpServerConfig;
   private rawToolResponses?: boolean;
+  private multipart?: boolean;
   private disabled: boolean;
   private roots?: Root[];
 
@@ -151,6 +158,7 @@ export class GenkitMcpClient {
     this.version = options.version || '1.0.0';
     this.serverConfig = options.mcpServer;
     this.rawToolResponses = !!options.rawToolResponses;
+    this.multipart = !!options.multipart;
     this.disabled = !!options.mcpServer.disabled;
     this.roots = options.mcpServer.roots;
     this.sessionId = options.sessionId;
@@ -341,9 +349,11 @@ export class GenkitMcpClient {
    * Fetches all tools available through this client, if the server
    * configuration is not disabled.
    */
-  async getActiveTools(ai: Genkit): Promise<ToolAction[]> {
+  async getActiveTools(
+    ai: Genkit
+  ): Promise<(ToolAction | MultipartToolAction)[]> {
     await this.ready();
-    let tools: ToolAction[] = [];
+    let tools: (ToolAction | MultipartToolAction)[] = [];
 
     if (this._server) {
       const capabilities = this._server.client.getServerCapabilities();
@@ -351,6 +361,7 @@ export class GenkitMcpClient {
         tools.push(
           ...(await fetchDynamicTools(ai, this._server.client, {
             rawToolResponses: this.rawToolResponses,
+            multipart: this.multipart,
             serverName: this.serverName,
             name: this.name,
           }))

@@ -15,12 +15,33 @@
  */
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import type {
-  CallToolResult,
-  Tool,
-} from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
-import { JSONSchema7, z, type Genkit, type ToolAction } from 'genkit';
+import {
+  CallToolResultSchema,
+  type CallToolResult,
+  type CompatibilityCallToolResult,
+  type Tool,
+} from '@modelcontextprotocol/sdk/types.js';
+import { JSONSchema7, z, type Genkit } from 'genkit';
 import { logger } from 'genkit/logging';
+import { tool, type MultipartToolAction, type ToolAction } from 'genkit/tool';
+import { fromMcpPart } from './message.js';
+
+export function isCallToolResult(result: unknown): result is CallToolResult {
+  return (
+    typeof result === 'object' &&
+    result !== null &&
+    'content' in result &&
+    Array.isArray(result.content)
+  );
+}
+
+export function isCompatibilityCallToolResult(
+  result: unknown
+): result is CompatibilityCallToolResult {
+  return (
+    typeof result === 'object' && result !== null && 'toolResult' in result
+  );
+}
 
 const toText = (c: CallToolResult['content']) =>
   c.map((p) => (p.type === 'text' ? p.text : '')).join('');
@@ -92,37 +113,116 @@ function registerTool(
  *
  * @param ai The Genkit instance, used for creating the dynamic tool.
  * @param client The MCP client instance.
- * @param tool The MCP Tool object.
+ * @param toolDef The MCP Tool object.
  * @param params Configuration parameters including namespacing and raw response flag.
  * @returns A Genkit `ToolAction` representing the MCP tool.
  */
 function createDynamicTool(
   ai: Genkit,
   client: Client,
-  tool: Tool,
-  params: { serverName: string; name: string; rawToolResponses?: boolean }
-): ToolAction {
-  return ai.dynamicTool(
-    {
-      name: `${params.serverName}/${tool.name}`,
-      description: tool.description || '',
-      inputJsonSchema: tool.inputSchema as JSONSchema7,
-      outputSchema: z.any(),
-      metadata: { mcp: { _meta: tool._meta || {} } },
-    },
-    async (args, { context }) => {
+  toolDef: Tool,
+  params: {
+    serverName: string;
+    name: string;
+    rawToolResponses?: boolean;
+    multipart: true;
+  }
+): MultipartToolAction;
+function createDynamicTool(
+  ai: Genkit,
+  client: Client,
+  toolDef: Tool,
+  params: {
+    serverName: string;
+    name: string;
+    rawToolResponses?: boolean;
+  }
+): ToolAction;
+function createDynamicTool(
+  ai: Genkit,
+  client: Client,
+  toolDef: Tool,
+  params: {
+    serverName: string;
+    name: string;
+    rawToolResponses?: boolean;
+    multipart?: boolean;
+  }
+): ToolAction | MultipartToolAction {
+  const config = {
+    name: `${params.serverName}/${toolDef.name}`,
+    description: toolDef.description || '',
+    inputJsonSchema: toolDef.inputSchema as JSONSchema7,
+    outputSchema: z.any(),
+    metadata: { mcp: { _meta: toolDef._meta || {} } },
+    ...(params.multipart ? { multipart: true } : {}),
+  };
+
+  if (params.multipart) {
+    const t = tool(config, async (args, { context }) => {
       logger.debug(
-        `[MCP] calling tool '${params.serverName}/${tool.name}' in host '${params.name}'`
+        `[MCP] calling tool '${params.serverName}/${toolDef.name}' in host '${params.name}'`
       );
-      const result = await client.callTool({
-        name: tool.name,
+      const rawResult = await client.callTool(
+        {
+          name: toolDef.name,
+          arguments: args,
+          _meta: context?.mcp?._meta,
+        },
+        CallToolResultSchema
+      );
+      const result: unknown = rawResult;
+
+      if (isCompatibilityCallToolResult(result)) {
+        if (params.rawToolResponses) return { output: result };
+        return { output: result.toolResult };
+      }
+
+      if (isCallToolResult(result)) {
+        if (params.rawToolResponses) return { output: result };
+        if (result.isError) {
+          return { output: { error: toText(result.content) } };
+        }
+        return {
+          content: result.content.map((p) => fromMcpPart(p)),
+          output: processResult(result),
+        };
+      }
+
+      return { output: rawResult };
+    });
+    (t as any).attach = (_: any) => t; // Backwards compatibility
+    return t;
+  }
+
+  const t = tool(config, async (args, { context }) => {
+    logger.debug(
+      `[MCP] calling tool '${params.serverName}/${toolDef.name}' in host '${params.name}'`
+    );
+    const rawResult = await client.callTool(
+      {
+        name: toolDef.name,
         arguments: args,
         _meta: context?.mcp?._meta,
-      });
+      },
+      CallToolResultSchema
+    );
+    const result: unknown = rawResult;
+
+    if (isCompatibilityCallToolResult(result)) {
       if (params.rawToolResponses) return result;
-      return processResult(result as CallToolResult);
+      return result.toolResult;
     }
-  );
+
+    if (isCallToolResult(result)) {
+      if (params.rawToolResponses) return result;
+      return processResult(result);
+    }
+
+    return rawResult;
+  });
+  (t as any).attach = (_: any) => t; // Backwards compatibility
+  return t;
 }
 
 /**
@@ -148,10 +248,35 @@ export async function registerAllTools(
 export async function fetchDynamicTools(
   ai: Genkit,
   client: Client,
-  params: { name: string; serverName: string; rawToolResponses?: boolean }
-): Promise<ToolAction[]> {
+  params: {
+    name: string;
+    serverName: string;
+    rawToolResponses?: boolean;
+    multipart: true;
+  }
+): Promise<MultipartToolAction[]>;
+export async function fetchDynamicTools(
+  ai: Genkit,
+  client: Client,
+  params: {
+    name: string;
+    serverName: string;
+    rawToolResponses?: boolean;
+    multipart?: boolean;
+  }
+): Promise<ToolAction[]>;
+export async function fetchDynamicTools(
+  ai: Genkit,
+  client: Client,
+  params: {
+    name: string;
+    serverName: string;
+    rawToolResponses?: boolean;
+    multipart?: boolean;
+  }
+): Promise<(ToolAction | MultipartToolAction)[]> {
   let cursor: string | undefined;
-  let allTools: ToolAction[] = [];
+  let allTools: (ToolAction | MultipartToolAction)[] = [];
   while (true) {
     const { nextCursor, tools } = await client.listTools({ cursor });
     allTools.push(

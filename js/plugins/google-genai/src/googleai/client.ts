@@ -462,7 +462,7 @@ async function makeRequest(
             const detailsText = json.error.details
               .map((d: any) => {
                 if (d.detail && typeof d.detail === 'string') {
-                  const match = d.detail.match(/\[ORIGINAL ERROR\]\s*([^[]+)/);
+                  const match = d.detail.match(/\[ORIGINAL ERROR\]\s*(.*)/s);
                   return match ? match[1].trim() : d.detail;
                 }
                 return JSON.stringify(d);

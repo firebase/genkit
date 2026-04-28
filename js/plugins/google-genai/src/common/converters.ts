@@ -173,7 +173,15 @@ function toGeminiToolResponse(part: Part): GeminiPart {
     },
   };
   if (part.toolResponse.content) {
-    functionResponse.parts = part.toolResponse.content.map(toGeminiPart);
+    // The Gemini API explicitly does not support text parts within a
+    // FunctionResponse (only media/inlineData). The text output is already
+    // captured in the `response` object above.
+    const parts = part.toolResponse.content
+      .filter((p) => !p.text)
+      .map(toGeminiPart);
+    if (parts.length > 0) {
+      functionResponse.parts = parts;
+    }
   }
   if (part.toolResponse.ref) {
     functionResponse.id = part.toolResponse.ref;

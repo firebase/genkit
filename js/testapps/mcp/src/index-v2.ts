@@ -19,6 +19,7 @@ import { defineMcpHost } from '@genkit-ai/mcp';
 import { genkit, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import path from 'path';
+import { clientTransport } from './in-memory-server.js';
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
 // respond appropriately to potentially harmful content without error.
@@ -50,8 +51,9 @@ export const ai = genkit({
 
 logger.setLogLevel('debug'); // Set the logging level to debug for detailed output
 
-export const mcpHost = defineMcpHost(ai, {
+export const mcpHostv2 = defineMcpHost(ai, {
   name: 'test-mcp-manager',
+  multipart: true,
   mcpServers: {
     'git-client': {
       command: 'uvx',
@@ -69,15 +71,26 @@ export const mcpHost = defineMcpHost(ai, {
       command: 'npx',
       args: ['-y', '@modelcontextprotocol/server-everything'],
     },
+    custom: {
+      transport: clientTransport,
+    },
   },
 });
 
 ai.defineFlow('git-commits', async (q) => {
   const { text } = await ai.generate({
     prompt: `summarize last 5 commits in '${path.resolve(process.cwd(), '../../..')}'`,
-    tools: await mcpHost.getActiveTools(ai),
+    tools: await mcpHostv2.getActiveTools(ai),
   });
 
+  return text;
+});
+
+ai.defineFlow('get-test-image-from-mcp', async () => {
+  const { text } = await ai.generate({
+    prompt: `Please use the get_test_image tool from the custom MCP server to get an image and describe what it looks like.`,
+    tools: ['test-mcp-manager:tool/custom/get_test_image'],
+  });
   return text;
 });
 
@@ -93,7 +106,7 @@ ai.defineFlow('dynamic-git-commits', async (q) => {
 ai.defineFlow('get-file', async (q) => {
   const { text } = await ai.generate({
     prompt: `summarize contexts of hello-world.txt (in '${process.cwd()}/test-workspace')`,
-    tools: await mcpHost.getActiveTools(ai),
+    tools: await mcpHostv2.getActiveTools(ai),
   });
 
   return text;
@@ -130,7 +143,7 @@ ai.defineFlow('dynamic-disable-enable', async (q) => {
   });
 
   // Now disable fs to show that we invalidate the dap cache
-  await mcpHost.disable('fs');
+  await mcpHostv2.disable('fs');
   let text2: string;
   try {
     // This should fail because the fs/read_file tool is not available
@@ -143,12 +156,13 @@ ai.defineFlow('dynamic-disable-enable', async (q) => {
       'ERROR! This should have failed to find the tool but succeeded instead: ' +
       text;
   } catch (e: any) {
+    console.error(JSON.stringify(e.detail, null, 2));
     text2 = e.message;
   }
 
   // If we re-enable the fs it will succeed.
-  await mcpHost.enable('fs');
-  await mcpHost.reconnect('fs');
+  await mcpHostv2.enable('fs');
+  await mcpHostv2.reconnect('fs');
   const { text: text3 } = await ai.generate({
     prompt: `summarize contexts of hello-world.txt (in '${process.cwd()}/test-workspace')`,
     tools: ['test-mcp-manager:tool/fs/read_file'], // Just this one tool
@@ -169,7 +183,7 @@ ai.defineFlow('test-resource', async (q) => {
       { text: 'analyze this: ' },
       { resource: { uri: 'test://static/resource/1' } },
     ],
-    resources: await mcpHost.getActiveResources(ai),
+    resources: await mcpHostv2.getActiveResources(ai),
   });
 
   return text;
@@ -202,7 +216,7 @@ ai.defineFlow('dynamic-test-one-resource', async (q) => {
 ai.defineFlow('update-file', async (q) => {
   const { text } = await ai.generate({
     prompt: `Improve hello-world.txt (in '${process.cwd()}/test-workspace') by rewriting the text, making it longer, just do it, use your imagination.`,
-    tools: await mcpHost.getActiveTools(ai),
+    tools: await mcpHostv2.getActiveTools(ai),
   });
 
   return text;
@@ -222,16 +236,16 @@ export const controlMcp = ai.defineFlow(
     const id = clientId ?? 'git-client';
     switch (action) {
       case 'DISABLE':
-        await mcpHost.disable(id);
+        await mcpHostv2.disable(id);
         break;
       case 'DISCONNECT':
-        await mcpHost.disconnect(id);
+        await mcpHostv2.disconnect(id);
         break;
       case 'RECONNECT':
-        await mcpHost.reconnect(id);
+        await mcpHostv2.reconnect(id);
         break;
       case 'ENABLE':
-        await mcpHost.enable(id);
+        await mcpHostv2.enable(id);
         break;
     }
     return action;

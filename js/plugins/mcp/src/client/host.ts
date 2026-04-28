@@ -20,6 +20,7 @@ import {
   type DynamicResourceAction,
   type ExecutablePrompt,
   type Genkit,
+  type MultipartToolAction,
   type PromptGenerateOptions,
   type ToolAction,
 } from 'genkit';
@@ -51,6 +52,12 @@ export interface McpHostOptions {
    * simplified for better compatibility with Genkit's typical data structures.
    */
   rawToolResponses?: boolean;
+
+  /**
+   * If true, MCP tools will be registered as Genkit multipart tools. This enables
+   * returning rich media (like images) natively. Defaults to false for backward compatibility.
+   */
+  multipart?: boolean;
 
   /**
    * When provided, each connected MCP server will be sent the roots specified here. Overridden by any specific roots sent in the `mcpServers` config for a given server.
@@ -104,10 +111,12 @@ export class GenkitMcpHost {
   private _dynamicActionProvider: DynamicActionProviderAction | undefined;
   private roots: Root[] | undefined;
   rawToolResponses?: boolean;
+  multipart?: boolean;
 
   constructor(options: McpHostOptions) {
     this.name = options.name || 'genkit-mcp';
     this.rawToolResponses = options.rawToolResponses;
+    this.multipart = options.multipart;
     this.roots = options.roots;
 
     if (options.mcpServers) {
@@ -170,6 +179,7 @@ export class GenkitMcpHost {
         serverName: serverName,
         mcpServer: { ...config, roots: config.roots || this.roots },
         rawToolResponses: this.rawToolResponses,
+        multipart: this.multipart,
       });
       this._clients[serverName] = client;
     } catch (e) {
@@ -350,12 +360,14 @@ export class GenkitMcpHost {
    *
    * @param ai The Genkit instance, used by individual clients to define dynamic
    * tools.
-   * @returns A Promise that resolves to an array of `ToolAction` from all
+   * @returns A Promise that resolves to an array of `ToolAction` or `MultipartToolAction` from all
    * active MCP clients.
    */
-  async getActiveTools(ai: Genkit): Promise<ToolAction[]> {
+  async getActiveTools(
+    ai: Genkit
+  ): Promise<(ToolAction | MultipartToolAction)[]> {
     await this.ready();
-    let allTools: ToolAction[] = [];
+    let allTools: (ToolAction | MultipartToolAction)[] = [];
 
     for (const serverName in this._clients) {
       const client = this._clients[serverName];

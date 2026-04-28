@@ -15,13 +15,16 @@
  */
 
 import * as assert from 'assert';
-import { Genkit, genkit, ToolAction } from 'genkit';
+import { Genkit, genkit } from 'genkit';
 import { logger } from 'genkit/logging';
 import { afterEach, beforeEach, describe, it } from 'node:test';
-import { createMcpHost, GenkitMcpHost } from '../src/index.js';
-import { defineEchoModel, FakeTransport } from './fakes.js';
+import { GenkitMcpHost, createMcpHost } from '../src/index.js';
+import { FakeTransport, defineEchoModel } from './fakes.js';
 
 logger.setLogLevel('debug');
+
+const TEST_PNG_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 
 describe('createMcpHost', () => {
   let ai: Genkit;
@@ -221,27 +224,7 @@ describe('createMcpHost', () => {
       );
     });
 
-    it('should call the tool', async () => {
-      fakeTransport.callToolResult = {
-        content: [
-          {
-            type: 'text',
-            text: 'yep {"foo":"bar"}',
-          },
-        ],
-      };
-
-      const tool: ToolAction = (await clientHost.getActiveTools(ai))[0];
-      const response = await tool(
-        {
-          foo: 'bar',
-        },
-        { context: { mcp: { _meta: { soMeta: true } } } }
-      );
-      assert.deepStrictEqual(response, 'yep {"foo":"bar"}{"soMeta":true}');
-    });
-
-    it('should call the tool with _meta', async () => {
+    it('should call the tool (v1)', async () => {
       fakeTransport.callToolResult = {
         content: [
           {
@@ -256,6 +239,431 @@ describe('createMcpHost', () => {
         foo: 'bar',
       });
       assert.deepStrictEqual(response, 'yep {"foo":"bar"}');
+    });
+
+    it('should call the tool with _meta (v1)', async () => {
+      fakeTransport.callToolResult = {
+        content: [
+          {
+            type: 'text',
+            text: 'yep {"foo":"bar"}',
+          },
+        ],
+      };
+
+      const tool = (await clientHost.getActiveTools(ai))[0];
+      const response = await tool(
+        {
+          foo: 'bar',
+        },
+        { context: { mcp: { _meta: { soMeta: true } } } }
+      );
+      assert.deepStrictEqual(response, 'yep {"foo":"bar"}{"soMeta":true}');
+    });
+
+    it('should call the tool with _meta (v2)', async () => {
+      const v2Host = createMcpHost({
+        name: 'v2-host',
+        multipart: true,
+        mcpServers: {
+          'v2-server': {
+            transport: fakeTransport,
+          },
+        },
+      });
+
+      fakeTransport.callToolResult = {
+        content: [
+          {
+            type: 'text',
+            text: 'yep {"foo":"bar"}',
+          },
+        ],
+      };
+
+      const tool = (await v2Host.getActiveTools(ai))[0];
+      const response = await tool(
+        {
+          foo: 'bar',
+        },
+        { context: { mcp: { _meta: { soMeta: true } } } }
+      );
+      assert.deepStrictEqual(response, {
+        content: [
+          {
+            text: 'yep {"foo":"bar"}',
+          },
+          {
+            text: '{"soMeta":true}',
+          },
+        ],
+        output: 'yep {"foo":"bar"}{"soMeta":true}',
+      });
+
+      await v2Host.close();
+    });
+
+    it('should call the tool as a v2 multipart tool', async () => {
+      const v2Host = createMcpHost({
+        name: 'v2-host',
+        multipart: true,
+        mcpServers: {
+          'v2-server': {
+            transport: fakeTransport,
+          },
+        },
+      });
+
+      fakeTransport.callToolResult = {
+        content: [
+          {
+            type: 'image',
+            data: TEST_PNG_BASE64,
+            mimeType: 'image/png',
+          },
+          {
+            type: 'text',
+            text: 'yep {"foo":"bar"}',
+          },
+        ],
+      };
+
+      const tool = (await v2Host.getActiveTools(ai))[0];
+      const response = await tool({
+        foo: 'bar',
+      });
+
+      assert.deepStrictEqual(response, {
+        content: [
+          {
+            media: {
+              contentType: 'image/png',
+              url: `data:image/png;base64,${TEST_PNG_BASE64}`,
+            },
+          },
+          { text: 'yep {"foo":"bar"}' },
+        ],
+        output: fakeTransport.callToolResult,
+      });
+
+      await v2Host.close();
+    });
+
+    it('should handle tool errors gracefully (v1)', async () => {
+      fakeTransport.callToolResult = {
+        isError: true,
+        content: [
+          {
+            type: 'text',
+            text: 'An error occurred during tool execution',
+          },
+        ],
+      };
+
+      const tool = (await clientHost.getActiveTools(ai))[0];
+      const response = await tool({
+        foo: 'bar',
+      });
+      assert.deepStrictEqual(response, {
+        error: 'An error occurred during tool execution',
+      });
+    });
+
+    it('should handle tool errors gracefully (v2)', async () => {
+      const v2Host = createMcpHost({
+        name: 'v2-host',
+        multipart: true,
+        mcpServers: {
+          'v2-server': {
+            transport: fakeTransport,
+          },
+        },
+      });
+
+      fakeTransport.callToolResult = {
+        isError: true,
+        content: [
+          {
+            type: 'text',
+            text: 'An error occurred during tool execution',
+          },
+        ],
+      };
+
+      const tool = (await v2Host.getActiveTools(ai))[0];
+      const response = await tool({
+        foo: 'bar',
+      });
+      assert.deepStrictEqual(response, {
+        output: { error: 'An error occurred during tool execution' },
+      });
+
+      await v2Host.close();
+    });
+
+    it('should parse rich content like images (v1)', async () => {
+      fakeTransport.callToolResult = {
+        content: [
+          {
+            type: 'text',
+            text: 'Here is your image:',
+          },
+          {
+            type: 'image',
+            data: TEST_PNG_BASE64,
+            mimeType: 'image/png',
+          },
+        ],
+      };
+
+      const tool = (await clientHost.getActiveTools(ai))[0];
+      const response = await tool({
+        foo: 'bar',
+      });
+
+      assert.deepStrictEqual(response, fakeTransport.callToolResult);
+    });
+
+    it('should parse rich content like images (v2)', async () => {
+      const v2Host = createMcpHost({
+        name: 'v2-host',
+        multipart: true,
+        mcpServers: {
+          'v2-server': {
+            transport: fakeTransport,
+          },
+        },
+      });
+
+      fakeTransport.callToolResult = {
+        content: [
+          {
+            type: 'text',
+            text: 'Here is your image:',
+          },
+          {
+            type: 'image',
+            data: TEST_PNG_BASE64,
+            mimeType: 'image/png',
+          },
+        ],
+      };
+
+      const tool = (await v2Host.getActiveTools(ai))[0];
+      const response = await tool({
+        foo: 'bar',
+      });
+
+      assert.deepStrictEqual(response, {
+        content: [
+          { text: 'Here is your image:' },
+          {
+            media: {
+              contentType: 'image/png',
+              url: `data:image/png;base64,${TEST_PNG_BASE64}`,
+            },
+          },
+        ],
+        output: fakeTransport.callToolResult,
+      });
+
+      await v2Host.close();
+    });
+
+    it('should return raw responses when rawToolResponses config is enabled (v1)', async () => {
+      const rawHost = createMcpHost({
+        name: 'raw-host',
+        rawToolResponses: true,
+        mcpServers: {
+          'raw-server': {
+            transport: fakeTransport,
+          },
+        },
+      });
+
+      fakeTransport.callToolResult = {
+        content: [
+          {
+            type: 'text',
+            text: 'raw content only',
+          },
+        ],
+      };
+
+      const tool = (await rawHost.getActiveTools(ai))[0];
+      const response = await tool({
+        foo: 'bar',
+      });
+
+      assert.deepStrictEqual(response, fakeTransport.callToolResult);
+
+      await rawHost.close();
+    });
+
+    it('should return raw responses when rawToolResponses config is enabled (v2)', async () => {
+      const rawHost = createMcpHost({
+        name: 'raw-host',
+        multipart: true,
+        rawToolResponses: true,
+        mcpServers: {
+          'raw-server': {
+            transport: fakeTransport,
+          },
+        },
+      });
+
+      fakeTransport.callToolResult = {
+        content: [
+          {
+            type: 'text',
+            text: 'raw content only',
+          },
+        ],
+      };
+
+      const tool = (await rawHost.getActiveTools(ai))[0];
+      const response = await tool({
+        foo: 'bar',
+      });
+
+      // The v2 wrapper puts the raw response into output if rawToolResponses is true
+      assert.deepStrictEqual(response, {
+        output: fakeTransport.callToolResult,
+      });
+
+      await rawHost.close();
+    });
+
+    it('should parse JSON string responses (v1)', async () => {
+      fakeTransport.callToolResult = {
+        content: [
+          {
+            type: 'text',
+            text: '{"foo":"bar"}',
+          },
+        ],
+      };
+
+      const tool = (await clientHost.getActiveTools(ai))[0];
+      const response = await tool({
+        foo: 'bar',
+      });
+      assert.deepStrictEqual(response, { foo: 'bar' });
+    });
+
+    it('should parse JSON string responses (v2)', async () => {
+      const v2Host = createMcpHost({
+        name: 'v2-host',
+        multipart: true,
+        mcpServers: {
+          'v2-server': {
+            transport: fakeTransport,
+          },
+        },
+      });
+
+      fakeTransport.callToolResult = {
+        content: [
+          {
+            type: 'text',
+            text: '{"foo":"bar"}',
+          },
+        ],
+      };
+
+      const tool = (await v2Host.getActiveTools(ai))[0];
+      const response = await tool({
+        foo: 'bar',
+      });
+
+      assert.deepStrictEqual(response, {
+        content: [
+          {
+            text: '{"foo":"bar"}',
+          },
+        ],
+        output: { foo: 'bar' },
+      });
+
+      await v2Host.close();
+    });
+
+    it('should handle CompatibilityCallToolResult (v1)', async () => {
+      // FakeTransport usually expects CallToolResult, but for testing
+      // we can force it to return CompatibilityCallToolResult
+      fakeTransport.callToolResult = {
+        toolResult: { legacy: true },
+      } as any;
+
+      const tool = (await clientHost.getActiveTools(ai))[0];
+      const response = await tool({
+        foo: 'bar',
+      });
+      assert.deepStrictEqual(response, { legacy: true });
+    });
+
+    it('should handle CompatibilityCallToolResult (v2)', async () => {
+      const v2Host = createMcpHost({
+        name: 'v2-host',
+        multipart: true,
+        mcpServers: {
+          'v2-server': {
+            transport: fakeTransport,
+          },
+        },
+      });
+
+      fakeTransport.callToolResult = {
+        toolResult: { legacy: true },
+      } as any;
+
+      const tool = (await v2Host.getActiveTools(ai))[0];
+      const response = await tool({
+        foo: 'bar',
+      });
+
+      assert.deepStrictEqual(response, {
+        output: { legacy: true },
+      });
+
+      await v2Host.close();
+    });
+
+    it('should call the tool (v2)', async () => {
+      const v2Host = createMcpHost({
+        name: 'v2-host',
+        multipart: true,
+        mcpServers: {
+          'v2-server': {
+            transport: fakeTransport,
+          },
+        },
+      });
+
+      fakeTransport.callToolResult = {
+        content: [
+          {
+            type: 'text',
+            text: 'yep {"foo":"bar"}',
+          },
+        ],
+      };
+
+      const tool = (await v2Host.getActiveTools(ai))[0];
+      const response = await tool({
+        foo: 'bar',
+      });
+
+      assert.deepStrictEqual(response, {
+        content: [
+          {
+            text: 'yep {"foo":"bar"}',
+          },
+        ],
+        output: 'yep {"foo":"bar"}',
+      });
+
+      await v2Host.close();
     });
   });
 

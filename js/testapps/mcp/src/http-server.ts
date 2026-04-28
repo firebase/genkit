@@ -59,11 +59,17 @@ export async function startTestServer() {
           version: '1.0.0',
         });
 
-        server.tool('test_http', {}, async () => {
-          return {
-            content: [{ type: 'text', text: transport.sessionId || '<NONE>' }],
-          };
-        });
+        server.registerTool(
+          'test_http',
+          { description: 'test http tool' },
+          async () => {
+            return {
+              content: [
+                { type: 'text', text: transport.sessionId || '<NONE>' },
+              ],
+            };
+          }
+        );
 
         // Connect to the MCP server
         await server.connect(transport);
