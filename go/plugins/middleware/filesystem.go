@@ -52,14 +52,25 @@ const fileStateCacheMaxEntries = 200
 // is still current. The earlier tool result is still in conversation history.
 const fileUnchangedStub = "File unchanged since last read. The content from the earlier read_file result in this conversation is still current — refer to that instead of re-reading."
 
-// fileState records what the model has been shown for a given absolute path,
-// plus the on-disk mtime at the time of read. Used to gate edits against
-// external modifications and to dedup re-reads.
+// fileState records the on-disk state observed at the last read or write of
+// a given absolute path: mtime and byte size. Used to gate edits against
+// external modifications and to dedup re-reads. Comparing both mtime and
+// size narrows the window where a same-mtime overwrite slips through;
+// filesystem mtime resolution can be as coarse as 1 s.
 type fileState struct {
-	Content []byte
 	ModTime time.Time
+	Size    int64
 	Offset  int // 0 when the read covered the whole file
 	Limit   int // 0 when the read covered the whole file
+}
+
+func newFileState(info os.FileInfo, offset, limit int) *fileState {
+	return &fileState{
+		ModTime: info.ModTime(),
+		Size:    info.Size(),
+		Offset:  offset,
+		Limit:   limit,
+	}
 }
 
 // fileStateCache is a per-call, bounded path→state map. The middleware's New()
@@ -94,25 +105,30 @@ func (c *fileStateCache) set(p string, s *fileState) {
 	c.entries[p] = s
 }
 
-// pathLocks serializes read-modify-write on a per-path basis so two concurrent
-// edits on the same file can't interleave their staleness check and write.
+// pathLockBuckets caps the lock memory footprint at compile time. A fixed
+// array of mutexes is sized once at construction; no map growth.
+const pathLockBuckets = 256
+
+// pathLocks serializes read-modify-write on the same path by hashing into a
+// fixed bucket of mutexes. Two different paths that hash to the same bucket
+// will spuriously serialize against each other — that's harmless because
+// file ops are short and 256 buckets keep the collision rate low for any
+// realistic per-call working set.
 type pathLocks struct {
-	mu    sync.Mutex
-	locks map[string]*sync.Mutex
+	buckets [pathLockBuckets]sync.Mutex
 }
 
-func newPathLocks() *pathLocks {
-	return &pathLocks{locks: make(map[string]*sync.Mutex)}
-}
+func newPathLocks() *pathLocks { return &pathLocks{} }
 
 func (p *pathLocks) lock(path string) func() {
-	p.mu.Lock()
-	m, ok := p.locks[path]
-	if !ok {
-		m = &sync.Mutex{}
-		p.locks[path] = m
+	// FNV-style multiplicative hash. Distribution is good for filesystem
+	// paths (which differ most in their tail) and avoids pulling in
+	// hash/fnv for one call site.
+	var h uint32
+	for i := 0; i < len(path); i++ {
+		h = h*31 + uint32(path[i])
 	}
-	p.mu.Unlock()
+	m := &p.buckets[h%pathLockBuckets]
 	m.Lock()
 	return m.Unlock
 }
@@ -279,7 +295,7 @@ func normalizeRel(p string) string {
 }
 
 // requireFilePath validates the shared filePath argument used by read_file,
-// write_file, and search_and_replace.
+// write_file, and edit_file.
 func requireFilePath(s string) error {
 	if strings.TrimSpace(s) == "" {
 		return errors.New("filePath is required")
@@ -398,10 +414,12 @@ func (f *Filesystem) newReadFileTool(
 			}
 
 			// Dedup: text re-reads of an unchanged file at the same range get a stub
-			// instead of a fresh inject.
+			// instead of a fresh inject. Size is compared alongside mtime because
+			// mtime resolution is coarse on some filesystems.
 			if !isImage {
 				if prev := cache.get(key); prev != nil &&
 					prev.ModTime.Equal(info.ModTime()) &&
+					prev.Size == info.Size() &&
 					prev.Offset == in.Offset && prev.Limit == in.Limit {
 					return fileUnchangedStub, nil
 				}
@@ -474,12 +492,7 @@ func (f *Filesystem) newReadFileTool(
 			// when content doesn't, we shouldn't fabricate one — the model could
 			// pick it up and pass it into edit_file.oldString and miss the match.
 			enqueueParts(ai.NewTextPart(header + "\n" + string(content) + "</read_file>"))
-			cache.set(key, &fileState{
-				Content: append([]byte(nil), data...),
-				ModTime: info.ModTime(),
-				Offset:  in.Offset,
-				Limit:   in.Limit,
-			})
+			cache.set(key, newFileState(info, in.Offset, in.Limit))
 			return summary, nil
 		},
 	)
@@ -568,7 +581,7 @@ func (f *Filesystem) newWriteFileTool(
 				if prev == nil {
 					return "", fmt.Errorf("file %s exists but has not been read yet; read_file it first before overwriting", in.FilePath)
 				}
-				if !info.ModTime().Equal(prev.ModTime) {
+				if !info.ModTime().Equal(prev.ModTime) || info.Size() != prev.Size {
 					return "", fmt.Errorf("file %s has been modified since last read; re-read it before overwriting", in.FilePath)
 				}
 			}
@@ -582,10 +595,7 @@ func (f *Filesystem) newWriteFileTool(
 				return "", err
 			}
 			if newInfo, err := root.Stat(osPath); err == nil {
-				cache.set(key, &fileState{
-					Content: []byte(in.Content),
-					ModTime: newInfo.ModTime(),
-				})
+				cache.set(key, newFileState(newInfo, 0, 0))
 			}
 			return fmt.Sprintf("File %s written successfully.", in.FilePath), nil
 		},
@@ -635,7 +645,7 @@ func (f *Filesystem) newEditFileTool(
 			if err != nil {
 				return "", err
 			}
-			if !info.ModTime().Equal(prev.ModTime) {
+			if !info.ModTime().Equal(prev.ModTime) || info.Size() != prev.Size {
 				return "", fmt.Errorf("file %s has been modified since last read; re-read it before editing", in.FilePath)
 			}
 
@@ -657,10 +667,7 @@ func (f *Filesystem) newEditFileTool(
 				return "", err
 			}
 			if newInfo, err := root.Stat(osPath); err == nil {
-				cache.set(key, &fileState{
-					Content: []byte(content),
-					ModTime: newInfo.ModTime(),
-				})
+				cache.set(key, newFileState(newInfo, 0, 0))
 			}
 			return fmt.Sprintf("Successfully applied %d edit(s) to %s.", len(in.Edits), in.FilePath), nil
 		},
