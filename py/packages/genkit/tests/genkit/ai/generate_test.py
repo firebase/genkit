@@ -8,11 +8,11 @@
 import json
 import pathlib
 from collections.abc import Awaitable, Callable, Sequence
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 import pytest
 import yaml
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from genkit import ActionKind, Document, Genkit, Message, MiddlewareRef, ModelResponse, ModelResponseChunk
 from genkit._ai._generate import generate_action
@@ -36,11 +36,11 @@ from genkit._core._typing import (
 from genkit.middleware import (
     BaseMiddleware,
     GenerateHookParams,
-    GenerateMiddleware,
+    MiddlewareDesc,
     ModelHookParams,
     ToolHookParams,
-    generate_middleware,
     middleware_plugin,
+    new_middleware,
 )
 
 
@@ -185,9 +185,16 @@ class PostMiddleware(BaseMiddleware):
         )
 
 
-def test_use_rejects_inline_base_middleware_instance() -> None:
-    """use= must list MiddlewareRef only; inline BaseMiddleware instances are rejected."""
-    with pytest.raises(TypeError, match='MiddlewareRef'):
+def test_generate_action_options_use_is_middleware_ref_only() -> None:
+    """``GenerateActionOptions.use`` is the wire form; only ``MiddlewareRef`` entries allowed.
+
+    Inline ``BaseMiddleware`` instances flow through the ``Genkit.generate(use=...)`` veneer
+    (see tests below), which resolves them locally and hands them to ``generate_action`` via
+    ``resolved_middleware=``; they must never appear in the JSON-serialized action options.
+    """
+    # ``GenerateActionOptions.use`` is validated with ``mode='before'`` and rejects
+    # non-ref entries by raising ``TypeError``; pydantic rewraps that as ``ValidationError``.
+    with pytest.raises((ValidationError, TypeError)):
         GenerateActionOptions(
             model='echoModel',
             messages=[Message(role=Role.USER, content=[Part(TextPart(text='hi'))])],
@@ -197,13 +204,111 @@ def test_use_rejects_inline_base_middleware_instance() -> None:
 
 
 @pytest.mark.asyncio
+async def test_generate_accepts_inline_base_middleware_instance() -> None:
+    """Inline ``BaseMiddleware`` instances in ``use=`` run without registration."""
+    ai = Genkit()
+    define_echo_model(ai)
+
+    response = await ai.generate(
+        model='echoModel',
+        prompt='hi',
+        use=[PreMiddleware(), PostMiddleware()],
+    )
+
+    assert response.text == '[ECHO] user: "PRE hi" POST'
+
+
+@pytest.mark.asyncio
+async def test_generate_interleaves_inline_instances_and_middleware_refs() -> None:
+    """Inline instances and ``MiddlewareRef`` entries preserve ``use=`` ordering together."""
+    ai = Genkit(plugins=[middleware_plugin([new_middleware(PostMiddleware)])])
+    define_echo_model(ai)
+
+    # PreMiddleware inline (outer) + PostMiddleware by ref (inner) = [ECHO] user: "PRE hi" POST
+    response = await ai.generate(
+        model='echoModel',
+        prompt='hi',
+        use=[PreMiddleware(), MiddlewareRef(name='post_mw')],
+    )
+
+    assert response.text == '[ECHO] user: "PRE hi" POST'
+
+
+class ConfiguredPrefixMiddleware(BaseMiddleware):
+    """Inline middleware driven purely by a pydantic config field."""
+
+    name: ClassVar[str] = 'configured_prefix_mw'
+    prefix: str = 'DEFAULT'
+
+    async def wrap_model(self, params: ModelHookParams, next_fn: Callable) -> ModelResponse:
+        txt = ''.join(text_from_message(m) for m in params.request.messages)
+        return await next_fn(
+            ModelHookParams(
+                request=ModelRequest(
+                    messages=[
+                        Message(role=Role.USER, content=[Part(TextPart(text=f'{self.prefix} {txt}'))]),
+                    ],
+                ),
+                on_chunk=params.on_chunk,
+                context=params.context,
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_generate_inline_instance_uses_pydantic_fields() -> None:
+    """Config fields passed at construction time drive inline behavior."""
+    ai = Genkit()
+    define_echo_model(ai)
+
+    response = await ai.generate(
+        model='echoModel',
+        prompt='hi',
+        use=[ConfiguredPrefixMiddleware(prefix='[TRACE]')],
+    )
+
+    assert response.text == '[ECHO] user: "[TRACE] hi"'
+
+
+@pytest.mark.asyncio
+async def test_generate_middleware_ref_config_instantiates_class() -> None:
+    """``MiddlewareRef(config=...)`` feeds ``**config`` into the class constructor."""
+    ai = Genkit(plugins=[middleware_plugin([new_middleware(ConfiguredPrefixMiddleware)])])
+    define_echo_model(ai)
+
+    response = await ai.generate(
+        model='echoModel',
+        prompt='hi',
+        use=[MiddlewareRef(name='configured_prefix_mw', config={'prefix': '[SPAN]'})],
+    )
+
+    assert response.text == '[ECHO] user: "[SPAN] hi"'
+
+
+@pytest.mark.asyncio
+async def test_define_middleware_registers_on_the_fly() -> None:
+    """``ai.define_middleware(cls)`` makes the definition resolvable by name."""
+    ai = Genkit()
+    define_echo_model(ai)
+    ai.define_middleware(ConfiguredPrefixMiddleware)
+
+    response = await ai.generate(
+        model='echoModel',
+        prompt='hi',
+        use=[MiddlewareRef(name='configured_prefix_mw', config={'prefix': '[LIVE]'})],
+    )
+
+    assert response.text == '[ECHO] user: "[LIVE] hi"'
+
+
+@pytest.mark.asyncio
 async def test_generate_applies_middleware() -> None:
     """When middleware is provided, apply it."""
     ai = Genkit(
         plugins=[
             middleware_plugin([
-                generate_middleware(PreMiddleware),
-                generate_middleware(PostMiddleware),
+                new_middleware(PreMiddleware),
+                new_middleware(PostMiddleware),
             ])
         ],
     )
@@ -229,7 +334,7 @@ async def test_generate_applies_middleware() -> None:
 @pytest.mark.asyncio
 async def test_generate_middleware_next_fn_args_optional() -> None:
     """Can call next function without args (convenience)."""
-    ai = Genkit(plugins=[middleware_plugin([generate_middleware(PostMiddleware)])])
+    ai = Genkit(plugins=[middleware_plugin([new_middleware(PostMiddleware)])])
     define_echo_model(ai)
 
     response = await generate_action(
@@ -289,8 +394,8 @@ async def test_generate_middleware_can_modify_context() -> None:
     ai = Genkit(
         plugins=[
             middleware_plugin([
-                generate_middleware(AddContextMiddleware),
-                generate_middleware(InjectContextMiddleware),
+                new_middleware(AddContextMiddleware),
+                new_middleware(InjectContextMiddleware),
             ])
         ],
     )
@@ -354,7 +459,7 @@ async def test_generate_middleware_can_modify_stream() -> None:
                 )
             return resp
 
-    ai = Genkit(plugins=[middleware_plugin([generate_middleware(ModifyStreamMiddleware)])])
+    ai = Genkit(plugins=[middleware_plugin([new_middleware(ModifyStreamMiddleware)])])
     pm, _ = define_programmable_model(ai)
 
     pm.responses.append(
@@ -404,8 +509,7 @@ async def test_generate_middleware_can_modify_stream() -> None:
 class TrackGenerateMiddleware(BaseMiddleware):
     """Middleware that records wrap_generate calls per turn."""
 
-    def __init__(self) -> None:
-        self.iterations: list[int] = []
+    iterations: list[int] = Field(default_factory=list)
 
     async def wrap_generate(
         self,
@@ -424,12 +528,12 @@ async def test_wrap_generate_called_per_turn() -> None:
     ai = Genkit(
         plugins=[
             middleware_plugin([
-                GenerateMiddleware(
+                MiddlewareDesc(
                     name='track_gen',
                     description='track generate',
                     factory=lambda _opts: track_mw,
                 ),
-                GenerateMiddleware(
+                MiddlewareDesc(
                     name='track_gen2',
                     description='track generate 2',
                     factory=lambda _opts: track_mw2,
@@ -558,8 +662,7 @@ async def test_parallel_tool_requests_all_complete() -> None:
 class TrackToolMiddleware(BaseMiddleware):
     """Middleware that records wrap_tool calls."""
 
-    def __init__(self) -> None:
-        self.tool_names: list[str] = []
+    tool_names: list[str] = Field(default_factory=list)
 
     async def wrap_tool(
         self,
@@ -580,7 +683,7 @@ async def test_wrap_tool_called_on_tool_execution() -> None:
     ai = Genkit(
         plugins=[
             middleware_plugin([
-                GenerateMiddleware(
+                MiddlewareDesc(
                     name='track_tool',
                     description='track tool',
                     factory=lambda _opts: track_mw,

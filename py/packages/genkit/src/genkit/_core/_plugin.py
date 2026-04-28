@@ -22,7 +22,7 @@ import abc
 from collections.abc import Sequence
 
 from genkit._core._action import Action, ActionKind, ActionMetadata
-from genkit._core._middleware._base import GenerateMiddleware, _validate_middleware_key_segment
+from genkit._core._middleware._base import MiddlewareDesc, _validate_middleware_key_segment
 
 
 class Plugin(abc.ABC):
@@ -45,15 +45,16 @@ class Plugin(abc.ABC):
         """Return advertised actions for dev UI/reflection listing."""
         ...
 
-    def generate_middleware(self) -> list[GenerateMiddleware]:
-        """Return middleware definitions for this plugin to register on the app.
+    def list_middleware(self) -> list[MiddlewareDesc]:
+        """Return middleware descriptors for this plugin to register on the app.
 
         This runs while Genkit is being constructed, after built-in middleware is
         registered. Use unique flat names without slash characters so they do not
         collide with built-ins or other plugins.
 
         Returns:
-            Definitions to list in the developer UI and to resolve by name from generate(use=...).
+            Descriptors to list in the developer UI and to resolve by name from
+            ``generate(use=...)``.
         """
         return []
 
@@ -68,12 +69,12 @@ class Plugin(abc.ABC):
         return await self.resolve(ActionKind.EMBEDDER, target)
 
 
-class _MiddlewareDefinitionsPlugin(Plugin):
-    """Plugin implementation that contributes only middleware definitions."""
+class _MiddlewareDescsPlugin(Plugin):
+    """Plugin implementation that contributes only middleware descriptors."""
 
-    def __init__(self, plugin_name: str, definitions: list[GenerateMiddleware]) -> None:
+    def __init__(self, plugin_name: str, descs: list[MiddlewareDesc]) -> None:
         self.name = plugin_name
-        self._definitions = definitions
+        self._descs = descs
 
     async def init(self) -> list[Action]:
         return []
@@ -84,55 +85,56 @@ class _MiddlewareDefinitionsPlugin(Plugin):
     async def list_actions(self) -> list[ActionMetadata]:
         return []
 
-    def generate_middleware(self) -> list[GenerateMiddleware]:
-        return list(self._definitions)
+    def list_middleware(self) -> list[MiddlewareDesc]:
+        return list(self._descs)
 
 
-def _middleware_registry_name(namespace: str | None, definition_name: str) -> str:
-    """Registry key for a definition under an optional namespace prefix."""
+def _middleware_registry_name(namespace: str | None, desc_name: str) -> str:
+    """Registry key for a descriptor under an optional namespace prefix."""
     if not namespace:
-        return definition_name
-    return f'{namespace}_{definition_name}'
+        return desc_name
+    return f'{namespace}_{desc_name}'
 
 
 def middleware_plugin(
-    definitions: Sequence[GenerateMiddleware],
+    descs: Sequence[MiddlewareDesc],
     *,
     namespace: str | None = None,
 ) -> Plugin:
-    """Wrap a list of middleware definitions as a single plugin (for plugins=[...]).
+    """Wrap a list of middleware descriptors as a single plugin (for ``plugins=[...]``).
 
-    Pass all definitions for this plugin in one list so one plugin can register
-    several middlewares together. Example:
+    Pass all descriptors for this plugin in one list so one plugin can register several
+    middlewares together. Example:
 
         Genkit(plugins=[
             middleware_plugin([
-                generate_middleware(PrefixPromptMiddleware),
-                generate_middleware(OtherMiddleware),
+                new_middleware(PrefixPromptMiddleware),
+                new_middleware(OtherMiddleware),
             ], namespace='myapp'),
         ])
 
-    Build each item with generate_middleware in genkit.middleware or the same API on your
-    Genkit instance; neither registers by itself. Registration happens
-    when this plugin is passed in plugins=[...].
+    Build each item with ``new_middleware`` in ``genkit.middleware`` or the same API on
+    your ``Genkit`` instance; neither registers by itself. Registration happens when this
+    plugin is passed in ``plugins=[...]``.
 
     Args:
-        definitions: Non-empty sequence of definitions.
-        namespace: If set, becomes the plugin name and each definition is registered as
-            namespace + underscore + definition name (e.g. acme + logging → acme_logging).
-            If omitted, the plugin name is extension-middleware and registry keys stay the
-            definitions' own names. Same flat-segment rules as middleware definition names
-            (no ``/``, whitespace, ``:``, backslashes, or control characters).
+        descs: Non-empty sequence of middleware descriptors.
+        namespace: If set, becomes the plugin name and each descriptor is registered as
+            namespace + underscore + descriptor name (e.g. acme + logging → acme_logging).
+            If omitted, the plugin name is ``extension-middleware`` and registry keys
+            stay the descriptors' own names. Same flat-segment rules as middleware
+            descriptor names (no ``/``, whitespace, ``:``, backslashes, or control
+            characters).
 
     Returns:
-        A plugin object whose generate_middleware returns the definitions (renamed when
+        A plugin object whose ``list_middleware`` returns the descriptors (renamed when
         namespace is set).
     """
-    defs = list(definitions)
-    if not defs:
+    built = list(descs)
+    if not built:
         raise ValueError(
-            'middleware_plugin() needs a non-empty list of GenerateMiddleware instances. '
-            + 'Build each with generate_middleware(...) from genkit.middleware or ai.generate_middleware(...).'
+            'middleware_plugin() needs a non-empty list of MiddlewareDesc instances. '
+            + 'Build each with new_middleware(...) from genkit.middleware or ai.new_middleware(...).'
         )
     if not namespace:
         ns = None
@@ -142,10 +144,10 @@ def middleware_plugin(
         _validate_middleware_key_segment(ns, label='middleware_plugin namespace')
 
     if ns is None:
-        registered = defs
+        registered = built
     else:
-        registered = [d.with_name(_middleware_registry_name(ns, d.name)) for d in defs]
+        registered = [d.with_name(_middleware_registry_name(ns, d.name)) for d in built]
 
     plugin_name = ns if ns is not None else 'extension-middleware'
 
-    return _MiddlewareDefinitionsPlugin(plugin_name, registered)
+    return _MiddlewareDescsPlugin(plugin_name, registered)

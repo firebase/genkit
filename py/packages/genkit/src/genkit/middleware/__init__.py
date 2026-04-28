@@ -21,13 +21,13 @@ the app. Chain ordering: middleware is applied first-in, outermost.
 
 Example usage:
     from genkit import Genkit, MiddlewareRef
-    from genkit.middleware import BaseMiddleware, generate_middleware, middleware_plugin
+    from genkit.middleware import BaseMiddleware, middleware_plugin, new_middleware
 
     class MyMw(BaseMiddleware):
         name = "my_mw"
         ...
 
-    ai = Genkit(plugins=[middleware_plugin([generate_middleware(MyMw)])])
+    ai = Genkit(plugins=[middleware_plugin([new_middleware(MyMw)])])
 
     response = await ai.generate(
         model="gemini-pro",
@@ -39,9 +39,9 @@ Example usage:
 from genkit._core._middleware._augment_with_context import augment_with_context
 from genkit._core._middleware._base import (
     BaseMiddleware,
-    GenerateMiddleware,
+    MiddlewareDesc,
     MiddlewareFnOptions,
-    generate_middleware,
+    new_middleware,
 )
 from genkit._core._model import GenerateHookParams, ModelHookParams, ToolHookParams
 from genkit._core._plugin import middleware_plugin
@@ -49,11 +49,11 @@ from genkit._core._plugin import middleware_plugin
 __all__ = [
     'BaseMiddleware',
     'GenerateHookParams',
-    'GenerateMiddleware',
+    'MiddlewareDesc',
     'MiddlewareFnOptions',
     'ModelHookParams',
     'ToolHookParams',
     'augment_with_context',
-    'generate_middleware',
     'middleware_plugin',
+    'new_middleware',
 ]

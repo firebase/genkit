@@ -30,7 +30,7 @@ from genkit._core._middleware._base import BaseMiddleware, MiddlewareFnOptions
 from genkit._core._model import ModelHookParams, ModelRequest
 from genkit._core._registry import ActionKind
 from genkit._core._typing import FinishReason, MiddlewareRef
-from genkit.middleware import GenerateMiddleware, generate_middleware
+from genkit.middleware import MiddlewareDesc, new_middleware
 
 
 class AsyncResolveOnlyPlugin(Plugin):
@@ -123,7 +123,7 @@ class _NoopPluginMiddleware(BaseMiddleware):
 
 
 class _ClassMetaMiddleware(BaseMiddleware):
-    """Registered via ``generate_middleware(MyClass)`` using class attributes."""
+    """Registered via ``new_middleware(MyClass)`` using class attributes."""
 
     name = 'class_meta_mw'
     description = 'from class attrs'
@@ -137,7 +137,7 @@ class _ClassMetaMiddleware(BaseMiddleware):
 
 
 class PluginWithMiddleware(Plugin):
-    """Plugin that contributes ``generate_middleware`` definitions."""
+    """Plugin that contributes descriptors via ``list_middleware``."""
 
     name = 'plugin-with-mw'
 
@@ -150,12 +150,12 @@ class PluginWithMiddleware(Plugin):
     async def list_actions(self) -> list[ActionMetadata]:
         return []
 
-    def generate_middleware(self) -> list[GenerateMiddleware]:
+    def list_middleware(self) -> list[MiddlewareDesc]:
         def _factory(_opts: MiddlewareFnOptions) -> BaseMiddleware:
             return _NoopPluginMiddleware()
 
         return [
-            GenerateMiddleware(
+            MiddlewareDesc(
                 name=f'{self.name}_noop',
                 factory=_factory,
                 description='noop plugin middleware for tests',
@@ -163,13 +163,13 @@ class PluginWithMiddleware(Plugin):
         ]
 
 
-def test_plugin_generate_middleware_registers_on_registry() -> None:
-    """Plugin generate_middleware is registered after built-ins."""
+def test_plugin_list_middleware_registers_on_registry() -> None:
+    """Descriptors returned from ``Plugin.list_middleware`` register after built-ins."""
     ai = Genkit(plugins=[PluginWithMiddleware()])
-    gm = ai.registry.lookup_value('middleware', 'plugin-with-mw_noop')
-    assert isinstance(gm, GenerateMiddleware)
-    assert gm.name == 'plugin-with-mw_noop'
-    assert gm.to_json()['description'] == 'noop plugin middleware for tests'
+    desc = ai.registry.lookup_value('middleware', 'plugin-with-mw_noop')
+    assert isinstance(desc, MiddlewareDesc)
+    assert desc.name == 'plugin-with-mw_noop'
+    assert desc.model_dump(by_alias=True, exclude_none=True)['description'] == 'noop plugin middleware for tests'
 
 
 class _PluginPackMw(BaseMiddleware):
@@ -185,15 +185,15 @@ class _PluginPackMw(BaseMiddleware):
 
 
 def test_middleware_plugin_registers_on_registry() -> None:
-    """``middleware_plugin`` wraps definitions in a minimal ``Plugin``."""
-    gm = generate_middleware(_PluginPackMw)
-    plugin = middleware_plugin([gm])
+    """``middleware_plugin`` wraps descriptors in a minimal ``Plugin``."""
+    desc = new_middleware(_PluginPackMw)
+    plugin = middleware_plugin([desc])
     assert plugin.name == 'extension-middleware'
     ai = Genkit(plugins=[plugin])
     looked = ai.registry.lookup_value('middleware', 'my_pack_custom_mw')
-    assert isinstance(looked, GenerateMiddleware)
+    assert isinstance(looked, MiddlewareDesc)
     assert looked.name == 'my_pack_custom_mw'
-    assert looked.to_json()['description'] == 'from plugin() helper'
+    assert looked.model_dump(by_alias=True, exclude_none=True)['description'] == 'from plugin() helper'
 
 
 class _MwOne(BaseMiddleware):
@@ -204,11 +204,11 @@ class _MwTwo(BaseMiddleware):
     name = 'mw_two'
 
 
-def test_middleware_plugin_registers_multiple_definitions() -> None:
-    """One plugin can bundle several ``GenerateMiddleware`` definitions."""
-    g1 = generate_middleware(_MwOne)
-    g2 = generate_middleware(_MwTwo)
-    ai = Genkit(plugins=[middleware_plugin([g1, g2])])
+def test_middleware_plugin_registers_multiple_descs() -> None:
+    """One plugin can bundle several ``MiddlewareDesc`` instances."""
+    d1 = new_middleware(_MwOne)
+    d2 = new_middleware(_MwTwo)
+    ai = Genkit(plugins=[middleware_plugin([d1, d2])])
     assert ai.registry.lookup_value('middleware', 'mw_one') is not None
     assert ai.registry.lookup_value('middleware', 'mw_two') is not None
 
@@ -219,8 +219,8 @@ class _LoggingMw(BaseMiddleware):
 
 
 def test_middleware_plugin_namespace_prefixes_registry_key() -> None:
-    """With ``namespace``, keys are ``{namespace}_{definition.name}``; ``Plugin.name`` defaults to namespace."""
-    g = generate_middleware(_LoggingMw)
+    """With ``namespace``, keys are ``{namespace}_{desc.name}``; ``Plugin.name`` defaults to namespace."""
+    g = new_middleware(_LoggingMw)
     plugin = middleware_plugin([g], namespace='acme')
     assert plugin.name == 'acme'
     ai = Genkit(plugins=[plugin])
@@ -234,7 +234,7 @@ class _XMw(BaseMiddleware):
 
 def test_middleware_plugin_namespace_must_not_contain_slash() -> None:
     with pytest.raises(ValueError, match='namespace'):
-        g = generate_middleware(_XMw)
+        g = new_middleware(_XMw)
         middleware_plugin([g], namespace='bad/ns')
 
 
@@ -242,57 +242,57 @@ class _BadSlashNameMw(BaseMiddleware):
     name = 'bad/name'
 
 
-def test_generate_middleware_name_must_not_contain_slash() -> None:
+def test_new_middleware_name_must_not_contain_slash() -> None:
     """``/`` is reserved for model/action style keys; middleware ids are flat."""
     with pytest.raises(ValueError, match='path-free'):
-        generate_middleware(_BadSlashNameMw)
+        new_middleware(_BadSlashNameMw)
 
 
 class _BadSpaceNameMw(BaseMiddleware):
     name = 'bad name'
 
 
-def test_generate_middleware_name_rejects_whitespace_in_segment() -> None:
+def test_new_middleware_name_rejects_whitespace_in_segment() -> None:
     with pytest.raises(ValueError, match='path-free'):
-        generate_middleware(_BadSpaceNameMw)
+        new_middleware(_BadSpaceNameMw)
 
 
 class _BadColonNameMw(BaseMiddleware):
     name = 'bad:name'
 
 
-def test_generate_middleware_name_rejects_colon_in_segment() -> None:
+def test_new_middleware_name_rejects_colon_in_segment() -> None:
     with pytest.raises(ValueError, match='path-free'):
-        generate_middleware(_BadColonNameMw)
+        new_middleware(_BadColonNameMw)
 
 
 def test_middleware_plugin_namespace_rejects_colon() -> None:
-    g = generate_middleware(_XMw)
+    g = new_middleware(_XMw)
     with pytest.raises(ValueError, match='middleware_plugin namespace'):
         middleware_plugin([g], namespace='acme:ns')
 
 
-def test_generate_middleware_from_class_reads_name_and_description() -> None:
-    """``generate_middleware(MyMiddleware)`` uses ``name`` / ``description`` class attributes."""
-    gm = generate_middleware(_ClassMetaMiddleware)
-    assert gm.name == 'class_meta_mw'
-    assert gm.to_json()['description'] == 'from class attrs'
-    ai = Genkit(plugins=[middleware_plugin([gm])])
+def test_new_middleware_from_class_reads_name_and_description() -> None:
+    """``new_middleware(MyMiddleware)`` uses ``name`` / ``description`` class attributes."""
+    desc = new_middleware(_ClassMetaMiddleware)
+    assert desc.name == 'class_meta_mw'
+    assert desc.description == 'from class attrs'
+    ai = Genkit(plugins=[middleware_plugin([desc])])
     assert ai.registry.lookup_value('middleware', 'class_meta_mw') is not None
 
 
-def test_generate_middleware_from_class_requires_name() -> None:
+def test_new_middleware_from_class_requires_name() -> None:
     class EmptyNameMiddleware(BaseMiddleware):
         pass
 
     with pytest.raises(ValueError, match='name must be set'):
-        generate_middleware(EmptyNameMiddleware)
+        new_middleware(EmptyNameMiddleware)
 
 
-def test_genkit_generate_middleware_accepts_class_form() -> None:
-    """Genkit.generate_middleware builds a definition but does not register it."""
+def test_genkit_new_middleware_accepts_class_form() -> None:
+    """``Genkit.new_middleware`` builds a descriptor but does not register it."""
     ai = Genkit()
-    gm = ai.generate_middleware(_ClassMetaMiddleware)
+    gm = ai.new_middleware(_ClassMetaMiddleware)
     assert gm.name == 'class_meta_mw'
     assert ai.registry.lookup_value('middleware', 'class_meta_mw') is None
 
@@ -300,7 +300,7 @@ def test_genkit_generate_middleware_accepts_class_form() -> None:
     assert ai2.registry.lookup_value('middleware', 'class_meta_mw') is gm
 
 
-def test_middleware_plugin_requires_at_least_one_definition() -> None:
+def test_middleware_plugin_requires_at_least_one_desc() -> None:
     """Calling ``middleware_plugin`` with an empty list raises."""
     with pytest.raises(ValueError, match='non-empty'):
         middleware_plugin([])

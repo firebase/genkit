@@ -325,8 +325,8 @@ class MessageData(GenkitModel):
     metadata: Metadata | None = None
 
 
-class MiddlewareDesc(GenkitModel):
-    """Model for middlewaredesc data."""
+class MiddlewareDescData(GenkitModel):
+    """Model for middlewaredescdata data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     name: str = Field(...)

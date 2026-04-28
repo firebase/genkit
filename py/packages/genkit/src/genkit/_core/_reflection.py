@@ -41,7 +41,7 @@ from genkit._core._action import Action, ActionKind
 from genkit._core._constants import GENKIT_VERSION
 from genkit._core._error import get_reflection_json
 from genkit._core._logger import get_logger
-from genkit._core._middleware._base import GenerateMiddleware
+from genkit._core._middleware._base import MiddlewareDesc
 from genkit._core._registry import Registry
 
 logger = get_logger(__name__)
@@ -263,8 +263,8 @@ def create_reflection_asgi_app(
             if type_param == 'middleware':
                 serialized: dict[str, Any] = {}
                 for key, val in raw_values.items():
-                    if isinstance(val, GenerateMiddleware):
-                        serialized[key] = val.to_json()
+                    if isinstance(val, MiddlewareDesc):
+                        serialized[key] = val.model_dump(by_alias=True, exclude_none=True, mode='json')
                     else:
                         serialized[key] = val
                 raw_values = serialized

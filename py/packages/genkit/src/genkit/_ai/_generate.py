@@ -39,7 +39,7 @@ from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
 from genkit._core._middleware._augment_with_context import augment_with_context
-from genkit._core._middleware._base import BaseMiddleware, GenerateMiddleware, MiddlewareFnOptions
+from genkit._core._middleware._base import BaseMiddleware, MiddlewareDesc, MiddlewareFnOptions
 from genkit._core._model import (
     GenerateActionOptions,
     GenerateHookParams,
@@ -66,18 +66,49 @@ DEFAULT_MAX_TURNS = 5
 logger = get_logger(__name__)
 
 
+def split_use_entries(
+    use: Sequence[BaseMiddleware | MiddlewareRef] | None,
+) -> list[MiddlewareRef] | None:
+    """Pick out just the ``MiddlewareRef`` entries from a veneer ``use=`` list.
+
+    Inline ``BaseMiddleware`` instances are not serializable, so they cannot flow
+    through ``GenerateActionOptions.use`` (which is the JSON wire form for the
+    reflection API and JSON action dispatch). The veneer resolves the full list
+    locally via :func:`resolve_middleware_from_use` and passes the resolved list as
+    ``resolved_middleware=`` to :func:`generate_action`; this helper produces the
+    parallel ref-only list for ``GenerateActionOptions.use`` so JSON inputs of the
+    action still round-trip.
+    """
+    if not use:
+        return None
+    refs = [entry for entry in use if isinstance(entry, MiddlewareRef)]
+    return refs or None
+
+
 def resolve_middleware_from_use(
     registry: Registry,
-    use: list[MiddlewareRef] | None,
+    use: Sequence[BaseMiddleware | MiddlewareRef] | None,
 ) -> list[BaseMiddleware] | None:
-    """Resolve MiddlewareRef names to BaseMiddleware instances via the registry."""
+    """Resolve a ``use=[...]`` list to concrete ``BaseMiddleware`` instances.
+
+    Each entry is one of:
+    - ``BaseMiddleware`` instance: used directly (inline fast path; no registry lookup).
+    - ``MiddlewareRef``: looked up by ``name`` and instantiated via the registered
+      ``MiddlewareDesc`` factory with ``config`` forwarded through ``MiddlewareFnOptions``.
+
+    List order is preserved so inline instances and refs can be interleaved.
+    """
     if not use:
         return None
     out: list[BaseMiddleware] = []
-    for ref in use:
-        defn = registry.lookup_value('middleware', ref.name)
-        if isinstance(defn, GenerateMiddleware):
-            cfg = ref.config if isinstance(ref.config, dict) else None
+    for entry in use:
+        if isinstance(entry, BaseMiddleware):
+            out.append(entry)
+            continue
+        # MiddlewareRef -> look up the registered definition.
+        defn = registry.lookup_value('middleware', entry.name)
+        if isinstance(defn, MiddlewareDesc):
+            cfg = entry.config if isinstance(entry.config, dict) else None
             out.append(
                 defn(
                     MiddlewareFnOptions(
@@ -90,9 +121,10 @@ def resolve_middleware_from_use(
         raise GenkitError(
             status='NOT_FOUND',
             message=(
-                f'No middleware named "{ref.name}" is registered on this app. '
-                'Register definitions with middleware_plugin([...]) or any Plugin that implements '
-                'generate_middleware() in plugins=[...].'
+                f'No middleware named "{entry.name}" is registered on this app. '
+                'Register descriptors with middleware_plugin([...]), Plugin.list_middleware(), '
+                'or ai.define_middleware(MyMiddleware); or pass the middleware instance directly '
+                'in use=[MyMiddleware(...)].'
             ),
             source='genkit.generate',
         )
@@ -199,13 +231,22 @@ async def generate_action(
     message_index: int = 0,
     current_turn: int = 0,
     context: dict[str, Any] | None = None,
+    resolved_middleware: list[BaseMiddleware] | None = None,
 ) -> ModelResponse:
     """Execute a generation request with tool calling and middleware support.
 
-    Middleware is taken only from raw_request.use. Each entry is a MiddlewareRef (or dict
-    coerced to MiddlewareRef). Register definitions with middleware_plugin([...]) or a Plugin
-    that implements generate_middleware(); build definitions with generate_middleware or
-    ai.generate_middleware.
+    Middleware comes from one of two sources:
+
+    - ``resolved_middleware``: a pre-resolved list from the veneer when the caller
+      passed inline ``BaseMiddleware`` instances in ``use=`` (not serializable on the
+      wire, so the veneer resolves them up-front and ``raw_request.use`` only carries
+      the ``MiddlewareRef`` entries).
+    - ``raw_request.use``: ``MiddlewareRef`` entries resolved here via the registry
+      (used by JSON action dispatch and tests that call ``generate_action`` directly).
+
+    When ``resolved_middleware`` is supplied, it is used as-is (it already reflects
+    the full original ordering and any inline instances). Otherwise the resolver runs
+    against ``raw_request.use`` alone.
     """
     span_name = 'generate'
     with run_in_new_span(
@@ -215,7 +256,11 @@ async def generate_action(
         span.set_attribute('genkit:name', span_name)
         with contextlib.suppress(Exception):
             span.set_attribute('genkit:input', raw_request.model_dump_json(by_alias=True, exclude_none=True))
-        middleware = resolve_middleware_from_use(registry, raw_request.use)
+        middleware = (
+            resolved_middleware
+            if resolved_middleware is not None
+            else resolve_middleware_from_use(registry, raw_request.use)
+        )
         result = await _generate_action(
             registry, raw_request, on_chunk, message_index, current_turn, middleware, context
         )

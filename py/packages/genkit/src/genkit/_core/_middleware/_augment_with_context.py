@@ -39,15 +39,9 @@ def augment_with_context(
 
 
 class _AugmentWithContextMiddleware(BaseMiddleware):
-    def __init__(
-        self,
-        preface: str | None = _CONTEXT_PREFACE,
-        item_template: Callable[[Document, int], str] | None = None,
-        citation_key: str | None = None,
-    ) -> None:
-        self._preface = preface
-        self._item_template = item_template or _context_item_template
-        self._citation_key = citation_key
+    preface: str | None = _CONTEXT_PREFACE
+    item_template: Callable[[Document, int], str] = _context_item_template
+    citation_key: str | None = None
 
     async def wrap_model(
         self,
@@ -76,12 +70,12 @@ class _AugmentWithContextMiddleware(BaseMiddleware):
             if not (isinstance(metadata, dict) and metadata.get('pending')):
                 return await next_fn(params)
 
-        out = self._preface or ''
+        out = self.preface or ''
         for i, doc_data in enumerate(req.docs):
             doc = Document(content=doc_data.content, metadata=doc_data.metadata)
-            if self._citation_key and doc.metadata:
-                doc.metadata['ref'] = doc.metadata.get(self._citation_key, i)
-            out += self._item_template(doc, i)
+            if self.citation_key and doc.metadata:
+                doc.metadata['ref'] = doc.metadata.get(self.citation_key, i)
+            out += self.item_template(doc, i)
         out += '\n'
 
         text_part = Part(root=TextPart(text=out, metadata={'purpose': 'context'}))

@@ -14,10 +14,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Middleware definition helpers and registry hooks.
+"""Middleware descriptor helpers and registry hooks.
 
-Stock middleware definitions (retry, fallback, …) are registered in a follow-up change;
-this module exposes ``generate_middleware`` and empty built-in registration for ``Genkit``.
+Stock middleware descriptors (retry, fallback, …) are registered in a follow-up change;
+this module re-exports ``new_middleware`` and exposes empty built-in registration for
+``Genkit``.
 """
 
 from __future__ import annotations
@@ -25,26 +26,26 @@ from __future__ import annotations
 from genkit._core._registry import Registry
 
 from ._base import (
-    GenerateMiddleware,
+    MiddlewareDesc,
     MiddlewareFnOptions,
-    generate_middleware,
+    new_middleware,
 )
 
 __all__ = [
-    'GenerateMiddleware',
+    'MiddlewareDesc',
     'MiddlewareFnOptions',
-    'builtin_generate_middleware_definitions',
-    'generate_middleware',
-    'register_builtin_generate_middleware',
+    'builtin_middleware_descs',
+    'new_middleware',
+    'register_builtin_middleware',
 ]
 
 
-def builtin_generate_middleware_definitions() -> list[GenerateMiddleware]:
-    """Stock middleware definitions; empty until built-in middleware PR lands."""
+def builtin_middleware_descs() -> list[MiddlewareDesc]:
+    """Stock middleware descriptors; empty until the built-in middleware PR lands."""
     return []
 
 
-def register_builtin_generate_middleware(registry: Registry) -> None:
-    """Register built-in middleware definitions on the given registry."""
-    for gm in builtin_generate_middleware_definitions():
-        registry.register_value('middleware', gm.name, gm)
+def register_builtin_middleware(registry: Registry) -> None:
+    """Register built-in middleware descriptors on the given registry."""
+    for d in builtin_middleware_descs():
+        registry.register_value('middleware', d.name, d)

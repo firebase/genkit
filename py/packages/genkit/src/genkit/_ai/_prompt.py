@@ -36,7 +36,9 @@ from typing_extensions import Unpack
 
 from genkit._ai._generate import (
     generate_action,
+    resolve_middleware_from_use,
     resolve_tool,
+    split_use_entries,
     to_tool_definition,
     tools_to_action_names,
 )
@@ -51,6 +53,7 @@ from genkit._core._action import Action, ActionKind, ActionRunContext, Streaming
 from genkit._core._channel import Channel
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
+from genkit._core._middleware._base import BaseMiddleware
 from genkit._core._model import Document, GenerateActionOptions, ModelConfig
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
@@ -110,7 +113,7 @@ class PromptGenerateOptions(TypedDict, total=False):
     return_tool_requests: bool | None
     max_turns: int | None
     on_chunk: ModelStreamingCallback | None
-    use: list[MiddlewareRef] | None
+    use: list[BaseMiddleware | MiddlewareRef] | None
     context: dict[str, Any] | None
     step_name: str | None
     metadata: dict[str, Any] | None
@@ -219,7 +222,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         metadata: dict[str, Any] | None = None,
         tools: Sequence[str | Tool] | None = None,
         tool_choice: ToolChoice | None = None,
-        use: list[MiddlewareRef] | None = None,
+        use: list[BaseMiddleware | MiddlewareRef] | None = None,
         docs: list[Document] | None = None,
         resources: list[str] | None = None,
         name: str | None = None,
@@ -321,11 +324,25 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         on_chunk = opts.get('on_chunk')
         context = opts.get('context')
 
+        # Resolve any inline BaseMiddleware instances in ``use`` up-front so the
+        # rendered ``GenerateActionOptions.use`` (wire form) keeps only MiddlewareRefs.
+        # Opts take precedence over the prompt's declared ``use`` (matches existing
+        # _or(opts.get('use'), self._use) behavior inside _render_impl).
+        raw_use = opts.get('use')
+        if raw_use is None:
+            raw_use = self._use
+        resolved_mw = resolve_middleware_from_use(self._registry, raw_use)
+        # ``list[MiddlewareRef]`` widens safely to ``list[BaseMiddleware | MiddlewareRef]`` (the
+        # declared TypedDict element type); cast past ``list`` invariance instead of copying.
+        ref_only_use = cast(list[BaseMiddleware | MiddlewareRef] | None, split_use_entries(raw_use))
+        render_opts: PromptGenerateOptions = {**opts, 'use': ref_only_use}
+
         result = await generate_action(
             self._registry,
-            await self._render_impl(input, opts),
+            await self._render_impl(input, render_opts),
             on_chunk=on_chunk,
             context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]
+            resolved_middleware=resolved_mw,
         )
         return cast(ModelResponse[OutputT], result)
 
@@ -381,7 +398,10 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             metadata=merged_metadata,
             docs=self._docs,
             resources=opts.get('resources') or self._resources,
-            use=_or(opts.get('use'), self._use),
+            # Strip inline BaseMiddleware instances: GenerateActionOptions.use is the
+            # wire form and must stay ref-only. Inline instances are resolved in
+            # ``_call_impl`` and threaded through as ``resolved_middleware``.
+            use=split_use_entries(_or(opts.get('use'), self._use)),
         )
 
         model = prompt_config.model or self._registry.default_model

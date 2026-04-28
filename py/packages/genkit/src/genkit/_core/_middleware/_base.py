@@ -18,29 +18,39 @@
 
 Two roles (they are not superclass/subclass):
 
-- **Runtime:** BaseMiddleware subclasses MiddlewareRuntime and implements wrap_* hooks.
-  Factories produce these; instances are not passed directly in ``use=``.
-- **Definition:** GenerateMiddleware — a named bundle in the registry (metadata plus a
-  factory callable). It does not extend BaseMiddleware; calling it with options returns
-  the BaseMiddleware instance for that request. Register via ``middleware_plugin`` or
-  ``Plugin.generate_middleware``; reference by name in ``use=`` as ``MiddlewareRef``.
+- **Runtime hook class:** ``BaseMiddleware`` is a ``pydantic.BaseModel`` that subclasses
+  extend with config fields and hook overrides. Pass instances directly in ``use=[...]``
+  for the in-process fast path (no registration needed).
+- **Registry descriptor:** ``MiddlewareDesc`` — a named bundle in the registry (wire
+  metadata plus a factory callable). It does not extend ``BaseMiddleware``; calling it
+  with options returns the ``BaseMiddleware`` instance for that request. Register via
+  ``middleware_plugin``, ``Plugin.list_middleware``, or ``Genkit.define_middleware``;
+  reference by name in ``use=`` as ``MiddlewareRef``. ``MiddlewareDesc`` extends the
+  auto-generated wire schema ``MiddlewareDescData`` and adds a ``PrivateAttr`` factory,
+  so ``model_dump`` produces the wire shape automatically. Mirrors Go's
+  ``ai.MiddlewareDesc`` (single struct, unexported factory field).
+
+Instance contract (matches Django / Starlette middleware conventions):
+- Instances may be reused across concurrent ``generate()`` calls.
+- Per-call scratch state belongs in method locals, not on ``self``.
+- Shared state on ``self`` (buckets, counters) is the author's concurrency responsibility.
 """
 
 from __future__ import annotations
 
 import re
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, ClassVar, Protocol
 
-from genkit._core._middleware._runtime import MiddlewareRuntime
+from pydantic import BaseModel, ConfigDict, PrivateAttr
+
 from genkit._core._model import (
     GenerateHookParams,
     ModelHookParams,
     ModelResponse,
     ToolHookParams,
 )
-from genkit._core._typing import ToolRequestPart, ToolResponsePart
+from genkit._core._typing import MiddlewareDescData, ToolRequestPart, ToolResponsePart
 
 # Disallowed in middleware definition names and in ``middleware_plugin(..., namespace=...)``.
 # Model/action keys use ``provider/name``; middleware stays one path-free token for the registry.
@@ -63,7 +73,7 @@ def _validate_middleware_key_segment(name: str, *, label: str) -> None:
 
     Args:
         name: Proposed name or namespace segment.
-        label: Field name for error messages (e.g. ``GenerateMiddleware name``).
+        label: Field name for error messages (e.g. ``MiddlewareDesc name``).
     """
     if not name or not name.strip():
         raise ValueError(f'{label} must be a non-empty string (not whitespace-only).')
@@ -76,133 +86,178 @@ def _validate_middleware_key_segment(name: str, *, label: str) -> None:
         )
 
 
-class BaseMiddleware(MiddlewareRuntime):
-    """Default hook implementation at runtime (pass-through; override what you need).
+class BaseMiddleware(BaseModel):
+    """Pydantic-backed middleware: config fields + hook overrides in one class.
 
-    Instances receive wrap_generate, wrap_model, and wrap_tool. That is different from
-    GenerateMiddleware, which is only the registry definition plus a factory that
-    produces a BaseMiddleware.
+    The config struct IS the middleware, as in Go's Genkit middleware v2. Subclass
+    with pydantic fields for config, override ``wrap_*`` hooks for behavior, pass
+    instances directly in ``use=[...]``, or register via ``Genkit.define_middleware``
+    (or ``middleware_plugin`` / ``Plugin.list_middleware``) and reference by name
+    with ``MiddlewareRef``.
 
-    To expose middleware to ``use=``, define a subclass with ``name`` (and optional
-    ``description``, ``middleware_config_schema``, ``middleware_metadata``), build a
-    definition with ``generate_middleware(MySubclass)``, register via
-    ``middleware_plugin`` or a ``Plugin``, then pass ``MiddlewareRef(name=...)``.
-    ``generate_middleware`` uses ``MySubclass()`` with no arguments when the pipeline
-    runs.
+    Example:
+        class Logger(BaseMiddleware):
+            name: ClassVar[str] = 'logger'
+            prefix: str = '[trace]'
+
+            async def wrap_model(self, params, next_fn):
+                t = time.monotonic()
+                resp = await next_fn(params)
+                log(f'{self.prefix} {time.monotonic() - t:.3f}s')
+                return resp
+
+        # Local fast path:
+        await ai.generate(prompt='...', use=[Logger(prefix='[span]')])
+
+        # Registered / JSON-dispatched via Dev UI:
+        ai.define_middleware(Logger)
+        await ai.generate(prompt='...', use=[MiddlewareRef(name='logger', config={'prefix': '[span]'})])
+
+    Concurrency: instances may be reused across concurrent ``generate()`` calls. Put
+    per-call state in method locals; shared state on ``self`` is the author's
+    concurrency responsibility (matches Django / Starlette middleware conventions).
     """
 
-    # Class-level metadata for generate_middleware(MyClass); not instance fields.
-    name = ''
-    description = None
-    middleware_config_schema = None
-    middleware_metadata = None
+    # ``arbitrary_types_allowed`` lets subclasses keep non-pydantic fields like
+    # ``Callable`` or opaque resources without opting in per-subclass.
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def wrap_generate(
+    # Class-level metadata used by ``new_middleware(MyClass)`` and the Dev UI.
+    # These are ClassVars, not fields, so they do not appear in ``model_dump()`` or
+    # ``config`` dicts passed to factories.
+    name: ClassVar[str] = ''
+    description: ClassVar[str | None] = None
+    middleware_config_schema: ClassVar[dict[str, Any] | None] = None
+    middleware_metadata: ClassVar[dict[str, object] | None] = None
+
+    async def wrap_generate(
         self,
         params: GenerateHookParams,
         next_fn: Callable[[GenerateHookParams], Awaitable[ModelResponse]],
-    ) -> Awaitable[ModelResponse]:
-        return next_fn(params)
+    ) -> ModelResponse:
+        """Wrap each iteration of the tool loop (model call + optional tool resolution)."""
+        return await next_fn(params)
 
-    def wrap_model(
+    async def wrap_model(
         self,
         params: ModelHookParams,
         next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
-    ) -> Awaitable[ModelResponse]:
-        return next_fn(params)
+    ) -> ModelResponse:
+        """Wrap each model API call."""
+        return await next_fn(params)
 
-    def wrap_tool(
+    async def wrap_tool(
         self,
         params: ToolHookParams,
         next_fn: Callable[
             [ToolHookParams],
             Awaitable[tuple[ToolResponsePart | None, ToolRequestPart | None]],
         ],
-    ) -> Awaitable[tuple[ToolResponsePart | None, ToolRequestPart | None]]:
-        return next_fn(params)
+    ) -> tuple[ToolResponsePart | None, ToolRequestPart | None]:
+        """Wrap each tool execution.
+
+        Return ``(tool_response, interrupt)``: one of the tuple elements is non-``None``.
+        """
+        return await next_fn(params)
 
 
-@dataclass
-class MiddlewareFnOptions:
-    """Arguments passed when invoking a GenerateMiddleware callable (definition with options)."""
+class MiddlewareFnOptions(BaseModel):
+    """Arguments passed when invoking a ``MiddlewareDesc`` callable (descriptor with options)."""
 
-    registry: _MiddlewareRegistryView
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    # ``registry`` is typed as Any here so pydantic does not try to build an isinstance
+    # validator against the ``_MiddlewareRegistryView`` Protocol (and so we can avoid
+    # importing the full ``Registry`` class into this low-level module). Structurally
+    # the value always satisfies ``_MiddlewareRegistryView``.
+    registry: Any
     config: dict[str, Any] | None = None
 
 
-class GenerateMiddleware:
-    """Named definition for the registry, not a hook class.
+class MiddlewareDesc(MiddlewareDescData):
+    """Registered middleware descriptor: wire shape + per-process factory closure.
 
-    Holds name, optional Dev UI metadata, and a factory that builds the real middleware.
-    It does not subclass BaseMiddleware; only the value returned when the definition is
-    called with options runs in the pipeline. Stored under the middleware kind and
-    resolved when generate runs with use entries that reference by name.
+    Inherits the wire fields (``name``, ``description``, ``config_schema``, ``metadata``)
+    from the auto-generated :class:`genkit._core._typing.MiddlewareDescData` schema and
+    adds a ``PrivateAttr`` factory used to mint a fresh :class:`BaseMiddleware` per
+    ``generate()`` call. Because ``PrivateAttr`` is excluded from serialization,
+    ``model_dump(by_alias=True, exclude_none=True)`` produces the wire shape directly.
+
+    Stored under ``register_value('middleware', name, desc)`` and resolved when
+    ``generate()`` runs with ``use=`` entries that reference by name. Mirrors Go's
+    ``ai.MiddlewareDesc`` (single struct, unexported factory field). Same hand-authored
+    runtime subclass convention as ``Message``/``MessageData`` and
+    ``GenerateActionOptions``/``GenerateActionOptionsData``.
     """
+
+    # ``arbitrary_types_allowed`` lets the ``PrivateAttr`` carry an opaque ``Callable``;
+    # parent's ``alias_generator`` and ``extra='forbid'`` settings are inherited.
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    _factory: Callable[[MiddlewareFnOptions], BaseMiddleware] = PrivateAttr()
 
     def __init__(
         self,
         *,
-        name: str,
         factory: Callable[[MiddlewareFnOptions], BaseMiddleware],
+        name: str,
         description: str | None = None,
-        config_schema: dict[str, Any] | None = None,
-        metadata: dict[str, object] | None = None,
+        config_schema: object | None = None,
+        metadata: object | None = None,
     ) -> None:
-        _validate_middleware_key_segment(name, label='GenerateMiddleware name')
-        self.name = name
+        _validate_middleware_key_segment(name, label='MiddlewareDesc name')
+        super().__init__(
+            name=name,
+            description=description,
+            config_schema=config_schema,
+            metadata=metadata,
+        )
         self._factory = factory
-        self.description = description
-        self.config_schema = config_schema
-        self.metadata = metadata
 
     def __call__(self, options: MiddlewareFnOptions) -> BaseMiddleware:
         """Return the BaseMiddleware instance for this request."""
         return self._factory(options)
 
-    def with_name(self, name: str) -> GenerateMiddleware:
+    def with_name(self, name: str) -> MiddlewareDesc:
         """Return a copy with the same factory and metadata but a different registry name."""
-        return GenerateMiddleware(
-            name=name,
+        return MiddlewareDesc(
             factory=self._factory,
+            name=name,
             description=self.description,
             config_schema=self.config_schema,
             metadata=self.metadata,
         )
 
-    def to_json(self) -> dict[str, Any]:
-        """Serialize for the developer UI and reflection (camelCase keys where applicable)."""
-        out: dict[str, Any] = {'name': self.name}
-        if self.description:
-            out['description'] = self.description
-        if self.config_schema is not None:
-            out['configSchema'] = self.config_schema
-        if self.metadata:
-            out['metadata'] = self.metadata
-        return out
 
-
-def generate_middleware(middleware_cls: type[BaseMiddleware]) -> GenerateMiddleware:
-    """Create a GenerateMiddleware definition from a BaseMiddleware subclass.
+def new_middleware(middleware_cls: type[BaseMiddleware]) -> MiddlewareDesc:
+    """Create a ``MiddlewareDesc`` from a ``BaseMiddleware`` subclass.
 
     Set ``name``, and optionally ``description``, ``middleware_config_schema``, and
-    ``middleware_metadata`` on the class. The class is instantiated with no arguments
-    when the definition is invoked for a request.
+    ``middleware_metadata`` on the class. The resulting factory instantiates the class
+    with ``**(options.config or {})`` when a request resolves the descriptor, so the same
+    pydantic fields on the class drive both the inline (``use=[Cls(...)]``) and the
+    registered (``MiddlewareRef(name=..., config=...)``) paths.
+
+    Does not register; pass the result to ``middleware_plugin([...])`` or return from
+    a custom ``Plugin.list_middleware``.
 
     Args:
-        middleware_cls: A BaseMiddleware subclass with a non-empty ``name``.
+        middleware_cls: A ``BaseMiddleware`` subclass with a non-empty ``name``.
 
     Returns:
-        A definition suitable for ``registry.register_value`` or ``middleware_plugin``.
+        A descriptor suitable for ``registry.register_value`` or ``middleware_plugin``.
     """
     reg_name = middleware_cls.name
     if not reg_name:
-        raise ValueError(f'{middleware_cls.__qualname__}.name must be set for generate_middleware(MyClass).')
+        raise ValueError(f'{middleware_cls.__qualname__}.name must be set for new_middleware(MyClass).')
     _validate_middleware_key_segment(str(reg_name), label=f'{middleware_cls.__qualname__}.name')
 
-    def _factory(_opts: MiddlewareFnOptions) -> BaseMiddleware:
-        return middleware_cls()
+    def _factory(opts: MiddlewareFnOptions) -> BaseMiddleware:
+        # Instantiate with the incoming config so registered use is equivalent to
+        # ``use=[middleware_cls(**config)]``; empty/None config uses class defaults.
+        return middleware_cls(**(opts.config or {}))
 
-    return GenerateMiddleware(
+    return MiddlewareDesc(
         name=reg_name,
         factory=_factory,
         description=middleware_cls.description,

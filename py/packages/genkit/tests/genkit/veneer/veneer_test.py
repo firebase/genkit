@@ -53,7 +53,7 @@ from genkit._core._typing import (
     ToolResponse,
     ToolResponsePart,
 )
-from genkit.middleware import BaseMiddleware, ModelHookParams, generate_middleware, middleware_plugin
+from genkit.middleware import BaseMiddleware, ModelHookParams, middleware_plugin, new_middleware
 
 # type SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
 SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
@@ -1043,8 +1043,8 @@ async def test_generate_with_middleware() -> None:
         model='echoModel',
         plugins=[
             middleware_plugin([
-                generate_middleware(PreMiddleware),
-                generate_middleware(PostMiddleware),
+                new_middleware(PreMiddleware),
+                new_middleware(PostMiddleware),
             ])
         ],
     )
@@ -1096,7 +1096,7 @@ async def test_generate_passes_through_current_action_context() -> None:
     """Test that generate uses current action context by default."""
     ai = Genkit(
         model='echoModel',
-        plugins=[middleware_plugin([generate_middleware(InjectContextMiddleware)])],
+        plugins=[middleware_plugin([new_middleware(InjectContextMiddleware)])],
     )
     define_programmable_model(ai)
     define_echo_model(ai)
@@ -1119,7 +1119,7 @@ async def test_generate_uses_explicitly_passed_in_context() -> None:
     """Generate uses specific context instead of current action context."""
     ai = Genkit(
         model='echoModel',
-        plugins=[middleware_plugin([generate_middleware(InjectContextMiddleware)])],
+        plugins=[middleware_plugin([new_middleware(InjectContextMiddleware)])],
     )
     define_programmable_model(ai)
     define_echo_model(ai)
