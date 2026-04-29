@@ -557,7 +557,7 @@ ai.defineFlow('imagen-try-on', async (_) => {
 
 ai.defineFlow('veo-text-prompt', async (_, { sendChunk }) => {
   let { operation } = await ai.generate({
-    model: vertexAI.model('veo-3.0-generate-001'),
+    model: vertexAI.model('veo-3.1-lite-generate-001'),
     prompt: [
       {
         text: 'slowly flying over a meadow in full bloom',
