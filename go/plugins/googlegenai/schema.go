@@ -34,7 +34,9 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 
 	// Handle "anyOf" subschemas by finding the first valid schema definition.
 	// JSON unmarshal produces []any, but schemas built directly in Go code may
-	// use []map[string]any, so accept both.
+	// use []map[string]any, so accept both. Recurse into each subschema so that
+	// non-trivial forms (e.g. {"type": ["string", "null"]} or nested $ref) are
+	// recognized, not just the simple {"type": "string"} case.
 	if v, ok := genkitSchema["anyOf"]; ok {
 		var anyOfList []map[string]any
 		switch list := v.(type) {
@@ -48,17 +50,15 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 			}
 		}
 		for _, subSchema := range anyOfList {
-			if subSchemaType, hasType := subSchema["type"]; hasType {
-				if typeStr, isString := subSchemaType.(string); isString && typeStr != "null" {
-					if title, ok := genkitSchema["title"]; ok {
-						subSchema["title"] = title
-					}
-					if description, ok := genkitSchema["description"]; ok {
-						subSchema["description"] = description
-					}
-					// Found a schema like: {"type": "string"}
-					return toGeminiSchema(originalSchema, subSchema)
-				}
+			if title, ok := genkitSchema["title"]; ok {
+				subSchema["title"] = title
+			}
+			if description, ok := genkitSchema["description"]; ok {
+				subSchema["description"] = description
+			}
+			res, err := toGeminiSchema(originalSchema, subSchema)
+			if err == nil && res != nil && res.Type != "" {
+				return res, nil
 			}
 		}
 	}
@@ -71,8 +71,11 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 
 	// JSON Schema 2020-12 allows "type" to be an array of types, e.g.
 	// ["string", "null"] to denote a nullable string. Normalize to a single
-	// concrete type plus the Nullable flag when "null" is present.
+	// concrete type plus the Nullable flag when "null" is present. JSON
+	// unmarshal produces []any, but schemas built directly in Go code may use
+	// []string, so accept both.
 	var typeStr string
+	var typeList []string
 	switch tv := typeVal.(type) {
 	case string:
 		typeStr = tv
@@ -82,17 +85,22 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 			if !isString {
 				return nil, fmt.Errorf("schema 'type' array contains non-string element of type %T", t)
 			}
-			if s == "null" {
-				schema.Nullable = genai.Ptr(true)
-				continue
-			}
-			if typeStr != "" {
-				return nil, fmt.Errorf("schema 'type' array contains multiple non-null types: %v", tv)
-			}
-			typeStr = s
+			typeList = append(typeList, s)
 		}
+	case []string:
+		typeList = tv
 	default:
 		return nil, fmt.Errorf("schema 'type' field is not a string, but %T", typeVal)
+	}
+	for _, s := range typeList {
+		if s == "null" {
+			schema.Nullable = genai.Ptr(true)
+			continue
+		}
+		if typeStr != "" {
+			return nil, fmt.Errorf("schema 'type' array contains multiple non-null types: %v", typeList)
+		}
+		typeStr = s
 	}
 
 	switch typeStr {

@@ -134,6 +134,30 @@ func TestToGeminiSchema(t *testing.T) {
 			},
 		},
 		{
+			name: "anyOf with subschema using array type",
+			genkitSchema: map[string]any{
+				"anyOf": []any{
+					map[string]any{"type": []any{"string", "null"}},
+				},
+				"title": "MaybeString",
+			},
+			want: &genai.Schema{
+				Type:     genai.TypeString,
+				Nullable: genai.Ptr(true),
+				Title:    "MaybeString",
+			},
+		},
+		{
+			name: "type as []string",
+			genkitSchema: map[string]any{
+				"type": []string{"string", "null"},
+			},
+			want: &genai.Schema{
+				Type:     genai.TypeString,
+				Nullable: genai.Ptr(true),
+			},
+		},
+		{
 			name: "unsupported type string",
 			genkitSchema: map[string]any{
 				"type": "bogus",
