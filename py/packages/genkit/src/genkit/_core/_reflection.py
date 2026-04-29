@@ -72,7 +72,7 @@ class ActionRunner:
     trace_id: str | None = None
     span_id: str | None = None
 
-    def on_trace_start(self, tid: str, sid: str) -> None:
+    async def on_trace_start(self, tid: str, sid: str) -> None:
         self.trace_id, self.span_id = tid, sid
         if task := asyncio.current_task():
             self.active_actions[tid] = task
