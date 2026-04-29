@@ -130,7 +130,7 @@ func DefineEditFlow(g *genkit.Genkit) {
 					"Keep unrelated content unchanged.",
 			),
 			ai.WithPrompt("Apply the following change to the workspace and report what you did:\n\n%s", instruction),
-			ai.WithMaxTurns(12),
+			ai.WithMaxTurns(20),
 			ai.WithUse(&middleware.Filesystem{
 				RootDir:          workspaceDir,
 				AllowWriteAccess: true,
