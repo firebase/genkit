@@ -274,33 +274,41 @@ response, _ := genkit.Generate(ctx, g,
 )
 ```
 
-The `middleware` plugin also ships with [`ToolApproval`](plugins/middleware/tool_approval.go) for human-in-the-loop gating, [`Filesystem`](samples/basic-middleware/filesystem) for sandboxed file access, and [`Skills`](samples/basic-middleware/skills) for loadable `SKILL.md` skills. [See the retry + fallback sample](samples/basic-middleware/retry-fallback) for the full composition.
+The `middleware` plugin also ships with:
+
+- [`ToolApproval`](plugins/middleware/tool_approval.go) — interrupts any tool not on an allow list and resumes once the call is explicitly approved on restart.
+- [`Filesystem`](samples/basic-middleware/filesystem) — gives the model `list_files` and `read_file` tools (plus `write_file` and `edit_file` when `AllowWriteAccess` is set), all confined to a single `RootDir` via `os.Root` (Go 1.25+) so paths cannot escape via `..`, absolute paths, or symlinks.
+- [`Skills`](samples/basic-middleware/skills) — exposes a library of `SKILL.md` files through a `use_skill` tool so the model can pull in specialised instructions on demand.
+
+[See the retry + fallback sample](samples/basic-middleware/retry-fallback) for a full composition.
 
 ### Custom Middleware
 
-Implement the `ai.Middleware` interface to build your own. Embed `ai.BaseMiddleware` to inherit pass-through defaults for the hooks you don't need, then override `WrapGenerate`, `WrapModel`, or `WrapTool`:
+Implement the `ai.Middleware` interface — `Name()` plus `New(ctx)` — to build your own. `New` returns a `Hooks` bundle whose four fields (`Tools`, `WrapGenerate`, `WrapModel`, `WrapTool`) are all optional; nil hooks pass through:
 
 ```go
 type Logger struct {
-    ai.BaseMiddleware
     Prefix string `json:"prefix,omitempty"`
 }
 
-func (l *Logger) Name() string      { return "mine/logger" }
-func (l *Logger) New() ai.Middleware { return &Logger{Prefix: l.Prefix} }
+func (l *Logger) Name() string { return "mine/logger" }
 
-func (l *Logger) WrapModel(ctx context.Context, params *ai.ModelParams, next ai.ModelNext) (*ai.ModelResponse, error) {
-    start := time.Now()
-    resp, err := next(ctx, params)
-    log.Printf("%s model call took %s", l.Prefix, time.Since(start))
-    return resp, err
+func (l *Logger) New(ctx context.Context) (*ai.Hooks, error) {
+    return &ai.Hooks{
+        WrapModel: func(ctx context.Context, params *ai.ModelParams, next ai.ModelNext) (*ai.ModelResponse, error) {
+            start := time.Now()
+            resp, err := next(ctx, params)
+            log.Printf("%s model call took %s", l.Prefix, time.Since(start))
+            return resp, err
+        },
+    }, nil
 }
 
 // Use it like any built-in middleware.
 ai.WithUse(&Logger{Prefix: "[trace]"})
 ```
 
-`New()` is called once per `Generate` invocation, so middleware can hold per-call state without worrying about concurrent use across calls. `Name()` must be unique and stable since it's the key used to register and reference the middleware from the Dev UI and across runtimes.
+`Name()` must be unique and stable since it's the key used to register the middleware and reference it from the Dev UI and across runtimes. `New()` is called once per `Generate` invocation, so per-call state (counters, caches, message queues) can be allocated inside it and closed over by the hooks — just guard anything mutable, since `WrapTool` may run concurrently when tools execute in parallel. For ad-hoc, inline middleware that doesn't need to surface in the Dev UI, wrap a factory closure with `ai.MiddlewareFunc`.
 
 ### Define Flows
 
