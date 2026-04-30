@@ -16,6 +16,7 @@ from genkit._core._action import (
     ActionRunContext,
     create_action_key,
     parse_action_key,
+    parse_dap_qualified_name,
     parse_plugin_name_from_action_name,
 )
 from genkit._core._error import GenkitError
@@ -70,6 +71,15 @@ def test_parse_action_key_invalid_format() -> None:
     for key in invalid_keys:
         with pytest.raises(ValueError, match='Invalid action key format'):
             parse_action_key(key)
+
+
+def test_parse_dap_qualified_name() -> None:
+    """Parse provider:innerKind/innerName segments."""
+    assert parse_dap_qualified_name('my-dap:tool/echo') == ('my-dap', 'tool', 'echo')
+    assert parse_dap_qualified_name('plugin/foo:model/bar') is None
+    assert parse_dap_qualified_name('plain-name') is None
+    assert parse_dap_qualified_name('no-slash:toolonly') is None
+    assert parse_dap_qualified_name(':tool/x') is None
 
 
 def test_create_action_key() -> None:
