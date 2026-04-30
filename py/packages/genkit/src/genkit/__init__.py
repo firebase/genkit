@@ -23,7 +23,7 @@ from genkit._ai._prompt import (
     PromptGenerateOptions,
     ResumeOptions,
 )
-from genkit._ai._tools import Tool, ToolInterruptError, ToolRunContext, tool_response
+from genkit._ai._tools import Tool, ToolInterruptError, ToolRunContext, tool, tool_response
 from genkit._core._action import Action, StreamResponse
 from genkit._core._error import GenkitError, PublicError
 from genkit._core._model import Document
@@ -95,6 +95,7 @@ __all__ = [
     'PublicError',
     'Tool',
     'ToolInterruptError',
+    'tool',
     'tool_response',
     # Content types
     'Constrained',
