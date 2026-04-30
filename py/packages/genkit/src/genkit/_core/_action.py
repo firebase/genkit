@@ -35,6 +35,7 @@ from typing_extensions import Never, TypeVar
 from genkit._core._channel import Channel
 from genkit._core._compat import StrEnum
 from genkit._core._error import GenkitError
+from genkit._core._schema import to_json_schema
 from genkit._core._trace._path import build_path
 from genkit._core._trace._suppress import suppress_telemetry
 from genkit._core._tracing import tracer
@@ -316,8 +317,6 @@ class ActionRunContext:
 class Action(Generic[InputT, OutputT, ChunkT]):
     """A named, traced, remotely callable function."""
 
-    _input_type: TypeAdapter[InputT] | None
-
     def __init__(
         self,
         kind: ActionKind,
@@ -387,18 +386,17 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         self._output_schema = value
         self._metadata[ActionMetadataKey.OUTPUT_KEY] = value
 
-    def override_input_schema(self, schema: type[BaseModel] | dict[str, object]) -> None:
+    def _override_input_schema(
+        self,
+        input_schema: type[BaseModel] | dict[str, object],
+    ) -> None:
         """Replace inferred input JSON Schema and validation type (e.g. tool schema overrides)."""
-        if isinstance(schema, type) and issubclass(schema, BaseModel):
-            type_adapter: TypeAdapter[Any] = TypeAdapter(schema)
-            self._input_schema = type_adapter.json_schema()
-            self._input_type = cast(TypeAdapter[InputT], type_adapter)
-        elif isinstance(schema, dict):
-            self._input_schema = schema
+        in_js = to_json_schema(input_schema)
+        self.input_schema = in_js
+        if isinstance(input_schema, dict):
             self._input_type = None
         else:
-            raise TypeError(f'input_schema must be a Pydantic model type or dict, got {type(schema)}')
-        self._metadata[ActionMetadataKey.INPUT_KEY] = self._input_schema
+            self._input_type = cast(TypeAdapter[InputT], TypeAdapter(input_schema))
 
     async def __call__(self, input: InputT | None = None) -> OutputT:
         """Call the action directly, returning just the response value."""

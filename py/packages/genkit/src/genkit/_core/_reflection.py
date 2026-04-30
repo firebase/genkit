@@ -23,7 +23,8 @@ import json
 import os
 import signal
 import threading
-from collections.abc import AsyncGenerator, Awaitable, Callable
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -238,6 +239,14 @@ def create_reflection_asgi_app(
         )
         return await runner.stream_response(version)
 
+    @asynccontextmanager
+    async def lifespan(_: Starlette) -> AsyncIterator[None]:
+        if on_startup is not None:
+            await on_startup()
+        yield
+        if on_shutdown is not None:
+            await on_shutdown()
+
     app = Starlette(
         routes=[
             Route('/api/__health', health, methods=['GET']),
@@ -258,8 +267,7 @@ def create_reflection_asgi_app(
                 expose_headers=['X-Genkit-Trace-Id', 'X-Genkit-Span-Id', 'x-genkit-version'],
             )
         ],
-        on_startup=[on_startup] if on_startup else [],
-        on_shutdown=[on_shutdown] if on_shutdown else [],
+        lifespan=lifespan,
     )
     app.active_actions = active_actions  # type: ignore[attr-defined]
     return app

@@ -71,7 +71,7 @@ from genkit._ai._resource import (
     ResourceOptions,
     define_resource,
 )
-from genkit._ai._tools import Tool, define_tool
+from genkit._ai._tools import Tool, define_interrupt, define_tool
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._background import (
     BackgroundAction,
@@ -107,6 +107,8 @@ from genkit._core._typing import (
     Part,
     SpanMetadata,
     ToolChoice,
+    ToolRequestPart,
+    ToolResponsePart,
 )
 
 from ._decorators import _FlowDecorator, _FlowDecoratorWithChunk
@@ -267,6 +269,37 @@ class Genkit:
             return define_tool(self.registry, func, name, description)
 
         return wrapper
+
+    def define_interrupt(
+        self,
+        name: str,
+        *,
+        input_schema: type[BaseModel] | dict[str, object] | None = None,
+        description: str | None = None,
+    ) -> Tool:
+        """Register an interrupt tool that always pauses for user input.
+
+        Args:
+            name: Tool name
+            input_schema: Optional input schema (Pydantic model or JSON schema dict)
+            description: Tool description
+
+        Returns:
+            The registered interrupt tool
+
+        Example:
+            ask_user = ai.define_interrupt(
+                name='ask_user',
+                input_schema=Question,
+                description='Ask the user a question',
+            )
+        """
+        return define_interrupt(
+            self.registry,
+            name,
+            description=description,
+            input_schema=input_schema,
+        )
 
     def define_evaluator(
         self,
@@ -744,7 +777,9 @@ class Genkit:
         tools: Sequence[str | Tool] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
-        tool_responses: list[Part] | None = None,
+        resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
+        resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None,
+        resume_metadata: dict[str, Any] | None = None,
         config: dict[str, object] | ModelConfig | None = None,
         max_turns: int | None = None,
         context: dict[str, object] | None = None,
@@ -769,7 +804,9 @@ class Genkit:
         tools: Sequence[str | Tool] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
-        tool_responses: list[Part] | None = None,
+        resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
+        resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None,
+        resume_metadata: dict[str, Any] | None = None,
         config: dict[str, object] | ModelConfig | None = None,
         max_turns: int | None = None,
         context: dict[str, object] | None = None,
@@ -792,7 +829,9 @@ class Genkit:
         tools: Sequence[str | Tool] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
-        tool_responses: list[Part] | None = None,
+        resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
+        resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None,
+        resume_metadata: dict[str, Any] | None = None,
         config: dict[str, object] | ModelConfig | None = None,
         max_turns: int | None = None,
         context: dict[str, object] | None = None,
@@ -822,7 +861,9 @@ class Genkit:
                     tools=tools,
                     return_tool_requests=return_tool_requests,
                     tool_choice=tool_choice,
-                    tool_responses=tool_responses,
+                    resume_respond=resume_respond,
+                    resume_restart=resume_restart,
+                    resume_metadata=resume_metadata,
                     config=config,
                     max_turns=max_turns,
                     output_format=output_format,
@@ -849,6 +890,9 @@ class Genkit:
         tools: Sequence[str | Tool] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
+        resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
+        resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None,
+        resume_metadata: dict[str, Any] | None = None,
         config: dict[str, object] | ModelConfig | None = None,
         max_turns: int | None = None,
         context: dict[str, object] | None = None,
@@ -874,6 +918,9 @@ class Genkit:
         tools: Sequence[str | Tool] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
+        resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
+        resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None,
+        resume_metadata: dict[str, Any] | None = None,
         config: dict[str, object] | ModelConfig | None = None,
         max_turns: int | None = None,
         context: dict[str, object] | None = None,
@@ -897,6 +944,9 @@ class Genkit:
         tools: Sequence[str | Tool] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
+        resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
+        resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None,
+        resume_metadata: dict[str, Any] | None = None,
         config: dict[str, object] | ModelConfig | None = None,
         max_turns: int | None = None,
         context: dict[str, object] | None = None,
@@ -925,6 +975,9 @@ class Genkit:
                         tools=tools,
                         return_tool_requests=return_tool_requests,
                         tool_choice=tool_choice,
+                        resume_respond=resume_respond,
+                        resume_restart=resume_restart,
+                        resume_metadata=resume_metadata,
                         config=config,
                         max_turns=max_turns,
                         output_format=output_format,
