@@ -230,6 +230,9 @@ def extract_action_args_and_types(
 
 
 GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR = '_genkit_dynamic_action_provider'
+# Nested actions in a DAP cache store their qualified reflection key via this attribute name:
+# ``/dynamic-action-provider/<id>:<type>/<name>``.
+GENKIT_DAP_QUALIFIED_KEY_ATTR = '_genkit_dap_qualified_key'
 
 
 class DapQualifiedName(NamedTuple):

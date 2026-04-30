@@ -28,6 +28,7 @@ from pydantic import BaseModel
 from typing_extensions import Never, TypeVar
 
 from genkit._core._action import (
+    GENKIT_DAP_QUALIFIED_KEY_ATTR,
     GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR,
     Action,
     ActionKind,
@@ -82,7 +83,8 @@ ActionFn = (
 
 
 def _reflection_payload_for_registered_action(action: Action) -> dict[str, Any]:
-    key = create_action_key(action.kind, action.name)
+    dap_key = getattr(action, GENKIT_DAP_QUALIFIED_KEY_ATTR, None)
+    key = dap_key if isinstance(dap_key, str) else create_action_key(action.kind, action.name)
     return {
         'key': key,
         'name': action.name,
@@ -623,10 +625,17 @@ class Registry:
             raise ValueError(
                 f'Dynamic action provider {dap_host!r} returned {resolved.kind!r} for {name!r}, expected {kind!r}'
             )
-        raise RuntimeError(
-            f'Dynamic action provider {dap_host!r} is missing the Genkit DAP helper. '
-            'Register it using define_dynamic_action_provider before referencing qualified action names.'
-        )
+        try:
+            response = await dap_action.run({'kind': kind, 'name': name})
+            if response.response:
+                self.register_action_instance(response.response)
+                return await self._trigger_lazy_loading(response.response)
+        except Exception as e:
+            logger.debug(
+                f'Dynamic action provider {dap_host} failed for {kind}/{name}',
+                exc_info=e,
+            )
+        return None
 
     async def resolve_action(self, kind: ActionKind, name: str) -> Action | None:
         """Resolve an action by kind and name.

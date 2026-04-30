@@ -362,6 +362,34 @@ async def test_zero_ttl_uses_default(registry: Registry, tool1: Action, tool2: A
 
 
 @pytest.mark.asyncio
+async def test_dap_run_returns_child_metadata_rows(registry: Registry, tool1: Action) -> None:
+    async def dap_fn() -> DapValue:
+        return {'tool': [tool1]}
+
+    dap = define_dynamic_action_provider(registry, 'my-dap', dap_fn)
+    ar = await dap.action.run()
+    rows = ar.response
+    assert isinstance(rows, list)
+    assert len(rows) == 1
+    assert rows[0]['name'] == 'tool1'
+    assert rows[0]['type'] == 'tool'
+    assert rows[0]['key'] == '/dynamic-action-provider/my-dap:tool/tool1'
+
+
+@pytest.mark.asyncio
+async def test_child_actions_get_dap_qualified_key_attr(registry: Registry, tool1: Action) -> None:
+    from genkit._core._action import GENKIT_DAP_QUALIFIED_KEY_ATTR, ActionKind, create_action_key
+
+    async def dap_fn() -> DapValue:
+        return {'tool': [tool1]}
+
+    dap = define_dynamic_action_provider(registry, 'my-dap', dap_fn)
+    await dap.get_action('tool', 'tool1')
+    expected = create_action_key(ActionKind.DYNAMIC_ACTION_PROVIDER, 'my-dap:tool/tool1')
+    assert getattr(tool1, GENKIT_DAP_QUALIFIED_KEY_ATTR) == expected
+
+
+@pytest.mark.asyncio
 async def test_get_action_metadata_record_raises_on_missing_name(registry: Registry) -> None:
     async def nameless_fn(input: str) -> str:
         return 'nameless'
