@@ -22,9 +22,11 @@ from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
 from genkit._core._action import (
+    GENKIT_DAP_QUALIFIED_KEY_ATTR,
     GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR,
     Action,
     ActionKind,
+    create_action_key,
 )
 from genkit._core._error import GenkitError
 from genkit._core._registry import Registry
@@ -32,6 +34,30 @@ from genkit._core._registry import Registry
 ActionMetadataLike = Mapping[str, object]
 DapValue = dict[str, list[Action[Any, Any]]]
 DapFn = Callable[[], Awaitable[DapValue]]
+
+
+def _qualified_dap_key(dap_id: str, action_type: str, child_name: str) -> str:
+    return create_action_key(ActionKind.DYNAMIC_ACTION_PROVIDER, f'{dap_id}:{action_type}/{child_name}')
+
+
+def _transform_dap_value(value: DapValue, dap_id: str) -> list[dict[str, Any]]:
+    """Flatten child actions into reflection-style metadata rows for the DAP action result."""
+    rows: list[dict[str, Any]] = []
+    for action_type, actions in value.items():
+        for child in actions:
+            rows.append(
+                {
+                    'key': _qualified_dap_key(dap_id, action_type, child.name),
+                    'name': child.name,
+                    'type': action_type,
+                    'description': child.description,
+                    'inputSchema': child.input_schema,
+                    'outputSchema': child.output_schema,
+                    'metadata': dict(child.metadata) if child.metadata else None,
+                }
+            )
+    return rows
+
 
 # Default cache TTL in milliseconds
 _DEFAULT_CACHE_TTL_MS = 3000
@@ -56,7 +82,15 @@ class DynamicActionProvider:
         )
 
     def set_value(self, value: DapValue) -> None:
-        """Update the cached value and reset expiry. Called by the action body."""
+        """Update the cached value and reset expiry; assign each child its DAP qualified reflection key."""
+        dap_id = self.action.name
+        for action_type, actions in value.items():
+            for child in actions:
+                setattr(
+                    child,
+                    GENKIT_DAP_QUALIFIED_KEY_ATTR,
+                    _qualified_dap_key(dap_id, action_type, child.name),
+                )
         self._value = value
         self._expires_at = time.time() * 1000 + self._ttl_millis
 
@@ -162,10 +196,11 @@ def define_dynamic_action_provider(
     # Filled in immediately after construction; the closure reads it when run() fires.
     _dap: DynamicActionProvider | None = None
 
-    async def dap_action(input: None) -> None:
+    async def dap_action(input: None) -> list[dict[str, Any]]:
         value = await fn()
         assert _dap is not None
         _dap.set_value(value)
+        return _transform_dap_value(value, _dap.action.name)
 
     action = registry.register_action(
         name=name,

@@ -28,6 +28,7 @@ from pydantic import BaseModel
 from typing_extensions import Never, TypeVar
 
 from genkit._core._action import (
+    GENKIT_DAP_QUALIFIED_KEY_ATTR,
     GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR,
     Action,
     ActionKind,
@@ -82,7 +83,8 @@ ActionFn = (
 
 
 def _reflection_payload_for_registered_action(action: Action) -> dict[str, Any]:
-    key = create_action_key(action.kind, action.name)
+    dap_key = getattr(action, GENKIT_DAP_QUALIFIED_KEY_ATTR, None)
+    key = dap_key if isinstance(dap_key, str) else create_action_key(action.kind, action.name)
     return {
         'key': key,
         'name': action.name,
