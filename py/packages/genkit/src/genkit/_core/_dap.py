@@ -26,12 +26,12 @@ from genkit._core._action import (
     Action,
     ActionKind,
 )
+from genkit._core._error import GenkitError
 from genkit._core._registry import Registry
 
 ActionMetadataLike = Mapping[str, object]
 DapValue = dict[str, list[Action[Any, Any]]]
 DapFn = Callable[[], Awaitable[DapValue]]
-DapMetadata = dict[str, list[ActionMetadataLike]]
 
 # Default cache TTL in milliseconds
 _DEFAULT_CACHE_TTL_MS = 3000
@@ -54,6 +54,11 @@ class DynamicActionProvider:
         self._ttl_millis = (
             _DEFAULT_CACHE_TTL_MS if cache_ttl_millis is None or cache_ttl_millis == 0 else cache_ttl_millis
         )
+
+    def set_value(self, value: DapValue) -> None:
+        """Update the cached value and reset expiry. Called by the action body."""
+        self._value = value
+        self._expires_at = time.time() * 1000 + self._ttl_millis
 
     def invalidate_cache(self) -> None:
         self._value = None
@@ -81,12 +86,22 @@ class DynamicActionProvider:
 
     async def _do_fetch(self, skip_trace: bool) -> DapValue:
         try:
-            self._value = await self._dap_fn()
-            self._expires_at = time.time() * 1000 + self._ttl_millis
-            if not skip_trace:
-                metadata = {k: [a.metadata or {} for a in v] for k, v in self._value.items()}
-                await self.action.run(metadata)
-            return self._value
+            if skip_trace:
+                # Bypass the action (and its trace span) for reflection/devtools
+                # listing, which would otherwise flood traces.
+                value = await self._dap_fn()
+                self.set_value(value)
+                return value
+            else:
+                # Run through the action so the fetch is wrapped in a trace span.
+                # The action body calls _dap_fn() and set_value().
+                try:
+                    await self.action.run()
+                except GenkitError as e:
+                    raise e.__cause__ or e
+                if self._value is None:
+                    raise ValueError('DAP value undefined after action run')
+                return self._value
         except Exception:
             self.invalidate_cache()
             raise
@@ -144,8 +159,13 @@ def define_dynamic_action_provider(
 ) -> DynamicActionProvider:
     """Define and register a Dynamic Action Provider for lazy action resolution."""
 
-    async def dap_action(input: DapMetadata) -> DapMetadata:
-        return input
+    # Forward reference so the action body can call dap.set_value().
+    # The list is populated immediately after dap is constructed below.
+    _dap: list[DynamicActionProvider] = []
+
+    async def dap_action(input: None) -> None:
+        value = await fn()
+        _dap[0].set_value(value)
 
     action = registry.register_action(
         name=name,
@@ -156,5 +176,6 @@ def define_dynamic_action_provider(
     )
 
     dap = DynamicActionProvider(action, fn, cache_ttl_millis)
+    _dap.append(dap)
     setattr(action, GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR, dap)
     return dap
