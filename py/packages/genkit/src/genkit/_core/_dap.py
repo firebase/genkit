@@ -159,13 +159,13 @@ def define_dynamic_action_provider(
 ) -> DynamicActionProvider:
     """Define and register a Dynamic Action Provider for lazy action resolution."""
 
-    # Forward reference so the action body can call dap.set_value().
-    # The list is populated immediately after dap is constructed below.
-    _dap: list[DynamicActionProvider] = []
+    # Filled in immediately after construction; the closure reads it when run() fires.
+    _dap: DynamicActionProvider | None = None
 
     async def dap_action(input: None) -> None:
         value = await fn()
-        _dap[0].set_value(value)
+        assert _dap is not None
+        _dap.set_value(value)
 
     action = registry.register_action(
         name=name,
@@ -176,6 +176,6 @@ def define_dynamic_action_provider(
     )
 
     dap = DynamicActionProvider(action, fn, cache_ttl_millis)
-    _dap.append(dap)
+    _dap = dap
     setattr(action, GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR, dap)
     return dap

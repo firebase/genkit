@@ -623,10 +623,17 @@ class Registry:
             raise ValueError(
                 f'Dynamic action provider {dap_host!r} returned {resolved.kind!r} for {name!r}, expected {kind!r}'
             )
-        raise RuntimeError(
-            f'Dynamic action provider {dap_host!r} is missing the Genkit DAP helper. '
-            'Register it using define_dynamic_action_provider before referencing qualified action names.'
-        )
+        try:
+            response = await dap_action.run({'kind': kind, 'name': name})
+            if response.response:
+                self.register_action_instance(response.response)
+                return await self._trigger_lazy_loading(response.response)
+        except Exception as e:
+            logger.debug(
+                f'Dynamic action provider {dap_host} failed for {kind}/{name}',
+                exc_info=e,
+            )
+        return None
 
     async def resolve_action(self, kind: ActionKind, name: str) -> Action | None:
         """Resolve an action by kind and name.
