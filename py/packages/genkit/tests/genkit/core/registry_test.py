@@ -129,8 +129,8 @@ async def test_resolve_action_from_plugin() -> None:
 
     ai = Genkit(plugins=[MyPlugin()])
 
-    catalog = await ai.registry.list_resolvable_actions()
-    assert catalog['/model/myplugin/foo']['name'] == 'myplugin/foo'
+    catalog = await ai.registry.list_actions()
+    assert catalog['/model/myplugin/foo'].name == 'myplugin/foo'
 
     action = await ai.registry.resolve_action(ActionKind.MODEL, 'myplugin/foo')
 
@@ -246,16 +246,16 @@ async def test_child_shadows_parent_action() -> None:
 
 
 def test_child_inherits_default_model() -> None:
-    """Child inherits default_model from parent if not set locally."""
+    """Child falls back to parent for the default model singleton entry."""
     parent = Registry()
-    parent.default_model = 'gemini-pro'
+    parent.register_value('defaultModel', 'defaultModel', 'gemini-pro')
 
     child = parent.new_child()
-    assert child.default_model == 'gemini-pro'
+    assert child.lookup_value('defaultModel', 'defaultModel') == 'gemini-pro'
 
-    child.default_model = 'gemini-flash'
-    assert child.default_model == 'gemini-flash'
-    assert parent.default_model == 'gemini-pro'
+    child.register_value('defaultModel', 'defaultModel', 'gemini-flash')
+    assert child.lookup_value('defaultModel', 'defaultModel') == 'gemini-flash'
+    assert parent.lookup_value('defaultModel', 'defaultModel') == 'gemini-pro'
 
 
 def test_child_inherits_lookup_value() -> None:
@@ -274,7 +274,7 @@ def test_child_inherits_lookup_value() -> None:
 
 @pytest.mark.asyncio
 async def test_child_resolvable_includes_parent_plugin() -> None:
-    """list_resolvable_actions on child includes parent plugin rows not shadowed locally."""
+    """list_actions on child includes parent plugin rows not shadowed locally."""
 
     class ParentPlugin(Plugin):
         name = 'parentplugin'
@@ -292,9 +292,9 @@ async def test_child_resolvable_includes_parent_plugin() -> None:
     parent.register_plugin(ParentPlugin())
 
     child = parent.new_child()
-    catalog = await child.list_resolvable_actions()
+    catalog = await child.list_actions()
     assert '/model/parentplugin/my-model' in catalog
-    assert catalog['/model/parentplugin/my-model']['name'] == 'parentplugin/my-model'
+    assert catalog['/model/parentplugin/my-model'].name == 'parentplugin/my-model'
 
 
 @pytest.mark.asyncio
@@ -332,10 +332,10 @@ async def test_child_resolvable_local_tool_shadows_parent_plugin_metadata() -> N
         description='from child registry',
     )
 
-    catalog = await child.list_resolvable_actions()
+    catalog = await child.list_actions()
     entry = catalog['/tool/parentplugin/shared-name']
-    assert entry['description'] == 'from child registry'
-    assert entry['description'] != 'from parent plugin'
+    assert entry.description == 'from child registry'
+    assert entry.description != 'from parent plugin'
 
 
 @pytest.mark.asyncio
@@ -379,14 +379,14 @@ async def test_child_resolvable_dap_tool_shadows_parent_plugin_metadata() -> Non
 
     define_dynamic_action_provider(child, 'mcp', dap_fn)
 
-    catalog = await child.list_resolvable_actions()
+    catalog = await child.list_actions()
     qualified = create_action_key(ActionKind.DYNAMIC_ACTION_PROVIDER, 'mcp:tool/parentplugin/mcp-tool')
-    assert catalog[qualified]['description'] == 'from mcp'
-    assert catalog['/tool/parentplugin/mcp-tool']['description'] == 'stale parent schema'
+    assert catalog[qualified].description == 'from mcp'
+    assert catalog['/tool/parentplugin/mcp-tool'].description == 'stale parent schema'
 
 
 @pytest.mark.asyncio
-async def test_list_resolvable_registered_canonical_coexists_with_qualified_dap_rows() -> None:
+async def test_list_actions_registered_canonical_coexists_with_qualified_dap_rows() -> None:
     """Registered ``/tool/...`` row coexists with DAP ``/dynamic-action-provider/...`` rows when shortnames collide."""
     tool_name = 'suite/same-canonical'
 
@@ -416,7 +416,7 @@ async def test_list_resolvable_registered_canonical_coexists_with_qualified_dap_
 
     define_dynamic_action_provider(registry, 'mcp', dap_fn)
 
-    catalog = await registry.list_resolvable_actions()
+    catalog = await registry.list_actions()
 
     canonical = create_action_key(ActionKind.TOOL, tool_name)
     record_key = f'mcp:tool/{tool_name}'
@@ -424,9 +424,9 @@ async def test_list_resolvable_registered_canonical_coexists_with_qualified_dap_
     provider_key = create_action_key(ActionKind.DYNAMIC_ACTION_PROVIDER, 'mcp')
 
     assert canonical in catalog
-    assert catalog[canonical]['description'] == 'from registry registration'
+    assert catalog[canonical].description == 'from registry registration'
 
     assert qualified in catalog
-    assert catalog[qualified]['key'] == qualified
+    assert catalog[qualified].key == qualified
 
     assert provider_key in catalog

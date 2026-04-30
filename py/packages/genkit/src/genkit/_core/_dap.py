@@ -116,8 +116,8 @@ class DynamicActionProvider:
             return [m for m in metadata_list if str(m.get('name', '')).startswith(prefix)]
         return [m for m in metadata_list if m.get('name') == action_name]
 
-    async def get_action_metadata_record(self, dap_prefix: str) -> dict[str, ActionMetadata]:
-        """Get all actions as a reflection metadata record, keyed by full DAP key."""
+    async def list_action_metadata_by_key(self, dap_prefix: str) -> dict[str, ActionMetadata]:
+        """List every child action's reflection metadata, keyed by its fully-qualified DAP key."""
         result = await self._get_or_fetch(skip_trace=True)
         dap_actions: dict[str, ActionMetadata] = {}
         for action_type, actions in result.items():
@@ -170,5 +170,9 @@ def define_dynamic_action_provider(
     )
 
     dap = DynamicActionProvider(action, fn, cache_ttl_millis)
+    # Attach the provider to the registered Action so anyone holding the
+    # Action (e.g. ``Registry.resolve_action_by_key`` for a DAP-qualified key,
+    # or ``Registry.list_actions`` expanding children for reflection) can
+    # recover the cache and helpers via ``getattr(action, ATTR, None)``.
     setattr(action, GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR, dap)
     return dap

@@ -38,6 +38,7 @@ from genkit._core._action import (
     parse_action_key,
     parse_dap_qualified_name,
 )
+from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
 from genkit._core._model import (
     ModelRequest,
@@ -81,31 +82,17 @@ ActionFn = (
 )
 
 
-def _reflection_payload_for_registered_action(action: Action) -> dict[str, Any]:
-    key = create_action_key(action.kind, action.name)
-    return {
-        'key': key,
-        'name': action.name,
-        'type': action.kind,
-        'description': action.description,
-        'inputSchema': action.input_schema,
-        'outputSchema': action.output_schema,
-        'metadata': action.metadata,
-    }
-
-
-def _reflection_payload_for_action_metadata(meta: ActionMetadata) -> dict[str, Any]:
-    """Adapt an :class:`ActionMetadata` into the reflection payload dict shape."""
-    key = meta.key or f'/{meta.action_type}/{meta.name}'
-    return {
-        'key': key,
-        'name': meta.name,
-        'type': meta.action_type,
-        'description': meta.description,
-        'inputSchema': meta.input_schema or meta.input_json_schema,
-        'outputSchema': meta.output_schema or meta.output_json_schema,
-        'metadata': dict(meta.metadata) if meta.metadata else None,
-    }
+def _action_metadata_for_registered_action(action: Action) -> ActionMetadata:
+    """Build an ``ActionMetadata`` row for a directly-registered :class:`Action`."""
+    return ActionMetadata(
+        key=create_action_key(action.kind, action.name),
+        action_type=action.kind,
+        name=action.name,
+        description=action.description,
+        input_schema=action.input_schema,
+        output_schema=action.output_schema,
+        metadata=dict(action.metadata) if action.metadata else None,
+    )
 
 
 class Registry:
@@ -138,7 +125,6 @@ class Registry:
                 preferred factory rather than passing ``parent`` directly.
         """
         self._parent: Registry | None = parent
-        self._default_model: str | None = None
         self._entries: ActionStore = {}
         self._value_by_kind_and_name: dict[str, dict[str, object]] = {}
         self._schemas_by_name: dict[str, dict[str, object]] = {}
@@ -152,11 +138,14 @@ class Registry:
 
         # Dotprompt resolves ``output.schema`` names via the registry's stored schemas.
         # Async resolver avoids thread-pool deadlock in ``resolve_json_schema``.
-        async def async_schema_resolver(name: str) -> dict[str, object] | str:
-            return self.lookup_schema(name) or name
+        async def async_schema_resolver(name: str) -> dict[str, object]:
+            schema = self.lookup_schema(name)
+            if schema is None:
+                raise GenkitError(status='NOT_FOUND', message=f"Schema '{name}' not found")
+            return schema
 
         # Children share the parent's Dotprompt instance (prompts are global).
-        self.dotprompt: Dotprompt = (
+        self._dotprompt: Dotprompt = (
             parent.dotprompt if parent is not None else Dotprompt(schema_resolver=async_schema_resolver)
         )
         # TODO(#4352): Figure out how to set this.
@@ -204,15 +193,15 @@ class Registry:
         return self._parent is not None
 
     @property
-    def default_model(self) -> str | None:
-        """The default model name, falling back to parent if not set locally."""
-        if self._default_model is not None:
-            return self._default_model
-        return self._parent.default_model if self._parent is not None else None
+    def dotprompt(self) -> Dotprompt:
+        """The shared :class:`Dotprompt` instance for this registry tree.
 
-    @default_model.setter
-    def default_model(self, value: str | None) -> None:
-        self._default_model = value
+        Mutations (partials, helpers) propagate to all sibling and descendant
+        registries because the instance is shared. Use :func:`define_partial`
+        and :func:`define_helper` rather than mutating the returned instance
+        directly, so the public surface stays stable.
+        """
+        return self._dotprompt
 
     def register_action(
         self,
@@ -290,79 +279,65 @@ class Registry:
             await self._trigger_lazy_loading(action)
         return actions
 
-    async def list_actions(self) -> dict[str, Action]:
-        """Return every concrete :class:`Action` in ``_entries``, keyed by ``/<kind>/<name>``.
-
-        Ensures plugins are initialized first so ``init()``-registered actions appear.
-        Merges with the parent registry when present; on duplicate keys the child wins.
-        For advertised-only and DAP-expanded metadata (reflection catalog), use
-        :meth:`list_resolvable_actions`.
-
-        Returns:
-            Map of action key string to :class:`Action` instance.
-        """
-        await self.initialize_all_plugins()
-        local: dict[str, Action] = {}
-        for kind in ActionKind.__members__.values():
-            for name, action in (await self.resolve_actions_by_kind(kind)).items():
-                local[create_action_key(kind, name)] = action
-        if self._parent is None:
-            return local
-        parent_actions = await self._parent.list_actions()
-        return {**parent_actions, **local}
-
-    async def list_resolvable_actions(self) -> dict[str, dict[str, Any]]:
+    async def list_actions(self) -> dict[str, ActionMetadata]:
         """Return reflection metadata for plugins, registered actions, and DAP-expanded tools.
 
-        Builds plugin rows from each plugin's ``list_actions()``, then fills registered
-        actions and DAP expansions via :meth:`list_actions` (which initializes plugins).
-        Merges with parent's list_resolvable_actions() output (prefer child entries on duplicate keys).
+        Initializes plugins, advertises plugin rows from each plugin's ``list_actions()``,
+        then fills registered :class:`Action` rows and expands DAP-provided actions. Merges
+        with the parent registry's catalog; entries from this registry win on duplicate keys.
 
         Returns:
-            Map of action key to reflection-style payload dicts (``key``, ``name``, ``type``, etc.).
+            Map of action key string to typed :class:`ActionMetadata`.
         """
-        local: dict[str, dict[str, Any]] = {}
+        await self.initialize_all_plugins()
 
+        catalog: dict[str, ActionMetadata] = {}
+
+        # 1. Plugin-advertised rows: actions the plugin claims it can resolve on demand.
         with self._lock:
             plugins = list(self._plugins.items())
         for plugin_name, plugin in plugins:
             try:
-                plugin_metas = await plugin.list_actions()
+                advertised = await plugin.list_actions()
             except Exception:
                 logger.exception('Error listing actions for plugin %s', plugin_name)
                 continue
-            for meta in plugin_metas or []:
+            for meta in advertised or []:
                 if not meta.name:
                     raise ValueError(f'Invalid ActionMetadata from {plugin_name}: name required')
                 if not meta.action_type:
                     raise ValueError(f'Invalid ActionMetadata from {plugin_name}: action_type required')
                 key = f'/{meta.action_type}/{meta.name}'
-                local[key] = _reflection_payload_for_action_metadata(meta)
+                catalog[key] = meta.model_copy(update={'key': key})
 
-        actions_dict = await self.list_actions()
-        actions = actions_dict.items()
-        for key, action in actions:
-            local[key] = _reflection_payload_for_registered_action(action)
-            dap = getattr(action, GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR, None)
-            if dap is None:
-                continue
-            try:
-                # Record keys use the provider action ``name``; see
-                # :meth:`DynamicActionProvider.get_action_metadata_record`.
-                record = await dap.get_action_metadata_record(action.name)
-            except Exception:
-                logger.exception(
-                    'Error listing actions for Dynamic Action Provider %s',
-                    action.name,
-                )
-                continue
-            for full_key, meta in record.items():
-                local[full_key] = _reflection_payload_for_action_metadata(meta)
+        # 2. Concrete registered actions, plus DAP-expanded actions if the action is a provider.
+        for kind in ActionKind.__members__.values():
+            for name, action in (await self.resolve_actions_by_kind(kind)).items():
+                key = create_action_key(kind, name)
+                catalog[key] = _action_metadata_for_registered_action(action)
 
+                dap = getattr(action, GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR, None)
+                if dap is None:
+                    continue
+                try:
+                    # DAP action keys are prefixed with the provider action's ``name``;
+                    # see :meth:`DynamicActionProvider.list_action_metadata_by_key`.
+                    dap_actions = await dap.list_action_metadata_by_key(action.name)
+                except Exception:
+                    logger.exception(
+                        'Error listing actions for Dynamic Action Provider %s',
+                        action.name,
+                    )
+                    continue
+                # ``list_action_metadata_by_key`` already populates each entry's ``meta.key``
+                # to match its DAP action key, so we can merge straight into the catalog.
+                catalog.update(dap_actions)
+
+        # 3. Merge in parent registry's catalog; entries from this registry win on duplicate keys.
         if self._parent is None:
-            return local
-        parent_resolvable = await self._parent.list_resolvable_actions()
-        return {**parent_resolvable, **local}
+            return catalog
+        parent_catalog = await self._parent.list_actions()
+        return {**parent_catalog, **catalog}
 
     def register_value(self, kind: str, name: str, value: object) -> None:
         """Registers a value with a given kind and name.
@@ -406,17 +381,22 @@ class Registry:
             return local
         return self._parent.lookup_value(kind, name) if self._parent is not None else None
 
-    def list_values(self, kind: str) -> list[str]:
-        """List all values registered for a specific kind.
+    def list_values(self, kind: str) -> dict[str, object]:
+        """List all values registered for a specific kind, merged with the parent registry.
+
+        Entries from this registry win on duplicate names.
 
         Args:
-            kind: The kind of values to list (e.g., "defaultModel").
+            kind: The kind of values to list (e.g., ``"defaultModel"``, ``"format"``).
 
         Returns:
-            A list of registered value names.
+            Map of value name to value object.
         """
         with self._lock:
-            return list(self._value_by_kind_and_name.get(kind, {}).keys())
+            local = dict(self._value_by_kind_and_name.get(kind, {}))
+        if self._parent is None:
+            return local
+        return {**self._parent.list_values(kind), **local}
 
     def register_plugin(self, plugin: Plugin) -> None:
         """Register a plugin with the registry.

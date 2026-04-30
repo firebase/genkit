@@ -223,7 +223,7 @@ async def test_gets_action_metadata_record(registry: Registry, tool1: Action, to
 
     dap = define_dynamic_action_provider(registry, 'my-dap', dap_fn)
 
-    record = await dap.get_action_metadata_record('my-dap')
+    record = await dap.list_action_metadata_by_key('my-dap')
     tool1_key = '/dynamic-action-provider/my-dap:tool/tool1'
     tool2_key = '/dynamic-action-provider/my-dap:tool/tool2'
     flow1_key = '/dynamic-action-provider/my-dap:flow/tool1'
@@ -375,7 +375,7 @@ async def test_zero_ttl_uses_default(registry: Registry, tool1: Action, tool2: A
 
 
 @pytest.mark.asyncio
-async def test_get_action_metadata_record_raises_on_missing_name(registry: Registry) -> None:
+async def test_list_action_metadata_by_key_raises_on_missing_name(registry: Registry) -> None:
     async def nameless_fn(input: str) -> str:
         return 'nameless'
 
@@ -393,7 +393,7 @@ async def test_get_action_metadata_record_raises_on_missing_name(registry: Regis
     dap = define_dynamic_action_provider(registry, 'my-dap', dap_fn)
 
     with pytest.raises(ValueError, match='name required'):
-        await dap.get_action_metadata_record('my-dap')
+        await dap.list_action_metadata_by_key('my-dap')
 
 
 def test_define_dap_with_full_options(registry: Registry) -> None:

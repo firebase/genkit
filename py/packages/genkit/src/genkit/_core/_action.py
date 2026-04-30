@@ -229,6 +229,11 @@ def extract_action_args_and_types(
 # =============================================================================
 
 
+# Attribute name used to attach a ``DynamicActionProvider`` (cache + helpers)
+# onto the placeholder ``Action`` registered for a DAP. The registry only
+# stores the ``Action``; the provider rides along on it as a Python attribute.
+# Code holding the ``Action`` recovers the provider via
+# ``getattr(action, GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR, None)``.
 GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR = '_genkit_dynamic_action_provider'
 
 
