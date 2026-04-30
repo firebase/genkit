@@ -40,7 +40,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Awaitable, Callable
-from typing import Any, ClassVar, Protocol
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
@@ -55,12 +55,6 @@ from genkit._core._typing import MiddlewareDescData, ToolRequestPart, ToolRespon
 # Disallowed in middleware definition names and in ``middleware_plugin(..., namespace=...)``.
 # Model/action keys use ``provider/name``; middleware stays one path-free token for the registry.
 _FORBIDDEN_IN_MIDDLEWARE_KEY_SEGMENT = re.compile(r'[\x00-\x1f/\\:]|\s')
-
-
-class _MiddlewareRegistryView(Protocol):
-    """Minimal registry surface passed into middleware factories (avoids importing ``Registry`` here)."""
-
-    def lookup_value(self, kind: str, name: str) -> object | None: ...
 
 
 def _validate_middleware_key_segment(name: str, *, label: str) -> None:
@@ -161,19 +155,6 @@ class BaseMiddleware(BaseModel):
         return await next_fn(params)
 
 
-class MiddlewareFnOptions(BaseModel):
-    """Arguments passed when invoking a ``MiddlewareDesc`` callable (descriptor with options)."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    # ``registry`` is typed as Any here so pydantic does not try to build an isinstance
-    # validator against the ``_MiddlewareRegistryView`` Protocol (and so we can avoid
-    # importing the full ``Registry`` class into this low-level module). Structurally
-    # the value always satisfies ``_MiddlewareRegistryView``.
-    registry: Any
-    config: dict[str, Any] | None = None
-
-
 class MiddlewareDesc(MiddlewareDescData):
     """Registered middleware descriptor: wire shape + per-process factory closure.
 
@@ -194,12 +175,12 @@ class MiddlewareDesc(MiddlewareDescData):
     # parent's ``alias_generator`` and ``extra='forbid'`` settings are inherited.
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    _factory: Callable[[MiddlewareFnOptions], BaseMiddleware] = PrivateAttr()
+    _factory: Callable[[dict[str, Any] | None], BaseMiddleware] = PrivateAttr()
 
     def __init__(
         self,
         *,
-        factory: Callable[[MiddlewareFnOptions], BaseMiddleware],
+        factory: Callable[[dict[str, Any] | None], BaseMiddleware],
         name: str,
         description: str | None = None,
         config_schema: object | None = None,
@@ -214,9 +195,9 @@ class MiddlewareDesc(MiddlewareDescData):
         )
         self._factory = factory
 
-    def __call__(self, options: MiddlewareFnOptions) -> BaseMiddleware:
+    def __call__(self, config: dict[str, Any] | None = None) -> BaseMiddleware:
         """Return the BaseMiddleware instance for this request."""
-        return self._factory(options)
+        return self._factory(config)
 
     def with_name(self, name: str) -> MiddlewareDesc:
         """Return a copy with the same factory and metadata but a different registry name."""
@@ -234,7 +215,7 @@ def new_middleware(middleware_cls: type[BaseMiddleware]) -> MiddlewareDesc:
 
     Set ``name``, and optionally ``description``, ``middleware_config_schema``, and
     ``middleware_metadata`` on the class. The resulting factory instantiates the class
-    with ``**(options.config or {})`` when a request resolves the descriptor, so the same
+    with ``**(config or {})`` when a request resolves the descriptor, so the same
     pydantic fields on the class drive both the inline (``use=[Cls(...)]``) and the
     registered (``MiddlewareRef(name=..., config=...)``) paths.
 
@@ -252,10 +233,10 @@ def new_middleware(middleware_cls: type[BaseMiddleware]) -> MiddlewareDesc:
         raise ValueError(f'{middleware_cls.__qualname__}.name must be set for new_middleware(MyClass).')
     _validate_middleware_key_segment(str(reg_name), label=f'{middleware_cls.__qualname__}.name')
 
-    def _factory(opts: MiddlewareFnOptions) -> BaseMiddleware:
+    def _factory(config: dict[str, Any] | None) -> BaseMiddleware:
         # Instantiate with the incoming config so registered use is equivalent to
         # ``use=[middleware_cls(**config)]``; empty/None config uses class defaults.
-        return middleware_cls(**(opts.config or {}))
+        return middleware_cls(**(config or {}))
 
     return MiddlewareDesc(
         name=reg_name,

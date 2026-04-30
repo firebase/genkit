@@ -21,12 +21,13 @@
 """Tests for AI plugin functionality."""
 
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 import pytest
 
 from genkit import Genkit, GenkitError, Message, ModelResponse, Part, Plugin, Role, TextPart, middleware_plugin
 from genkit._core._action import Action, ActionMetadata, ActionRunContext
-from genkit._core._middleware._base import BaseMiddleware, MiddlewareFnOptions
+from genkit._core._middleware._base import BaseMiddleware
 from genkit._core._model import ModelHookParams, ModelRequest
 from genkit._core._registry import ActionKind
 from genkit._core._typing import FinishReason, MiddlewareRef
@@ -151,7 +152,7 @@ class PluginWithMiddleware(Plugin):
         return []
 
     def list_middleware(self) -> list[MiddlewareDesc]:
-        def _factory(_opts: MiddlewareFnOptions) -> BaseMiddleware:
+        def _factory(_config: dict[str, Any] | None) -> BaseMiddleware:
             return _NoopPluginMiddleware()
 
         return [

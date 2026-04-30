@@ -27,13 +27,11 @@ from genkit._core._registry import Registry
 
 from ._base import (
     MiddlewareDesc,
-    MiddlewareFnOptions,
     new_middleware,
 )
 
 __all__ = [
     'MiddlewareDesc',
-    'MiddlewareFnOptions',
     'builtin_middleware_descs',
     'new_middleware',
     'register_builtin_middleware',

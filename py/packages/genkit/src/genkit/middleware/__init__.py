@@ -40,7 +40,6 @@ from genkit._core._middleware._augment_with_context import augment_with_context
 from genkit._core._middleware._base import (
     BaseMiddleware,
     MiddlewareDesc,
-    MiddlewareFnOptions,
     new_middleware,
 )
 from genkit._core._model import GenerateHookParams, ModelHookParams, ToolHookParams
@@ -50,7 +49,6 @@ __all__ = [
     'BaseMiddleware',
     'GenerateHookParams',
     'MiddlewareDesc',
-    'MiddlewareFnOptions',
     'ModelHookParams',
     'ToolHookParams',
     'augment_with_context',

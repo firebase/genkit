@@ -39,7 +39,7 @@ from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
 from genkit._core._middleware._augment_with_context import augment_with_context
-from genkit._core._middleware._base import BaseMiddleware, MiddlewareDesc, MiddlewareFnOptions
+from genkit._core._middleware._base import BaseMiddleware, MiddlewareDesc
 from genkit._core._model import (
     GenerateActionOptions,
     GenerateHookParams,
@@ -94,7 +94,7 @@ def resolve_middleware_from_use(
     Each entry is one of:
     - ``BaseMiddleware`` instance: used directly (inline fast path; no registry lookup).
     - ``MiddlewareRef``: looked up by ``name`` and instantiated via the registered
-      ``MiddlewareDesc`` factory with ``config`` forwarded through ``MiddlewareFnOptions``.
+      ``MiddlewareDesc`` factory, which receives ``config`` directly.
 
     List order is preserved so inline instances and refs can be interleaved.
     """
@@ -109,14 +109,7 @@ def resolve_middleware_from_use(
         defn = registry.lookup_value('middleware', entry.name)
         if isinstance(defn, MiddlewareDesc):
             cfg = entry.config if isinstance(entry.config, dict) else None
-            out.append(
-                defn(
-                    MiddlewareFnOptions(
-                        registry=registry,
-                        config=cfg,
-                    )
-                )
-            )
+            out.append(defn(cfg))
             continue
         raise GenkitError(
             status='NOT_FOUND',
