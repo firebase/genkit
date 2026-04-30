@@ -76,6 +76,33 @@ def tools_to_action_names(
     return names
 
 
+async def registry_with_inline_tools(registry: Registry, tools: Sequence[str | Tool] | None) -> Registry:
+    """Scope unregistered :class:`~genkit._ai._tools.Tool` instances for a single generate call.
+
+    For each :class:`~genkit._ai._tools.Tool` value, if :meth:`Registry.resolve_action` for
+    ``ActionKind.TOOL`` and ``tool.name`` already yields ``tool.action`` (same instance), it is left
+    alone. Otherwise the tool is registered on a short-lived child registry so this call can
+    resolve it without mutating the root.
+
+    Plain string tool names are unchanged.
+    """
+    if not tools:
+        return registry
+
+    child: Registry | None = None
+    for t in tools:
+        if not isinstance(t, Tool):
+            continue
+        resolved = await registry.resolve_action(ActionKind.TOOL, t.name)
+        if resolved is t.action:
+            continue
+        if child is None:
+            child = registry.new_child()
+        child.register_action_from_instance(t.action)
+
+    return child if child is not None else registry
+
+
 # Matches data URIs: everything up to the first comma is the media-type +
 # parameters (e.g. "data:audio/L16;codec=pcm;rate=24000;base64,").
 _DATA_URI_RE = re.compile(r'data:[^,]{0,200},(?=.{100})', re.ASCII)
@@ -335,9 +362,7 @@ async def _generate_action(
         # No message in response, return as-is
         return response
 
-    # Stamp output format metadata on message for Dev UI rendering.
-    # Mirrors JS GenerateResponse constructor which sets message.metadata.generate.output
-    # so the Dev UI knows to render the output as formatted JSON vs plain text.
+    # Stamp output format on the message so the Dev UI can distinguish structured output from plain text.
     out = raw_request.output
     if out and (out.content_type or out.format):
         generate_output: dict[str, str] = {}
@@ -594,11 +619,7 @@ async def resolve_parameters(
     registry: Registry, request: GenerateActionOptions
 ) -> tuple[Action[Any, Any, Any], list[Action[Any, Any, Any]], FormatDef | None]:
     """Resolve model, tools, and format from registry for a generation request."""
-    model = (
-        request.model
-        if request.model is not None
-        else cast(str | None, registry.lookup_value('defaultModel', 'defaultModel'))
-    )
+    model = request.model if request.model is not None else cast(str | None, registry.lookup_value('defaultModel', 'defaultModel'))
     if not model:
         raise Exception('No model configured.')
 
