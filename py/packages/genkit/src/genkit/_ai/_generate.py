@@ -594,7 +594,11 @@ async def resolve_parameters(
     registry: Registry, request: GenerateActionOptions
 ) -> tuple[Action[Any, Any, Any], list[Action[Any, Any, Any]], FormatDef | None]:
     """Resolve model, tools, and format from registry for a generation request."""
-    model = request.model if request.model is not None else cast(str | None, registry.lookup_value('defaultModel', 'defaultModel'))
+    model = (
+        request.model
+        if request.model is not None
+        else cast(str | None, registry.lookup_value('defaultModel', 'defaultModel'))
+    )
     if not model:
         raise Exception('No model configured.')
 
