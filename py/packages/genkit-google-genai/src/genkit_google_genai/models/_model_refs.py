@@ -51,8 +51,24 @@ def wrong_family_error(*, plugin_class: str, method: str, family: str, local: st
     """Build the INVALID_ARGUMENT error naming the id and the way out."""
     if actual == 'embedder':
         hint = f"'{local}' is an embedder; use {plugin_class}.embedding()."
-    elif actual in ('lyria', 'deep-research', 'antigravity'):
-        hint = f"'{local}' has no ref constructor in this plugin."
+    elif actual == 'deep-research':
+        hint = (
+            f"'{local}' is a Deep Research model; use {plugin_class}.deep_research_model()."
+            if plugin_class == 'GoogleAI'
+            else f"'{local}' has no ref constructor in this plugin."
+        )
+    elif actual == 'antigravity':
+        hint = (
+            f"'{local}' is an Antigravity model; use {plugin_class}.antigravity_model()."
+            if plugin_class == 'GoogleAI'
+            else f"'{local}' has no ref constructor in this plugin."
+        )
+    elif actual == 'lyria':
+        hint = (
+            f"'{local}' is a Lyria model; use {plugin_class}.lyria_model()."
+            if plugin_class == 'GoogleAI'
+            else f"'{local}' has no ref constructor in this plugin."
+        )
     elif actual == 'unsupported':
         hint = f"'{local}' is not a supported model."
     elif actual in FAMILY_METHOD:
