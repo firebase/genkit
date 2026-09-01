@@ -222,6 +222,8 @@ class TestClosedRejectSet:
             GoogleAI.veo_model('gemini-2.5-flash')
         with pytest.raises(GenkitError):
             GoogleAI.veo_model('totally-new-model')
+        with pytest.raises(GenkitError, match=r'model name must be a string'):
+            GoogleAI.deep_research_model(None)  # type: ignore[arg-type]
 
 
 class TestEmbeddingConstructor:
