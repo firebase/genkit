@@ -53,6 +53,7 @@ export {
   type DetachedTask,
   type RemoteAgentOptions,
   type SnapshotLookup,
+  type WaitForSnapshotOptions,
 } from './client/agent.js';
 
 export type { AgentFinishReason } from './client/types.js';
