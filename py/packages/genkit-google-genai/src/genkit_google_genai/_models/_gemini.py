@@ -753,6 +753,11 @@ GEMINI_3_7_FLASH = ModelInfo(
     supports=GEMINI_TEXT_SUPPORTS,
 )
 
+GEMINI_3_8_FLASH = ModelInfo(
+    label='Google AI - Gemini 3.8 Flash',
+    supports=GEMINI_TEXT_SUPPORTS,
+)
+
 GEMINI_3_1_PRO_PREVIEW = ModelInfo(
     label='Google AI - Gemini 3.1 Pro Preview',
     supports=Supports(
@@ -951,6 +956,7 @@ KnownGemini: TypeAlias = Literal[
     'gemini-3.5-flash',
     'gemini-3.6-flash',
     'gemini-3.7-flash',
+    'gemini-3.8-flash',
     'gemini-2.5-flash-preview-04-17',
     'gemini-2.5-pro-exp-03-25',
     'gemini-2.5-pro-preview-03-25',
@@ -1004,6 +1010,7 @@ _add_model(GEMINI_3_PRO_PREVIEW, ['gemini-3-pro-preview', 'gemini-pro-latest'])
 _add_model(GEMINI_3_5_FLASH, ['gemini-3.5-flash', 'gemini-flash-latest'])
 _add_model(GEMINI_3_6_FLASH, ['gemini-3.6-flash'])
 _add_model(GEMINI_3_7_FLASH, ['gemini-3.7-flash'])
+_add_model(GEMINI_3_8_FLASH, ['gemini-3.8-flash'])
 _add_model(GEMINI_3_1_PRO_PREVIEW, ['gemini-3.1-pro-preview'])
 _add_model(GEMINI_3_1_PRO_PREVIEW_CUSTOMTOOLS, ['gemini-3.1-pro-preview-customtools'])
 _add_model(GEMINI_3_1_FLASH_LITE_PREVIEW, ['gemini-3.1-flash-lite-preview'])
