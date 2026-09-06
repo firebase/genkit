@@ -48,8 +48,11 @@ from genkit._ai._model import (
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,
+    assert_correct_config_class,
+    config_schema_at_define,
     normalize_config,
     resolve_call_model,
+    resolve_for_generate,
 )
 from genkit._ai._tools import Tool
 from genkit._core._action import (
@@ -295,6 +298,10 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         self._name = name
         self._ns = ns
         self._prompt_action: Action | None = None
+        define_name, define_schema = config_schema_at_define(model=model, registry=registry)
+        # Hop identity is what we knew at define time, not today's defaultModel.
+        self._defined_model_name = define_name
+        assert_correct_config_class(config=config, schema=define_schema, model=define_name)
 
     @property
     def ref(self) -> dict[str, Any]:
@@ -316,6 +323,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         resolved = await lookup_prompt(self._registry, self._name, self._variant)
         self._model = resolved._model
         self._config = resolved._config
+        self._defined_model_name = resolved._defined_model_name
         self._description = resolved._description
         self._input_schema = resolved._input_schema
         self._system = resolved._system
@@ -370,7 +378,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         )
         return cast(ModelResponse[OutputT], result)
 
-    def _prompt_config_for_call(self, opts: PromptGenerateOptions) -> PromptConfig:
+    async def _prompt_config_for_call(self, opts: PromptGenerateOptions) -> PromptConfig:
         """Merge this prompt's definition with per-call ``opts`` into a :class:`PromptConfig`."""
         output_opts = opts.get('output') or {}
         merged_config: Mapping[str, Any] | BaseModel | None
@@ -384,11 +392,24 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         else:
             merged_config = self._config
 
-        resolved = resolve_call_model(
+        resolved = await resolve_for_generate(
             model=opts.get('model') or self._model,
             config=merged_config,
             registry=self._registry,
         )
+        assert_correct_config_class(
+            config=opts.get('config'),
+            schema=resolved.config_schema,
+            model=resolved.name,
+        )
+        # Re-check the stored typed config unless this call hops models.
+        # Leftover-key overlay lives in overlay_config, not here.
+        if self._defined_model_name is None or self._defined_model_name == resolved.name:
+            assert_correct_config_class(
+                config=self._config,
+                schema=resolved.config_schema,
+                model=resolved.name,
+            )
 
         merged_metadata = (
             {**(self._metadata or {}), **(opts.get('metadata') or {})} if opts.get('metadata') else self._metadata
@@ -605,7 +626,7 @@ async def _prepare(
         * ``gen_options`` — the resolved request the engine consumes.
     """
     await ep._ensure_resolved()  # pyright: ignore[reportPrivateUsage]
-    prompt_config = ep._prompt_config_for_call(call_opts)  # pyright: ignore[reportPrivateUsage]
+    prompt_config = await ep._prompt_config_for_call(call_opts)  # pyright: ignore[reportPrivateUsage]
     child_registry = ep._registry.new_child()  # pyright: ignore[reportPrivateUsage]
     await register_tools(child_registry, prompt_config.tools)
     refs = register_middleware(child_registry, prompt_config.use)
