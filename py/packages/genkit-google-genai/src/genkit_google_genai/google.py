@@ -1056,7 +1056,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
         |---|---|---|
         | Gemini / Gemma | MODEL | ``vertexai/gemini-flash-latest`` |
         | Imagen | MODEL | ``vertexai/imagen-3.0-generate-002`` |
-        | Veo (Video) | BACKGROUND_MODEL | ``vertexai/veo-3.1-generate-preview`` |
+        | Veo (Video) | BACKGROUND_MODEL | ``vertexai/veo-3.1-generate-001`` |
         | Embedders | EMBEDDER | ``vertexai/text-embedding-005`` |
 
     Example:
