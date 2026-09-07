@@ -706,6 +706,48 @@ class TestResolveRequestClient:
         assert exc.value.status == 'INVALID_ARGUMENT'
 
     @pytest.mark.asyncio
+    async def test_secrets_api_key_surrounding_whitespace_stripped(self) -> None:
+        client = MagicMock()
+        client.vertexai = False
+        model = GeminiModel(
+            'gemini-2.5-flash',
+            client,
+            client_kwargs={'vertexai': False, 'api_key': 'plugin-key'},
+        )
+        with patch('genkit_google_genai.models.gemini.genai.Client') as mock_ctor:
+            await model._resolve_request_client(
+                _text_request(),
+                context={'secrets': {'api_key': '   sk-tenant-padded   '}},
+            )
+        assert mock_ctor.call_args.kwargs['api_key'] == 'sk-tenant-padded'
+
+    @pytest.mark.asyncio
+    async def test_secrets_api_key_internal_whitespace_and_control_chars_rejected(self) -> None:
+        client = MagicMock()
+        client.vertexai = False
+        model = GeminiModel(
+            'gemini-2.5-flash',
+            client,
+            client_kwargs={'vertexai': False, 'api_key': 'plugin-key'},
+        )
+        malformed_keys = [
+            'sk-tenant\nkey',
+            'sk-tenant\rkey',
+            'sk-tenant\0key',
+            'sk tenant',
+            'sk\ttenant',
+        ]
+        for bad_key in malformed_keys:
+            with pytest.raises(GenkitError, match='invalid whitespace or control characters') as exc:
+                await model._resolve_request_client(
+                    _text_request(),
+                    context={'secrets': {'api_key': bad_key}},
+                )
+            assert exc.value.status == 'INVALID_ARGUMENT'
+            # Ensure the secret is never interpolated into the error message
+            assert bad_key not in str(exc.value)
+
+    @pytest.mark.asyncio
     async def test_vertex_secrets_drops_project_and_location(self) -> None:
         """A tenant key is not a regional Vertex host."""
         model = _vertex_model()

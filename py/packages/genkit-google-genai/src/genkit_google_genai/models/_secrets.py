@@ -38,7 +38,15 @@ def string_secret(value: object) -> str | None:
     if value is None or value == '':
         return None
     if isinstance(value, str):
-        return value
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        if any(c in cleaned for c in ('\r', '\n', '\0', ' ', '\t')):
+            raise GenkitError(
+                status='INVALID_ARGUMENT',
+                message=f'context.secrets.api_key contains invalid whitespace or control characters. {SECRETS_SLOT}',
+            )
+        return cleaned
     raise GenkitError(
         status='INVALID_ARGUMENT',
         message=f'context.secrets.api_key must be a string. {SECRETS_SLOT}',
