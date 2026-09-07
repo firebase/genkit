@@ -251,3 +251,39 @@ async def test_get_interaction_quotes_path_traversal_id(http_client: MagicMock) 
     encoded = quote('../evil', safe='')
     assert '../' not in url
     assert url.endswith(f'/interactions/{encoded}')
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ('status_code', 'expected_status'),
+    [
+        (502, 'INTERNAL'),
+        (504, 'DEADLINE_EXCEEDED'),
+    ],
+)
+async def test_gateway_errors_mapped_to_status(
+    http_client: MagicMock,
+    status_code: int,
+    expected_status: str,
+) -> None:
+    http_client.request.return_value = mock_response(
+        status_code=status_code,
+        text='Gateway error',
+    )
+    with patch.object(interactions_client, 'get_cached_client', return_value=http_client):
+        with pytest.raises(GenkitError) as exc_info:
+            await get_interaction('key', 'ix-1')
+    assert exc_info.value.status == expected_status
+
+
+@pytest.mark.asyncio
+async def test_error_without_retry_after_has_no_response_metadata(http_client: MagicMock) -> None:
+    http_client.request.return_value = mock_response(
+        status_code=429,
+        json_body={'error': {'message': 'slow down'}},
+    )
+    with patch.object(interactions_client, 'get_cached_client', return_value=http_client):
+        with pytest.raises(GenkitError) as exc_info:
+            await create_interaction('key', {'model': 'lyria'})
+    assert exc_info.value.status == 'RESOURCE_EXHAUSTED'
+    assert exc_info.value.response_metadata is None

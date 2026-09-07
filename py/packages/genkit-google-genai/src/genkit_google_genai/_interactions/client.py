@@ -20,8 +20,6 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
 from typing import cast
 from urllib.parse import quote
 
@@ -30,9 +28,14 @@ from genkit_google_genai._interactions.options import ClientOptions
 from google.genai.interactions import Interaction
 
 from genkit import GenkitError
-from genkit._core._error import ErrorResponseMetadata, StatusName
+from genkit._core._error import ErrorResponseMetadata
 from genkit._core._logger import get_logger
-from genkit.plugin_api import GENKIT_CLIENT_HEADER, get_cached_client
+from genkit.plugin_api import (
+    GENKIT_CLIENT_HEADER,
+    from_http_code,
+    get_cached_client,
+    parse_retry_after_ms,
+)
 
 logger = get_logger(__name__)
 
@@ -71,7 +74,7 @@ def headers(*, api_key: str, client_options: ClientOptions | None) -> dict[str, 
     custom['x-goog-api-client'] = GENKIT_CLIENT_HEADER
     custom['Api-Revision'] = API_REVISION
     custom['x-goog-api-key'] = api_key
-    return {key: value for key, value in custom.items()}
+    return dict(custom)
 
 
 def timeout_seconds(client_options: ClientOptions | None) -> float | None:
@@ -80,48 +83,6 @@ def timeout_seconds(client_options: ClientOptions | None) -> float | None:
     if opts.timeout is not None and opts.timeout >= 0:
         return opts.timeout / 1000.0
     return None
-
-
-def parse_retry_after_ms(value: str | None) -> float | None:
-    """Read a Retry-After header, which may be a delay in seconds or an HTTP date."""
-    if not value or not value.strip():
-        return None
-    try:
-        seconds = float(value)
-    except ValueError:
-        seconds = -1.0
-    if seconds >= 0:
-        return seconds * 1000
-    try:
-        retry_at = parsedate_to_datetime(value)
-    except (TypeError, ValueError, OverflowError):
-        return None
-    if retry_at.tzinfo is None:
-        retry_at = retry_at.replace(tzinfo=timezone.utc)
-    return max(0.0, (retry_at - datetime.now(timezone.utc)).total_seconds() * 1000)
-
-
-def status_for_http_code(status_code: int) -> StatusName:
-    """Map an HTTP status onto the Genkit error status callers switch on."""
-    match status_code:
-        case 429:
-            return 'RESOURCE_EXHAUSTED'
-        case 400:
-            return 'INVALID_ARGUMENT'
-        case 401:
-            return 'UNAUTHENTICATED'
-        case 403:
-            return 'PERMISSION_DENIED'
-        case 404:
-            return 'NOT_FOUND'
-        case 499:
-            return 'CANCELLED'
-        case 500:
-            return 'INTERNAL'
-        case 503:
-            return 'UNAVAILABLE'
-        case _:
-            return 'UNKNOWN'
 
 
 async def create_interaction(
@@ -256,13 +217,14 @@ async def request(
     except json.JSONDecodeError:
         pass
 
-    retry_after_ms = parse_retry_after_ms(response.headers.get('retry-after'))
+    retry_after_header = response.headers.get('retry-after')
+    retry_after_ms = parse_retry_after_ms(retry_after_header) if retry_after_header else None
     response_metadata: ErrorResponseMetadata | None = None
     if retry_after_ms is not None:
         response_metadata = cast(ErrorResponseMetadata, {'retry_after_ms': retry_after_ms})
 
     raise GenkitError(
-        status=status_for_http_code(response.status_code),
+        status=from_http_code(response.status_code),
         message=(f'Request to {url} failed with HTTP {response.status_code} {response.reason_phrase}: {error_message}'),
         details=error_detail,
         response_metadata=response_metadata,
