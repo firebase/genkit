@@ -48,6 +48,7 @@ Example:
 
 from __future__ import annotations
 
+import asyncio
 import os
 from collections.abc import Callable
 from typing import Any
@@ -249,6 +250,17 @@ def _list_genai_models(client: genai.Client, is_vertex: bool) -> GenaiModels:
                 models.gemini.append(name)
 
     return models
+
+
+async def _list_genai_models_async(client: genai.Client, is_vertex: bool) -> GenaiModels:
+    """Discover models without blocking the event loop.
+
+    The Google GenAI SDK exposes model discovery through a synchronous client
+    surface. Keep the synchronous helper for callers that already run outside
+    an event loop, but move its network I/O to the default executor for
+    asynchronous plugin entry points.
+    """
+    return await asyncio.to_thread(_list_genai_models, client, is_vertex)
 
 
 GOOGLEAI_PLUGIN_NAME = 'googleai'
@@ -627,7 +639,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         Returns:
             List of Action objects for known/supported models.
         """
-        genai_models = _list_genai_models(self._runtime_client(), is_vertex=False)
+        genai_models = await _list_genai_models_async(self._runtime_client(), is_vertex=False)
 
         actions: list[Action] = []
         # Gemini Models
@@ -814,7 +826,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         """
         if self._list_actions_cache is not None:
             return self._list_actions_cache
-        genai_models = _list_genai_models(self._runtime_client(), is_vertex=False)
+        genai_models = await _list_genai_models_async(self._runtime_client(), is_vertex=False)
         actions_list = []
 
         for name in genai_models.gemini:
@@ -995,7 +1007,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
         Returns:
             List of Action objects for known/supported models.
         """
-        genai_models = _list_genai_models(self._runtime_client(), is_vertex=True)
+        genai_models = await _list_genai_models_async(self._runtime_client(), is_vertex=True)
         actions: list[Action] = []
 
         for name in genai_models.gemini:
@@ -1248,7 +1260,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
         """
         if self._list_actions_cache is not None:
             return self._list_actions_cache
-        genai_models = _list_genai_models(self._runtime_client(), is_vertex=True)
+        genai_models = await _list_genai_models_async(self._runtime_client(), is_vertex=True)
         actions_list = []
 
         for name in genai_models.gemini:
