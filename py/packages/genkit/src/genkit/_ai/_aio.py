@@ -44,7 +44,7 @@ from genkit._ai._agents._base import (
 from genkit._ai._agents._runtime import AgentFn
 from genkit._ai._agents._session import SessionStore, StateT, get_current_session
 from genkit._ai._agents._types import ChunkTransform, StateTransform
-from genkit._ai._embedding import EmbedderFn, EmbedderOptions, EmbedderRef, define_embedder
+from genkit._ai._embedding import EmbedderFn, EmbedderInfo, EmbedderRef, define_embedder
 from genkit._ai._evaluator import (
     BatchEvaluatorFn,
     EvaluatorFn,
@@ -66,8 +66,9 @@ from genkit._ai._model import (
     ModelFn,
     ModelResponse,
     ModelResponseChunk,
+    assert_correct_config_class,
     define_model,
-    resolve_call_model,
+    resolve_for_generate,
 )
 from genkit._ai._prompt import (
     ExecutablePrompt,
@@ -471,12 +472,12 @@ class Genkit:
         self,
         name: str,
         fn: EmbedderFn,
-        options: EmbedderOptions | None = None,
+        info: EmbedderInfo | None = None,
         metadata: dict[str, object] | None = None,
         description: str | None = None,
     ) -> Action:
         """Register a custom embedder action."""
-        return define_embedder(self.registry, name, fn, options, metadata, description)
+        return define_embedder(self.registry, name, fn, info, metadata, description)
 
     def define_format(self, format: FormatDef) -> None:
         """Register a custom output format."""
@@ -1324,7 +1325,8 @@ class Genkit:
         child_registry = self.registry.new_child()
         await register_tools(child_registry, tools)
         refs = register_middleware(child_registry, use)
-        resolved = resolve_call_model(model=model, config=config, registry=child_registry)
+        resolved = await resolve_for_generate(model=model, config=config, registry=child_registry)
+        assert_correct_config_class(config=config, schema=resolved.config_schema, model=resolved.name)
         prompt_config = PromptConfig(
             model=resolved.name,
             prompt=prompt,
@@ -1492,6 +1494,11 @@ class Genkit:
     ) -> ModelStreamResponse[Any]:
         """Stream generated text, returning a ModelStreamResponse with .stream and .response.
 
+        With ``output_schema=Recipe``, each ``chunk.output`` is a partial of
+        that type: same attributes, any field may still be ``None`` or a
+        prefix. Guard the field you are about to use. The finished
+        ``Recipe`` is only ``(await sr.response).output``.
+
         Example:
             stream = ai.generate_stream(prompt='Write a haiku about rain.')
             async for chunk in stream.stream:
@@ -1506,7 +1513,8 @@ class Genkit:
             child_registry = self.registry.new_child()
             await register_tools(child_registry, tools)
             refs = register_middleware(child_registry, use)
-            resolved = resolve_call_model(model=model, config=config, registry=child_registry)
+            resolved = await resolve_for_generate(model=model, config=config, registry=child_registry)
+            assert_correct_config_class(config=config, schema=resolved.config_schema, model=resolved.name)
             prompt_config = PromptConfig(
                 model=resolved.name,
                 prompt=prompt,
@@ -1813,12 +1821,13 @@ class Genkit:
             while not op.done:
                 op = await ai.check_operation(op)
         """
-        resolved = resolve_call_model(
+        resolved = await resolve_for_generate(
             model=model,
             config=config,
             registry=self.registry,
             message='No model specified for generate_operation.',
         )
+        assert_correct_config_class(config=config, schema=resolved.config_schema, model=resolved.name)
 
         model_action = await self.registry.resolve_model(resolved.name)
         if not model_action:

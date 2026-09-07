@@ -77,7 +77,7 @@ from genkit._core._typing import (
 
 # Import embedder-related types from the embedder namespace
 from genkit.embedder import (
-    EmbedderOptions,
+    EmbedderInfo,
     EmbedderRef,
     Embedding,
     EmbedRequest,
@@ -98,6 +98,7 @@ from genkit.model import (
     Stage,
     Supports,
     ToolDefinition,
+    background_model,
 )
 
 # Flow is an alias for Action (used in samples for flow type hints)
@@ -112,7 +113,7 @@ __all__ = [
     'StreamResponse',
     'EmbedRequest',
     'EmbedResponse',
-    'EmbedderOptions',
+    'EmbedderInfo',
     'EmbedderRef',
     'ModelConfigDict',
     'ModelInfo',
@@ -127,6 +128,7 @@ __all__ = [
     'respond_to_interrupt',
     'restart_tool',
     'tool',
+    'background_model',
     # Content types
     'Constrained',
     'CustomPart',

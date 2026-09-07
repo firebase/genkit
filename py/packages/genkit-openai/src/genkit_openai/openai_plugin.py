@@ -24,8 +24,8 @@ from openai import AsyncOpenAI
 from openai.types import Model
 
 from genkit import Embedding, EmbedRequest, EmbedResponse, GenkitError, ModelInfo, ModelRequest, ModelResponse, Supports
-from genkit.embedder import EmbedderOptions, EmbedderSupports, embedder_action_metadata
-from genkit.model import ModelRef, model_action_metadata, model_ref
+from genkit.embedder import EmbedderInfo, EmbedderSupports, embedder, embedder_action_metadata
+from genkit.model import ModelRef, model as create_model, model_action_metadata, model_ref
 from genkit.plugin_api import (
     Action,
     ActionKind,
@@ -386,10 +386,10 @@ class OpenAI(Plugin):
             openai_model = OpenAIModelHandler(OpenAIModel(clean_name, self._runtime_client()))
             return await openai_model.generate(request, ctx)
 
-        return Action(
-            kind=ActionKind.MODEL,
-            name=name,
-            fn=_generate,
+        return create_model(
+            name,
+            _generate,
+            config_schema=OpenAIConfig,
             metadata={
                 'model': {
                     **model_info,
@@ -423,15 +423,11 @@ class OpenAI(Plugin):
             model_instance = model_class(clean_name, self._runtime_client())
             return await model_instance.generate(request, ctx)
 
-        return Action(
-            kind=ActionKind.MODEL,
-            name=name,
-            fn=_generate,
-            metadata=model_action_metadata(
-                name=name,
-                config_schema=config_schema,
-                info=info_dict,
-            ).metadata,
+        return create_model(
+            name,
+            _generate,
+            config_schema=config_schema,
+            metadata={'model': info_dict},
         )
 
     def _create_embedder_action(self, name: str) -> Action:
@@ -506,13 +502,12 @@ class OpenAI(Plugin):
             embeddings = [Embedding(embedding=item.embedding) for item in response.data]
             return EmbedResponse(embeddings=embeddings)
 
-        return Action(
-            kind=ActionKind.EMBEDDER,
-            name=name,
-            fn=embed_fn,
+        return embedder(
+            name,
+            embed_fn,
             metadata=embedder_action_metadata(
                 name=name,
-                options=EmbedderOptions(
+                info=EmbedderInfo(
                     label=embedder_info['label'],
                     supports=EmbedderSupports(input=embedder_info['supports']['input']),
                     dimensions=embedder_info.get('dimensions'),
@@ -544,7 +539,7 @@ class OpenAI(Plugin):
                 actions.append(
                     embedder_action_metadata(
                         name=open_ai_name(name),
-                        options=EmbedderOptions(
+                        info=EmbedderInfo(
                             label=f'OpenAI Embedding - {name}',
                             supports=EmbedderSupports(input=['text']),
                         ),
