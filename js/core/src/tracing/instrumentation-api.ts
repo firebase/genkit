@@ -136,6 +136,59 @@ export function firstNonEmpty(ids: (string | undefined)[]): string {
 }
 
 /**
+ * Key-name patterns whose values are credentials and must never be exported in
+ * a span attribute. Config schemas are `passthrough`, so arbitrary
+ * secret-bearing fields can appear; matching on the key name rather than an
+ * allowlist of known fields covers those too.
+ *
+ * Matched against the key lowercased with `_`/`-` removed. `token` is
+ * intentionally only matched in credential-shaped compounds: a bare `token`
+ * substring would also redact the numeric `inputTokens`/`outputTokens`/
+ * `totalTokens`/`maxOutputTokens` fields that trace consumers read.
+ */
+const REDACTED_KEY_PATTERN =
+  /apikey|secret|password|passwd|credential|authorization|(?:access|refresh|session|bearer|auth|id|api)token/;
+
+function isRedactedKey(key: string): boolean {
+  return REDACTED_KEY_PATTERN.test(key.toLowerCase().replace(/[_-]/g, ''));
+}
+
+function redactCredentials(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(redactCredentials);
+  }
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) {
+      out[key] = isRedactedKey(key) ? '<redacted>' : redactCredentials(item);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Serializes a value for a span attribute without exporting credentials that
+ * arbitrary (`passthrough`) config objects may carry. Redacted keys are kept
+ * with a `'<redacted>'` value so the attribute stays valid JSON of the same
+ * shape for existing trace consumers.
+ *
+ * @hidden
+ */
+export function telemetryJsonString(value: unknown): string {
+  const raw = JSON.stringify(value);
+  // Most span values carry no credentials. Avoid walking the value unless the
+  // serialized form mentions one of the redacted key names.
+  if (raw === undefined) {
+    return raw;
+  }
+  if (!REDACTED_KEY_PATTERN.test(raw.toLowerCase().replace(/[_-]/g, ''))) {
+    return raw;
+  }
+  return JSON.stringify(redactCredentials(JSON.parse(raw)));
+}
+
+/**
  * Maps SpanMetadata to the flat `genkit:*` attribute set persisted on a span.
  * Shared by all providers so encodings stay identical.
  *
@@ -159,7 +212,7 @@ export function metadataToAttributes(
       key === 'init' ||
       typeof metadata[key] === 'object'
     ) {
-      out[ATTR_PREFIX + ':' + key] = JSON.stringify(metadata[key]);
+      out[ATTR_PREFIX + ':' + key] = telemetryJsonString(metadata[key]);
     } else {
       out[ATTR_PREFIX + ':' + key] = metadata[key];
     }
