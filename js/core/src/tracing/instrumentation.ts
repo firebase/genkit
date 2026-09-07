@@ -224,16 +224,17 @@ function getErrorMessage(e: any): string {
  * secret-bearing fields can appear; matching on the key name rather than an
  * allowlist of known fields covers those too.
  *
- * Matched against the key lowercased with `_`/`-` removed. `token` is
- * intentionally only matched in credential-shaped compounds: a bare `token`
- * substring would also redact the numeric `inputTokens`/`outputTokens`/
- * `totalTokens`/`maxOutputTokens` fields that trace consumers read.
+ * Matched case-insensitively against the raw key, with `_`/`-` separators
+ * handled by the pattern itself. `token` is intentionally only matched in
+ * credential-shaped compounds: a bare `token` substring would also redact the
+ * numeric `inputTokens`/`outputTokens`/`totalTokens`/`maxOutputTokens` fields
+ * that trace consumers read.
  */
 const REDACTED_KEY_PATTERN =
-  /apikey|secret|password|passwd|credential|authorization|(?:access|refresh|session|bearer|auth|id|api)token/;
+  /api[-_]*key|secret|pass[-_]*word|passwd|credential|authorization|(?:access|refresh|session|bearer|auth|id|api)[-_]*token/i;
 
 function isRedactedKey(key: string): boolean {
-  return REDACTED_KEY_PATTERN.test(key.toLowerCase().replace(/[_-]/g, ''));
+  return REDACTED_KEY_PATTERN.test(key);
 }
 
 function redactCredentials(value: unknown): unknown {
@@ -258,14 +259,14 @@ function redactCredentials(value: unknown): unknown {
  *
  * @hidden
  */
-export function telemetryJsonString(value: unknown): string {
+export function telemetryJsonString(value: unknown): string | undefined {
   const raw = JSON.stringify(value);
   // Most span values carry no credentials. Avoid walking the value unless the
   // serialized form mentions one of the redacted key names.
   if (raw === undefined) {
     return raw;
   }
-  if (!REDACTED_KEY_PATTERN.test(raw.toLowerCase().replace(/[_-]/g, ''))) {
+  if (!REDACTED_KEY_PATTERN.test(raw)) {
     return raw;
   }
   return JSON.stringify(redactCredentials(JSON.parse(raw)));
@@ -287,7 +288,10 @@ function metadataToAttributes(metadata: SpanMetadata): Record<string, string> {
       key === 'init' ||
       typeof metadata[key] === 'object'
     ) {
-      out[ATTR_PREFIX + ':' + key] = telemetryJsonString(metadata[key]);
+      const json = telemetryJsonString(metadata[key]);
+      if (json !== undefined) {
+        out[ATTR_PREFIX + ':' + key] = json;
+      }
     } else {
       out[ATTR_PREFIX + ':' + key] = metadata[key];
     }
