@@ -20,7 +20,6 @@ import asyncio
 import os
 import queue
 import threading
-import time
 from typing import cast, get_args, get_type_hints
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -674,20 +673,24 @@ def test_list_genai_models_vertex_skips_substring_veo_and_retired_image() -> Non
 
 @pytest.mark.asyncio
 async def test_list_genai_models_async_does_not_block_event_loop() -> None:
-    """Model discovery yields control while the synchronous SDK call is running."""
+    """Model discovery runs in a separate thread to avoid blocking the event loop."""
+
+    main_thread_id = threading.get_ident()
+    worker_thread_id = None
 
     def list_models() -> list[MagicMock]:
-        time.sleep(0.25)
+        nonlocal worker_thread_id
+        worker_thread_id = threading.get_ident()
         return []
 
     client = MagicMock()
     client.models.list.side_effect = list_models
-    task = asyncio.create_task(_list_genai_models_async(client, is_vertex=False))
 
-    await asyncio.sleep(0.05)
+    result = await _list_genai_models_async(client, is_vertex=False)
 
-    assert not task.done()
-    assert (await task).gemini == []
+    assert worker_thread_id is not None
+    assert worker_thread_id != main_thread_id
+    assert result.gemini == []
 
 
 @patch('genkit_google_genai.google.genai.client.Client')
