@@ -20,6 +20,7 @@ import asyncio
 import os
 import queue
 import threading
+from collections.abc import AsyncIterator
 from typing import cast, get_args, get_type_hints
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -39,7 +40,7 @@ from genkit_google_genai.google import (
     VERTEXAI_PLUGIN_NAME,
     GenaiModels,
     _list_genai_models,
-    _list_genai_models_async,
+    _list_genai_models_sync,
     googleai_name,
     vertexai_name,
 )
@@ -664,7 +665,7 @@ def test_list_genai_models_vertex_skips_substring_veo_and_retired_image() -> Non
         _model('publishers/google/models/virtual-try-on-001'),
         _model('publishers/google/models/imagetext@001'),
     ]
-    catalog = _list_genai_models(client, is_vertex=True)
+    catalog = _list_genai_models_sync(client, is_vertex=True)
     assert catalog.veo == ['veo-3.0-generate-001']
     assert catalog.imagen == []
     assert 'imagetext@001' not in catalog.gemini
@@ -673,23 +674,18 @@ def test_list_genai_models_vertex_skips_substring_veo_and_retired_image() -> Non
 
 @pytest.mark.asyncio
 async def test_list_genai_models_async_does_not_block_event_loop() -> None:
-    """Model discovery runs in a separate thread to avoid blocking the event loop."""
+    """Model discovery uses the SDK's asynchronous client surface."""
 
-    main_thread_id = threading.get_ident()
-    worker_thread_id = None
-
-    def list_models() -> list[MagicMock]:
-        nonlocal worker_thread_id
-        worker_thread_id = threading.get_ident()
-        return []
+    async def empty_models() -> AsyncIterator[MagicMock]:
+        if False:
+            yield MagicMock()
 
     client = MagicMock()
-    client.models.list.side_effect = list_models
+    client.aio.models.list = AsyncMock(return_value=empty_models())
 
-    result = await _list_genai_models_async(client, is_vertex=False)
+    result = await _list_genai_models(client, is_vertex=False)
 
-    assert worker_thread_id is not None
-    assert worker_thread_id != main_thread_id
+    client.aio.models.list.assert_awaited_once_with()
     assert result.gemini == []
 
 
