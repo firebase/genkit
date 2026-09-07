@@ -73,7 +73,12 @@ logger = logging.getLogger(__name__)
 
 
 def _function_response_part(part: genai.types.Part) -> genai.types.FunctionResponsePart | None:
-    """Media from a converted Genkit part, in the FunctionResponse.parts shape."""
+    """Media from a converted Genkit part, in the FunctionResponse.parts shape.
+
+    Gemini's FunctionResponse.parts wire format only accepts media attachments
+    (inline bytes or file URI). Non-media parts (text, data, reasoning) are
+    omitted here.
+    """
     if part.inline_data and part.inline_data.data is not None:
         return genai.types.FunctionResponsePart.from_bytes(
             data=part.inline_data.data,
@@ -84,6 +89,7 @@ def _function_response_part(part: genai.types.Part) -> genai.types.FunctionRespo
             file_uri=part.file_data.file_uri,
             mime_type=part.file_data.mime_type,
         )
+    logger.debug('Skipping non-media part for FunctionResponse.parts: %s', part)
     return None
 
 
