@@ -45,7 +45,7 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
-  "google-genai>=1.63.0",
+  "google-genai>=2.14.0,<3",
   "google-cloud-aiplatform>=1.77.0",
   "structlog>=25.2.0",
   "strenum>=0.4.15; python_version < '3.11'",
@@ -63,7 +63,7 @@ license = "Apache-2.0"
 name = "genkit-google-genai"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.10.0"
+version = "0.11.0"
 
 [project.urls]
 "Bug Tracker"   = "https://github.com/genkit-ai/genkit/issues"

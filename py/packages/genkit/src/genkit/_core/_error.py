@@ -110,7 +110,7 @@ def runtime_error_reason(details: object) -> RuntimeErrorReason | None:
     if not isinstance(value, str):
         return None
     try:
-        return cast(RuntimeErrorReason, RuntimeErrorReason(value))
+        return RuntimeErrorReason(value)  # pyrefly: ignore[bad-return]
     except ValueError:
         return None
 
