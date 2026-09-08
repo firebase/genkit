@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/core/status"
+	"github.com/firebase/genkit/go/internal/base"
 )
 
 // A Document is a piece of data that can be embedded, indexed, or retrieved.
@@ -45,14 +46,55 @@ type Part struct {
 	ToolResponse *ToolResponse  `json:"toolResponse,omitempty"` // valid for kind==partToolResponse
 	Resource     *ResourcePart  `json:"resource,omitempty"`     // valid for kind==partResource
 	Custom       map[string]any `json:"custom,omitempty"`       // valid for plugin-specific custom parts
+	Interrupt    *ToolInterrupt `json:"-"`                      // valid for kind==partToolRequest
+	Restart      *ToolRestart   `json:"-"`                      // valid for kind==partToolRequest
 	Metadata     map[string]any `json:"metadata,omitempty"`     // valid for all kinds
 }
 
+// ToolInterrupt is the interrupt state of a tool request [Part]. A non-nil
+// Interrupt on a tool request part means the tool paused execution and returned
+// control to the caller; the caller resolves it with [Part.ToToolRestart] or
+// [Part.ToToolResponse].
+//
+// On the wire it is carried in the part's metadata map (under "interrupt", or
+// "resolvedInterrupt" once resolved) for compatibility with the JS runtime;
+// marshaling folds it in and unmarshaling lifts it back out.
+type ToolInterrupt struct {
+	// Data is the payload the tool interrupted with, e.g. the question it
+	// needs answered. It must serialize to a JSON object (a struct or a map);
+	// nil means the tool interrupted without data.
+	Data any
+	// Resolved reports whether the interrupt has been resolved (by a restart
+	// that re-executed the tool or by a caller-provided response). A resolved
+	// interrupt is kept for history; the part no longer awaits resolution.
+	Resolved bool
+}
+
+// ToolRestart marks a tool request [Part] as a restart of an interrupted call,
+// carrying the data the caller sends back to the tool when it re-executes.
+//
+// On the wire it is carried in the part's metadata map (under "resumed" and
+// "replacedInput") for compatibility with the JS runtime; marshaling folds it
+// in and unmarshaling lifts it back out.
+type ToolRestart struct {
+	// Resume is the payload delivered to the tool function's resume parameter,
+	// e.g. the user's answer to the question the tool interrupted with. It must
+	// serialize to a JSON object (a struct or a map); nil means a bare restart,
+	// i.e. restarting is itself the approval.
+	Resume any
+	// OriginalInput preserves the tool's original input when the caller
+	// provided a new one for re-execution (via [WithNewInput]). On the wire it
+	// is carried under the metadata key "replacedInput" for compatibility with
+	// the JS runtime.
+	OriginalInput any
+}
+
 // Clone returns a shallow copy of the Part with its own Metadata and Custom
-// maps. Callers can add or remove map keys without mutating the original. When
-// Data holds a map[string]any or []any (the common cases for data parts, e.g.
-// A2UI envelopes), the top-level container is cloned too so callers can mutate
-// its keys/elements without disturbing the original; nested values are still
+// maps and its own Interrupt and Restart state. Callers can add or remove map
+// keys or flip interrupt state without mutating the original. When Data holds
+// a map[string]any or []any (the common cases for data parts, e.g. A2UI
+// envelopes), the top-level container is cloned too so callers can mutate its
+// keys/elements without disturbing the original; nested values are still
 // shared by reference. Cloning both shapes (rather than only maps) keeps the
 // isolation guarantee independent of whether a payload is an object or an array.
 func (p *Part) Clone() *Part {
@@ -67,6 +109,14 @@ func (p *Part) Clone() *Part {
 		cp.Data = maps.Clone(d)
 	case []any:
 		cp.Data = slices.Clone(d)
+	}
+	if p.Interrupt != nil {
+		i := *p.Interrupt
+		cp.Interrupt = &i
+	}
+	if p.Restart != nil {
+		r := *p.Restart
+		cp.Restart = &r
 	}
 	return &cp
 }
@@ -97,6 +147,29 @@ const (
 	PartReasoning
 	PartResource
 )
+
+// partKindNames maps each valid PartKind to its wire name, mirroring the field
+// names of the JS part union. Shared by [PartKind.String] and [Part.Validate]
+// so the two cannot drift.
+var partKindNames = map[PartKind]string{
+	PartText:         "text",
+	PartMedia:        "media",
+	PartData:         "data",
+	PartToolRequest:  "toolRequest",
+	PartToolResponse: "toolResponse",
+	PartCustom:       "custom",
+	PartReasoning:    "reasoning",
+	PartResource:     "resource",
+}
+
+// String returns the wire name of the part kind (e.g. "toolRequest"), or
+// "unknown" for a value outside the defined kinds.
+func (k PartKind) String() string {
+	if name, ok := partKindNames[k]; ok {
+		return name
+	}
+	return "unknown"
+}
 
 // NewTextPart returns a Part containing text.
 func NewTextPart(text string) *Part {
@@ -219,9 +292,17 @@ func (p *Part) IsToolResponse() bool {
 	return p != nil && p.Kind == PartToolResponse
 }
 
-// IsInterrupt reports whether the [Part] contains a tool request that was interrupted.
+// IsInterrupt reports whether the [Part] contains a tool request whose
+// interrupt is awaiting resolution. Resolved interrupts are kept on the part
+// (see [ToolInterrupt.Resolved]) but no longer count.
 func (p *Part) IsInterrupt() bool {
-	return p != nil && p.IsToolRequest() && p.Metadata != nil && p.Metadata["interrupt"] != nil
+	return p != nil && p.IsToolRequest() && p.Interrupt != nil && !p.Interrupt.Resolved
+}
+
+// IsRestart reports whether the [Part] contains a tool request that restarts an
+// interrupted call.
+func (p *Part) IsRestart() bool {
+	return p != nil && p.IsToolRequest() && p.Restart != nil
 }
 
 // IsPartial reports whether the [Part] contains a partial tool response
@@ -290,7 +371,7 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 	case PartText:
 		v := textPart{
 			Text:     p.Text,
-			Metadata: p.Metadata,
+			Metadata: p.wireMetadata(),
 		}
 		return json.Marshal(v)
 	case PartMedia:
@@ -299,48 +380,175 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 				ContentType: p.ContentType,
 				Url:         p.Text,
 			},
-			Metadata: p.Metadata,
+			Metadata: p.wireMetadata(),
 		}
 		return json.Marshal(v)
 	case PartData:
 		v := dataPart{
 			Data:     p.Data,
-			Metadata: p.Metadata,
+			Metadata: p.wireMetadata(),
 		}
 		return json.Marshal(v)
 	case PartToolRequest:
 		v := toolRequestPart{
 			ToolRequest: p.ToolRequest,
-			Metadata:    p.Metadata,
+			Metadata:    p.wireMetadata(),
 		}
 		return json.Marshal(v)
 	case PartToolResponse:
 		v := toolResponsePart{
 			ToolResponse: p.ToolResponse,
-			Metadata:     p.Metadata,
+			Metadata:     p.wireMetadata(),
 		}
 		return json.Marshal(v)
 	case PartResource:
 		v := resourcePart{
 			Resource: p.Resource,
-			Metadata: p.Metadata,
+			Metadata: p.wireMetadata(),
 		}
 		return json.Marshal(v)
 	case PartCustom:
 		v := customPart{
 			Custom:   p.Custom,
-			Metadata: p.Metadata,
+			Metadata: p.wireMetadata(),
 		}
 		return json.Marshal(v)
 	case PartReasoning:
 		v := reasoningPart{
 			Reasoning: p.Text,
-			Metadata:  p.Metadata,
+			Metadata:  p.wireMetadata(),
 		}
 		return json.Marshal(v)
 	default:
 		return nil, status.Errorf(ErrInvalidPart, "invalid part kind %v", p.Kind)
 	}
+}
+
+// wireMetadata returns the metadata map to serialize for the Part, folding the
+// typed Interrupt and Restart fields into the keys the wire protocol expects
+// (mirroring the JS runtime). The Part's own Metadata map is never mutated.
+func (p *Part) wireMetadata() map[string]any {
+	if p.Interrupt == nil && p.Restart == nil {
+		return p.Metadata
+	}
+	m := maps.Clone(p.Metadata)
+	if m == nil {
+		m = make(map[string]any, 2)
+	}
+	if it := p.Interrupt; it != nil {
+		key := base.ToolMetaInterrupt
+		if it.Resolved {
+			key = base.ToolMetaResolvedInterrupt
+		}
+		m[key] = orTrue(it.Data)
+	}
+	if rs := p.Restart; rs != nil {
+		m[base.ToolMetaResumed] = orTrue(rs.Resume)
+		if rs.OriginalInput != nil {
+			m[base.ToolMetaReplacedInput] = rs.OriginalInput
+		}
+	}
+	return m
+}
+
+// orTrue encodes an optional payload for the wire: a nil payload is carried as
+// the JSON literal true (a "bare" interrupt or restart), matching the JS
+// runtime.
+func orTrue(v any) any {
+	if v == nil {
+		return true
+	}
+	return v
+}
+
+// payloadOf decodes the wire encoding written by orTrue: true means no payload.
+func payloadOf(v any) any {
+	if b, ok := v.(bool); ok && b {
+		return nil
+	}
+	return v
+}
+
+// liftWireMetadata populates the typed Interrupt and Restart fields from their
+// wire keys in the metadata map, removing the lifted keys so the map holds only
+// user and plugin metadata.
+func (p *Part) liftWireMetadata() {
+	m := p.Metadata
+	if m == nil {
+		return
+	}
+	if v, ok := m[base.ToolMetaInterrupt]; ok {
+		p.Interrupt = &ToolInterrupt{Data: payloadOf(v)}
+		delete(m, base.ToolMetaInterrupt)
+	} else if v, ok := m[base.ToolMetaResolvedInterrupt]; ok {
+		p.Interrupt = &ToolInterrupt{Data: payloadOf(v), Resolved: true}
+		delete(m, base.ToolMetaResolvedInterrupt)
+	}
+	if v, ok := m[base.ToolMetaResumed]; ok {
+		p.Restart = &ToolRestart{Resume: payloadOf(v)}
+		delete(m, base.ToolMetaResumed)
+	}
+	if v, ok := m[base.ToolMetaReplacedInput]; ok {
+		if p.Restart == nil {
+			p.Restart = &ToolRestart{}
+		}
+		p.Restart.OriginalInput = v
+		delete(m, base.ToolMetaReplacedInput)
+	}
+	if len(m) == 0 {
+		p.Metadata = nil
+	}
+}
+
+// Validate checks that the Part's fields are consistent with its Kind: that the
+// kind's own payload field is set and that no field belonging to another kind
+// is set (e.g. no ToolResponse on a tool request part, no Interrupt on a text
+// part). It reports the first inconsistency found.
+func (p *Part) Validate() error {
+	if p == nil {
+		return status.Errorf(ErrInvalidPart, "part is nil")
+	}
+	if _, ok := partKindNames[p.Kind]; !ok {
+		return status.Errorf(ErrInvalidPart, "invalid part kind %d", int8(p.Kind))
+	}
+	fields := []struct {
+		name    string
+		set     bool
+		validOn bool
+	}{
+		// Text parts carry a content type too ("plain/text", "application/json"),
+		// so ContentType is valid on every kind that has text or media.
+		{"Text", p.Text != "", p.Kind == PartText || p.Kind == PartMedia || p.Kind == PartReasoning},
+		{"ContentType", p.ContentType != "", p.Kind == PartText || p.Kind == PartMedia || p.Kind == PartReasoning},
+		{"Data", p.Data != nil, p.Kind == PartData},
+		{"ToolRequest", p.ToolRequest != nil, p.Kind == PartToolRequest},
+		{"ToolResponse", p.ToolResponse != nil, p.Kind == PartToolResponse},
+		{"Resource", p.Resource != nil, p.Kind == PartResource},
+		{"Custom", p.Custom != nil, p.Kind == PartCustom},
+		{"Interrupt", p.Interrupt != nil, p.Kind == PartToolRequest},
+		{"Restart", p.Restart != nil, p.Kind == PartToolRequest},
+	}
+	for _, f := range fields {
+		if f.set && !f.validOn {
+			return status.Errorf(ErrInvalidPart, "field %s is not valid on a %s part", f.name, p.Kind)
+		}
+	}
+	required := map[PartKind]struct {
+		name string
+		set  bool
+	}{
+		PartToolRequest:  {"ToolRequest", p.ToolRequest != nil},
+		PartToolResponse: {"ToolResponse", p.ToolResponse != nil},
+		PartResource:     {"Resource", p.Resource != nil},
+		PartCustom:       {"Custom", p.Custom != nil},
+	}
+	if r, ok := required[p.Kind]; ok && !r.set {
+		return status.Errorf(ErrInvalidPart, "field %s is required on a %s part", r.name, p.Kind)
+	}
+	if p.Interrupt != nil && !p.Interrupt.Resolved && p.Restart != nil {
+		return status.Errorf(ErrInvalidPart, "part cannot both await an interrupt and be a restart; resolve the interrupt first")
+	}
+	return nil
 }
 
 type partSchema struct {
@@ -391,6 +599,7 @@ func (p *Part) unmarshalPartFromSchema(s partSchema) {
 		p.ContentType = ""
 	}
 	p.Metadata = s.Metadata
+	p.liftWireMetadata()
 }
 
 // UnmarshalJSON is called by the JSON unmarshaler to read a Part.

@@ -799,6 +799,84 @@ func DefineTool[In, Out any](g *Genkit, name, description string, fn ai.ToolFunc
 	return t
 }
 
+// DefineInterruptibleTool defines a tool that can pause generation to ask the
+// caller something and resume with a typed answer, registers it as a
+// [core.Action] of type Tool, and returns the concrete
+// [ai.InterruptibleToolAction].
+//
+// Unlike [DefineTool], the function receives a plain [context.Context] and a
+// third parameter for the resume payload: nil on the first call, and set to
+// what the caller sent when the tool is re-executed after an interrupt. Inside
+// the function, return [tool.Interrupt] with typed data to pause. The caller
+// reads that data with [ai.InterruptAs], then either re-executes the tool with
+// [ai.InterruptibleToolAction.Restart] (passing the tool's WithResume for the
+// answer and WithNewInput to revise the arguments) or answers the call
+// outright with [ai.InterruptibleToolAction.Respond]. Both check that the
+// interrupted part belongs to this tool.
+//
+// The interrupt data and the resume payload must each serialize to a JSON
+// object (a struct or a map), since they ride on the tool request part.
+//
+// # Options
+//
+//   - [ai.WithInputSchema]: Provide a custom JSON schema instead of inferring from the type parameter
+//   - [ai.WithInputSchemaName]: Reference a pre-registered schema by name
+//
+// Example:
+//
+//	type TransferInput struct {
+//		ToAccount string  `json:"toAccount"`
+//		Amount    float64 `json:"amount"`
+//	}
+//
+//	type TransferInterrupt struct {
+//		Reason string  `json:"reason"`
+//		Amount float64 `json:"amount"`
+//	}
+//
+//	type Confirmation struct {
+//		Approved bool `json:"approved"`
+//	}
+//
+//	transferTool := genkit.DefineInterruptibleTool(g, "transfer",
+//		"Transfers money to another account.",
+//		func(ctx context.Context, input TransferInput, confirm *Confirmation) (string, error) {
+//			if confirm == nil && input.Amount > 100 {
+//				// Pause and hand typed data to the caller.
+//				return "", tool.Interrupt(TransferInterrupt{Reason: "large_amount", Amount: input.Amount})
+//			}
+//			if confirm != nil && !confirm.Approved {
+//				return "Transfer cancelled.", nil
+//			}
+//			return "Transfer completed.", nil
+//		},
+//	)
+//
+//	resp, _ := genkit.Generate(ctx, g,
+//		ai.WithPrompt("Transfer $200 to Alice"),
+//		ai.WithTools(transferTool),
+//	)
+//	if resp.FinishReason == ai.FinishReasonInterrupted {
+//		var restarts []*ai.Part
+//		for _, interrupt := range resp.Interrupts() {
+//			// Ask the user, then re-execute the tool with their answer. The
+//			// typed data arrives as the tool's *Confirmation parameter.
+//			restart, _ := transferTool.Restart(interrupt,
+//				transferTool.WithResume(Confirmation{Approved: true}))
+//			restarts = append(restarts, restart)
+//		}
+//		resp, _ = genkit.Generate(ctx, g,
+//			ai.WithMessages(resp.History()...),
+//			ai.WithTools(transferTool),
+//			ai.WithToolRestarts(restarts...),
+//		)
+//	}
+func DefineInterruptibleTool[In, Out, Res any](g *Genkit, name, description string, fn ai.InterruptibleToolFunc[In, Out, Res], opts ...ai.ToolOption) *ai.InterruptibleToolAction[In, Out, Res] {
+	t := ai.NewInterruptibleTool(name, description, fn, opts...)
+	t.Register(g.reg)
+	return t
+}
+
 // DefineToolWithInputSchema defines a tool with a custom input schema that can be used by models during generation,
 // registers it as a [core.Action] of type Tool, and returns the concrete [ai.ToolAction].
 //
@@ -907,6 +985,9 @@ func DefineToolWithInputSchema[Out any](g *Genkit, name, description string, inp
 //	}
 //
 //	fmt.Println(resp.Text())
+//
+// Deprecated: Use [DefineTool] and attach content parts with [tool.AttachParts],
+// which keeps the output type (and therefore the advertised output schema).
 func DefineMultipartTool[In any](g *Genkit, name, description string, fn ai.MultipartToolFunc[In], opts ...ai.ToolOption) *ai.ToolAction[In, *ai.MultipartToolResponse] {
 	t := ai.NewMultipartTool(name, description, fn, opts...)
 	t.Register(g.reg)
@@ -916,7 +997,9 @@ func DefineMultipartTool[In any](g *Genkit, name, description string, fn ai.Mult
 // LookupTool retrieves a registered tool by its name.
 // It returns the tool instance if found, or `nil` if no tool with the
 // given name is registered (e.g., via [DefineTool]).
-// Since the types are not known at lookup time, it returns a type-erased tool.
+// Since the types are not known at lookup time, it returns a type-erased tool;
+// interrupts it raises are resolved on the part, with [ai.Part.ToToolRestart] and
+// [ai.Part.ToToolResponse].
 func LookupTool(g *Genkit, name string) ai.Tool {
 	return ai.LookupTool(g.reg, name)
 }

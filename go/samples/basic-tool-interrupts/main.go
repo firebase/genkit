@@ -19,15 +19,22 @@
 // transferMoney interrupts when a transfer is large enough to need approving.
 // Interrupting ends the turn with the tool unfinished, so the flow reads the
 // interrupt, decides, and runs a second turn that restarts the tool with the
-// answer attached. The tool then acts on it. (Tool.RespondWith is the other
-// option, answering a call outright instead of letting the tool run again.)
+// answer attached. The tool then acts on it. (Respond is the other option,
+// answering a call outright instead of letting the tool run again.)
+//
+// DefineInterruptibleTool takes a third type parameter for what comes back on
+// the resume, so the flow and the tool share one type for the answer:
+//
+//   - The tool function takes a plain context.Context and an *Approval. The
+//     parameter is nil on the first call and set on the resume, so the tool
+//     reads a typed value instead of asking whether it was resumed and then
+//     pulling metadata out by key.
+//   - tool.Interrupt pauses with a typed value the flow reads back with
+//     ai.InterruptAs.
+//   - The tool's Restart carries a typed Approval through WithResume.
 //
 // The approve field stands in for the person: a real app would hand the pending
 // interrupt to a client and run the second turn when they answer.
-//
-// basic-tool-interrupts-exp is this same sample written against the in-preview
-// tools API in genkit/exp. Reading the two side by side is the shortest way to
-// see what that API changes.
 //
 // Run it:
 //
@@ -69,6 +76,7 @@ import (
 	"net/http"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai/tool"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/status"
@@ -96,6 +104,13 @@ type (
 	TransferResult struct {
 		Status  string  `json:"status" jsonschema:"enum=completed,enum=declined,enum=rejected"`
 		Balance float64 `json:"balance" jsonschema_description:"The balance after the transfer"`
+	}
+
+	// Approval is the answer carried back into the tool when it is resumed. It
+	// is the third type parameter of the tool, so a shape can be given to it
+	// here rather than agreed on key by key between the tool and the flow.
+	Approval struct {
+		Approved bool `json:"approved"`
 	}
 
 	// TransferInterrupt is the typed metadata the tool attaches when it pauses,
@@ -134,29 +149,28 @@ func main() {
 	// GOOGLE_API_KEY, which is the recommended practice.
 	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
-	// An interruptible tool is an ordinary one: pausing is something the tool
-	// function does, not something its signature declares.
-	transferMoney := genkit.DefineTool(g, "transferMoney",
+	// An interruptible tool declares what it is resumed with, so the answer
+	// arrives as a third parameter rather than as metadata to look up.
+	transferMoney := genkit.DefineInterruptibleTool(g, "transferMoney",
 		"Transfers money to another account.",
-		func(tc *ai.ToolContext, input TransferInput) (*TransferResult, error) {
+		func(ctx context.Context, input TransferInput, approval *Approval) (*TransferResult, error) {
 			if input.Amount > accountBalance {
 				// An ordinary answer, not an interrupt: the model can explain
 				// this to the user without anyone being asked anything.
 				return &TransferResult{Status: "rejected", Balance: accountBalance}, nil
 			}
-			// IsResumed is false on the first call and true once the tool has
-			// been restarted, which is what tells a fresh large transfer from
-			// an answered one.
-			if !tc.IsResumed() && input.Amount > approvalLimit {
-				return nil, ai.InterruptWith(tc, TransferInterrupt{
+			// approval is nil on the first call and set when the tool is
+			// resumed, which is what tells a fresh large transfer from an
+			// answered one.
+			if approval == nil && input.Amount > approvalLimit {
+				return nil, tool.Interrupt(TransferInterrupt{
 					ToAccount: input.ToAccount,
 					Amount:    input.Amount,
 				})
 			}
-			// The answer travels as metadata, so it is read back a key at a
-			// time. Letting the tool decide, rather than the flow, is what
-			// keeps the rule it paused on in one place.
-			if approved, ok := ai.ResumedValue[bool](tc, "approved"); ok && !approved {
+			// Letting the tool decide, rather than the flow, is what keeps the
+			// rule it paused on in one place.
+			if approval != nil && !approval.Approved {
 				return &TransferResult{Status: "declined", Balance: accountBalance}, nil
 			}
 
@@ -197,7 +211,7 @@ func main() {
 				return &Transfer{Reply: resp.Text(), Balance: accountBalance}, nil
 			}
 
-			// Answer every interrupt. RestartWith builds a part rather than
+			// Answer every interrupt. Restart builds a part rather than
 			// calling the model, so the decision travels with the next request.
 			var restarts []*ai.Part
 			for _, interrupt := range interrupts {
@@ -208,8 +222,8 @@ func main() {
 				logger.Info(ctx, "transfer needs approval",
 					"amount", meta.Amount, "toAccount", meta.ToAccount, "approve", input.Approve)
 
-				part, err := transferMoney.RestartWith(interrupt,
-					ai.WithResumedMetadata[TransferInput](map[string]any{"approved": input.Approve}))
+				part, err := transferMoney.Restart(interrupt,
+					transferMoney.WithResume(Approval{Approved: input.Approve}))
 				if err != nil {
 					return nil, fmt.Errorf("could not answer the approval: %w", err)
 				}

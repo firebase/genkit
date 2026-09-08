@@ -84,12 +84,10 @@ Every sample below runs on its own with `go run .`, and its package comment expl
 | [basic‑media](samples/basic-media) | Reading, drawing, and redrawing pictures, plus generating video with a polled background model |
 | [basic‑prompts](samples/basic-prompts) | Prompt templates with Handlebars and `.prompt` files, shared partials and helpers, and prompts embedded in the binary |
 | [basic‑prompt‑content](samples/basic-prompt-content/main.go) | Prompt content computed from your data, with media and retrieved docs |
-| [basic‑tools](samples/basic-tools/main.go) | A slow tool whose answer is more than one value, returned as a multipart response |
-| [basic‑tools‑exp](samples/basic-tools-exp/main.go) | The same program on the in-preview tools API, so the diff between the two is the API |
+| [basic‑tools](samples/basic-tools/main.go) | A slow tool that streams progress and attaches a chart to its answer |
 | [basic‑agents](samples/basic-agents) | Multi-turn agents (inline, prompt-file, and custom-loop) with snapshots and background detach |
 | [basic‑agents‑server](samples/basic-agents-server/main.go) | Serving store-backed and stateless agents over HTTP |
 | [basic‑tool‑interrupts](samples/basic-tool-interrupts/main.go) | Human in the loop (HITL): a tool that pauses for approval and resumes with the answer |
-| [basic‑tool‑interrupts‑exp](samples/basic-tool-interrupts-exp/main.go) | The same HITL program on the in-preview tools API, so the diff between the two is the API |
 | [basic‑middleware](samples/basic-middleware) | Model middleware, one program each: [retry-fallback](samples/basic-middleware/retry-fallback/main.go) composes `Retry` and `Fallback` into a cascade that survives a dead model, [filesystem](samples/basic-middleware/filesystem) gives the model file access scoped to a single directory, and [skills](samples/basic-middleware/skills) loads `SKILL.md` personas on demand |
 | [basic‑errors](samples/basic-errors/main.go) | Classifying failures with sentinels and recovering with `errors.Is` |
 | [basic‑durable‑streaming‑exp](samples/basic-durable-streaming-exp/main.go) | Reconnectable streams with replay, on the in-preview `core/x/streaming` API |
@@ -125,8 +123,7 @@ Multi-turn conversations that own their own loop and state.
 
 **Tools**
 [Define Tools](#define-tools) &middot;
-[Tool Interrupts](#tool-interrupts) &middot;
-[Streaming, Multipart, and Interruptible Tools](#streaming-multipart-and-interruptible-tools) *(preview)*
+[Tool Interrupts](#tool-interrupts)
 
 **Middleware**
 [Middleware](#middleware) &middot;
@@ -711,16 +708,16 @@ fmt.Println(response.Text())
 
 A tool error fails the whole generation rather than being reported to the model, so a miss the model could work around (no such city, no rows matched) belongs in the result rather than in an `error`.
 
-`genkit.DefineMultipartTool` is for a result that is more than one value. It returns an `ai.MultipartToolResponse` instead: `Output` is what a plain tool would have returned, and `Content` carries parts that are not values, such as an image or a document. Those parts reach the model and the client both, and must be media or data parts.
+The `ai/tool` package adds to a tool without changing its signature. `tool.AttachParts` adds parts that are not values, such as an image or a document, to the tool's response; they reach the model and the client both, and must be media or data parts. `tool.SendPartial` streams progress to the client while the tool runs (a no-op when the caller isn't streaming; the return value is always authoritative), and `tool.SendChunk` streams an `ai.ModelResponseChunk` the tool built itself, for when the update is a line of prose. `*ai.ToolContext` embeds the context they take:
 
 ```go
-chartTool := genkit.DefineMultipartTool(g, "chartWeather",
-    "Charts a location's temperatures for the last week",
-    func(ctx *ai.ToolContext, input WeatherInput) (*ai.MultipartToolResponse, error) {
-        return &ai.MultipartToolResponse{
-            Output:  Trend{Low: 61, High: 78},
-            Content: []*ai.Part{ai.NewMediaPart("image/png", chartDataURI)},
-        }, nil
+analyzeTool := genkit.DefineTool(g, "analyzeStock",
+    "Analyzes a stock and returns a summary with a chart.",
+    func(ctx *ai.ToolContext, input AnalyzeInput) (string, error) {
+        tool.SendPartial(ctx, map[string]any{"status": "fetching prices", "progress": 50})
+
+        tool.AttachParts(ctx, ai.NewMediaPart("image/png", chartDataURI))
+        return fmt.Sprintf("%s closed up 4%% this week.", input.Symbol), nil
     },
 )
 ```
@@ -729,7 +726,7 @@ chartTool := genkit.DefineMultipartTool(g, "chartWeather",
 
 ### Tool Interrupts
 
-Interrupts are how Genkit does human in the loop (HITL). A tool pauses execution for a person's approval, and the flow resumes it with modified inputs or a direct response:
+Interrupts are how Genkit does human in the loop (HITL). A tool pauses execution for a person's approval, and the flow resumes it with their answer, modified inputs, or a direct response. `genkit.DefineInterruptibleTool` takes a third type parameter for the answer: the parameter is `nil` on the first call and carries the caller's decision when the tool resumes, so the tool and the flow share one type instead of agreeing on metadata keys.
 
 ```go
 type TransferInput struct {
@@ -738,107 +735,17 @@ type TransferInput struct {
 }
 
 type TransferInterrupt struct {
-    Reason  string  `json:"reason"`
-    Amount  float64 `json:"amount"`
-    Balance float64 `json:"balance"`
+    Reason string  `json:"reason"`
+    Amount float64 `json:"amount"`
 }
 
-transferTool := genkit.DefineTool(g, "transfer",
-    "Transfer money to an account",
-    func(ctx *ai.ToolContext, input TransferInput) (string, error) {
-        // Confirm large transfers
-        if !ctx.IsResumed() && input.Amount > 1000 {
-            return "", ai.InterruptWith(ctx, TransferInterrupt{
-                Reason:  "confirm_large",
-                Amount:  input.Amount,
-                Balance: currentBalance,
-            })
-        }
-        // The answer travels as metadata, so it is read back a key at a time.
-        if approved, ok := ai.ResumedValue[bool](ctx, "approved"); ok && !approved {
-            return "Transfer declined", nil
-        }
-        return "Transfer completed", nil
-    },
-)
-
-// Handle interrupts in your flow
-resp, _ := genkit.Generate(ctx, g,
-    ai.WithModelName("googleai/gemini-flash-latest"),
-    ai.WithPrompt("Transfer $5000 to account ABC123"),
-    ai.WithTools(transferTool),
-)
-
-// Interrupts() yields nothing unless the tool paused for input.
-var restarts []*ai.Part
-for _, interrupt := range resp.Interrupts() {
-    meta, _ := ai.InterruptAs[TransferInterrupt](interrupt)
-
-    // Use meta to get user confirmation, then resume with their answer.
-    approved := askAHuman(meta)
-    part, _ := transferTool.RestartWith(interrupt,
-        ai.WithResumedMetadata[TransferInput](map[string]any{"approved": approved}))
-    restarts = append(restarts, part)
-}
-
-// Collect every restart first, then resume once: generating inside the loop
-// would resume later interrupts against a history that already moved on.
-if len(restarts) > 0 {
-    resp, _ = genkit.Generate(ctx, g,
-        ai.WithMessages(resp.History()...),
-        ai.WithTools(transferTool),
-        ai.WithToolRestarts(restarts...),
-    )
-}
-```
-
-[See full example](samples/basic-tool-interrupts/main.go)
-
-### Streaming, Multipart, and Interruptible Tools
-
-> [!WARNING]
-> This API is in preview and may experience breaking changes in minor releases.
-
-The experimental tool constructors in `genkit/exp` (aliased `genkitx`) hand your function a plain `context.Context` instead of `ai.ToolContext`, with helpers in `ai/exp/tool` for streaming progress, attaching media, and typed interrupts. This is a preview of Genkit Go's next-generation tools API: it is slated to replace the current `genkit.DefineTool` (shown above) as the default in the next major version. Initialize Genkit with `genkit.WithExperimental()` to enable them.
-
-`genkitx.DefineTool` infers its input and output types from the function. Inside the tool, `tool.SendPartial` streams partial results mid-execution and `tool.AttachParts` adds extra content parts to the response, neither of which changes the function signature:
-
-```go
-import (
-    "github.com/firebase/genkit/go/ai"
-    "github.com/firebase/genkit/go/ai/exp/tool"
-    genkitx "github.com/firebase/genkit/go/genkit/exp"
-)
-
-type AnalyzeInput struct {
-    Symbol string `json:"symbol"`
-}
-
-analyzeTool := genkitx.DefineTool(g, "analyzeStock",
-    "Analyzes a stock and returns a summary with a chart.",
-    func(ctx context.Context, input AnalyzeInput) (string, error) {
-        // Stream progress to the client while the tool runs. It is a no-op when
-        // the caller isn't streaming; the return value is always authoritative.
-        tool.SendPartial(ctx, map[string]any{"status": "fetching prices", "progress": 50})
-
-        // Attach media to the tool's response without a multipart signature.
-        tool.AttachParts(ctx, ai.NewMediaPart("image/png", chartDataURI))
-
-        return fmt.Sprintf("%s closed up 4%% this week.", input.Symbol), nil
-    },
-)
-```
-
-`genkitx.DefineInterruptibleTool` adds a typed resume parameter: it is `nil` on the first call and carries the caller's decision when the tool resumes. Reusing the `TransferInput`/`TransferInterrupt` types from above, the tool pauses with `tool.Interrupt` and the caller resumes it with typed data via the tool's `Resume`:
-
-```go
 type Confirmation struct {
     Approved bool `json:"approved"`
 }
 
 // The third parameter (*Confirmation) is the resume payload: nil on the first
 // call, populated when the caller resumes after an interrupt.
-transferTool := genkitx.DefineInterruptibleTool(g, "transfer",
+transferTool := genkit.DefineInterruptibleTool(g, "transfer",
     "Transfers money to another account.",
     func(ctx context.Context, input TransferInput, confirm *Confirmation) (string, error) {
         if confirm == nil && input.Amount > 1000 {
@@ -861,13 +768,18 @@ resp, _ := genkit.Generate(ctx, g,
 // Interrupts() yields nothing unless the tool paused for input.
 var restarts []*ai.Part
 for _, interrupt := range resp.Interrupts() {
-    meta, _ := tool.InterruptAs[TransferInterrupt](interrupt)
+    meta, _ := ai.InterruptAs[TransferInterrupt](interrupt)
 
-    // Use meta to ask the user for a decision, then resume with their answer.
-    // The typed data arrives as the tool's *Confirmation parameter.
-    restart, _ := transferTool.Resume(interrupt, Confirmation{Approved: true})
+    // Use meta to ask the user for a decision, then restart with their answer.
+    // WithResume is checked against the tool's own resume type; WithNewInput
+    // would revise the arguments too.
+    restart, _ := transferTool.Restart(interrupt,
+        transferTool.WithResume(Confirmation{Approved: true}))
     restarts = append(restarts, restart)
 }
+
+// Collect every restart first, then resume once: generating inside the loop
+// would resume later interrupts against a history that already moved on.
 if len(restarts) > 0 {
     resp, _ = genkit.Generate(ctx, g,
         ai.WithMessages(resp.History()...),
@@ -877,9 +789,11 @@ if len(restarts) > 0 {
 }
 ```
 
-`tool.SendChunk` is the third helper: where `tool.SendPartial` wraps a value as a partial tool response, `SendChunk` hands the caller an `ai.ModelResponseChunk` the tool built itself, which is what to reach for when the update is a line of prose. Both are best-effort, so a tool that reports progress through them still works when the caller is not streaming, and neither is written to history.
+`transferTool.Respond(interrupt, output)` answers the call outright instead of running the tool again. Without the tool value in scope (a handler that only holds the part), `interrupt.ToToolRestart(ai.WithResume(...))` and `interrupt.ToToolResponse(output)` build the same parts.
 
-[See full example](samples/basic-tool-interrupts-exp/main.go), which is the HITL sample above rewritten against this API, or [the banker example](samples/basic-agents) for an interruptible tool wired into an agent.
+A `genkit.DefineTool` tool can interrupt too: return `tool.Interrupt` from it, read the answer back with `tool.ResumeData`, and restart it with `interrupt.ToToolRestart(ai.WithResume(...))`.
+
+[See full example](samples/basic-tool-interrupts/main.go)
 
 ### Middleware
 

@@ -207,11 +207,11 @@ func newEntry[State any](a *aix.Agent[State], onInterrupt InterruptHandler) agen
 
 // InterruptHandler resolves a single tool interrupt into a resume part. It
 // receives the interrupted tool-request part (read its typed payload with
-// tool.InterruptAs) and a Prompter for asking the user questions through
+// ai.InterruptAs) and a Prompter for asking the user questions through
 // the CLI's input stream. It returns one of:
 //
-//   - a restart part (tool.Resume) to re-run the tool with resume data,
-//   - a response part (tool.Respond) to answer the tool directly, or
+//   - a restart part (the tool's Restart) to re-run the tool with resume data,
+//   - a response part (the tool's Respond) to answer the tool directly, or
 //   - nil to leave this interrupt unresolved.
 //
 // The CLI sorts the returned part into the right half of aix.ToolResume,

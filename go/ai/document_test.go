@@ -313,9 +313,7 @@ func TestPartIsInterrupt(t *testing.T) {
 				Name:  "test",
 				Input: map[string]any{},
 			},
-			Metadata: map[string]any{
-				"interrupt": true,
-			},
+			Interrupt: &ToolInterrupt{},
 		}
 
 		if !p.IsInterrupt() {
@@ -516,6 +514,8 @@ func TestPartClone(t *testing.T) {
 		ToolResponse: &ToolResponse{Name: "tool", Output: "ok"},
 		Resource:     &ResourcePart{Uri: "res://x"},
 		Custom:       map[string]any{"ck": "cv"},
+		Interrupt:    &ToolInterrupt{Data: map[string]any{"reason": "confirm"}},
+		Restart:      &ToolRestart{Resume: map[string]any{"approved": true}, OriginalInput: map[string]any{"a": 0}},
 		Metadata:     map[string]any{"sig": []byte{1, 2, 3}, "key": "val"},
 	}
 
@@ -557,6 +557,17 @@ func TestPartClone(t *testing.T) {
 	cpData["extra"] = true
 	if _, ok := orig.Data.(map[string]any)["extra"]; ok {
 		t.Error("mutating clone Data affected original")
+	}
+
+	// Interrupt and Restart are pointers; the clone must own its own, so
+	// resolving an interrupt on a copy doesn't reach back into the original.
+	cp.Interrupt.Resolved = true
+	if orig.Interrupt.Resolved {
+		t.Error("mutating clone Interrupt affected original")
+	}
+	cp.Restart.Resume = "other"
+	if orig.Restart.Resume == "other" {
+		t.Error("mutating clone Restart affected original")
 	}
 
 	// Go types in metadata (e.g. []byte) must be preserved, not string-ified.
@@ -650,6 +661,238 @@ func TestPartDataString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.part.DataString(); got != tt.want {
 				t.Errorf("DataString() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestPartInterruptWireRoundTrip pins the wire contract for the typed interrupt
+// and restart state: it must fold into the metadata keys the JS runtime reads,
+// and lift back out on the way in, so a message can cross runtimes unchanged.
+func TestPartInterruptWireRoundTrip(t *testing.T) {
+	tests := []struct {
+		name      string
+		part      func() *Part
+		wantWire  map[string]any
+		wantLifts func(t *testing.T, p *Part)
+	}{
+		{
+			name: "interrupt with data",
+			part: func() *Part {
+				p := NewToolRequestPart(&ToolRequest{Name: "transfer", Ref: "r1"})
+				p.Interrupt = &ToolInterrupt{Data: map[string]any{"reason": "large"}}
+				p.Metadata = map[string]any{"keep": "me"}
+				return p
+			},
+			wantWire: map[string]any{
+				"interrupt": map[string]any{"reason": "large"},
+				"keep":      "me",
+			},
+			wantLifts: func(t *testing.T, p *Part) {
+				if !p.IsInterrupt() {
+					t.Error("lifted part is not an interrupt")
+				}
+				data, _ := p.Interrupt.Data.(map[string]any)
+				if data["reason"] != "large" {
+					t.Errorf("lifted interrupt data = %v, want reason=large", p.Interrupt.Data)
+				}
+				if p.Metadata["keep"] != "me" {
+					t.Errorf("unrelated metadata lost: %v", p.Metadata)
+				}
+			},
+		},
+		{
+			name: "bare interrupt",
+			part: func() *Part {
+				p := NewToolRequestPart(&ToolRequest{Name: "transfer"})
+				p.Interrupt = &ToolInterrupt{}
+				return p
+			},
+			wantWire: map[string]any{"interrupt": true},
+			wantLifts: func(t *testing.T, p *Part) {
+				if p.Interrupt == nil || p.Interrupt.Data != nil {
+					t.Errorf("lifted interrupt = %+v, want no data", p.Interrupt)
+				}
+			},
+		},
+		{
+			name: "resolved interrupt",
+			part: func() *Part {
+				p := NewToolRequestPart(&ToolRequest{Name: "transfer"})
+				p.Interrupt = &ToolInterrupt{Data: map[string]any{"reason": "large"}, Resolved: true}
+				return p
+			},
+			wantWire: map[string]any{
+				"resolvedInterrupt": map[string]any{"reason": "large"},
+			},
+			wantLifts: func(t *testing.T, p *Part) {
+				if p.Interrupt == nil || !p.Interrupt.Resolved {
+					t.Errorf("lifted interrupt = %+v, want resolved", p.Interrupt)
+				}
+				if p.IsInterrupt() {
+					t.Error("a resolved interrupt must not still await resolution")
+				}
+			},
+		},
+		{
+			name: "restart with resume and replaced input",
+			part: func() *Part {
+				p := NewToolRequestPart(&ToolRequest{Name: "transfer", Input: map[string]any{"amount": 50.0}})
+				p.Restart = &ToolRestart{
+					Resume:        map[string]any{"approved": true},
+					OriginalInput: map[string]any{"amount": 200.0},
+				}
+				return p
+			},
+			wantWire: map[string]any{
+				"resumed":       map[string]any{"approved": true},
+				"replacedInput": map[string]any{"amount": 200.0},
+			},
+			wantLifts: func(t *testing.T, p *Part) {
+				if p.Restart == nil {
+					t.Fatal("restart state was not lifted")
+				}
+				resume, _ := p.Restart.Resume.(map[string]any)
+				if resume["approved"] != true {
+					t.Errorf("lifted resume = %v, want approved=true", p.Restart.Resume)
+				}
+				orig, _ := p.Restart.OriginalInput.(map[string]any)
+				if orig["amount"] != 200.0 {
+					t.Errorf("lifted original input = %v, want amount=200", p.Restart.OriginalInput)
+				}
+			},
+		},
+		{
+			name: "bare restart",
+			part: func() *Part {
+				p := NewToolRequestPart(&ToolRequest{Name: "transfer"})
+				p.Restart = &ToolRestart{}
+				return p
+			},
+			wantWire: map[string]any{"resumed": true},
+			wantLifts: func(t *testing.T, p *Part) {
+				if p.Restart == nil || p.Restart.Resume != nil {
+					t.Errorf("lifted restart = %+v, want no resume payload", p.Restart)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			orig := tt.part()
+			b, err := json.Marshal(orig)
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+
+			var wire struct {
+				Metadata map[string]any `json:"metadata"`
+			}
+			if err := json.Unmarshal(b, &wire); err != nil {
+				t.Fatalf("unmarshal wire: %v", err)
+			}
+			if diff := cmp.Diff(tt.wantWire, wire.Metadata); diff != "" {
+				t.Errorf("wire metadata mismatch (-want +got):\n%s", diff)
+			}
+
+			// The source part keeps its own metadata: folding is not mutation.
+			if _, ok := orig.Metadata["interrupt"]; ok {
+				t.Error("marshaling must not write wire keys back onto the part")
+			}
+
+			var lifted Part
+			if err := json.Unmarshal(b, &lifted); err != nil {
+				t.Fatalf("unmarshal part: %v", err)
+			}
+			tt.wantLifts(t, &lifted)
+			if _, ok := lifted.Metadata["resumed"]; ok {
+				t.Error("lifted wire keys must be removed from the metadata map")
+			}
+		})
+	}
+}
+
+func TestPartKindString(t *testing.T) {
+	for kind, want := range map[PartKind]string{
+		PartText:         "text",
+		PartMedia:        "media",
+		PartData:         "data",
+		PartToolRequest:  "toolRequest",
+		PartToolResponse: "toolResponse",
+		PartCustom:       "custom",
+		PartReasoning:    "reasoning",
+		PartResource:     "resource",
+		PartKind(99):     "unknown",
+	} {
+		if got := kind.String(); got != want {
+			t.Errorf("PartKind(%d).String() = %q, want %q", int8(kind), got, want)
+		}
+	}
+}
+
+func TestPartValidate(t *testing.T) {
+	toolReq := func() *Part { return NewToolRequestPart(&ToolRequest{Name: "t"}) }
+
+	valid := []struct {
+		name string
+		part *Part
+	}{
+		{"text", NewTextPart("hi")},
+		{"media", NewMediaPart("image/png", "data:...")},
+		{"tool request", toolReq()},
+		{"tool response", NewToolResponsePart(&ToolResponse{Name: "t"})},
+		{"interrupted tool request", func() *Part { p := toolReq(); p.Interrupt = &ToolInterrupt{}; return p }()},
+		{"restarted tool request", func() *Part { p := toolReq(); p.Restart = &ToolRestart{}; return p }()},
+		{"resolved interrupt restarted", func() *Part {
+			p := toolReq()
+			p.Interrupt = &ToolInterrupt{Resolved: true}
+			p.Restart = &ToolRestart{}
+			return p
+		}()},
+		{"custom", NewCustomPart(map[string]any{"k": "v"})},
+		{"resource", NewResourcePart("res://x")},
+	}
+	for _, tt := range valid {
+		t.Run("valid/"+tt.name, func(t *testing.T) {
+			if err := tt.part.Validate(); err != nil {
+				t.Errorf("Validate() = %v, want nil", err)
+			}
+		})
+	}
+
+	invalid := []struct {
+		name string
+		part *Part
+	}{
+		{"nil part", nil},
+		{"unknown kind", &Part{Kind: PartKind(99)}},
+		{"tool request without request", &Part{Kind: PartToolRequest}},
+		{"tool response without response", &Part{Kind: PartToolResponse}},
+		{"custom without custom data", &Part{Kind: PartCustom}},
+		{"resource without resource", &Part{Kind: PartResource}},
+		{"interrupt on a text part", func() *Part { p := NewTextPart("hi"); p.Interrupt = &ToolInterrupt{}; return p }()},
+		{"restart on a tool response", func() *Part {
+			p := NewToolResponsePart(&ToolResponse{Name: "t"})
+			p.Restart = &ToolRestart{}
+			return p
+		}()},
+		{"tool response on a tool request", func() *Part {
+			p := toolReq()
+			p.ToolResponse = &ToolResponse{Name: "t"}
+			return p
+		}()},
+		{"unresolved interrupt and restart", func() *Part {
+			p := toolReq()
+			p.Interrupt = &ToolInterrupt{}
+			p.Restart = &ToolRestart{}
+			return p
+		}()},
+	}
+	for _, tt := range invalid {
+		t.Run("invalid/"+tt.name, func(t *testing.T) {
+			if err := tt.part.Validate(); err == nil {
+				t.Error("Validate() = nil, want an error")
 			}
 		})
 	}

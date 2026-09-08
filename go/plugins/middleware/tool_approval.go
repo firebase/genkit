@@ -21,6 +21,7 @@ import (
 	"slices"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai/tool"
 	"github.com/firebase/genkit/go/core/logger"
 )
 
@@ -29,9 +30,8 @@ import (
 //
 // To approve on resume, attach a "toolApproved" flag to the restart metadata:
 //
-//	restart := tool.Restart(interruptPart, &ai.RestartOptions{
-//	    ResumedMetadata: map[string]any{"toolApproved": true},
-//	})
+//	restart, err := interruptPart.ToToolRestart(
+//	    ai.WithResume(map[string]any{"toolApproved": true}))
 //
 // The bare [ai.IsToolResumed] flag alone is NOT treated as approval; callers
 // must opt in so that unrelated resume flows (e.g. respond-only turns) cannot
@@ -77,7 +77,7 @@ func (t *ToolApproval) wrapTool(ctx context.Context, params *ai.ToolParams, next
 	// No span is emitted here: the generate engine attributes a hook that
 	// short-circuits the tool to the tool itself in traces.
 	logger.Debug(ctx, "tool held for approval", "tool", name)
-	return nil, ai.NewToolInterruptError(map[string]any{
+	return nil, tool.Interrupt(map[string]any{
 		"message": "Tool not in approved list: " + name,
 	})
 }

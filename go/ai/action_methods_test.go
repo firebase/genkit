@@ -183,6 +183,21 @@ func TestForwardersRejectNilReceivers(t *testing.T) {
 			_, err := tl.RunJSONWithTelemetry(ctx, in, nil)
 			return err
 		}},
+		{"interruptible tool RunJSON", func() error {
+			var tl *InterruptibleToolAction[any, any, any]
+			_, err := tl.RunJSON(ctx, in, nil)
+			return err
+		}},
+		{"interruptible tool RunJSONWithTelemetry", func() error {
+			var tl *InterruptibleToolAction[any, any, any]
+			_, err := tl.RunJSONWithTelemetry(ctx, in, nil)
+			return err
+		}},
+		{"interruptible tool RunRawMultipart", func() error {
+			var tl *InterruptibleToolAction[any, any, any]
+			_, err := tl.RunRawMultipart(ctx, nil)
+			return err
+		}},
 		{"background RunJSON", func() error {
 			var b *BackgroundModelAction
 			_, err := b.RunJSON(ctx, in, nil)
