@@ -24,6 +24,7 @@ from genkit import ErrorResponseMetadata
 from genkit._core import _error as error_mod
 from genkit._core._error import (
     GenkitError,
+    GenkitRuntimeError,
     PublicError,
     ReflectionError,
     RuntimeErrorReason,
@@ -33,7 +34,6 @@ from genkit._core._error import (
     parse_retry_after_ms,
     wrap_http_error,
 )
-from genkit._core._typing import GenkitRuntimeError
 
 
 def test_runtime_error_reasons_cover_go_builtin_subtypes() -> None:

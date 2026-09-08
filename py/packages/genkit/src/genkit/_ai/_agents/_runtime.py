@@ -44,7 +44,7 @@ from genkit._ai._generate import generate_action
 from genkit._ai._json_patch import diff_json
 from genkit._core._action import ActionRunContext, StreamingCallback, get_current_context
 from genkit._core._channel import CloseableQueue, QueueShutDown
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, GenkitRuntimeError
 from genkit._core._logger import get_logger
 from genkit._core._model import GenerateActionOptions, Message, ModelResponse, ModelResponseChunk
 from genkit._core._registry import Registry
@@ -59,7 +59,6 @@ from genkit._core._typing import (
     AgentStreamChunk,
     Artifact,
     FinishReason,
-    GenkitRuntimeError,
     JsonPatch,
     JsonPatchOp,
     JsonPatchOperation,

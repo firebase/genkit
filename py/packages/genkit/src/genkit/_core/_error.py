@@ -27,6 +27,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 from genkit._core._compat import StrEnum
+from genkit._core._typing import GenkitRuntimeError as GenkitRuntimeErrorData
 
 
 class StatusCodes(IntEnum):
@@ -113,6 +114,19 @@ def runtime_error_reason(details: object) -> RuntimeErrorReason | None:
         return RuntimeErrorReason(value)  # pyrefly: ignore[bad-return]
     except ValueError:
         return None
+
+
+class GenkitRuntimeError(GenkitRuntimeErrorData):
+    """Classified generate failure sitting on ``response.error``.
+
+    The wire is still status, message, and details. ``reason`` is the
+    framework why when we put one in details, so callers can branch
+    without parsing the message.
+    """
+
+    @property
+    def reason(self) -> RuntimeErrorReason | None:
+        return runtime_error_reason(self.details)
 
 
 # Mapping of status names to HTTP status codes

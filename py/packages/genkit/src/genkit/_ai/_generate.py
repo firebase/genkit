@@ -69,7 +69,7 @@ from genkit._core._background import (
     missing_operation_error,
     stamp_operation_action,
 )
-from genkit._core._error import GenkitError, RuntimeErrorReason
+from genkit._core._error import GenkitError, GenkitRuntimeError, RuntimeErrorReason
 from genkit._core._logger import get_logger, is_debug_enabled
 from genkit._core._middleware import (
     BaseMiddleware,
@@ -95,7 +95,6 @@ from genkit._core._tracing import SpanMetadata, run_in_new_span
 from genkit._core._typing import (
     FinishReason,
     GenerateActionOutputConfig,
-    GenkitRuntimeError,
     MiddlewareRef,
     Operation,
     Part,
@@ -1220,7 +1219,8 @@ async def _generate_action_turn(
 
         if current_turn + 1 > max_iters:
             response.finish_reason = FinishReason.ABORTED
-            response.finish_message = f'Exceeded maximum tool call iterations ({max_iters})'
+            # The cap is how many tool rounds they allowed, so print 5 not 5.0.
+            response.finish_message = f'Exceeded maximum tool call iterations ({int(max_iters)})'
             response.error = GenkitRuntimeError(
                 status='ABORTED',
                 message=response.finish_message,

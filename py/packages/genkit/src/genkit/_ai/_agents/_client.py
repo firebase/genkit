@@ -36,6 +36,7 @@ from genkit._core._channel import CloseableQueue
 from genkit._core._error import (
     _STATUS_CODE_MAP,
     GenkitError,
+    GenkitRuntimeError,
     StatusCodes,
     StatusName,
 )
@@ -48,7 +49,6 @@ from genkit._core._typing import (
     AgentOutput,
     AgentStreamChunk,
     Artifact,
-    GenkitRuntimeError,
     Media,
     MediaPart,
     MessageData,

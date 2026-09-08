@@ -34,7 +34,7 @@ from pydantic.alias_generators import to_camel
 from typing_extensions import TypedDict, TypeVar
 
 from genkit._core._base import GenkitModel
-from genkit._core._error import GenkitError, RuntimeErrorReason
+from genkit._core._error import GenkitError, GenkitRuntimeError, RuntimeErrorReason
 from genkit._core._extract_json import extract_json
 from genkit._core._partial import construct_partial
 from genkit._core._schema import parse_schema
@@ -47,7 +47,6 @@ from genkit._core._typing import (
     GenerateActionOutputConfig,
     GenerationCommonConfig,
     GenerationUsage,
-    GenkitRuntimeError,
     Media,
     MediaModel,
     MediaPart,
