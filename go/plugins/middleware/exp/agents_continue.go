@@ -247,8 +247,9 @@ func (a *Agents) refuseRead(st *agentsState, err error, msg string) delegationRe
 
 // windingDownRefusal refuses to continue a task whose row is aborting: the
 // stop landed and the worker is draining toward the finalize that makes the
-// row a continuation point, so the same handle is the thing to retry, and the
-// refund reflects that.
+// row a continuation point, so the same handle is the thing to come back to,
+// and the refund reflects that. The response says which call comes next, since
+// that depends on how the row settles (see refuseEmptyFollowUp).
 func (a *Agents) windingDownRefusal(st *agentsState, taskID string) delegationResult {
 	a.releaseDelegation(st)
 	hint := ""
@@ -256,7 +257,7 @@ func (a *Agents) windingDownRefusal(st *agentsState, taskID string) delegationRe
 		hint = fmt.Sprintf(" Collect its settled state with %s, then continue that.", a.backgroundToolNames().wait)
 	}
 	return delegationResult{Response: fmt.Sprintf(
-		"Task %q is winding down after a stop signal; its progress is being saved. Retry this taskId once it settles.%s", taskID, hint)}
+		"Task %q is winding down after a stop signal; its progress is being saved. Once it settles, continue this taskId: as is if it stopped or failed, with instructions if it completed.%s", taskID, hint)}
 }
 
 // refuseEmptyFollowUp refuses an instructions-less continuation of a snapshot whose

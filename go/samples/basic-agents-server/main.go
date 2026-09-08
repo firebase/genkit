@@ -80,7 +80,8 @@
 //	  -H "Content-Type: application/json" \
 //	  -d '{"data": {"snapshotId": "SNAPSHOT_ID"}}'
 //
-// Or stop the background turn instead, which finalizes it as "aborted":
+// Or stop the background turn instead; the finalize then records how the
+// work ended ("aborted" when the stop is what ended it):
 //
 //	curl -X POST http://localhost:8080/agents/chat/abort \
 //	  -H "Content-Type: application/json" \
