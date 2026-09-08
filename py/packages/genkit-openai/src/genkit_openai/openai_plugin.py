@@ -24,14 +24,13 @@ from openai import APIStatusError, AsyncOpenAI
 from openai.types import Model
 
 from genkit import Embedding, EmbedRequest, EmbedResponse, GenkitError, ModelInfo, ModelRequest, ModelResponse, Supports
-from genkit.embedder import EmbedderOptions, EmbedderSupports, embedder_action_metadata
-from genkit.model import ModelRef, model_action_metadata, model_ref
+from genkit.embedder import EmbedderInfo, EmbedderSupports, embedder, embedder_action_metadata
+from genkit.model import ModelRef, model as create_model, model_action_metadata, model_ref
 from genkit.plugin_api import (
     Action,
     ActionKind,
     ActionMetadata,
     ActionRunContext,
-    ModelConfig,
     Plugin,
     loop_local_client,
     to_json_schema,
@@ -117,6 +116,14 @@ def _classify_model(name: str) -> _ModelType:
     return _ModelType.CHAT
 
 
+_UNSUPPORTED_MODEL_MATCHERS = ('babbage', 'davinci', 'codex', '-pro')
+
+
+def _is_known_unsupported(name: str) -> bool:
+    """Report whether a model id is in a family Chat Completions does not serve."""
+    return any(matcher in name for matcher in _UNSUPPORTED_MODEL_MATCHERS)
+
+
 # Default Supports for each multimodal model type, used as fallback when
 # a model is not found in the registry.
 _DEFAULT_SUPPORTS: dict[_ModelType, Supports] = {
@@ -159,7 +166,7 @@ def _get_multimodal_info_dict(
     name: str,
     model_type: _ModelType,
     supported_models: dict[str, ModelInfo],
-) -> dict[str, object]:
+) -> tuple[dict[str, object], dict[str, Any] | None]:
     """Build the info dictionary for a multimodal model.
 
     Uses registry metadata when available, falls back to default supports.
@@ -170,17 +177,24 @@ def _get_multimodal_info_dict(
         supported_models: Registry of known models and their metadata.
 
     Returns:
-        A dictionary suitable for Action or ActionMetadata info field.
+        A tuple containing the info dictionary and the model-specific config
+        schema, if one is registered.
     """
     model_info = supported_models.get(name)
     if model_info:
-        return model_info.model_dump(by_alias=True, exclude_none=True)
+        return (
+            model_info.model_dump(by_alias=True, exclude_none=True, exclude={'config_schema'}),
+            model_info.config_schema,
+        )
 
     default_supports = _DEFAULT_SUPPORTS.get(model_type)
-    return {
-        'label': f'OpenAI - {name}',
-        'supports': default_supports.model_dump(by_alias=True, exclude_none=True) if default_supports else {},
-    }
+    return (
+        {
+            'label': f'OpenAI - {name}',
+            'supports': default_supports.model_dump(by_alias=True, exclude_none=True) if default_supports else {},
+        },
+        None,
+    )
 
 
 def _multimodal_action_metadata(
@@ -198,10 +212,11 @@ def _multimodal_action_metadata(
     Returns:
         ActionMetadata for the model.
     """
+    info_dict, config_schema = _get_multimodal_info_dict(name, model_type, supported_models)
     return model_action_metadata(
         name=open_ai_name(name),
-        config_schema=ModelConfig,
-        info=_get_multimodal_info_dict(name, model_type, supported_models),
+        config_schema=config_schema,
+        info=info_dict,
     )
 
 
@@ -372,10 +387,10 @@ class OpenAI(Plugin):
             openai_model = OpenAIModelHandler(OpenAIModel(clean_name, self._runtime_client()))
             return await openai_model.generate(request, ctx)
 
-        return Action(
-            kind=ActionKind.MODEL,
-            name=name,
-            fn=_generate,
+        return create_model(
+            name,
+            _generate,
+            config_schema=OpenAIConfig,
             metadata={
                 'model': {
                     **model_info,
@@ -403,16 +418,16 @@ class OpenAI(Plugin):
             Action object for the model.
         """
         clean_name = name.replace('openai/', '') if name.startswith('openai/') else name
-        info_dict = _get_multimodal_info_dict(clean_name, model_type, supported_models)
+        info_dict, config_schema = _get_multimodal_info_dict(clean_name, model_type, supported_models)
 
         async def _generate(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
             model_instance = model_class(clean_name, self._runtime_client())
             return await model_instance.generate(request, ctx)
 
-        return Action(
-            kind=ActionKind.MODEL,
-            name=name,
-            fn=_generate,
+        return create_model(
+            name,
+            _generate,
+            config_schema=config_schema,
             metadata={'model': info_dict},
         )
 
@@ -491,13 +506,12 @@ class OpenAI(Plugin):
             except (APIStatusError, ValueError) as e:
                 reraise_openai_error(e)
 
-        return Action(
-            kind=ActionKind.EMBEDDER,
-            name=name,
-            fn=embed_fn,
+        return embedder(
+            name,
+            embed_fn,
             metadata=embedder_action_metadata(
                 name=name,
-                options=EmbedderOptions(
+                info=EmbedderInfo(
                     label=embedder_info['label'],
                     supports=EmbedderSupports(input=embedder_info['supports']['input']),
                     dimensions=embedder_info.get('dimensions'),
@@ -525,12 +539,14 @@ class OpenAI(Plugin):
         models: list[Model] = models_.data
         for model in models:
             name = model.id
+            if _is_known_unsupported(name):
+                continue
             model_type = _classify_model(name)
             if model_type == _ModelType.EMBEDDER:
                 actions.append(
                     embedder_action_metadata(
                         name=open_ai_name(name),
-                        options=EmbedderOptions(
+                        info=EmbedderInfo(
                             label=f'OpenAI Embedding - {name}',
                             supports=EmbedderSupports(input=['text']),
                         ),

@@ -20,7 +20,7 @@
 import asyncio
 import queue
 import threading
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -47,6 +47,12 @@ async def test_openai_plugin_init() -> None:
         "All actions should be namespaced with 'openai/'"
     )
 
+    gpt_image = next(a for a in result if a.name == 'openai/gpt-image-1')
+    assert gpt_image.metadata is not None
+    gpt_image_model = cast(dict[str, Any], gpt_image.metadata['model'])
+    assert gpt_image_model['customOptions']['properties']['quality']['enum'] == ['low', 'medium', 'high']
+    assert 'configSchema' not in gpt_image_model
+
     # Verify we have both models and embedders
     model_actions = [a for a in result if a.kind == ActionKind.MODEL]
     embedder_actions = [a for a in result if a.kind == ActionKind.EMBEDDER]
@@ -56,7 +62,11 @@ async def test_openai_plugin_init() -> None:
 
 @pytest.mark.parametrize(
     'kind, name',
-    [(ActionKind.MODEL, 'gpt-3.5-turbo')],
+    [
+        (ActionKind.MODEL, 'gpt-3.5-turbo'),
+        # Unlisted ids still resolve when asked for by name.
+        (ActionKind.MODEL, 'codex-mini-latest'),
+    ],
 )
 @pytest.mark.asyncio
 async def test_openai_plugin_resolve_action(kind: ActionKind, name: str) -> None:
@@ -77,8 +87,12 @@ async def test_openai_plugin_list_actions() -> None:
         Model(id='gpt-4-0613', created=1686588896, object='model', owned_by='openai'),
         Model(id='gpt-4', created=1687882411, object='model', owned_by='openai'),
         Model(id='gpt-3.5-turbo', created=1677610602, object='model', owned_by='openai'),
+        Model(id='gpt-image-1', created=1744060800, object='model', owned_by='openai'),
         Model(id='o4-mini-deep-research-2025-06-26', created=1750866121, object='model', owned_by='system'),
         Model(id='codex-mini-latest', created=1746673257, object='model', owned_by='system'),
+        Model(id='babbage-002', created=1692634615, object='model', owned_by='system'),
+        Model(id='davinci-002', created=1692634301, object='model', owned_by='system'),
+        Model(id='o3-pro', created=1748475948, object='model', owned_by='system'),
         Model(id='text-embedding-ada-002', created=1671217299, object='model', owned_by='openai-internal'),
     ]
     plugin = OpenAI(api_key='test-key')
@@ -96,7 +110,13 @@ async def test_openai_plugin_list_actions() -> None:
     # list_actions is cached after the first API fetch.
     assert mock_client.models.list.call_count == 1
 
-    assert len(actions) == len(entries)
+    # Ids Chat Completions does not serve are dropped from the listing.
+    listed = {action.name for action in actions}
+    assert 'openai/codex-mini-latest' not in listed
+    assert 'openai/babbage-002' not in listed
+    assert 'openai/davinci-002' not in listed
+    assert 'openai/o3-pro' not in listed
+    assert len(actions) == len(entries) - 4
     assert actions[0].name == 'openai/gpt-4-0613'
     assert actions[-1].name == 'openai/text-embedding-ada-002'
 
@@ -105,6 +125,12 @@ async def test_openai_plugin_list_actions() -> None:
     chat_props = chat.metadata['model']['customOptions']['properties']
     assert 'frequencyPenalty' in chat_props
     assert 'maxTokens' in chat_props
+
+    image = next(a for a in actions if a.name == 'openai/gpt-image-1')
+    assert image.metadata is not None
+    image_model = cast(dict[str, Any], image.metadata['model'])
+    assert image_model['customOptions']['properties']['quality']['enum'] == ['low', 'medium', 'high']
+    assert 'configSchema' not in image_model
 
     embed = next(a for a in actions if a.name == 'openai/text-embedding-ada-002')
     assert embed.metadata is not None

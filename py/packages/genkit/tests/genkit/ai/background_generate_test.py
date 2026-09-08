@@ -17,15 +17,17 @@
 """generate() / generate_operation() against a define_background_model fake."""
 
 from collections.abc import Awaitable, Callable
+from types import MappingProxyType
 from typing import Any, cast
 
 import pytest
+from pydantic import BaseModel
 
 from genkit import ActionKind, Document, Genkit, Message
-from genkit._core._action import ActionRunContext
+from genkit._core._action import ActionRunContext, _action_context
 from genkit._core._error import GenkitError
 from genkit._core._middleware import BaseMiddleware, GenerateHookParams, GenerateMiddlewareContext, ModelHookParams
-from genkit._core._model import ModelRequest, ModelResponse
+from genkit._core._model import ModelRequest, ModelResponse, ModelResponseChunk
 from genkit._core._typing import (
     Error,
     FinishReason,
@@ -45,11 +47,21 @@ def ai() -> Genkit:
     return Genkit()
 
 
-def register_bg_model(ai: Genkit, *, op_id: str = 'bg-op-123') -> None:
+def register_bg_model(
+    ai: Genkit,
+    *,
+    op_id: str = 'bg-op-123',
+    starts: list[str] | None = None,
+    checks: list[str] | None = None,
+) -> None:
     async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
+        if starts is not None:
+            starts.append('start')
         return Operation(id=op_id, done=False)
 
-    async def check(op: Operation) -> Operation:
+    async def check(op: Operation, _ctx: ActionRunContext) -> Operation:
+        if checks is not None:
+            checks.append('check')
         return op
 
     ai.define_background_model(
@@ -95,17 +107,8 @@ async def test_generate_returns_the_job_without_polling(ai: Genkit) -> None:
     ``generate_operation()`` only start; they must not call ``check``
     on the way out, or a long render would block the first call.
     """
-    checks = 0
-
-    async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
-        return Operation(id='bg-op-123', done=False)
-
-    async def check(op: Operation) -> Operation:
-        nonlocal checks
-        checks += 1
-        return Operation(id=op.id, done=True)
-
-    ai.define_background_model(name='bg-model', start=start, check=check)
+    checks: list[str] = []
+    register_bg_model(ai, checks=checks)
 
     response = await ai.generate(model='bg-model', prompt='a cat surfing')
     operation = await ai.generate_operation(model='bg-model', prompt='a cat surfing')
@@ -113,7 +116,7 @@ async def test_generate_returns_the_job_without_polling(ai: Genkit) -> None:
     assert response.operation is not None
     assert response.operation.done is False
     assert operation.done is False
-    assert checks == 0
+    assert checks == []
 
 
 class ReadsMessage(BaseMiddleware):
@@ -213,7 +216,7 @@ async def test_generate_keeps_fallback_answer_when_start_raises(ai: Genkit) -> N
     async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
         raise GenkitError(status='UNAVAILABLE', message='veo capacity exhausted')
 
-    async def check(op: Operation) -> Operation:
+    async def check(op: Operation, _ctx: ActionRunContext) -> Operation:
         return op
 
     ai.define_background_model(name='bg-model', start=start, check=check)
@@ -244,17 +247,8 @@ async def test_generate_persists_clean_history_without_injected_docs(ai: Genkit)
 @pytest.mark.asyncio
 async def test_generate_rejects_resume_on_background_model(ai: Genkit) -> None:
     """A video start cannot satisfy an interrupt resume. Don't bill start()."""
-    started = 0
-
-    async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
-        nonlocal started
-        started += 1
-        return Operation(id='bg-op-123', done=False)
-
-    async def check(op: Operation) -> Operation:
-        return op
-
-    ai.define_background_model(name='bg-model', start=start, check=check)
+    starts: list[str] = []
+    register_bg_model(ai, starts=starts)
 
     with pytest.raises(GenkitError, match='Cannot resume background model') as exc_info:
         await ai.generate(
@@ -272,7 +266,7 @@ async def test_generate_rejects_resume_on_background_model(ai: Genkit) -> None:
         )
 
     assert exc_info.value.status == 'FAILED_PRECONDITION'
-    assert started == 0
+    assert starts == []
 
 
 @pytest.mark.asyncio
@@ -456,7 +450,7 @@ async def test_started_operation_dump_round_trips_through_check(ai: Genkit) -> N
     async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
         return Operation(id='bg-op-123', done=False)
 
-    async def check(op: Operation) -> Operation:
+    async def check(op: Operation, _ctx: ActionRunContext) -> Operation:
         return Operation(id=op.id, done=True)
 
     ai.define_background_model(
@@ -475,3 +469,678 @@ async def test_started_operation_dump_round_trips_through_check(ai: Genkit) -> N
     assert updated.id == 'bg-op-123'
     assert updated.done is True
     assert updated.action == '/background-model/bg-model'
+
+
+@pytest.mark.asyncio
+async def test_generate_operation_passes_context_to_start(ai: Genkit) -> None:
+    """generate_operation(context=) already reaches start. Keep that hop."""
+    seen: dict[str, Any] = {}
+
+    async def start(_request: ModelRequest, ctx: ActionRunContext) -> Operation:
+        seen['start'] = dict(ctx.context)
+        return Operation(id='bg-op-1', done=False)
+
+    async def check(op: Operation, _ctx: ActionRunContext) -> Operation:
+        return op
+
+    ai.define_background_model(name='bg-model', start=start, check=check)
+
+    await ai.generate_operation(
+        model='bg-model',
+        prompt='a cat',
+        context={'secrets': {'api_key': 'sk-start'}},
+    )
+
+    assert seen['start']['secrets']['api_key'] == 'sk-start'
+
+
+@pytest.mark.asyncio
+async def test_background_action_start_passes_context(ai: Genkit) -> None:
+    """Holding the wrapper and calling start() still delivers the tenant key."""
+    seen: dict[str, Any] = {}
+
+    async def start(_request: ModelRequest, ctx: ActionRunContext) -> Operation:
+        seen['start'] = dict(ctx.context)
+        return Operation(id='bg-op-1', done=False)
+
+    async def check(op: Operation, _ctx: ActionRunContext) -> Operation:
+        return op
+
+    bg = ai.define_background_model(name='bg-model', start=start, check=check)
+    request = ModelRequest(
+        messages=[Message(role=Role.USER, content=[Part(TextPart(text='a cat'))])],
+    )
+
+    await bg.start(request, context={'secrets': {'api_key': 'tenant'}})
+
+    assert seen['start']['secrets']['api_key'] == 'tenant'
+
+
+@pytest.mark.asyncio
+async def test_check_and_cancel_pass_folded_context(ai: Genkit) -> None:
+    """check/cancel hand the plugin secrets and fold config= into context['config']."""
+    seen: dict[str, dict[str, Any]] = {}
+
+    async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
+        return Operation(id='bg-op-1', done=False)
+
+    async def check(op: Operation, ctx: ActionRunContext) -> Operation:
+        seen['check'] = dict(ctx.context)
+        return Operation(id=op.id, done=True)
+
+    async def cancel(op: Operation, ctx: ActionRunContext) -> Operation:
+        seen['cancel'] = dict(ctx.context)
+        return Operation(id=op.id, done=True)
+
+    ai.define_background_model(name='bg-model', start=start, check=check, cancel=cancel)
+    op = await ai.generate_operation(model='bg-model', prompt='a cat')
+    context = {'secrets': {'api_key': 'sk-live'}, 'config': {'base_url': 'https://old'}}
+    config = MappingProxyType({'base_url': 'https://x'})
+
+    await ai.check_operation(
+        op,
+        context=context,
+        config=config,
+    )
+    await ai.cancel_operation(
+        op,
+        context={'secrets': {'api_key': 'sk-live'}},
+        config=config,
+    )
+
+    assert seen['check']['secrets']['api_key'] == 'sk-live'
+    assert seen['check']['config']['base_url'] == 'https://x'
+    assert seen['cancel']['secrets']['api_key'] == 'sk-live'
+    assert seen['cancel']['config']['base_url'] == 'https://x'
+    assert context == {'secrets': {'api_key': 'sk-live'}, 'config': {'base_url': 'https://old'}}
+    assert config == {'base_url': 'https://x'}
+
+
+@pytest.mark.asyncio
+async def test_bare_check_operation_still_works(ai: Genkit) -> None:
+    """The plugin-key loop does not require context= or config=."""
+    seen: dict[str, object] = {}
+
+    async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
+        return Operation(id='bg-op-1', done=False)
+
+    async def check(op: Operation, ctx: ActionRunContext) -> Operation:
+        seen['check'] = dict(ctx.context)
+        return Operation(id=op.id, done=True)
+
+    ai.define_background_model(name='bg-model', start=start, check=check)
+    op = await ai.generate_operation(model='bg-model', prompt='a cat')
+
+    updated = await ai.check_operation(op)
+
+    assert updated.done is True
+    assert seen['check'] == {}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('method_name', ['check_operation', 'cancel_operation'])
+@pytest.mark.parametrize('config', [{'base_url': 'https://x'}, {}], ids=['configured', 'empty'])
+async def test_operation_config_keeps_ambient_context(
+    ai: Genkit,
+    method_name: str,
+    config: dict[str, str],
+) -> None:
+    """Connection knobs don't discard the tenant context of the current call."""
+    seen: dict[str, dict[str, Any]] = {}
+
+    async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
+        return Operation(id='bg-op-1', done=False)
+
+    async def check(op: Operation, ctx: ActionRunContext) -> Operation:
+        seen['operation'] = dict(ctx.context)
+        return Operation(id=op.id, done=True)
+
+    async def cancel(op: Operation, ctx: ActionRunContext) -> Operation:
+        seen['operation'] = dict(ctx.context)
+        return Operation(id=op.id, done=True)
+
+    ai.define_background_model(name='bg-model', start=start, check=check, cancel=cancel)
+    token = _action_context.set({'secrets': {'api_key': 'sk-ambient'}, 'locale': 'en-US'})
+    try:
+        op = await ai.generate_operation(model='bg-model', prompt='a cat')
+        await getattr(ai, method_name)(op, config=MappingProxyType(config))
+    finally:
+        _action_context.reset(token)
+
+    assert seen['operation'] == {
+        'secrets': {'api_key': 'sk-ambient'},
+        'locale': 'en-US',
+        'config': config,
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('method_name', ['check_operation', 'cancel_operation'])
+async def test_empty_context_replaces_ambient(ai: Genkit, method_name: str) -> None:
+    """An explicit empty context means plugin-key / no tenant, not a no-op."""
+    seen: dict[str, dict[str, Any]] = {}
+
+    async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
+        return Operation(id='bg-op-1', done=False)
+
+    async def check(op: Operation, ctx: ActionRunContext) -> Operation:
+        seen['operation'] = dict(ctx.context)
+        return Operation(id=op.id, done=True)
+
+    async def cancel(op: Operation, ctx: ActionRunContext) -> Operation:
+        seen['operation'] = dict(ctx.context)
+        return Operation(id=op.id, done=True)
+
+    ai.define_background_model(name='bg-model', start=start, check=check, cancel=cancel)
+    token = _action_context.set({'secrets': {'api_key': 'sk-ambient'}})
+    try:
+        op = await ai.generate_operation(model='bg-model', prompt='a cat')
+        await getattr(ai, method_name)(op, context={})
+    finally:
+        _action_context.reset(token)
+
+    assert seen['operation'] == {}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('method_name', ['check_operation', 'cancel_operation'])
+async def test_empty_context_with_config_replaces_ambient(ai: Genkit, method_name: str) -> None:
+    """Connection knobs don't undo an explicit request to clear context."""
+    seen: dict[str, dict[str, Any]] = {}
+
+    async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
+        return Operation(id='bg-op-1', done=False)
+
+    async def check(op: Operation, ctx: ActionRunContext) -> Operation:
+        seen['operation'] = dict(ctx.context)
+        return Operation(id=op.id, done=True)
+
+    async def cancel(op: Operation, ctx: ActionRunContext) -> Operation:
+        seen['operation'] = dict(ctx.context)
+        return Operation(id=op.id, done=True)
+
+    ai.define_background_model(name='bg-model', start=start, check=check, cancel=cancel)
+    token = _action_context.set({'secrets': {'api_key': 'sk-ambient'}})
+    try:
+        op = await ai.generate_operation(model='bg-model', prompt='a cat')
+        await getattr(ai, method_name)(op, context={}, config={'base_url': 'https://x'})
+    finally:
+        _action_context.reset(token)
+
+    assert seen['operation'] == {'config': {'base_url': 'https://x'}}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('method_name', ['check_operation', 'cancel_operation'])
+async def test_bare_operation_inherits_ambient_context(ai: Genkit, method_name: str) -> None:
+    """A poll inside the current request sees its tenant without extra plumbing."""
+    seen: dict[str, dict[str, Any]] = {}
+
+    async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
+        return Operation(id='bg-op-1', done=False)
+
+    async def check(op: Operation, ctx: ActionRunContext) -> Operation:
+        seen['operation'] = dict(ctx.context)
+        return Operation(id=op.id, done=True)
+
+    async def cancel(op: Operation, ctx: ActionRunContext) -> Operation:
+        seen['operation'] = dict(ctx.context)
+        return Operation(id=op.id, done=True)
+
+    ai.define_background_model(name='bg-model', start=start, check=check, cancel=cancel)
+    token = _action_context.set({'secrets': {'api_key': 'sk-ambient'}})
+    try:
+        op = await ai.generate_operation(model='bg-model', prompt='a cat')
+        await getattr(ai, method_name)(op)
+    finally:
+        _action_context.reset(token)
+
+    assert seen['operation'] == {'secrets': {'api_key': 'sk-ambient'}}
+
+
+@pytest.mark.asyncio
+async def test_generate_operation_empty_context_replaces_ambient(ai: Genkit) -> None:
+    """generate_operation(..., context={}) is plugin-key this time, not ambient."""
+    seen: dict[str, dict[str, Any]] = {}
+
+    async def start(_request: ModelRequest, ctx: ActionRunContext) -> Operation:
+        seen['start'] = dict(ctx.context)
+        return Operation(id='bg-op-1', done=False)
+
+    async def check(op: Operation, _ctx: ActionRunContext) -> Operation:
+        return op
+
+    ai.define_background_model(name='bg-model', start=start, check=check)
+    token = _action_context.set({'secrets': {'api_key': 'sk-ambient'}})
+    try:
+        await ai.generate_operation(model='bg-model', prompt='a cat', context={})
+    finally:
+        _action_context.reset(token)
+
+    assert seen['start'] == {}
+
+
+class RerouteConfig(BaseModel):
+    to: str
+    turn: int | None = None
+
+
+class Reroute(BaseMiddleware[RerouteConfig]):
+    """Swap ``params.options.model`` before the turn resolves."""
+
+    async def wrap_generate(
+        self,
+        params: GenerateHookParams,
+        ctx: GenerateMiddlewareContext,
+        next_fn: Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+    ) -> ModelResponse:
+        if self.config.turn is not None and params.iteration != self.config.turn:
+            return await next_fn(params, ctx)
+        options = params.options.model_copy(update={'model': self.config.to})
+        return await next_fn(params.model_copy(update={'options': options}), ctx)
+
+
+def register_plain(ai: Genkit, *, name: str = 'plain', text: str = 'from-plain') -> None:
+    async def model_fn(_request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        ctx.send_chunk(ModelResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text=text))]))
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=text))]))
+
+    ai.define_model(name=name, fn=model_fn)
+
+
+def register_tool_caller(ai: Genkit, *, name: str = 'flash') -> None:
+    async def model_fn(_request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(
+            message=Message(
+                role=Role.MODEL,
+                content=[Part(root=ToolRequestPart(tool_request=ToolRequest(name='ping', input={}, ref='1')))],
+            )
+        )
+
+    ai.define_model(name=name, fn=model_fn)
+
+
+def interrupted_history() -> list[Message]:
+    return [
+        Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]),
+        Message(
+            role=Role.MODEL,
+            content=[Part(root=ToolRequestPart(tool_request=ToolRequest(name='ping', input={}, ref='1')))],
+        ),
+    ]
+
+
+def respond_ping() -> ToolResponsePart:
+    return ToolResponsePart(tool_response=ToolResponse(name='ping', ref='1', output='ok'))
+
+
+def restart_ping() -> ToolRequestPart:
+    return ToolRequestPart(tool_request=ToolRequest(name='ping', input={}, ref='1'))
+
+
+def register_ping(ai: Genkit, runs: list[str] | None = None) -> None:
+    @ai.tool(name='ping')
+    async def ping() -> str:
+        if runs is not None:
+            runs.append('ping')
+        return 'pong'
+
+
+def assert_chat(response: ModelResponse, *, text: str, roles: list[Role] | None = None) -> None:
+    assert response.operation is None
+    assert response.message is not None
+    assert response.messages[-1] == response.message
+    assert response.text == text
+    if roles is not None:
+        assert [m.role for m in response.messages] == roles
+
+
+def assert_ticket(response: ModelResponse, *, op_id: str = 'bg-op-123') -> None:
+    assert response.operation is not None
+    assert response.operation.id == op_id
+    assert response.operation.done is False
+    assert response.operation.action == '/background-model/bg-model'
+    assert response.message is None
+    assert response.text == ''
+
+
+@pytest.mark.asyncio
+async def test_wrap_generate_reroute_to_background_starts_the_job(ai: Genkit) -> None:
+    """A wrap_generate that sets options.model to a Veo id must actually start Veo."""
+    register_bg_model(ai)
+    register_plain(ai)
+
+    response = await ai.generate(model='plain', prompt='a cat', use=[Reroute(to='bg-model')])
+
+    assert_ticket(response)
+
+
+@pytest.mark.asyncio
+async def test_wrap_generate_reroute_from_background_runs_plain(ai: Genkit) -> None:
+    """The reverse swap must call the chat model and never start()."""
+    starts: list[str] = []
+
+    register_bg_model(ai, starts=starts)
+    register_plain(ai)
+
+    response = await ai.generate(model='bg-model', prompt='a cat', use=[Reroute(to='plain')])
+
+    assert_chat(response, text='from-plain')
+    assert starts == []
+
+
+@pytest.mark.asyncio
+async def test_wrap_generate_reroute_same_kind_uses_the_new_model(ai: Genkit) -> None:
+    """A flash→pro swap is the same bug without a background model in the mix."""
+    register_plain(ai, name='flash', text='from-flash')
+    register_plain(ai, name='pro', text='from-pro')
+
+    response = await ai.generate(model='flash', prompt='hi', use=[Reroute(to='pro')])
+
+    assert_chat(response, text='from-pro')
+
+
+@pytest.mark.asyncio
+async def test_wrap_generate_reroute_to_missing_model_is_not_found(ai: Genkit) -> None:
+    """A reroute to a name that is not registered fails at resolve, not silently."""
+    register_plain(ai)
+
+    with pytest.raises(GenkitError) as raised:
+        await ai.generate(model='plain', prompt='hi', use=[Reroute(to='no-such-model')])
+
+    assert raised.value.status == 'NOT_FOUND'
+
+
+@pytest.mark.asyncio
+async def test_wrap_generate_in_place_model_assignment_runs_the_new_model(ai: Genkit) -> None:
+    """Writing options.model in place is the same swap as model_copy."""
+    register_plain(ai, name='flash', text='from-flash')
+    register_plain(ai, name='pro', text='from-pro')
+
+    class InPlace(BaseMiddleware):
+        async def wrap_generate(
+            self,
+            params: GenerateHookParams,
+            ctx: GenerateMiddlewareContext,
+            next_fn: Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+        ) -> ModelResponse:
+            params.options.model = 'pro'
+            return await next_fn(params, ctx)
+
+    response = await ai.generate(model='flash', prompt='hi', use=[InPlace()])
+
+    assert_chat(response, text='from-pro')
+
+
+@pytest.mark.asyncio
+async def test_wrap_generate_rescues_a_missing_model_name(ai: Genkit) -> None:
+    """The original name is never resolved. A swap to a real model runs that model."""
+    register_plain(ai)
+
+    response = await ai.generate(model='no-such-model', prompt='hi', use=[Reroute(to='plain')])
+
+    assert_chat(response, text='from-plain')
+
+
+@pytest.mark.asyncio
+async def test_resume_restart_on_video_without_swap_does_not_run_the_tool(ai: Genkit) -> None:
+    """Still on Veo after the hook: reject before a resume restart runs the tool."""
+    starts: list[str] = []
+    runs: list[str] = []
+
+    register_bg_model(ai, starts=starts)
+    register_ping(ai, runs)
+
+    with pytest.raises(GenkitError, match='Cannot resume background model') as raised:
+        await ai.generate(
+            model='bg-model',
+            messages=interrupted_history(),
+            resume_restart=[restart_ping()],
+            tools=['ping'],
+        )
+
+    assert raised.value.status == 'FAILED_PRECONDITION'
+    assert starts == []
+    assert runs == []
+
+
+@pytest.mark.asyncio
+async def test_wrap_generate_resume_respond_on_video_swaps_to_flash_and_continues(ai: Genkit) -> None:
+    """Swap off Veo before resolve. Resume stitches, then flash writes the next message."""
+    starts: list[str] = []
+
+    register_bg_model(ai, starts=starts)
+    register_plain(ai)
+
+    response = await ai.generate(
+        model='bg-model',
+        messages=interrupted_history(),
+        resume_respond=[respond_ping()],
+        use=[Reroute(to='plain')],
+    )
+
+    assert_chat(response, text='from-plain', roles=[Role.USER, Role.MODEL, Role.TOOL, Role.MODEL])
+    assert starts == []
+
+
+@pytest.mark.asyncio
+async def test_wrap_generate_resume_restart_on_video_swaps_to_flash_runs_the_tool(ai: Genkit) -> None:
+    """Swap off Veo, then the restarted tool runs and flash continues."""
+    starts: list[str] = []
+    runs: list[str] = []
+
+    register_bg_model(ai, starts=starts)
+    register_plain(ai)
+    register_ping(ai, runs)
+
+    response = await ai.generate(
+        model='bg-model',
+        messages=interrupted_history(),
+        resume_restart=[restart_ping()],
+        tools=['ping'],
+        use=[Reroute(to='plain')],
+    )
+
+    assert_chat(response, text='from-plain', roles=[Role.USER, Role.MODEL, Role.TOOL, Role.MODEL])
+    assert starts == []
+    assert runs == ['ping']
+
+
+@pytest.mark.asyncio
+async def test_wrap_generate_resume_respond_on_flash_swaps_to_video_raises(ai: Genkit) -> None:
+    """A swap onto Veo during resume is still a video start. Don't bill start()."""
+    starts: list[str] = []
+
+    register_bg_model(ai, starts=starts)
+    register_plain(ai)
+
+    with pytest.raises(GenkitError, match='Cannot resume background model') as raised:
+        await ai.generate(
+            model='plain',
+            messages=interrupted_history(),
+            resume_respond=[respond_ping()],
+            use=[Reroute(to='bg-model')],
+        )
+
+    assert raised.value.status == 'FAILED_PRECONDITION'
+    assert starts == []
+
+
+@pytest.mark.asyncio
+async def test_wrap_generate_resume_restart_on_flash_swaps_to_video_does_not_run_the_tool(ai: Genkit) -> None:
+    """Swap onto Veo: reject before the restarted tool runs."""
+    starts: list[str] = []
+    runs: list[str] = []
+
+    register_bg_model(ai, starts=starts)
+    register_plain(ai)
+    register_ping(ai, runs)
+
+    with pytest.raises(GenkitError, match='Cannot resume background model') as raised:
+        await ai.generate(
+            model='plain',
+            messages=interrupted_history(),
+            resume_restart=[restart_ping()],
+            tools=['ping'],
+            use=[Reroute(to='bg-model')],
+        )
+
+    assert raised.value.status == 'FAILED_PRECONDITION'
+    assert starts == []
+    assert runs == []
+
+
+@pytest.mark.asyncio
+async def test_wrap_generate_swaps_to_pro_on_the_turn_after_a_tool(ai: Genkit) -> None:
+    """After a closed tool round, wrap_generate on that turn picks pro."""
+    register_tool_caller(ai, name='flash')
+    register_plain(ai, name='pro', text='from-pro')
+    register_ping(ai)
+
+    response = await ai.generate(model='flash', prompt='hi', tools=['ping'], use=[Reroute(to='pro', turn=1)])
+
+    assert_chat(response, text='from-pro', roles=[Role.USER, Role.MODEL, Role.TOOL, Role.MODEL])
+
+
+@pytest.mark.asyncio
+async def test_wrap_generate_swaps_to_video_on_the_turn_after_a_tool(ai: Genkit) -> None:
+    """After a closed tool round, a swap to Veo starts the job."""
+    register_tool_caller(ai, name='flash')
+    register_bg_model(ai)
+    register_ping(ai)
+
+    response = await ai.generate(model='flash', prompt='hi', tools=['ping'], use=[Reroute(to='bg-model', turn=1)])
+
+    assert_ticket(response)
+    assert [m.role for m in response.messages] == [Role.USER, Role.MODEL, Role.TOOL]
+
+
+@pytest.mark.asyncio
+async def test_generate_stream_swap_to_pro_streams_pro_text(ai: Genkit) -> None:
+    """generate_stream follows the same swap: chunks and the final reply are pro."""
+    register_plain(ai, name='flash', text='from-flash')
+    register_plain(ai, name='pro', text='from-pro')
+
+    stream = ai.generate_stream(model='flash', prompt='hi', use=[Reroute(to='pro')])
+    texts: list[str] = []
+    async for chunk in stream.stream:
+        texts.append(chunk.text)
+    response = await stream.response
+
+    assert ''.join(texts) == 'from-pro'
+    assert_chat(response, text='from-pro')
+
+
+@pytest.mark.asyncio
+async def test_generate_stream_swap_to_video_returns_a_ticket(ai: Genkit) -> None:
+    """A stream swap to Veo has no token chunks and a ticket on the final response."""
+    register_plain(ai)
+    register_bg_model(ai)
+
+    stream = ai.generate_stream(model='plain', prompt='a cat', use=[Reroute(to='bg-model')])
+    texts: list[str] = []
+    async for chunk in stream.stream:
+        texts.append(chunk.text)
+    response = await stream.response
+
+    assert texts == []
+    assert_ticket(response)
+
+
+@pytest.mark.asyncio
+async def test_check_operation_polls_the_ticket_from_a_swapped_video_start(ai: Genkit) -> None:
+    """The ticket from a flash→Veo swap is what check_operation polls."""
+
+    async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
+        return Operation(id='bg-op-123', done=False)
+
+    async def check(op: Operation, _ctx: ActionRunContext) -> Operation:
+        return Operation(id=op.id, done=True, action=op.action)
+
+    ai.define_background_model(name='bg-model', start=start, check=check)
+    register_plain(ai)
+
+    response = await ai.generate(model='plain', prompt='a cat', use=[Reroute(to='bg-model')])
+    assert_ticket(response)
+
+    updated = await ai.check_operation(response.operation)
+    assert updated.id == 'bg-op-123'
+    assert updated.done is True
+    assert updated.action == '/background-model/bg-model'
+
+
+@pytest.mark.asyncio
+async def test_wrap_generate_on_resume_sees_the_model_message_and_resume(ai: Genkit) -> None:
+    """On a resume turn the hook sees the model message and resume, once."""
+    register_plain(ai)
+    seen: list[dict[str, object]] = []
+
+    class ResumeSpy(BaseMiddleware):
+        async def wrap_generate(
+            self,
+            params: GenerateHookParams,
+            ctx: GenerateMiddlewareContext,
+            next_fn: Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+        ) -> ModelResponse:
+            messages = params.options.messages
+            seen.append({
+                'iteration': params.iteration,
+                'last_role': messages[-1].role if messages else None,
+                'has_resume': params.options.resume is not None,
+            })
+            return await next_fn(params, ctx)
+
+    response = await ai.generate(
+        model='plain',
+        messages=interrupted_history(),
+        resume_respond=[respond_ping()],
+        use=[ResumeSpy()],
+    )
+
+    assert_chat(response, text='from-plain', roles=[Role.USER, Role.MODEL, Role.TOOL, Role.MODEL])
+    assert seen == [{'iteration': 0, 'last_role': Role.MODEL, 'has_resume': True}]
+
+
+@pytest.mark.asyncio
+async def test_wrap_generate_short_circuit_skips_a_missing_model(ai: Genkit) -> None:
+    """A hook that returns without next never resolves the original name."""
+
+    class ReturnsFlashWithoutNext(BaseMiddleware):
+        async def wrap_generate(
+            self,
+            params: GenerateHookParams,
+            ctx: GenerateMiddlewareContext,
+            next_fn: Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+        ) -> ModelResponse:
+            return ModelResponse(
+                message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='FLASH'))]),
+                finish_reason=FinishReason.STOP,
+            )
+
+    response = await ai.generate(model='no-such-model', prompt='hi', use=[ReturnsFlashWithoutNext()])
+
+    assert_chat(response, text='FLASH')
+
+
+@pytest.mark.asyncio
+async def test_generate_operation_swap_from_flash_is_not_long_running(ai: Genkit) -> None:
+    """generate_operation gates on the name they passed. A swap to Veo never runs."""
+    register_plain(ai, name='flash', text='from-flash')
+    register_bg_model(ai)
+
+    with pytest.raises(GenkitError, match='does not support long running operations') as raised:
+        await ai.generate_operation(model='flash', prompt='a cat', use=[Reroute(to='bg-model')])
+
+    assert raised.value.status == 'INVALID_ARGUMENT'
+
+
+@pytest.mark.asyncio
+async def test_generate_operation_swap_from_video_to_flash_is_missing_operation(ai: Genkit) -> None:
+    """generate_operation on Veo plus a swap to flash runs flash, then wants a ticket."""
+    register_bg_model(ai)
+    register_plain(ai)
+
+    with pytest.raises(GenkitError, match='did not return an operation') as raised:
+        await ai.generate_operation(model='bg-model', prompt='a cat', use=[Reroute(to='plain')])
+
+    assert raised.value.status == 'FAILED_PRECONDITION'
