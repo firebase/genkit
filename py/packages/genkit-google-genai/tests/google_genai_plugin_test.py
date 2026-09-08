@@ -40,7 +40,6 @@ from genkit_google_genai.google import (
     VERTEXAI_PLUGIN_NAME,
     GenaiModels,
     _list_genai_models,
-    _list_genai_models_sync,
     googleai_name,
     vertexai_name,
 )
@@ -646,7 +645,8 @@ async def test_list_actions_advertises_veo_as_background(mock_list_models: Magic
         assert veo_entries[0].action_type == ActionKind.BACKGROUND_MODEL
 
 
-def test_list_genai_models_vertex_skips_substring_veo_and_retired_image() -> None:
+@pytest.mark.asyncio
+async def test_list_genai_models_vertex_skips_substring_veo_and_retired_image() -> None:
     """Discovery buckets on the ``veo-`` prefix, not a ``veo`` substring."""
 
     def _model(name: str) -> MagicMock:
@@ -656,16 +656,20 @@ def test_list_genai_models_vertex_skips_substring_veo_and_retired_image() -> Non
         item.description = ''
         return item
 
+    async def model_pager() -> AsyncIterator[MagicMock]:
+        for model in [
+            _model('publishers/google/models/gemini-2.5-flash'),
+            _model('publishers/google/models/veo-3.0-generate-001'),
+            _model('publishers/google/models/braveo-lab'),
+            _model('publishers/google/models/imagegeneration@006'),
+            _model('publishers/google/models/virtual-try-on-001'),
+            _model('publishers/google/models/imagetext@001'),
+        ]:
+            yield model
+
     client = MagicMock()
-    client.models.list.return_value = [
-        _model('publishers/google/models/gemini-2.5-flash'),
-        _model('publishers/google/models/veo-3.0-generate-001'),
-        _model('publishers/google/models/braveo-lab'),
-        _model('publishers/google/models/imagegeneration@006'),
-        _model('publishers/google/models/virtual-try-on-001'),
-        _model('publishers/google/models/imagetext@001'),
-    ]
-    catalog = _list_genai_models_sync(client, is_vertex=True)
+    client.aio.models.list = AsyncMock(return_value=model_pager())
+    catalog = await _list_genai_models(client, is_vertex=True)
     assert catalog.veo == ['veo-3.0-generate-001']
     assert catalog.imagen == []
     assert 'imagetext@001' not in catalog.gemini
