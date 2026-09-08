@@ -74,7 +74,7 @@ KNOWN_LYRIA_MODELS: tuple[LyriaVersion, ...] = (
 
 def is_lyria_model_name(name: str | None) -> bool:
     """True for any lyria-* id so a version we have not catalogued still routes here."""
-    return bool(name and name.rsplit('/', 1)[-1].startswith('lyria-'))
+    return bool(name and extract_version(name).startswith('lyria-'))
 
 
 def lyria_model_info(version: str) -> ModelInfo:
@@ -110,7 +110,7 @@ KNOWN_ANTIGRAVITY_MODELS: dict[str, ModelInfo] = {
 
 def is_antigravity_model_name(name: str | None) -> bool:
     """Return True when the model name belongs to the Antigravity family."""
-    return bool(name and name.startswith('antigravity-'))
+    return bool(name and extract_version(name).startswith('antigravity-'))
 
 
 def antigravity_model_info(version: str) -> ModelInfo:
@@ -161,7 +161,7 @@ KNOWN_DEEP_RESEARCH_MODELS: dict[str, ModelInfo] = {
 
 def is_deep_research_model_name(name: str | None) -> bool:
     """Return True when the model name belongs to the Deep Research family."""
-    return bool(name and name.startswith('deep-research-'))
+    return bool(name and extract_version(name).startswith('deep-research-'))
 
 
 def deep_research_model_info(version: str) -> ModelInfo:

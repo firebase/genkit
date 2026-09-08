@@ -352,7 +352,7 @@ def _create_embedder_action(
     Returns:
         Action object for the embedder.
     """
-    clean_name = name.replace(f'{plugin_name}/', '') if name.startswith(plugin_name) else name
+    clean_name = name.removeprefix(f'{plugin_name}/')
     full_name = f'{plugin_name}/{clean_name}'
     label = f'{PLUGIN_DISPLAY_NAME[plugin_name]} - {clean_name}'
     embed_info = get_embedder_info(
@@ -415,6 +415,14 @@ def _create_veo_background_action(
         info=veo_model_info(clean_name),
         metadata={'type': 'background-model'},
     )
+
+
+def _background_actions(bg: BackgroundAction) -> list[Action]:
+    """Unpack a BackgroundAction into its constituent Action objects."""
+    actions = [bg.start_action, bg.check_action]
+    if bg.cancel_action is not None:
+        actions.append(bg.cancel_action)
+    return actions
 
 
 class GoogleFamilyRefs:
@@ -739,18 +747,20 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
 
         # Veo Models (background models)
         for name in genai_models.veo:
-            bg_action = self._resolve_veo_model(googleai_name(name))
-            actions.append(bg_action.start_action)
-            actions.append(bg_action.check_action)
+            actions.extend(_background_actions(self._resolve_veo_model(googleai_name(name))))
 
         client_options = self._interactions_client_options()
         plugin_api_key = self._plugin_api_key()
         for name in list_known_deep_research_models():
-            bg_action = self._resolve_deep_research_model(googleai_name(name), client_options, plugin_api_key)
-            actions.append(bg_action.start_action)
-            actions.append(bg_action.check_action)
-            if bg_action.cancel_action is not None:
-                actions.append(bg_action.cancel_action)
+            actions.extend(
+                _background_actions(
+                    create_deep_research_background_action(
+                        googleai_name(name),
+                        plugin_api_key=plugin_api_key,
+                        client_options=client_options,
+                    )
+                )
+            )
         for name in list_known_antigravity_models():
             actions.append(
                 create_antigravity_action(
@@ -795,9 +805,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         genai_models = _list_genai_models(self._runtime_client(), is_vertex=False)
         actions = []
         for name in genai_models.veo:
-            bg_action = self._resolve_veo_model(googleai_name(name))
-            actions.append(bg_action.start_action)
-            actions.append(bg_action.check_action)
+            actions.extend(_background_actions(self._resolve_veo_model(googleai_name(name))))
         return actions
 
     def _list_known_embedders(self) -> list[Action]:
@@ -839,25 +847,12 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         if is_veo_model(clean):
             return self._resolve_veo_model(name)
         if is_deep_research_model_name(clean):
-            return self._resolve_deep_research_model(
+            return create_deep_research_background_action(
                 deep_research_model(name),
-                self._interactions_client_options(),
-                self._plugin_api_key(),
+                plugin_api_key=self._plugin_api_key(),
+                client_options=self._interactions_client_options(),
             )
         return None
-
-    def _resolve_deep_research_model(
-        self,
-        target: str | ModelRef,
-        client_options: ClientOptions,
-        plugin_api_key: str | None,
-    ) -> BackgroundAction:
-        """Create a BackgroundAction for a Deep Research model."""
-        return create_deep_research_background_action(
-            target,
-            plugin_api_key=plugin_api_key,
-            client_options=client_options,
-        )
 
     def _resolve_veo_model(self, name: str) -> BackgroundAction:
         """Create a BackgroundAction for a Veo video generation model.
@@ -883,7 +878,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
             instead of defaulting to Gemini).
         """
         # Extract local name (remove plugin prefix)
-        clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
+        clean_name = name.removeprefix(f'{GOOGLEAI_PLUGIN_NAME}/')
 
         # Interactions families before the shared fail-closed table so Vertex
         # can keep them unroutable while Google AI actually serves them.

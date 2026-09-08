@@ -137,12 +137,9 @@ def build_tools(request: ModelRequest[DeepResearchConfig], config: DeepResearchC
     if request.tools:
         tools.extend(dict(to_interaction_tool(tool_def)) for tool_def in request.tools)
 
-    if config.google_search:
-        tools.append({'type': 'google_search'})
-    if config.url_context:
-        tools.append({'type': 'url_context'})
-    if config.code_execution:
-        tools.append({'type': 'code_execution'})
+    for tool_type in ('google_search', 'url_context', 'code_execution'):
+        if getattr(config, tool_type, None):
+            tools.append({'type': tool_type})
     if config.file_search is not None:
         # Create body is snake_case. Dumping by alias would send
         # fileSearchStoreNames and the stores would never attach.
@@ -217,17 +214,18 @@ def create_deep_research_background_action(
         interaction = await create_interaction(api_key, create_kwargs, options)
         return persist(from_interaction(interaction))
 
-    async def check(operation: Operation, ctx: ActionRunContext) -> Operation:
+    def _op_key_and_options(ctx: ActionRunContext) -> tuple[str, ClientOptions]:
         call_config = ctx.context.get('config')
         options = client_options.merge(call_config if isinstance(call_config, dict) else None)
-        api_key = api_key_for_context(ctx.context, plugin_api_key)
+        return api_key_for_context(ctx.context, plugin_api_key), options
+
+    async def check(operation: Operation, ctx: ActionRunContext) -> Operation:
+        api_key, options = _op_key_and_options(ctx)
         interaction = await get_interaction(api_key, operation.id, options)
         return persist(from_interaction(interaction))
 
     async def cancel(operation: Operation, ctx: ActionRunContext) -> Operation:
-        call_config = ctx.context.get('config')
-        options = client_options.merge(call_config if isinstance(call_config, dict) else None)
-        api_key = api_key_for_context(ctx.context, plugin_api_key)
+        api_key, options = _op_key_and_options(ctx)
         interaction = await cancel_interaction(api_key, operation.id, options)
         return persist(from_interaction(interaction))
 

@@ -131,3 +131,34 @@ def test_steps_with_folded_system_instruction_prepends_system() -> None:
     assert len(steps) == 2
     assert steps[0] == {'type': 'user_input', 'content': [{'type': 'text', 'text': 'Be helpful.'}]}
     assert steps[1] == {'type': 'user_input', 'content': [{'type': 'text', 'text': 'Hello!'}]}
+
+
+def test_model_name_predicates_support_namespaces() -> None:
+    from genkit_google_genai.models.interactions_registry import (
+        is_antigravity_model_name,
+        is_deep_research_model_name,
+        is_lyria_model_name,
+    )
+
+    # Bare
+    assert is_antigravity_model_name('antigravity-preview-05-2026')
+    assert is_deep_research_model_name('deep-research-pro-preview-12-2025')
+    assert is_lyria_model_name('lyria-3-clip-preview')
+
+    # Namespaced
+    assert is_antigravity_model_name('googleai/antigravity-preview-05-2026')
+    assert is_deep_research_model_name('googleai/deep-research-pro-preview-12-2025')
+    assert is_lyria_model_name('googleai/lyria-3-clip-preview')
+
+    # Full action path
+    assert is_antigravity_model_name('models/googleai/antigravity-preview-05-2026')
+    assert is_deep_research_model_name('models/googleai/deep-research-pro-preview-12-2025')
+    assert is_lyria_model_name('models/googleai/lyria-3-clip-preview')
+
+    # Negative
+    assert not is_antigravity_model_name('gemini-2.5-flash')
+    assert not is_deep_research_model_name('gemini-2.5-flash')
+    assert not is_lyria_model_name('gemini-2.5-flash')
+    assert not is_antigravity_model_name(None)
+    assert not is_deep_research_model_name(None)
+    assert not is_lyria_model_name(None)
