@@ -220,7 +220,7 @@ async def test_generate_operation_with_model_ref(ai: Genkit) -> None:
         seen.append(request)
         return Operation(id='ref-op-123', done=False)
 
-    async def check(op: Operation) -> Operation:
+    async def check(op: Operation, _ctx: ActionRunContext) -> Operation:
         return op
 
     ai.define_background_model(name='lro-model', start=start, check=check)
@@ -1052,7 +1052,7 @@ async def test_generate_operation_rejects_wrong_config_class() -> None:
     async def start(request: ModelRequest, ctx: ActionRunContext) -> Operation:
         return Operation(id='op-1', done=False)
 
-    async def check(op: Operation) -> Operation:
+    async def check(op: Operation, _ctx: ActionRunContext) -> Operation:
         return op
 
     ai.define_background_model(

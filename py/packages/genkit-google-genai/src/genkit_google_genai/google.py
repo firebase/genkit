@@ -347,6 +347,7 @@ def _create_veo_background_action(
     name: str,
     client_getter: Callable[[], genai.Client],
     plugin_name: str,
+    client_kwargs: dict[str, Any] | None = None,
 ) -> BackgroundAction:
     """Create the start/check action pair for a Veo video generation model.
 
@@ -359,6 +360,8 @@ def _create_veo_background_action(
         name: The namespaced name of the model.
         client_getter: Function returning the loop-local Google GenAI client.
         plugin_name: The name of the plugin (googleai or vertexai).
+        client_kwargs: Plugin-level client kwargs, cloned when a call
+            overrides the key or endpoint.
 
     Returns:
         BackgroundAction pairing the start and check actions.
@@ -368,12 +371,12 @@ def _create_veo_background_action(
     full_name = f'{prefix}{clean_name}'
 
     async def _start(request: ModelRequest[VeoConfig], ctx: ActionRunContext) -> Operation:
-        veo = VeoModel(clean_name, client_getter())
+        veo = VeoModel(clean_name, client_getter(), client_kwargs=client_kwargs)
         return await veo.start(request, ctx)
 
-    async def _check(op: Operation) -> Operation:
-        veo = VeoModel(clean_name, client_getter())
-        return await veo.check(op)
+    async def _check(op: Operation, ctx: ActionRunContext) -> Operation:
+        veo = VeoModel(clean_name, client_getter(), client_kwargs=client_kwargs)
+        return await veo.check(op, ctx)
 
     return background_model(
         full_name,
@@ -730,7 +733,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         Returns:
             BackgroundAction for the Veo model.
         """
-        return _create_veo_background_action(name, self._runtime_client, GOOGLEAI_PLUGIN_NAME)
+        return _create_veo_background_action(name, self._runtime_client, GOOGLEAI_PLUGIN_NAME, self._client_kwargs)
 
     def _resolve_model(self, name: str) -> Action | None:
         """Create an Action object for a Google AI model.
@@ -1116,7 +1119,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
         Returns:
             BackgroundAction for the Veo model.
         """
-        return _create_veo_background_action(name, self._runtime_client, VERTEXAI_PLUGIN_NAME)
+        return _create_veo_background_action(name, self._runtime_client, VERTEXAI_PLUGIN_NAME, self._client_kwargs)
 
     def _resolve_evaluator(self, name: str) -> Action | None:
         """Create an Action object for a Vertex AI evaluator.
