@@ -127,6 +127,7 @@ KnownGpt: TypeAlias = Literal[
     'gpt-5.1',
     'gpt-5.2',
     'gpt-5.2-chat',
+    'gpt-6-astra',
     'gpt-oss-120b',
     'gpt-oss-20b',
 ]
@@ -187,6 +188,18 @@ SUPPORTED_OPENAI_MODELS: dict[KnownGpt, ModelInfo] = {
     'gpt-5.1': ModelInfo(label='OpenAI - gpt-5.1', supports=GPT_5_MODEL_SUPPORTS),
     'gpt-5.2': ModelInfo(label='OpenAI - gpt-5.2', supports=GPT_5_MODEL_SUPPORTS),
     'gpt-5.2-chat': ModelInfo(label='OpenAI - gpt-5.2-chat', supports=GPT_5_MODEL_SUPPORTS),
+    # --- GPT-6 series ---
+    # Chat Completions rejects function tools for this model.
+    'gpt-6-astra': ModelInfo(
+        label='OpenAI - gpt-6-astra',
+        supports=Supports(
+            multiturn=True,
+            media=True,
+            tools=False,
+            system_role=True,
+            output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
+        ),
+    ),
     # --- OSS models (hosted) ---
     'gpt-oss-120b': ModelInfo(label='OpenAI - gpt-oss-120b', supports=GPT_OSS_MODEL_SUPPORTS),
     'gpt-oss-20b': ModelInfo(label='OpenAI - gpt-oss-20b', supports=GPT_OSS_MODEL_SUPPORTS),
