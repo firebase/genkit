@@ -81,14 +81,7 @@ def create_lyria_action(
         reject_request_config_api_key(request.config)
         config = request.config or LyriaConfig()
         api_key = api_key_for_context(ctx.context, plugin_api_key)
-        merged_options = client_options.merge(
-            client_overrides_from_config(
-                base_url=config.base_url,
-                api_version=config.api_version,
-                timeout=config.timeout,
-                custom_headers=config.custom_headers,
-            )
-        )
+        merged_options = client_options.merge(client_overrides_from_config(config))
         dumped = remove_client_option_overrides(config.model_dump(exclude_none=True))
         create_options, passthrough = partition_keys(dumped, CREATE_OPTION_KEYS)
         modalities = create_options.get('response_modalities') or ['audio', 'text']

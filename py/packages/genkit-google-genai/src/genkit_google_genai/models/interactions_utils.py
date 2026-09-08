@@ -21,7 +21,12 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from genkit import GenkitError
+from genkit import GenkitError, Message
+from genkit_google_genai._interactions.converters import (
+    ensure_tool_ids,
+    split_system_instruction,
+    to_interaction_steps,
+)
 from genkit_google_genai._interactions.options import ClientOptions
 from genkit_google_genai.models._routing import strip_ref_prefixes
 from genkit_google_genai.models._secrets import context_api_key
@@ -42,12 +47,9 @@ def get_api_key_from_env() -> str | None:
     return os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY') or os.getenv('GOOGLE_GENAI_API_KEY')
 
 
-def calculate_api_key(
-    plugin_api_key: str | None,
-    request_api_key: str | None,
-) -> str:
-    """Resolve the plugin/env API key when context.secrets did not supply one."""
-    api_key = request_api_key or plugin_api_key or get_api_key_from_env()
+def api_key_for_context(context: dict[str, Any], plugin_api_key: str | None) -> str:
+    """Tenant key from context.secrets, else the plugin or env key."""
+    api_key = context_api_key(context) or plugin_api_key or get_api_key_from_env()
     if not api_key:
         raise GenkitError(
             status='FAILED_PRECONDITION',
@@ -57,11 +59,6 @@ def calculate_api_key(
             ),
         )
     return api_key
-
-
-def api_key_for_context(context: dict[str, Any], plugin_api_key: str | None) -> str:
-    """Tenant key from context.secrets, else the plugin/env key."""
-    return context_api_key(context) or calculate_api_key(plugin_api_key, None)
 
 
 def extract_version(model_name: str) -> str:
@@ -75,6 +72,7 @@ def remove_client_option_overrides(config: dict[str, Any]) -> dict[str, Any]:
 
 
 def client_overrides_from_config(
+    config: object = None,
     *,
     base_url: str | None = None,
     api_version: str | None = None,
@@ -83,10 +81,10 @@ def client_overrides_from_config(
 ) -> ClientOptions:
     """Lift per-request transport knobs out of a model config into ClientOptions."""
     return ClientOptions(
-        base_url=base_url,
-        api_version=api_version,
-        timeout=timeout,
-        custom_headers=custom_headers,
+        base_url=getattr(config, 'base_url', base_url),
+        api_version=getattr(config, 'api_version', api_version),
+        timeout=getattr(config, 'timeout', timeout),
+        custom_headers=getattr(config, 'custom_headers', custom_headers),
     )
 
 
@@ -117,6 +115,21 @@ def require_interaction_steps(steps: list[Any]) -> list[Any]:
             message='Missing input.',
         )
     return steps
+
+
+def steps_with_folded_system_instruction(messages: list[Message] | None) -> list[dict[str, Any]]:
+    """Convert messages to interaction steps, folding system prompt into a leading user turn."""
+    system_instruction, turns = split_system_instruction(messages or [])
+    steps = to_interaction_steps(ensure_tool_ids(turns))
+    if system_instruction:
+        steps.insert(
+            0,
+            {
+                'type': 'user_input',
+                'content': [{'type': 'text', 'text': system_instruction}],
+            },
+        )
+    return require_interaction_steps(steps)
 
 
 def lowercase_choice(value: object) -> object:

@@ -61,7 +61,7 @@ from google.genai.types import HttpOptions, HttpOptionsDict
 from pydantic import BaseModel
 
 import genkit_google_genai.constants as const
-from genkit import GenkitError, ModelInfo
+from genkit import ModelInfo
 from genkit._core._action import ActionRunContext
 from genkit._core._model import ModelRequest, ModelResponse
 from genkit.embedder import EmbedderRef, embedder, embedder_action_metadata
@@ -73,7 +73,6 @@ from genkit.model import (
     background_model,
     model,
     model_action_metadata,
-    model_ref,
 )
 from genkit.plugin_api import (
     GENKIT_CLIENT_HEADER,
@@ -92,9 +91,8 @@ from genkit_google_genai.evaluators import (
 from genkit_google_genai.models._model_refs import (
     family_embedder_ref,
     family_model_ref,
-    wrong_family_error,
 )
-from genkit_google_genai.models._routing import classify_family, is_unroutable_model_id, strip_ref_prefixes
+from genkit_google_genai.models._routing import is_unroutable_model_id, strip_ref_prefixes
 from genkit_google_genai.models.antigravity import AntigravityConfig, create_antigravity_action
 from genkit_google_genai.models.deep_research import (
     DeepResearchConfig,
@@ -608,34 +606,16 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         cls, name: str, *, config: DeepResearchConfig | None = None
     ) -> ModelRef[DeepResearchConfig]:
         """Typed ref for a Deep Research agent. Pass to generate_operation()."""
-        if not isinstance(name, str):
-            raise GenkitError(
-                status='INVALID_ARGUMENT',
-                message=f'{cls.__name__}.deep_research_model: model name must be a string.',
-            )
-        local = strip_ref_prefixes(name)
-        if not local:
-            raise GenkitError(
-                status='INVALID_ARGUMENT',
-                message=f'{cls.__name__}.deep_research_model: model name is required.',
-            )
-        if classify_family(local) != 'deep-research':
-            raise wrong_family_error(
-                plugin_class=cls.__name__,
-                method='deep_research_model',
-                family='deep-research',
-                local=local,
-                actual=classify_family(local),
-            )
-        ref = deep_research_model(local)
-        if config is None:
-            return ref
-        return model_ref(
-            local,
+        clean = strip_ref_prefixes(name) if isinstance(name, str) else ''
+        return family_model_ref(
+            name,
             namespace=cls.name,
-            info=ref.info,
+            plugin_class=cls.__name__,
+            family='deep-research',
+            method='deep_research_model',
             config_schema=DeepResearchConfig,
             config=config,
+            info=deep_research_model_info(clean) if clean else None,
         )
 
     @classmethod
@@ -840,46 +820,30 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         """
         if action_type == ActionKind.MODEL:
             return self._resolve_model(name)
-        elif action_type == ActionKind.BACKGROUND_MODEL:
-            prefix = GOOGLEAI_PLUGIN_NAME + '/'
-            clean_name = name.replace(prefix, '') if name.startswith(prefix) else name
-            if is_veo_model(clean_name):
-                return self._resolve_veo_model(name).start_action
-            if is_deep_research_model_name(clean_name):
-                return self._resolve_deep_research_model(
-                    deep_research_model(name),
-                    self._interactions_client_options(),
-                    self._plugin_api_key(),
-                ).start_action
-            return None
-        elif action_type == ActionKind.CHECK_OPERATION:
-            if name.endswith('/check'):
-                model_name = name[:-6]
-                prefix = GOOGLEAI_PLUGIN_NAME + '/'
-                clean_name = model_name.replace(prefix, '') if model_name.startswith(prefix) else model_name
-                if is_veo_model(clean_name):
-                    return self._resolve_veo_model(model_name).check_action
-                if is_deep_research_model_name(clean_name):
-                    return self._resolve_deep_research_model(
-                        deep_research_model(model_name),
-                        self._interactions_client_options(),
-                        self._plugin_api_key(),
-                    ).check_action
-            return None
-        elif action_type == ActionKind.CANCEL_OPERATION:
-            if name.endswith('/cancel'):
-                model_name = name[:-7]
-                prefix = GOOGLEAI_PLUGIN_NAME + '/'
-                clean_name = model_name.replace(prefix, '') if model_name.startswith(prefix) else model_name
-                if is_deep_research_model_name(clean_name):
-                    return self._resolve_deep_research_model(
-                        deep_research_model(model_name),
-                        self._interactions_client_options(),
-                        self._plugin_api_key(),
-                    ).cancel_action
-            return None
-        elif action_type == ActionKind.EMBEDDER:
+        if action_type == ActionKind.BACKGROUND_MODEL:
+            bg = self._resolve_background_action(name)
+            return bg.start_action if bg else None
+        if action_type == ActionKind.CHECK_OPERATION and name.endswith('/check'):
+            bg = self._resolve_background_action(name.removesuffix('/check'))
+            return bg.check_action if bg else None
+        if action_type == ActionKind.CANCEL_OPERATION and name.endswith('/cancel'):
+            bg = self._resolve_background_action(name.removesuffix('/cancel'))
+            return bg.cancel_action if bg else None
+        if action_type == ActionKind.EMBEDDER:
             return self._resolve_embedder(name)
+        return None
+
+    def _resolve_background_action(self, name: str) -> BackgroundAction | None:
+        """Resolve a background action for Veo or Deep Research."""
+        clean = name.removeprefix(f'{GOOGLEAI_PLUGIN_NAME}/')
+        if is_veo_model(clean):
+            return self._resolve_veo_model(name)
+        if is_deep_research_model_name(clean):
+            return self._resolve_deep_research_model(
+                deep_research_model(name),
+                self._interactions_client_options(),
+                self._plugin_api_key(),
+            )
         return None
 
     def _resolve_deep_research_model(

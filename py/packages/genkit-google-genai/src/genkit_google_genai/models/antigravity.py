@@ -27,12 +27,7 @@ from typing_extensions import Never
 from genkit import ModelRequest, ModelResponse
 from genkit.plugin_api import Action, ActionKind, ActionRunContext, model_action_metadata
 from genkit_google_genai._interactions.client import create_interaction
-from genkit_google_genai._interactions.converters import (
-    ensure_tool_ids,
-    from_interaction_sync,
-    split_system_instruction,
-    to_interaction_steps,
-)
+from genkit_google_genai._interactions.converters import from_interaction_sync
 from genkit_google_genai._interactions.options import ClientOptions
 from genkit_google_genai.models._secrets import reject_request_config_api_key
 from genkit_google_genai.models.interactions_registry import antigravity_model_info
@@ -43,7 +38,7 @@ from genkit_google_genai.models.interactions_utils import (
     lowercase_choice_list,
     partition_keys,
     remove_client_option_overrides,
-    require_interaction_steps,
+    steps_with_folded_system_instruction,
 )
 
 DEFAULT_ENVIRONMENT: dict[str, str] = {'type': 'remote'}
@@ -91,34 +86,14 @@ def create_antigravity_action(
         reject_request_config_api_key(request.config)
         config = request.config or AntigravityConfig()
         api_key = api_key_for_context(ctx.context, plugin_api_key)
-        merged_options = client_options.merge(
-            client_overrides_from_config(
-                base_url=config.base_url,
-                api_version=config.api_version,
-                timeout=config.timeout,
-                custom_headers=config.custom_headers,
-            )
-        )
+        merged_options = client_options.merge(client_overrides_from_config(config))
 
         # Known create kwargs vs undocumented passthrough — non-mutating split.
         dumped = remove_client_option_overrides(config.model_dump(exclude_none=True))
         create_options, passthrough = partition_keys(dumped, CREATE_OPTION_KEYS)
-        # Antigravity doesn't take system_instruction; fold system text into the
-        # leading user turn so guidance still reaches the model.
-        system_instruction, turns = split_system_instruction(request.messages or [])
-        steps = to_interaction_steps(ensure_tool_ids(turns))
-        if system_instruction:
-            steps.insert(
-                0,
-                {
-                    'type': 'user_input',
-                    'content': [{'type': 'text', 'text': system_instruction}],
-                },
-            )
-        require_interaction_steps(steps)
         create_kwargs: dict[str, Any] = {
             'agent': version,
-            'input': steps,
+            'input': steps_with_folded_system_instruction(request.messages),
             **create_options,
             **passthrough,
         }

@@ -70,3 +70,64 @@ def test_require_interaction_steps_rejects_empty() -> None:
 def test_require_interaction_steps_passes_through() -> None:
     steps = [{'type': 'user_input', 'content': [{'type': 'text', 'text': 'hi'}]}]
     assert require_interaction_steps(steps) is steps
+
+
+def test_api_key_for_context_prefers_tenant_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    from genkit_google_genai.models.interactions_utils import api_key_for_context
+
+    monkeypatch.setenv('GEMINI_API_KEY', 'env-key')
+    context = {'secrets': {'api_key': 'tenant-key'}}
+    assert api_key_for_context(context, 'plugin-key') == 'tenant-key'
+
+
+def test_api_key_for_context_falls_back_to_plugin(monkeypatch: pytest.MonkeyPatch) -> None:
+    from genkit_google_genai.models.interactions_utils import api_key_for_context
+
+    monkeypatch.setenv('GEMINI_API_KEY', 'env-key')
+    assert api_key_for_context({}, 'plugin-key') == 'plugin-key'
+
+
+def test_api_key_for_context_falls_back_to_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    from genkit_google_genai.models.interactions_utils import api_key_for_context
+
+    monkeypatch.setenv('GEMINI_API_KEY', 'env-key')
+    assert api_key_for_context({}, None) == 'env-key'
+
+
+def test_api_key_for_context_raises_when_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    from genkit_google_genai.models.interactions_utils import api_key_for_context
+
+    monkeypatch.delenv('GEMINI_API_KEY', raising=False)
+    monkeypatch.delenv('GOOGLE_API_KEY', raising=False)
+    monkeypatch.delenv('GOOGLE_GENAI_API_KEY', raising=False)
+    with pytest.raises(GenkitError) as exc_info:
+        api_key_for_context({}, None)
+    assert exc_info.value.status == 'FAILED_PRECONDITION'
+
+
+def test_client_overrides_from_config_reads_object() -> None:
+    from types import SimpleNamespace
+
+    from genkit_google_genai.models.interactions_utils import client_overrides_from_config
+
+    cfg = SimpleNamespace(base_url='https://custom.api', api_version='v1', timeout=5000.0, custom_headers={'h': 'v'})
+    opts = client_overrides_from_config(cfg)
+    assert opts.base_url == 'https://custom.api'
+    assert opts.api_version == 'v1'
+    assert opts.timeout == 5000.0
+    assert opts.custom_headers == {'h': 'v'}
+
+
+def test_steps_with_folded_system_instruction_prepends_system() -> None:
+    from genkit_google_genai.models.interactions_utils import steps_with_folded_system_instruction
+
+    from genkit import Message, Part, Role, TextPart
+
+    messages = [
+        Message(role=Role.SYSTEM, content=[Part(TextPart(text='Be helpful.'))]),
+        Message(role=Role.USER, content=[Part(TextPart(text='Hello!'))]),
+    ]
+    steps = steps_with_folded_system_instruction(messages)
+    assert len(steps) == 2
+    assert steps[0] == {'type': 'user_input', 'content': [{'type': 'text', 'text': 'Be helpful.'}]}
+    assert steps[1] == {'type': 'user_input', 'content': [{'type': 'text', 'text': 'Hello!'}]}

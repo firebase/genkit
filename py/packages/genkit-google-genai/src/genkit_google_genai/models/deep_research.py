@@ -33,10 +33,7 @@ from genkit_google_genai._interactions.client import (
 )
 from genkit_google_genai._interactions.converters import (
     clean_schema,
-    ensure_tool_ids,
     from_interaction,
-    split_system_instruction,
-    to_interaction_steps,
     to_interaction_tool,
 )
 from genkit_google_genai._interactions.options import ClientOptions
@@ -50,7 +47,7 @@ from genkit_google_genai.models.interactions_utils import (
     lowercase_choice_list,
     partition_keys,
     remove_client_option_overrides,
-    require_interaction_steps,
+    steps_with_folded_system_instruction,
 )
 
 AGENT_CONFIG_KEYS = (
@@ -191,14 +188,7 @@ def create_deep_research_background_action(
         reject_request_config_api_key(request.config)
         config = request.config or DeepResearchConfig()
         api_key = api_key_for_context(ctx.context, plugin_api_key)
-        options = client_options.merge(
-            client_overrides_from_config(
-                base_url=config.base_url,
-                api_version=config.api_version,
-                timeout=config.timeout,
-                custom_headers=config.custom_headers,
-            )
-        )
+        options = client_options.merge(client_overrides_from_config(config))
 
         dumped = remove_client_option_overrides(config.model_dump(exclude_none=True))
         agent_fields, _tool_fields, create_options, passthrough = partition_keys(
@@ -211,22 +201,9 @@ def create_deep_research_background_action(
 
         tools = build_tools(request, config)
         response_format = response_format_from_request(request)
-        # Deep Research rejects system_instruction and asks for guidance in the
-        # input prompt instead, so system turns become a leading user_input step.
-        system_instruction, turns = split_system_instruction(request.messages or [])
-        steps = to_interaction_steps(ensure_tool_ids(turns))
-        if system_instruction:
-            steps.insert(
-                0,
-                {
-                    'type': 'user_input',
-                    'content': [{'type': 'text', 'text': system_instruction}],
-                },
-            )
-        require_interaction_steps(steps)
         create_kwargs: dict[str, Any] = {
             'agent': version,
-            'input': steps,
+            'input': steps_with_folded_system_instruction(request.messages),
             'background': True,
             'agent_config': agent_config,
             **create_options,
