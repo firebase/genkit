@@ -304,8 +304,16 @@ class Genkit:
             metadata=metadata,
         )
 
-    def tool(self, name: str | None = None, description: str | None = None) -> Callable[[Callable[..., Any]], Tool]:
+    def tool(
+        self,
+        name: str | None = None,
+        description: str | None = None,
+        *,
+        input_schema: type[BaseModel] | dict[str, object] | None = None,
+    ) -> Callable[[Callable[..., Any]], Tool]:
         """Decorator to register a function as a tool.
+
+        The return annotation is what the model binds as ``outputSchema``.
 
         Example:
             @ai.tool()
@@ -316,7 +324,13 @@ class Genkit:
         """
 
         def wrapper(func: Callable[..., Any]) -> Tool:
-            return define_tool(self.registry, func, name, description)
+            return define_tool(
+                self.registry,
+                func,
+                name,
+                description,
+                input_schema=input_schema,
+            )
 
         return wrapper
 
@@ -1352,7 +1366,7 @@ class Genkit:
         return await generate_action(
             child_registry,
             gen_options,
-            context=context if context else get_current_context(),
+            context=context if context is not None else get_current_context(),
         )
 
     # Overload: config=ModelConfigDict, output_schema=type[T] -> ModelStreamResponse[T]
@@ -1494,6 +1508,11 @@ class Genkit:
     ) -> ModelStreamResponse[Any]:
         """Stream generated text, returning a ModelStreamResponse with .stream and .response.
 
+        With ``output_schema=Recipe``, each ``chunk.output`` is a partial of
+        that type: same attributes, any field may still be ``None`` or a
+        prefix. Guard the field you are about to use. The finished
+        ``Recipe`` is only ``(await sr.response).output``.
+
         Example:
             stream = ai.generate_stream(prompt='Write a haiku about rain.')
             async for chunk in stream.stream:
@@ -1536,7 +1555,7 @@ class Genkit:
                 child_registry,
                 gen_options,
                 on_chunk=lambda c: channel.send(c),
-                context=context if context else get_current_context(),
+                context=context if context is not None else get_current_context(),
             )
 
         response_future: asyncio.Future[ModelResponse[Any]] = asyncio.create_task(_run_generate())
@@ -1711,13 +1730,33 @@ class Genkit:
                 # the exception details.
                 raise
 
-    async def check_operation(self, operation: Operation) -> Operation:
-        """Check the status of a long-running background operation."""
-        return await check_operation(self.registry, operation)
+    async def check_operation(
+        self,
+        operation: Operation,
+        *,
+        context: dict[str, Any] | None = None,
+        config: Mapping[str, Any] | None = None,
+    ) -> Operation:
+        """Poll a background job.
 
-    async def cancel_operation(self, operation: Operation) -> Operation:
-        """Cancel a long-running background operation."""
-        return await cancel_operation(self.registry, operation)
+        Pass ``context={'secrets': {'api_key': ...}}`` again when start used a
+        per-request key. ``config`` is client knobs (``base_url``,
+        ``location``, ``api_version``), not video settings.
+        """
+        return await check_operation(self.registry, operation, context=context, config=config)
+
+    async def cancel_operation(
+        self,
+        operation: Operation,
+        *,
+        context: dict[str, Any] | None = None,
+        config: Mapping[str, Any] | None = None,
+    ) -> Operation:
+        """Cancel a background job.
+
+        Same ``context`` / ``config`` pockets as ``check_operation``.
+        """
+        return await cancel_operation(self.registry, operation, context=context, config=config)
 
     @overload
     async def generate_operation(
