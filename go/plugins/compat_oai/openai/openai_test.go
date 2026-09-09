@@ -434,6 +434,9 @@ func TestGPT6AstraCatalogEntry(t *testing.T) {
 		Output:      []string{"text", "json"},
 		Constrained: ai.ConstrainedSupportAll,
 	}
+	if opts.Supports == nil {
+		t.Fatal("gpt-6-astra has no Supports")
+	}
 	if diff := cmp.Diff(want, *opts.Supports); diff != "" {
 		t.Errorf("supports mismatch (-want +got):\n%s", diff)
 	}
