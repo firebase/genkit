@@ -61,7 +61,16 @@ def _uses_max_completion_tokens(model: str | None) -> bool:
     if not model:
         return False
     model_id = model.rsplit('/', 1)[-1].lower()
-    return model_id.startswith(('o1', 'o3', 'o4', 'gpt-5', 'gpt-6'))
+    # Fine-tuned OpenAI model ids are prefixed with ``ft:`` and custom
+    # deployment names may put the base model after an arbitrary prefix.
+    if model_id.startswith('ft:'):
+        parts = model_id.split(':')
+        if len(parts) > 1:
+            model_id = parts[1]
+    reasoning_prefixes = ('o1', 'o3', 'o4', 'gpt-5', 'gpt-6')
+    return model_id.startswith(reasoning_prefixes) or any(
+        f'-{prefix}' in model_id for prefix in reasoning_prefixes
+    )
 
 
 def _openai_create_kwargs(*, config: OpenAIConfig, model: str | None = None) -> dict[str, Any]:

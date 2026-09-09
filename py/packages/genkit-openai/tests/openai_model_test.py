@@ -134,16 +134,17 @@ async def test_get_openai_config_peels_genkit_keys_and_passes_the_rest() -> None
 @pytest.mark.asyncio
 async def test_get_openai_config_uses_max_completion_tokens_for_reasoning_models() -> None:
     """Reasoning models reject the deprecated max_tokens request field."""
-    model = OpenAIModel(model='gpt-6-astra', client=MagicMock())
-    request = ModelRequest(
-        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])],
-        config=OpenAIConfig(max_tokens=32),
-    )
+    for model_name in ('gpt-6-astra', 'ft:o1-mini:my-org:custom', 'my-o1-mini-deployment'):
+        model = OpenAIModel(model=model_name, client=MagicMock())
+        request = ModelRequest(
+            messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])],
+            config=OpenAIConfig(max_tokens=32),
+        )
 
-    body = await model._get_openai_request_config(request)
+        body = await model._get_openai_request_config(request)
 
-    assert body['max_completion_tokens'] == 32
-    assert 'max_tokens' not in body
+        assert body['max_completion_tokens'] == 32, f'Failed for model: {model_name}'
+        assert 'max_tokens' not in body, f'Failed for model: {model_name}'
 
 
 @pytest.mark.asyncio
