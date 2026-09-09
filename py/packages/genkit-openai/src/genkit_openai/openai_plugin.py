@@ -20,7 +20,7 @@
 import enum
 from typing import Any, Literal, TypeAlias, cast
 
-from openai import AsyncOpenAI
+from openai import APIStatusError, AsyncOpenAI
 from openai.types import Model
 
 from genkit import Embedding, EmbedRequest, EmbedResponse, GenkitError, ModelInfo, ModelRequest, ModelResponse, Supports
@@ -49,6 +49,7 @@ from genkit_openai.models import (
     OpenAITTSModel,
 )
 from genkit_openai.models.model_info import KnownGpt, get_default_openai_model_info
+from genkit_openai.models.utils import reraise_openai_error
 from genkit_openai.typing import OpenAIConfig
 
 
@@ -467,36 +468,46 @@ class OpenAI(Plugin):
             encoding_format: Literal['base64', 'float'] | None = None
             if request.options:
                 if dim_val := request.options.get('dimensions'):
-                    dimensions = int(dim_val)
+                    try:
+                        dimensions = int(dim_val)
+                    except (TypeError, ValueError) as e:
+                        raise GenkitError(
+                            status='INVALID_ARGUMENT',
+                            message=f'dimensions must be an int, got {dim_val!r}',
+                            cause=e,
+                        ) from e
                 enc_val = request.options.get('encodingFormat')
                 if enc_val in ('float', 'base64'):
                     encoding_format = cast(Literal['base64', 'float'], enc_val)
 
             # Call with only non-None optional params to satisfy strict typings
-            if dimensions is not None and encoding_format is not None:
-                response = await self._runtime_client().embeddings.create(
-                    model=clean_name,
-                    input=texts,
-                    dimensions=dimensions,
-                    encoding_format=encoding_format,
-                )
-            elif dimensions is not None:
-                response = await self._runtime_client().embeddings.create(
-                    model=clean_name,
-                    input=texts,
-                    dimensions=dimensions,
-                )
-            elif encoding_format is not None:
-                response = await self._runtime_client().embeddings.create(
-                    model=clean_name,
-                    input=texts,
-                    encoding_format=encoding_format,
-                )
-            else:
-                response = await self._runtime_client().embeddings.create(
-                    model=clean_name,
-                    input=texts,
-                )
+            try:
+                if dimensions is not None and encoding_format is not None:
+                    response = await self._runtime_client().embeddings.create(
+                        model=clean_name,
+                        input=texts,
+                        dimensions=dimensions,
+                        encoding_format=encoding_format,
+                    )
+                elif dimensions is not None:
+                    response = await self._runtime_client().embeddings.create(
+                        model=clean_name,
+                        input=texts,
+                        dimensions=dimensions,
+                    )
+                elif encoding_format is not None:
+                    response = await self._runtime_client().embeddings.create(
+                        model=clean_name,
+                        input=texts,
+                        encoding_format=encoding_format,
+                    )
+                else:
+                    response = await self._runtime_client().embeddings.create(
+                        model=clean_name,
+                        input=texts,
+                    )
+            except APIStatusError as e:
+                reraise_openai_error(e)
 
             # Convert OpenAI response to Genkit format
             embeddings = [Embedding(embedding=item.embedding) for item in response.data]
@@ -528,7 +539,10 @@ class OpenAI(Plugin):
             return self._list_actions_cache
 
         actions: list[ActionMetadata] = []
-        models_ = await self._runtime_client().models.list()
+        try:
+            models_ = await self._runtime_client().models.list()
+        except APIStatusError as e:
+            reraise_openai_error(e)
         models: list[Model] = models_.data
         for model in models:
             name = model.id
