@@ -85,41 +85,25 @@ class A2ui(BaseMiddleware[A2uiConfig]):
         if self.config.instructions != 'none':
             params.request = inject_instructions(request=params.request, catalog=catalog)
 
-        original_on_chunk = ctx.on_chunk
-        parse_error: A2uiParseError | None = None
-        if original_on_chunk is not None:
-
-            def handler(chunk: ModelResponseChunk) -> None:
-                nonlocal parse_error
-                if parse_error is not None:
-                    return
-                try:
-                    transformed = transform_chunk(chunk=chunk, parser=parser)
-                except A2uiParseError as exc:
-                    # Raising here would wrap this as a model INTERNAL error.
-                    # Hold it until the model call finishes so the caller still
-                    # sees A2uiParseError.
-                    parse_error = exc
-                    return
-                if transformed is not None:
-                    original_on_chunk(transformed)
-
+        handler: ChunkHandler | None = None
+        if ctx.on_chunk is not None:
+            handler = ChunkHandler(parser=parser, emit=ctx.on_chunk)
             ctx.replace_on_chunk(handler)
         try:
             response = await next_fn(params, ctx)
         finally:
-            if original_on_chunk is not None:
-                ctx.replace_on_chunk(original_on_chunk)
+            if handler is not None:
+                ctx.replace_on_chunk(handler.emit)
 
         if response.finish_reason in ABNORMAL_FINISH_REASONS:
             return response
-        if parse_error is not None:
-            raise parse_error
+        if handler is not None and handler.parse_error is not None:
+            raise handler.parse_error
 
-        if original_on_chunk is not None:
+        if handler is not None:
             tail = parts_from_segments(segments=parser.flush())
             if tail:
-                original_on_chunk(ModelResponseChunk(role=Role.MODEL, content=tail))
+                handler.emit(ModelResponseChunk(role=Role.MODEL, content=tail))
 
         replay.reset()
         return transform_response(
@@ -129,6 +113,26 @@ class A2ui(BaseMiddleware[A2uiConfig]):
             version=version,
             surface_id=replay.replay_next,
         )
+
+
+class ChunkHandler:
+    """Rewrites stream chunks. Stashes a parse error so it is not wrapped as INTERNAL."""
+
+    def __init__(self, *, parser: StreamParser, emit: Callable[[ModelResponseChunk], None]) -> None:
+        self.parser = parser
+        self.emit = emit
+        self.parse_error: A2uiParseError | None = None
+
+    def __call__(self, chunk: ModelResponseChunk) -> None:
+        if self.parse_error is not None:
+            return
+        try:
+            transformed = transform_chunk(chunk=chunk, parser=self.parser)
+        except A2uiParseError as exc:
+            self.parse_error = exc
+            return
+        if transformed is not None:
+            self.emit(transformed)
 
 
 def surface_id_factory(*, policy: str | None) -> Callable[[], str]:
