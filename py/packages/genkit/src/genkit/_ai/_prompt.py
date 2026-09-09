@@ -63,7 +63,7 @@ from genkit._core._action import (
     get_current_context,
 )
 from genkit._core._channel import Channel
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._logger import get_logger
 from genkit._core._middleware import BaseMiddleware, middleware_class_index
 from genkit._core._model import Document, GenerateActionOptions, Message, OutputConfig
@@ -1463,6 +1463,7 @@ async def lookup_prompt(registry: Registry, name: str, variant: str | None = Non
     raise GenkitError(
         status='NOT_FOUND',
         message=f'Prompt {name}{variant_str} not found',
+        reason=RuntimeErrorReason.ACTION_NOT_FOUND,
     )
 
 

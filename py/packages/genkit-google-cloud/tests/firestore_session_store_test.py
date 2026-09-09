@@ -31,7 +31,7 @@ from google.api_core import exceptions as google_exceptions
 from google.cloud import firestore
 from google.cloud.firestore_v1._helpers import ReadAfterWriteError
 
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._typing import SessionSnapshot, SessionState, SnapshotStatus
 
 
@@ -1376,6 +1376,8 @@ async def test_firestore_session_store_missing_session_id_raises_invalid_argumen
             ),
         )
     assert exc_info.value.status == 'INVALID_ARGUMENT'
+    assert exc_info.value.reason is RuntimeErrorReason.SESSION_ID_REQUIRED
+    assert 'SESSION_ID_REQUIRED' not in exc_info.value.original_message
     assert 'session_id' in str(exc_info.value)
     assert _pointer_path('') not in h.docs
 

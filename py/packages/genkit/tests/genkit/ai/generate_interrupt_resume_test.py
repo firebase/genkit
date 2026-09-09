@@ -23,7 +23,7 @@ from genkit._ai._tools import (
     response,
     restart_tool,
 )
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._model import GenerateActionOptions
 from genkit._core._typing import (
     FinishReason,
@@ -1024,7 +1024,9 @@ async def test_resume_without_matching_replies_raises() -> None:
             ),
         )
     assert ei.value.status == 'INVALID_ARGUMENT'
+    assert ei.value.reason is RuntimeErrorReason.UNRESOLVED_TOOL_REQUEST
     assert 'unresolved tool request' in ei.value.original_message.lower()
+    assert 'UNRESOLVED_TOOL_REQUEST' not in ei.value.original_message
 
 
 @pytest.mark.asyncio

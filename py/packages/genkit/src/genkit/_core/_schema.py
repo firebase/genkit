@@ -24,7 +24,7 @@ from typing import Any, cast
 from jsonschema.validators import validator_for
 from pydantic import TypeAdapter
 
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
 
 
 class InvalidOutputSchemaError(GenkitError):
@@ -35,6 +35,7 @@ class InvalidOutputSchemaError(GenkitError):
             status='INVALID_ARGUMENT',
             message=f'Invalid output_schema: {cause}',
             cause=cause,
+            reason=RuntimeErrorReason.INVALID_SCHEMA,
         )
 
 
@@ -90,4 +91,5 @@ def parse_schema(*, data: object, json_schema: dict[str, Any]) -> None:
     raise GenkitError(
         status='INVALID_ARGUMENT',
         message='Schema validation failed. Parse Errors:\n\n' + '\n'.join(lines),
+        reason=RuntimeErrorReason.INVALID_INPUT,
     )

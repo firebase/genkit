@@ -105,7 +105,7 @@ from genkit._core._dap import (
     define_dynamic_action_provider as define_dap_block,
 )
 from genkit._core._environment import is_dev_environment
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._logger import configure_logging, get_logger, resolve_level
 from genkit._core._middleware import (
     BaseMiddleware,
@@ -845,6 +845,7 @@ class Genkit:
             raise GenkitError(
                 status='NOT_FOUND',
                 message=f"Agent '{name}' not found in registry.",
+                reason=RuntimeErrorReason.ACTION_NOT_FOUND,
             )
         if not isinstance(resolved, Agent):
             raise GenkitError(
@@ -1848,12 +1849,14 @@ class Genkit:
             raise GenkitError(
                 status='NOT_FOUND',
                 message=f"Model '{resolved.name}' not found.",
+                reason=RuntimeErrorReason.MODEL_NOT_FOUND,
             )
 
         if model_action.kind != ActionKind.BACKGROUND_MODEL:
             raise GenkitError(
                 status='INVALID_ARGUMENT',
                 message=f"Model '{model_action.name}' does not support long running operations.",
+                reason=RuntimeErrorReason.UNSUPPORTED_BY_MODEL,
             )
 
         # Call generate with already-resolved wire name + config.

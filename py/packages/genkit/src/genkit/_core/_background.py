@@ -25,7 +25,7 @@ from typing import Any, Generic, TypeVar
 from pydantic import BaseModel
 
 from genkit._core._action import Action, ActionKind, ActionRunContext, get_current_context
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._model import ModelRequest, ModelResponse
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
@@ -455,11 +455,13 @@ async def resolve_operation_action(
         raise GenkitError(
             status='INVALID_ARGUMENT',
             message=f'Failed to resolve background action from original request: {operation.action}',
+            reason=RuntimeErrorReason.ACTION_NOT_FOUND,
         ) from e
     if background_action is None:
         raise GenkitError(
             status='INVALID_ARGUMENT',
             message=f'Failed to resolve background action from original request: {operation.action}',
+            reason=RuntimeErrorReason.ACTION_NOT_FOUND,
         )
     return background_action
 

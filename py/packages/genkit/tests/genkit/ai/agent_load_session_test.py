@@ -25,7 +25,7 @@ import pytest
 
 from genkit._ai._agents._runtime import AgentInitError, load_session
 from genkit._ai._agents._session import SessionStore
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._typing import (
     AgentInit,
     SessionSnapshot,
@@ -82,6 +82,19 @@ class _ScriptedStore(SessionStore[Any]):
         context: object | None = None,
     ) -> SessionSnapshot | None:
         return None
+
+
+@pytest.mark.asyncio
+async def test_missing_snapshot_raises_with_snapshot_not_found() -> None:
+    """A snapshot id the store does not have raises; reason bubbles on the exception."""
+    store = _ScriptedStore({}, leaf=None)
+
+    with pytest.raises(GenkitError) as exc:
+        await load_session(init=AgentInit(snapshot_id='gone'), store=store, agent_name='a')
+    assert exc.value.status == 'NOT_FOUND'
+    assert exc.value.reason is RuntimeErrorReason.SNAPSHOT_NOT_FOUND
+    assert 'gone' in exc.value.original_message
+    assert 'SNAPSHOT_NOT_FOUND' not in exc.value.original_message
 
 
 @pytest.mark.asyncio

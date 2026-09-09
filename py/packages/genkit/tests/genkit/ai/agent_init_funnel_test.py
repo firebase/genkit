@@ -24,6 +24,7 @@ from genkit._ai._agents._base import define_custom_agent
 from genkit._ai._agents._client import AgentError
 from genkit._ai._agents._runtime import AgentInitError, SessionRunner
 from genkit._core._action import ActionRunContext
+from genkit._core._error import RuntimeErrorReason
 from genkit._core._registry import Registry
 from genkit._core._typing import (
     AgentFinishReason,
@@ -164,7 +165,9 @@ async def test_snapshot_id_on_client_managed_agent_raises_agent_init_error() -> 
         await conn.output()
 
     assert exc.value.status == 'FAILED_PRECONDITION'
+    assert exc.value.reason is RuntimeErrorReason.SESSION_STORE_NOT_CONFIGURED
     assert 'no store configured' in str(exc.value)
+    assert 'SESSION_STORE_NOT_CONFIGURED' not in exc.value.original_message
 
 
 @pytest.mark.asyncio
@@ -178,3 +181,4 @@ async def test_chat_surfaces_missing_snapshot_as_agent_error() -> None:
         await agent.chat(snapshot_id='gone').send('hi')
 
     assert exc.value.status == 'NOT_FOUND'
+    assert exc.value.reason is RuntimeErrorReason.SNAPSHOT_NOT_FOUND

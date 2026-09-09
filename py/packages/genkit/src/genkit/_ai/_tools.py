@@ -27,7 +27,7 @@ from opentelemetry import trace as trace_api
 from pydantic import BaseModel, TypeAdapter
 
 from genkit._core._action import Action, ActionKind, ActionRunContext
-from genkit._core._error import GenkitError, GenkitInterrupt
+from genkit._core._error import GenkitError, GenkitInterrupt, RuntimeErrorReason
 from genkit._core._logger import get_logger
 from genkit._core._middleware import GenerateMiddlewareContext
 from genkit._core._model import MultipartToolResponse, MultipartToolResponseData, OutputT
@@ -100,12 +100,14 @@ def normalize_response_parts(parts: Sequence[Part] | None) -> list[Part] | None:
                 raise GenkitError(
                     status='INVALID_ARGUMENT',
                     message=f'response() parts must be a list of Parts, got {type(item).__name__} in the list.',
+                    reason=RuntimeErrorReason.INVALID_PART,
                 )
             out.append(require_live_part(part))
         return out
     raise GenkitError(
         status='INVALID_ARGUMENT',
         message=f'response() parts must be a sequence of Parts, got {type(parts).__name__}.',
+        reason=RuntimeErrorReason.INVALID_PART,
     )
 
 

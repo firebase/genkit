@@ -18,7 +18,7 @@
 
 import pytest
 
-from genkit import GenkitError
+from genkit import GenkitError, RuntimeErrorReason
 from genkit._ai._generate import resolve_parameters
 from genkit._core._model import GenerateActionOptions
 from genkit._core._registry import Registry
@@ -33,8 +33,10 @@ async def test_resolve_parameters_missing_prefix_hints_plugin_namespace() -> Non
             GenerateActionOptions(model='lyria-3-clip-preview', messages=[]),
         )
     assert exc_info.value.status == 'NOT_FOUND'
+    assert exc_info.value.reason is RuntimeErrorReason.MODEL_NOT_FOUND
     assert "Failed to resolve model 'lyria-3-clip-preview'." in str(exc_info.value)
     assert 'Ensure the model name includes the plugin namespace' in str(exc_info.value)
+    assert 'MODEL_NOT_FOUND' not in exc_info.value.original_message
 
 
 @pytest.mark.asyncio
@@ -43,4 +45,5 @@ async def test_resolve_parameters_no_model_is_invalid_argument() -> None:
     with pytest.raises(GenkitError) as exc_info:
         await resolve_parameters(registry, GenerateActionOptions(messages=[]))
     assert exc_info.value.status == 'INVALID_ARGUMENT'
+    assert exc_info.value.reason is None
     assert 'No model configured' in str(exc_info.value)

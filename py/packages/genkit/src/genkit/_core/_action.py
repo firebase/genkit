@@ -32,7 +32,7 @@ from typing_extensions import TypeVar
 
 from genkit._core._channel import Channel, CloseableQueue
 from genkit._core._compat import StrEnum
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._model import config_type_path, declared_config_type
 from genkit._core._schema import to_json_schema
 from genkit._core._trace._suppress import suppress_telemetry
@@ -716,11 +716,13 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
                         f"Action '{self.name}' requires init but none was provided. Please supply a valid init payload."
                     ),
                     status='INVALID_ARGUMENT',
+                    reason=RuntimeErrorReason.INVALID_INPUT,
                 ) from e
             raise GenkitError(
                 message=f"Invalid init for action '{self.name}': {e}",
                 status='INVALID_ARGUMENT',
                 cause=e,
+                reason=RuntimeErrorReason.INVALID_INPUT,
             ) from e
 
     def _validate_input(self, input: InputT | None) -> InputT | None:
@@ -751,6 +753,7 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
                             f'got {config_type_path(type(config))}'
                         ),
                         status='INVALID_ARGUMENT',
+                        reason=RuntimeErrorReason.INVALID_INPUT,
                     ) from None
                 payload = input.model_dump(mode='python')
 
@@ -762,7 +765,12 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
                 if input is None
                 else f"Invalid input for action '{self.name}': {e}"
             )
-            raise GenkitError(message=msg, status='INVALID_ARGUMENT', cause=e) from e
+            raise GenkitError(
+                message=msg,
+                status='INVALID_ARGUMENT',
+                cause=e,
+                reason=RuntimeErrorReason.INVALID_INPUT,
+            ) from e
 
     async def _run_with_telemetry(
         self,
@@ -912,6 +920,7 @@ class BidiConnection(Generic[StreamInT, StreamOutT_co, BidiOutT_co]):
                     'is called.'
                 ),
                 status='FAILED_PRECONDITION',
+                reason=RuntimeErrorReason.CONNECTION_CLOSED,
             )
         await self._in_queue.put(item)
 

@@ -36,32 +36,23 @@ from genkit._core._error import (
 )
 
 
-def test_runtime_error_reasons_cover_go_builtin_subtypes() -> None:
+def test_runtime_error_reasons_are_the_ones_helpers_write() -> None:
     assert {reason.value for reason in RuntimeErrorReason} == {
         'INVALID_SCHEMA',
         'INVALID_INPUT',
         'INVALID_OUTPUT',
         'ACTION_NOT_FOUND',
-        'PANIC',
         'MODEL_NOT_FOUND',
         'TOOL_NOT_FOUND',
         'MAX_TURNS_EXCEEDED',
         'TOOL_FAILED',
         'UNSUPPORTED_BY_MODEL',
         'INVALID_PART',
-        'INPUT_TYPE_MISMATCH',
         'UNRESOLVED_TOOL_REQUEST',
-        'GENERATION_BLOCKED',
         'SNAPSHOT_NOT_FOUND',
         'SESSION_STORE_NOT_CONFIGURED',
         'SESSION_ID_REQUIRED',
-        'STREAM_NOT_FOUND',
-        'STREAM_ALREADY_EXISTS',
-        'STREAM_WRITER_CLOSED',
-        'STREAM_COMPLETED',
-        'STREAM_TIMEOUT',
         'CONNECTION_CLOSED',
-        'ACTION_COMPLETED',
     }
 
 
@@ -82,6 +73,21 @@ def test_runtime_error_reason_accessor_keeps_reason_nested() -> None:
     assert GenkitRuntimeError(message='bad', details={'reason': 'not-valid'}).reason is None
     with pytest.raises(AttributeError):
         error.reason = RuntimeErrorReason.TOOL_FAILED  # type: ignore[misc]
+
+
+def test_genkit_error_reason_stays_in_details() -> None:
+    error = GenkitError(
+        status='NOT_FOUND',
+        message="Failed to resolve model 'nope/ghost'.",
+        reason=RuntimeErrorReason.MODEL_NOT_FOUND,
+    )
+
+    assert error.reason is RuntimeErrorReason.MODEL_NOT_FOUND
+    assert error.details['reason'] == 'MODEL_NOT_FOUND'
+    assert 'MODEL_NOT_FOUND' not in error.original_message
+    assert GenkitError(status='NOT_FOUND', message='missing').reason is None
+    with pytest.raises(AttributeError):
+        error.reason = RuntimeErrorReason.TOOL_NOT_FOUND  # type: ignore[misc]
 
 
 def test_genkit_error() -> None:

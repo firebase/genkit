@@ -69,7 +69,7 @@ from genkit._ai._agents._session_stores._util import (
     session_id_of,
 )
 from genkit._ai._json_patch import apply_json_patch, diff_json
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._loop_cache import _loop_local_client
 from genkit._core._typing import (
     AgentFinishReason,
@@ -421,6 +421,7 @@ def _validate_doc_id(value: str | None, name: str) -> None:
                 "must be a non-empty Firestore document id (no '/', not '.', '..', or "
                 '__reserved__, no leading/trailing whitespace).'
             ),
+            reason=RuntimeErrorReason.SESSION_ID_REQUIRED if name == 'session_id' and not value else None,
         )
 
 
@@ -978,6 +979,7 @@ class FirestoreSessionStore(SessionStore[StateT], SnapshotSubscriber, Generic[St
                 raise GenkitError(
                     status='INVALID_ARGUMENT',
                     message="FirestoreSessionStore requires 'sessionId' on the snapshot.",
+                    reason=RuntimeErrorReason.SESSION_ID_REQUIRED,
                 )
             assert sid is not None
 

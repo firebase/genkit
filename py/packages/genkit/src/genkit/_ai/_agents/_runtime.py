@@ -44,7 +44,7 @@ from genkit._ai._generate import generate_action
 from genkit._ai._json_patch import diff_json
 from genkit._core._action import ActionRunContext, StreamingCallback, get_current_context
 from genkit._core._channel import CloseableQueue, QueueShutDown
-from genkit._core._error import GenkitError, GenkitRuntimeError
+from genkit._core._error import GenkitError, GenkitRuntimeError, RuntimeErrorReason
 from genkit._core._logger import get_logger
 from genkit._core._model import GenerateActionOptions, Message, ModelResponse, ModelResponseChunk
 from genkit._core._registry import Registry
@@ -273,6 +273,7 @@ def validate_custom_state(*, custom: Any, state_schema: type[BaseModel] | None, 
                 'schema': state_schema.model_json_schema(),
                 'errors': [{'loc': list(err['loc']), 'message': err['msg'], 'type': err['type']} for err in e.errors()],
             },
+            reason=RuntimeErrorReason.INVALID_INPUT,
         ) from e
 
 
@@ -325,6 +326,7 @@ def assert_init_matches_state_management(
                 f"Cannot use '{field}' with agent '{agent_name}': this agent has no "
                 "store configured (client-managed state). Send 'state' instead."
             ),
+            reason=RuntimeErrorReason.SESSION_STORE_NOT_CONFIGURED,
         )
     if init.state is not None and store is not None:
         raise AgentInitError(
@@ -369,6 +371,7 @@ async def load_session(
             raise GenkitError(
                 status='NOT_FOUND',
                 message=f'Snapshot {init.snapshot_id!r} not found',
+                reason=RuntimeErrorReason.SNAPSHOT_NOT_FOUND,
             )
         # When init carries both ids, the snapshot id picks the row and the
         # session id is an ownership check: the snapshot must belong to that

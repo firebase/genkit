@@ -3924,3 +3924,47 @@ async def test_generate_unknown_format_is_invalid_argument() -> None:
     with pytest.raises(GenkitError, match='Unable to resolve format') as raised:
         await ai.generate(prompt='hi', output_format='no-such-format')
     assert raised.value.status == 'INVALID_ARGUMENT'
+    assert raised.value.reason is RuntimeErrorReason.ACTION_NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_unknown_model_raises_with_model_not_found() -> None:
+    """A missing model raises; the message stays human and reason is MODEL_NOT_FOUND."""
+    ai = Genkit()
+
+    with pytest.raises(GenkitError) as raised:
+        await ai.generate(model='nope/ghost', prompt='hi')
+    error = raised.value
+    assert error.status == 'NOT_FOUND'
+    assert error.reason is RuntimeErrorReason.MODEL_NOT_FOUND
+    assert "Failed to resolve model 'nope/ghost'" in error.original_message
+    assert 'MODEL_NOT_FOUND' not in error.original_message
+
+
+@pytest.mark.asyncio
+async def test_unknown_tool_on_request_raises_with_tool_not_found() -> None:
+    """A tool name that is not registered raises before generate starts."""
+    ai = Genkit()
+    define_echo_model(ai)
+
+    with pytest.raises(GenkitError) as raised:
+        await ai.generate(model='echoModel', prompt='hi', tools=['ghost'])
+    error = raised.value
+    assert error.status == 'NOT_FOUND'
+    assert error.reason is RuntimeErrorReason.TOOL_NOT_FOUND
+    assert 'Unable to resolve tool ghost' in error.original_message
+    assert 'TOOL_NOT_FOUND' not in error.original_message
+
+
+@pytest.mark.asyncio
+async def test_unknown_agent_raises_with_action_not_found() -> None:
+    """A missing agent raises at lookup; reason is on the exception."""
+    ai = Genkit()
+
+    with pytest.raises(GenkitError) as raised:
+        await ai.agent('ghost')
+    error = raised.value
+    assert error.status == 'NOT_FOUND'
+    assert error.reason is RuntimeErrorReason.ACTION_NOT_FOUND
+    assert "Agent 'ghost' not found" in error.original_message
+    assert 'ACTION_NOT_FOUND' not in error.original_message

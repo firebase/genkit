@@ -68,7 +68,7 @@ from genkit._ai._prompt import (
 )
 from genkit._ai._tools import Tool
 from genkit._core._action import Action, ActionKind, ActionRunContext, BidiAction, BidiFn, get_current_context
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._middleware import BaseMiddleware
 from genkit._core._model import ModelConfigDict, ModelRef, ModelRefConfigT
 from genkit._core._registry import Registry
@@ -308,7 +308,11 @@ def register_snapshot_actions(*, registry: Registry, name: str, agent: Agent) ->
             # an empty-but-successful read, so surface it as NOT_FOUND instead of a
             # null the caller has to re-interpret.
             target = sid or sess_id or 'unknown'
-            raise GenkitError(status='NOT_FOUND', message=f'Snapshot {target!r} not found for agent {name!r}.')
+            raise GenkitError(
+                status='NOT_FOUND',
+                message=f'Snapshot {target!r} not found for agent {name!r}.',
+                reason=RuntimeErrorReason.SNAPSHOT_NOT_FOUND,
+            )
         return snap
 
     async def abort_fn(req: AgentAbortRequest) -> AgentAbortResponse:

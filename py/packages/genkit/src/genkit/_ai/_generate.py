@@ -349,6 +349,7 @@ def resolve_middleware_from_use(
                     'a BaseMiddleware instance in use= so the framework can normalize it.'
                 ),
                 source='genkit.generate',
+                reason=RuntimeErrorReason.ACTION_NOT_FOUND,
             )
         if not isinstance(defn, GenerateMiddleware):
             raise GenkitError(
@@ -1505,6 +1506,7 @@ async def apply_resources(
                 raise GenkitError(
                     status='NOT_FOUND',
                     message=f'failed to find matching resource for {ref_uri}',
+                    reason=RuntimeErrorReason.ACTION_NOT_FOUND,
                 )
 
             # Normalize to ResourceInput for matching
@@ -1515,6 +1517,7 @@ async def apply_resources(
                 raise GenkitError(
                     status='NOT_FOUND',
                     message=f'failed to find matching resource for {ref_uri}',
+                    reason=RuntimeErrorReason.ACTION_NOT_FOUND,
                 )
 
             # Execute the resource
@@ -1595,6 +1598,7 @@ async def resolve_model_action(registry: Registry, model: str | None) -> Action:
         raise GenkitError(
             status='NOT_FOUND',
             message=message,
+            reason=RuntimeErrorReason.MODEL_NOT_FOUND,
         )
     return action
 
@@ -1616,6 +1620,7 @@ async def resolve_parameters(
             raise GenkitError(
                 status='INVALID_ARGUMENT',
                 message=f'Unable to resolve format {request.output.format}',
+                reason=RuntimeErrorReason.ACTION_NOT_FOUND,
             )
         format_def = cast(FormatDef, looked_up_format)
 
@@ -1722,6 +1727,7 @@ async def resolve_tool_requests(
             raise GenkitError(
                 status='NOT_FOUND',
                 message=f'Tool {tool_request.name} not found',
+                reason=RuntimeErrorReason.TOOL_NOT_FOUND,
             )
         tool = tool_dict[tool_request.name]
         work.append((i, tool, tool_req_root))
@@ -1902,15 +1908,31 @@ async def resolve_tool(registry: Registry, tool_ref: str | Tool) -> Action:
         try:
             kind, name = parse_action_key(tool_ref)
         except ValueError as e:
-            raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve tool {tool_ref}') from e
+            raise GenkitError(
+                status='NOT_FOUND',
+                message=f'Unable to resolve tool {tool_ref}',
+                reason=RuntimeErrorReason.TOOL_NOT_FOUND,
+            ) from e
         if kind != ActionKind.TOOL:
-            raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve tool {tool_ref}')
+            raise GenkitError(
+                status='NOT_FOUND',
+                message=f'Unable to resolve tool {tool_ref}',
+                reason=RuntimeErrorReason.TOOL_NOT_FOUND,
+            )
     elif parse_dap_qualified_name(tool_ref) is not None:
-        raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve tool {tool_ref}')
+        raise GenkitError(
+            status='NOT_FOUND',
+            message=f'Unable to resolve tool {tool_ref}',
+            reason=RuntimeErrorReason.TOOL_NOT_FOUND,
+        )
 
     tool = await registry.resolve_action(kind=ActionKind.TOOL, name=name)
     if tool is None:
-        raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve tool {tool_ref}')
+        raise GenkitError(
+            status='NOT_FOUND',
+            message=f'Unable to resolve tool {tool_ref}',
+            reason=RuntimeErrorReason.TOOL_NOT_FOUND,
+        )
     return tool
 
 
@@ -1996,6 +2018,7 @@ async def _resolve_resumed_tool_request(
         raise GenkitError(
             status='INVALID_ARGUMENT',
             message='Expected a ToolRequestPart, got a different part type.',
+            reason=RuntimeErrorReason.INVALID_PART,
         )
 
     tool_req_root = tool_request_part.root
@@ -2094,6 +2117,7 @@ async def _resolve_resumed_tool_request(
         message=f"Unresolved tool request '{tool_req_root.tool_request.name}' "
         + "was not handled by the 'resume' argument. You must supply replies or "
         + 'restarts for all interrupted tool requests.',
+        reason=RuntimeErrorReason.UNRESOLVED_TOOL_REQUEST,
     )
 
 
