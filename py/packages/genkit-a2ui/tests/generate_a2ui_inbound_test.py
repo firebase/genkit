@@ -179,8 +179,8 @@ async def test_generate_a2ui_splits_replayed_surfaces_around_a_click() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_a2ui_drops_empty_ui_message_before_model() -> None:
-    """A message that is only an empty A2UI part is omitted, not sent as empty content."""
+async def test_generate_a2ui_empty_ui_message_keeps_placeholder_before_model() -> None:
+    """A message that is only an empty A2UI part is preserved with a [UI] placeholder."""
     ai, pm = setup()
     pm.responses = [model_ok()]
 
@@ -196,8 +196,9 @@ async def test_generate_a2ui_drops_empty_ui_message_before_model() -> None:
     assert not request_has_a2ui_part(pm)
     messages = request_history_messages(pm)
     assert all(message.content for message in messages)
+    assert any(joined_text(message.content) == '[UI]' for message in messages)
     assert any(joined_text(message.content) == 'hi' for message in messages)
-    assert not any(message.role == Role.MODEL and not joined_text(message.content) for message in messages)
+    assert len([m for m in messages if m.role == Role.MODEL]) == 1
 
 
 @pytest.mark.asyncio

@@ -217,7 +217,7 @@ def transform_response(
 ) -> ModelResponse:
     message = response.message
     if message is None and response.candidates:
-        message = Message(response.candidates[0].message)
+        message = response.candidates[0].message
     if message is None:
         return response
     parser = StreamParser(
@@ -272,8 +272,9 @@ def sanitize_inbound(*, request: ModelRequest) -> ModelRequest:
             messages.append(message)
             continue
         changed = True
-        if content:
-            messages.append(message.model_copy(update={'content': content}))
+        if not content:
+            content.append(Part(TextPart(text='[UI]')))
+        messages.append(message.model_copy(update={'content': content}))
     if not changed:
         return request
     return request.model_copy(update={'messages': messages})
