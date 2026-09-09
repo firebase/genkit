@@ -132,6 +132,52 @@ async def test_get_openai_config_peels_genkit_keys_and_passes_the_rest() -> None
 
 
 @pytest.mark.asyncio
+async def test_get_openai_config_uses_max_completion_tokens_for_reasoning_models() -> None:
+    """Reasoning models reject the deprecated max_tokens request field."""
+    for model_name in ('gpt-6-astra', 'ft:o1-mini:my-org:custom', 'my-o1-mini-deployment'):
+        model = OpenAIModel(model=model_name, client=MagicMock())
+        request = ModelRequest(
+            messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])],
+            config=OpenAIConfig(max_tokens=32),
+        )
+
+        body = await model._get_openai_request_config(request)
+
+        assert body['max_completion_tokens'] == 32, f'Failed for model: {model_name}'
+        assert 'max_tokens' not in body, f'Failed for model: {model_name}'
+
+
+@pytest.mark.asyncio
+async def test_get_openai_config_keeps_max_tokens_for_legacy_models() -> None:
+    """Legacy OpenAI-compatible models continue to receive max_tokens."""
+    model = OpenAIModel(model='gpt-4o', client=MagicMock())
+    request = ModelRequest(
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])],
+        config=OpenAIConfig(max_tokens=32),
+    )
+
+    body = await model._get_openai_request_config(request)
+
+    assert body['max_tokens'] == 32
+    assert 'max_completion_tokens' not in body
+
+
+@pytest.mark.asyncio
+async def test_get_openai_config_prefers_explicit_max_completion_tokens() -> None:
+    """An explicit modern token limit wins when both fields are configured."""
+    model = OpenAIModel(model='gpt-4o', client=MagicMock())
+    request = ModelRequest(
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])],
+        config=OpenAIConfig(max_tokens=32, max_completion_tokens=64),
+    )
+
+    body = await model._get_openai_request_config(request)
+
+    assert body['max_completion_tokens'] == 64
+    assert 'max_tokens' not in body
+
+
+@pytest.mark.asyncio
 async def test_get_openai_config_model_field_overrides_version() -> None:
     """OpenAIConfig.model is the create() model id; it wins over version."""
     model = OpenAIModel(model='gpt-4o', client=MagicMock())

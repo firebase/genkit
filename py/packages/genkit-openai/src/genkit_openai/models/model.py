@@ -56,7 +56,24 @@ logger = structlog.get_logger(__name__)
 _GENKIT_ONLY = frozenset({'api_key', 'top_k', 'version', 'max_output_tokens', 'stop_sequences'})
 
 
-def _openai_create_kwargs(*, config: OpenAIConfig) -> dict[str, Any]:
+def _uses_max_completion_tokens(model: str | None) -> bool:
+    """Whether a model requires the reasoning-model token-limit parameter."""
+    if not model:
+        return False
+    model_id = model.rsplit('/', 1)[-1].lower()
+    # Fine-tuned OpenAI model ids are prefixed with ``ft:`` and custom
+    # deployment names may put the base model after an arbitrary prefix.
+    if model_id.startswith('ft:'):
+        parts = model_id.split(':')
+        if len(parts) > 1:
+            model_id = parts[1]
+    reasoning_prefixes = ('o1', 'o3', 'o4', 'gpt-5', 'gpt-6')
+    return model_id.startswith(reasoning_prefixes) or any(
+        f'-{prefix}' in model_id for prefix in reasoning_prefixes
+    )
+
+
+def _openai_create_kwargs(*, config: OpenAIConfig, model: str | None = None) -> dict[str, Any]:
     """Kwargs for chat.completions.create().
 
     Peel Genkit-only keys. ``stop_sequences`` becomes ``stop`` when ``stop``
@@ -71,6 +88,15 @@ def _openai_create_kwargs(*, config: OpenAIConfig) -> dict[str, Any]:
             continue
         value = getattr(config, name)
         if value is not None:
+            if name == 'max_tokens':
+                # OpenAI reasoning models reject the deprecated max_tokens
+                # field. Keep the explicit max_completion_tokens value when
+                # both knobs are supplied so the request remains valid.
+                if config.max_completion_tokens is not None:
+                    continue
+                if _uses_max_completion_tokens(model) or config.reasoning_effort is not None:
+                    body['max_completion_tokens'] = value
+                    continue
             body[name] = value
     extras = config.model_extra
     if extras:
@@ -382,7 +408,8 @@ class OpenAIModel:
             )
             if config.version:
                 openai_config['model'] = config.version
-            openai_config.update(_openai_create_kwargs(config=config))
+            effective_model = config.model or config.version or self._model
+            openai_config.update(_openai_create_kwargs(config=config, model=effective_model))
         return openai_config
 
     async def _generate(self, request: ModelRequest) -> ModelResponse:
