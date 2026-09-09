@@ -1047,7 +1047,64 @@ async def test_resume_requires_last_message_model_with_tool_requests() -> None:
             ),
         )
     assert ei.value.status == 'FAILED_PRECONDITION'
+    assert ei.value.reason is RuntimeErrorReason.INVALID_RESUME
     assert "cannot 'resume'" in ei.value.original_message.lower()
+    assert 'INVALID_RESUME' not in ei.value.original_message
+
+
+@pytest.mark.asyncio
+async def test_resume_requires_model_tool_request_not_text_only() -> None:
+    """A model turn with no tool request is not a resume leftover."""
+    ai = Genkit()
+    _, _ = define_programmable_model(ai)
+
+    with pytest.raises(GenkitError) as ei:
+        await generate_action(
+            ai.registry,
+            GenerateActionOptions(
+                model='programmableModel',
+                messages=[
+                    Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]}),
+                    Message.model_validate({'role': 'model', 'content': [{'text': 'hello'}]}),
+                ],
+                resume=Resume(),
+            ),
+        )
+    assert ei.value.status == 'FAILED_PRECONDITION'
+    assert ei.value.reason is RuntimeErrorReason.INVALID_RESUME
+    assert "cannot 'resume'" in ei.value.original_message.lower()
+    assert 'INVALID_RESUME' not in ei.value.original_message
+
+
+@pytest.mark.asyncio
+async def test_resume_requires_model_tool_request_not_tool_turn() -> None:
+    """A transcript that already ends on a tool message is not a resume leftover."""
+    ai = Genkit()
+    _, _ = define_programmable_model(ai)
+
+    with pytest.raises(GenkitError) as ei:
+        await generate_action(
+            ai.registry,
+            GenerateActionOptions(
+                model='programmableModel',
+                messages=[
+                    Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]}),
+                    Message.model_validate({
+                        'role': 'model',
+                        'content': [{'toolRequest': {'ref': 'z', 'name': 'echo', 'input': {}}}],
+                    }),
+                    Message.model_validate({
+                        'role': 'tool',
+                        'content': [{'toolResponse': {'ref': 'z', 'name': 'echo', 'output': 'ok'}}],
+                    }),
+                ],
+                resume=Resume(),
+            ),
+        )
+    assert ei.value.status == 'FAILED_PRECONDITION'
+    assert ei.value.reason is RuntimeErrorReason.INVALID_RESUME
+    assert "cannot 'resume'" in ei.value.original_message.lower()
+    assert 'INVALID_RESUME' not in ei.value.original_message
 
 
 async def _screenshot_confirm_interrupted() -> tuple[Genkit, Any]:

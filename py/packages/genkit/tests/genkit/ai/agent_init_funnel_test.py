@@ -24,7 +24,7 @@ from genkit._ai._agents._base import define_custom_agent
 from genkit._ai._agents._client import AgentError
 from genkit._ai._agents._runtime import AgentInitError, SessionRunner
 from genkit._core._action import ActionRunContext
-from genkit._core._error import RuntimeErrorReason
+from genkit._core._error import RuntimeErrorReason, runtime_error_reason
 from genkit._core._registry import Registry
 from genkit._core._typing import (
     AgentFinishReason,
@@ -94,7 +94,9 @@ async def test_non_resumable_snapshot_resolves_as_failed_agent_output() -> None:
     assert out.finish_reason == AgentFinishReason.FAILED
     assert out.error is not None
     assert out.error.status == 'INVALID_ARGUMENT'
+    assert runtime_error_reason(out.error.details) is RuntimeErrorReason.SNAPSHOT_NOT_RESUMABLE
     assert 'not resumable' in (out.error.message or '')
+    assert 'SNAPSHOT_NOT_RESUMABLE' not in (out.error.message or '')
 
 
 @pytest.mark.asyncio

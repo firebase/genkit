@@ -386,6 +386,7 @@ async def load_session(
                         f'Snapshot {init.snapshot_id!r} does not belong to session '
                         f'{init.session_id!r} (it belongs to {owner!r}).'
                     ),
+                    reason=RuntimeErrorReason.INVALID_SESSION_ID,
                 )
         # A failed/aborted/pending snapshot is kept for inspection but isn't a
         # valid place to continue a conversation from.
@@ -397,6 +398,7 @@ async def load_session(
                     f'(status: {snap.status.value if snap.status else "unknown"}). '
                     "Only 'completed' snapshots can be resumed."
                 ),
+                reason=RuntimeErrorReason.SNAPSHOT_NOT_RESUMABLE,
             )
         validate_custom_state(
             custom=snap.state.custom if snap.state else None, state_schema=state_schema, agent_name=name

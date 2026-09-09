@@ -105,7 +105,23 @@ async def test_resume_by_snapshot_id_rejects_non_completed() -> None:
     with pytest.raises(GenkitError) as exc:
         await load_session(init=AgentInit(snapshot_id='snap-f'), store=store, agent_name='a')
     assert exc.value.status == INVALID_ARGUMENT
-    assert 'not resumable' in str(exc.value)
+    assert exc.value.reason is RuntimeErrorReason.SNAPSHOT_NOT_RESUMABLE
+    assert 'not resumable' in exc.value.original_message
+    assert 'SNAPSHOT_NOT_RESUMABLE' not in exc.value.original_message
+
+
+@pytest.mark.asyncio
+async def test_resume_by_snapshot_id_rejects_pending() -> None:
+    """A pending snapshot is kept for inspection and is not a place to continue."""
+    pending = _snap('snap-p', SnapshotStatus.PENDING)
+    store = _ScriptedStore({'snap-p': pending}, leaf=None)
+
+    with pytest.raises(GenkitError) as exc:
+        await load_session(init=AgentInit(snapshot_id='snap-p'), store=store, agent_name='a')
+    assert exc.value.status == INVALID_ARGUMENT
+    assert exc.value.reason is RuntimeErrorReason.SNAPSHOT_NOT_RESUMABLE
+    assert 'not resumable' in exc.value.original_message
+    assert 'SNAPSHOT_NOT_RESUMABLE' not in exc.value.original_message
 
 
 @pytest.mark.asyncio
@@ -168,5 +184,7 @@ async def test_snapshot_id_with_mismatched_session_id_rejected() -> None:
             agent_name='a',
         )
     assert exc.value.status == INVALID_ARGUMENT
-    assert 'does not belong to session' in str(exc.value)
-    assert 'it belongs to' in str(exc.value)
+    assert exc.value.reason is RuntimeErrorReason.INVALID_SESSION_ID
+    assert 'does not belong to session' in exc.value.original_message
+    assert 'INVALID_SESSION_ID' not in exc.value.original_message
+    assert 'it belongs to' in exc.value.original_message

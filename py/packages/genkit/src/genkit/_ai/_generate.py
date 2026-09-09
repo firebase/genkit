@@ -1956,6 +1956,7 @@ async def _resolve_resume_options(
                 "Cannot 'resume' generation unless the previous message is a model "
                 'message with at least one tool request.'
             ),
+            reason=RuntimeErrorReason.INVALID_RESUME,
         )
 
     # Build updated_content in a new list — do NOT mutate last_message.content
@@ -1983,6 +1984,7 @@ async def _resolve_resume_options(
         raise GenkitError(
             status='FAILED_PRECONDITION',
             message=f'Expected {len(tool_requests)} responses, but resolved to {len(tool_responses)}',
+            reason=RuntimeErrorReason.INVALID_RESUME,
         )
 
     tool_message = Message(

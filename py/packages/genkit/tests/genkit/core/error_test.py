@@ -49,9 +49,13 @@ def test_runtime_error_reasons_are_the_ones_helpers_write() -> None:
         'UNSUPPORTED_BY_MODEL',
         'INVALID_PART',
         'UNRESOLVED_TOOL_REQUEST',
+        'INVALID_RESUME',
         'SNAPSHOT_NOT_FOUND',
+        'SNAPSHOT_NOT_RESUMABLE',
         'SESSION_STORE_NOT_CONFIGURED',
         'SESSION_ID_REQUIRED',
+        'INVALID_SESSION_ID',
+        'INVALID_SNAPSHOT_ID',
         'CONNECTION_CLOSED',
     }
 
