@@ -28,6 +28,11 @@ because those pre-transfer releases (0.1.0–0.2.0) declare
 - It is published as an **sdist only**. A wheel would install cleanly as
   an empty package on old Pythons — exactly the silent failure this
   prevents. Keep the `--sdist` flag in `publish_python.yml`.
+- The boxed message is for `pip install genkit` and
+  `uv pip install genkit`. A second name on the same line
+  (`pip install genkit genkit-google-genai`) fails in the resolver on
+  that plugin's `Requires-Python: >=3.10` and never reaches this
+  `setup.py`.
 
 The version never changes: 0.3.0 was never published (the history goes
 0.3.0.dev2 -> 0.3.1), and it sits above 0.2.0 (the last pre-transfer
