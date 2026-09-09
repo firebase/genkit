@@ -49,6 +49,26 @@ def coerce_part(value: object) -> Part | None:
         return None
 
 
+def normalize_send_chunk_parts(chunk: object) -> list[Part]:
+    """Require a Part or list of Parts for tool ``send_chunk``."""
+    if isinstance(chunk, Part):
+        return [chunk]
+    if isinstance(chunk, list):
+        out: list[Part] = []
+        for item in chunk:
+            if not isinstance(item, Part):
+                raise GenkitError(
+                    status='INVALID_ARGUMENT',
+                    message=f'send_chunk parts must be Part values, got {type(item).__name__}.',
+                )
+            out.append(item)
+        return out
+    raise GenkitError(
+        status='INVALID_ARGUMENT',
+        message=f'send_chunk expects a Part or list of Parts, got {type(chunk).__name__}.',
+    )
+
+
 def normalize_pending_content(pending_content: object, *, tool_name: str) -> list[dict[str, Any]] | None:
     """Validate a resume stash as the same part list ``MultipartToolResponse.content`` accepts."""
     if pending_content is None:
@@ -245,6 +265,10 @@ logger = get_logger(__name__)
 _tool_resumed_metadata: ContextVar[dict[str, Any] | None] = ContextVar('tool_resumed_metadata', default=None)
 # Stashed copy of tool_request.input when restart replaces input (JSON; shape is per tool).
 _tool_original_input: ContextVar[Any | None] = ContextVar('tool_original_input', default=None)  # noqa: ANN401
+# Generate-only sink: wraps send_chunk parts as a tool-role stream chunk.
+_tool_generate_chunk_sender: ContextVar[Callable[[list[Part]], None] | None] = ContextVar(
+    'tool_generate_chunk_sender', default=None
+)
 
 
 class ToolRunContext(ActionRunContext):
@@ -271,6 +295,21 @@ class ToolRunContext(ActionRunContext):
         self.resumed_metadata = resumed_metadata
         self.original_input = original_input
 
+    def send_chunk(self, chunk: Part | list[Part]) -> None:  # type: ignore[override]
+        """Stream parts from this tool.
+
+        During ``generate_stream`` the parts become one tool-role
+        ``ModelResponseChunk``. On ``tool.stream()`` the same call still
+        delivers the ``Part`` or list you passed. With no listener this
+        validates and returns.
+        """
+        parts = normalize_send_chunk_parts(chunk)
+        sender = _tool_generate_chunk_sender.get()
+        if sender is not None:
+            sender(parts)
+            return
+        super().send_chunk(chunk)
+
     def is_resumed(self) -> bool:
         """Return True if this execution is resuming after an interrupt."""
         return self.resumed_metadata is not None
@@ -289,6 +328,7 @@ async def run_tool_request(
     tool: Action,
     tool_request_part: Part,
     ctx: GenerateMiddlewareContext | None = None,
+    on_tool_parts: Callable[[list[Part]], None] | None = None,
 ) -> Any:  # noqa: ANN401 - tool output follows registered handler
     """Execute a tool request with generate-scoped context and resume metadata.
 
@@ -302,6 +342,7 @@ async def run_tool_request(
     resumed_meta, original_input = _resume_context_from_tool_request_part(tool_request_part)
     token_meta = _tool_resumed_metadata.set(resumed_meta)
     token_input = _tool_original_input.set(original_input)
+    token_sender = _tool_generate_chunk_sender.set(on_tool_parts)
     run_context = dict(ctx.custom_context) if ctx and ctx.custom_context else None
     telemetry_labels = cast(dict[str, object], dict(ctx.telemetry_labels)) if ctx and ctx.telemetry_labels else None
     try:
@@ -314,6 +355,7 @@ async def run_tool_request(
             )
         ).response
     finally:
+        _tool_generate_chunk_sender.reset(token_sender)
         _tool_resumed_metadata.reset(token_meta)
         _tool_original_input.reset(token_input)
 
@@ -351,6 +393,7 @@ async def run_tool_after_restart(
     tool: Action,
     restart_trp: Part,
     ctx: GenerateMiddlewareContext | None = None,
+    on_tool_parts: Callable[[list[Part]], None] | None = None,
 ) -> Part:
     """Run a tool for ``resume_restart``: applies ``resumed`` / ``replacedInput`` from metadata.
 
@@ -361,7 +404,7 @@ async def run_tool_after_restart(
     if tool_req is None:
         raise ValueError('run_tool_after_restart needs a tool request part')
     try:
-        raw = await run_tool_request(tool=tool, tool_request_part=restart_trp, ctx=ctx)
+        raw = await run_tool_request(tool=tool, tool_request_part=restart_trp, ctx=ctx, on_tool_parts=on_tool_parts)
     except Interrupt as e:
         logger.debug(
             'restarted tool triggered an interrupt',
