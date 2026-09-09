@@ -23,6 +23,7 @@ members = [
     "gemini-code-execution",
     "gemini-context-caching",
     "genkit",
+    "genkit-a2ui",
     "genkit-amazon-bedrock",
     "genkit-anthropic",
     "genkit-django",
@@ -1701,6 +1702,34 @@ requires-dist = [
 provides-extras = ["amazon-bedrock", "anthropic", "django", "evaluators", "fastapi", "flask", "google-cloud", "google-genai", "middleware", "ollama", "openai", "vertex-ai"]
 
 [[package]]
+name = "genkit-a2ui"
+version = "0.11.0"
+source = { editable = "packages/genkit-a2ui" }
+dependencies = [
+    { name = "genkit" },
+    { name = "pydantic" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.4" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.25.2" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0.0" },
+    { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.6.1" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "genkit-amazon-bedrock"
 version = "0.11.0"
 source = { editable = "packages/genkit-amazon-bedrock" }
@@ -1945,6 +1974,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "dotpromptz" },
     { name = "genkit" },
+    { name = "genkit-a2ui" },
     { name = "genkit-amazon-bedrock" },
     { name = "genkit-anthropic" },
     { name = "genkit-django" },
@@ -2011,6 +2041,7 @@ lint = [
 requires-dist = [
     { name = "dotpromptz", specifier = "==0.1.5" },
     { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-a2ui", editable = "packages/genkit-a2ui" },
     { name = "genkit-amazon-bedrock", editable = "packages/genkit-amazon-bedrock" },
     { name = "genkit-anthropic", editable = "packages/genkit-anthropic" },
     { name = "genkit-django", editable = "packages/genkit-django" },
