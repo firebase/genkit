@@ -1885,11 +1885,9 @@ class Genkit:
         if response.error is not None:
             # This call is "give me the ticket." A leftover start is not
             # that ticket — while-not-done would poll it as a live job.
-            # The handle is on the exception so check/cancel is a catch.
             raise GenkitError(
                 status=cast(StatusName, response.error.status or 'INTERNAL'),
                 message=response.error.message,
                 reason=response.error.reason,
-                details={'operation': response.operation.model_dump(by_alias=True, exclude_none=True)},
             )
         return response.operation

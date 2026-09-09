@@ -270,13 +270,6 @@ async def test_generate_operation_leftover_is_not_a_clean_start(ai: Genkit) -> N
     assert raised.value.status == 'FAILED_PRECONDITION'
     assert raised.value.reason is RuntimeErrorReason.INVALID_INPUT
     assert raised.value.original_message == 'hook after start'
-    dumped = raised.value.details.get('operation') if isinstance(raised.value.details, dict) else None
-    assert isinstance(dumped, dict)
-    assert dumped.get('id') == 'bg-op-123'
-    leftover = Operation.model_validate(dumped)
-    assert leftover.action == '/background-model/bg-model'
-    assert leftover.error is not None
-    assert leftover.error.message == 'hook after start'
 
 
 class SwallowsStart(BaseMiddleware):
