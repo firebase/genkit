@@ -286,10 +286,10 @@ type turnSpanOutput[State any] struct {
 // the caller can continue from; a custom agent commits when it knows the same
 // of its own state.
 //
-// The context ending between turns ends the run the same way: Run returns
-// the context's error before starting the next queued input, and the inputs
-// that never started are dropped while the turns that finished stay
-// committed.
+// A context that ends between turns ends the run as the input channel
+// closing does: Run returns nil before starting the next queued input, the
+// inputs that never started are dropped, and the invocation takes the last
+// turn's outcome (or the stop itself, when no turn ran).
 //
 // A custom agent may then recover (e.g. call Run again to keep processing
 // inputs) or propagate the error out of the agent function, which resolves
@@ -302,10 +302,12 @@ type turnSpanOutput[State any] struct {
 func (s *SessionRunner[State]) Run(ctx context.Context, fn func(ctx context.Context, input *AgentInput) (*TurnResult, error)) error {
 	for input := range s.inputCh {
 		// A stop that landed between turns ends the run before the next
-		// input starts, as a turn error does; a turn in flight decides its
-		// own outcome below.
-		if err := ctx.Err(); err != nil {
-			return err
+		// input starts, as the channel closing does: the stop cancels work,
+		// not the turn that finished, so the run keeps that turn's outcome
+		// and the inputs that never started are dropped. A turn in flight
+		// decides its own outcome below.
+		if ctx.Err() != nil {
+			return nil
 		}
 		// Deep-copy at the framework boundary: an in-process caller
 		// retains the pointers it sent (message, resume parts) and may
@@ -1487,15 +1489,19 @@ func (rt *agentRuntime[State]) run(
 
 	case <-clientCtx.Done():
 		res := rt.drainAndWait(cancelWork)
-		cause := res.err
+		_, reason, cause := rt.invocationOutcome(res)
 		if cause == nil {
-			cause = clientCtx.Err()
+			// The work finished under the disconnect: the turn in flight
+			// returned without an error, or the stop landed between turns.
+			// The finished turn stands, so the output is the completed one,
+			// as it is when the same turn finishes under a detached abort.
+			return rt.completedOutput(clientCtx, res, reason)
 		}
 		// Both, the way ai.Generate hands back a partial response beside the
 		// error that ended it: the error is what stopped the run, and the
 		// output names the snapshot it stopped at. Returning the error alone
 		// left an in-process caller holding nothing to resume from.
-		return rt.failedOutput(clientCtx, terminalReason(clientCtx.Err(), cause), cause), cause
+		return rt.failedOutput(clientCtx, reason, cause), cause
 	}
 }
 
@@ -1620,10 +1626,16 @@ func (rt *agentRuntime[State]) handleFnDone(
 		return rt.failedOutput(ctx, reason, cause), disconnectErr(ctx, cause)
 	}
 
-	// The resume point is the last turn-end snapshot (lastSnapshotID), or ""
-	// when no store is configured or no turn committed. A custom agent that
-	// overrode the invocation's finish reason on its AgentResult sees it on
-	// the output below, but the snapshot keeps the turn's own reason.
+	return rt.completedOutput(ctx, res, reason)
+}
+
+// completedOutput assembles the output for an invocation whose work finished:
+// the resume point is the last turn-end snapshot (lastSnapshotID), or "" when
+// no store is configured or no turn committed, and reason is what
+// invocationOutcome resolved. A custom agent that overrode the invocation's
+// finish reason on its AgentResult sees it on the output, but the snapshot
+// keeps the turn's own reason.
+func (rt *agentRuntime[State]) completedOutput(ctx context.Context, res fnDoneResult[State], reason AgentFinishReason) (*AgentOutput[State], error) {
 	out := &AgentOutput[State]{
 		SessionID:    rt.session.SessionID(),
 		SnapshotID:   rt.sess.lastSnapshotID,
@@ -1744,15 +1756,17 @@ func terminalStatus(reason AgentFinishReason) SnapshotStatus {
 }
 
 // invocationOutcome classifies how the invocation ended from what fn returned
-// and what the session recorded of its last turn: the status the row lands
-// with, the finish reason, and the error behind it (nil for a completed run).
-// fn's own error is classified as it stands (see terminalReason). A function
-// that returns neither a result nor an error after Run handed it a failed turn
-// has not overruled that turn, so the turn's outcome is the invocation's: the
-// status follows the reason Run recorded, and the turn's error is kept.
-// Anything else is completed, with the reason invocationReason resolves.
-// Shared by the attached output and the detached finalize so the two cannot
-// drift.
+// and what the session recorded of its turns: the status the row lands with,
+// the finish reason, and the error behind it (nil for a completed run). fn's
+// own error is classified as it stands (see terminalReason). A function that
+// returns neither a result nor an error after Run handed it a failed turn has
+// not overruled that turn, so the turn's outcome is the invocation's: the
+// status follows the reason Run recorded, and the turn's error is kept. A run
+// that was stopped before any turn ran has nothing finished to stand on, so
+// the stop is the outcome. Anything else is completed, with the reason
+// invocationReason resolves: a stop that lands between turns, or under a turn
+// that finishes anyway, leaves the finished turn's outcome in place. Shared by
+// the attached output and the detached finalize so the two cannot drift.
 func (rt *agentRuntime[State]) invocationOutcome(res fnDoneResult[State]) (SnapshotStatus, AgentFinishReason, error) {
 	switch {
 	case res.err != nil:
@@ -1761,6 +1775,8 @@ func (rt *agentRuntime[State]) invocationOutcome(res fnDoneResult[State]) (Snaps
 	case res.result == nil && rt.sess.lastTurnErr != nil:
 		reason := rt.sess.lastTurnFinishReason
 		return terminalStatus(reason), reason, rt.sess.lastTurnErr
+	case rt.sess.turnIndex == 0 && res.ctxErr != nil:
+		return SnapshotStatusAborted, AgentFinishReasonAborted, res.ctxErr
 	default:
 		return SnapshotStatusCompleted, rt.sess.invocationReason(res.result), nil
 	}
@@ -2023,9 +2039,9 @@ func abortPendingSnapshot[State any](ctx context.Context, store SnapshotWriter[S
 // the read-and-rewrite is one atomic step: a row that has already settled is
 // left untouched, and a row still in flight (pending, or aborting when the
 // abort flip landed first) lands with how the work actually ended, as
-// invocationOutcome classifies it: completed when fn returned a result,
-// whatever an abort asked for in the meantime, and otherwise the error fn or
-// its last turn ended with.
+// invocationOutcome classifies it: completed when fn returned without an
+// error, whatever an abort asked for in the meantime, and otherwise the error
+// fn or its last turn ended with.
 func (rt *agentRuntime[State]) finalizePendingSnapshot(
 	ctx context.Context,
 	pending *SessionSnapshot[State],

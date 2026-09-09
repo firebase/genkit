@@ -331,7 +331,7 @@ func (a *Agents) backgroundTaskTools(st *agentsState) []ai.Tool {
 // in the words the abort tool's description and the aborting report share:
 // the abort is best effort, and the row records how the work actually ended.
 var stoppedTaskSettles = fmt.Sprintf(
-	"settles with how its work ended: %q when the stop ended it, %q if its turn still returned a result, %q if it broke before the stop reached it",
+	"settles with how its work ended: %q when the stop ended it, %q if its turn still finished without an error, %q if it broke before the stop reached it",
 	aix.SnapshotStatusAborted, aix.SnapshotStatusCompleted, aix.SnapshotStatusFailed)
 
 // taskReportTool builds a non-blocking background-task tool: one companion

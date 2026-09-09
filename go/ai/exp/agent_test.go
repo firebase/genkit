@@ -4202,9 +4202,10 @@ func (s *silentSubscriberStore[State]) OnSnapshotStatusChange(ctx context.Contex
 
 // TestAgent_Detach_AbortRacesFinish pins the finalize's answer when the abort
 // flip lands while the turn is ending anyway. The abort is best effort: a turn
-// that returns a result is committed however the cancellation reached it,
-// only a turn that errors under the cancellation is the abort's doing, and the
-// inputs queued behind the turn never start.
+// that finishes without an error is committed however the cancellation
+// reached it, only a turn that errors under the cancellation is the abort's
+// doing, and the inputs queued behind the turn never start while the finished
+// turn's outcome stands.
 func TestAgent_Detach_AbortRacesFinish(t *testing.T) {
 	// abortMidTurn detaches an agent with "go" and any queued inputs behind
 	// it, aborts it once the first turn is in flight, lets that turn end the
@@ -4321,17 +4322,106 @@ func TestAgent_Detach_AbortRacesFinish(t *testing.T) {
 	})
 
 	t.Run("the inputs queued behind the stop never start", func(t *testing.T) {
-		// The abort cancels work, not history: the turn in flight is
-		// committed, and the row settles aborted holding exactly that turn.
+		// The abort cancels work, not history: the turn in flight finished,
+		// so the row settles completed holding exactly that turn, and the
+		// queued inputs are dropped, which the helper's turn count pins.
 		store := newTestInMemStore[testState]()
 		snap := abortMidTurn(t, "abortStopsQueued", store, finishAnyway, "second", "third")
-		if snap.Status != SnapshotStatusAborted || snap.FinishReason != AgentFinishReasonAborted {
-			t.Errorf("row = %q/%q, want %q/%q", snap.Status, snap.FinishReason, SnapshotStatusAborted, AgentFinishReasonAborted)
+		if snap.Status != SnapshotStatusCompleted || snap.FinishReason != AgentFinishReasonStop {
+			t.Errorf("row = %q/%q, want %q/%q", snap.Status, snap.FinishReason, SnapshotStatusCompleted, AgentFinishReasonStop)
 		}
 		if snap.State == nil || len(snap.State.Messages) != 2 {
 			t.Fatalf("state = %+v, want the finished turn's two messages", snap.State)
 		}
 	})
+
+	t.Run("a stop before any turn ran is the outcome", func(t *testing.T) {
+		// Nothing finished for the run to stand on, so the stop is all there
+		// is: the row settles aborted with the state the run began with.
+		store := newTestInMemStore[testState]()
+		af := DefineCustomAgent(newTestRegistry(t), "abortBeforeAnyTurn",
+			func(ctx context.Context, resp Responder, sess *SessionRunner[testState]) (*AgentResult, error) {
+				<-ctx.Done()
+				return nil, nil
+			},
+			WithSessionStore(store),
+		)
+		conn, err := af.Connect(t.Context())
+		if err != nil {
+			t.Fatalf("Connect: %v", err)
+		}
+		drainInBackground(conn)
+		sendText(t, conn, "go")
+		if err := conn.Detach(); err != nil {
+			t.Fatalf("Detach: %v", err)
+		}
+		out, err := conn.Output()
+		if err != nil {
+			t.Fatalf("Output: %v", err)
+		}
+		if got, err := af.Abort(t.Context(), out.SnapshotID); err != nil || got != SnapshotStatusAborting {
+			t.Fatalf("Abort = (%q, %v), want (%q, nil)", got, err, SnapshotStatusAborting)
+		}
+		snap := waitForSnapshot(t, store, out.SnapshotID, 2*time.Second, func(s *SessionSnapshot[testState]) bool {
+			return s.Status.Terminal()
+		})
+		if snap.Status != SnapshotStatusAborted || snap.FinishReason != AgentFinishReasonAborted {
+			t.Errorf("row = %q/%q, want %q/%q", snap.Status, snap.FinishReason, SnapshotStatusAborted, AgentFinishReasonAborted)
+		}
+		if snap.State == nil || len(snap.State.Messages) != 0 {
+			t.Errorf("state = %+v, want the state the run began with", snap.State)
+		}
+	})
+}
+
+// TestAgent_AttachedCancelKeepsFinishedTurn pins the attached side of the same
+// rule: a turn that finishes without an error under the caller's cancellation
+// is committed, and the output reports it completed, as the detached finalize
+// does for the same turn.
+func TestAgent_AttachedCancelKeepsFinishedTurn(t *testing.T) {
+	store := newTestInMemStore[testState]()
+	entered := make(chan struct{})
+	af := DefineCustomAgent(newTestRegistry(t), "attachedCancelFinishes",
+		func(ctx context.Context, resp Responder, sess *SessionRunner[testState]) (*AgentResult, error) {
+			if err := sess.Run(ctx, func(ctx context.Context, input *AgentInput) (*TurnResult, error) {
+				close(entered)
+				// The cancellation reaches the turn, and it finishes anyway.
+				<-ctx.Done()
+				sess.AddMessages(ai.NewModelTextMessage("answer"))
+				return &TurnResult{FinishReason: AgentFinishReasonStop}, nil
+			}); err != nil {
+				return nil, err
+			}
+			return sess.Result(), nil
+		},
+		WithSessionStore(store),
+	)
+	ctx, cancel := context.WithCancel(t.Context())
+	conn, err := af.Connect(ctx)
+	if err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	drainInBackground(conn)
+	sendText(t, conn, "go")
+	<-entered
+	cancel()
+
+	out, err := outputWithin(t, conn, 10*time.Second)
+	if err != nil {
+		t.Fatalf("Output error = %v, want none: the turn finished", err)
+	}
+	if out.FinishReason != AgentFinishReasonStop || out.Error != nil {
+		t.Errorf("output = %q/%v, want %q with no error", out.FinishReason, out.Error, AgentFinishReasonStop)
+	}
+	if out.Message == nil {
+		t.Error("output carries no message, want the finished turn's answer")
+	}
+	snap := waitForSnapshot(t, store, out.SnapshotID, 2*time.Second, func(s *SessionSnapshot[testState]) bool {
+		return s.Status.Terminal()
+	})
+	if snap.Status != SnapshotStatusCompleted || len(snap.State.Messages) != 2 {
+		t.Errorf("snapshot = %q with %d messages, want %q with the finished turn's two", snap.Status, len(snap.State.Messages), SnapshotStatusCompleted)
+	}
 }
 
 // abortTestAgent commits a message on its first turn, then blocks on its
