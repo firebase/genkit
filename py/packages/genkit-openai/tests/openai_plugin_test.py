@@ -24,9 +24,12 @@ from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from genkit_openai.models.model_info import SUPPORTED_OPENAI_MODELS
 from genkit_openai.openai_plugin import OpenAI, openai_model
+from genkit_openai.typing import SupportedOutputFormat
 from openai.types import Model
 
+from genkit import Supports
 from genkit.plugin_api import ActionKind, ActionMetadata, loop_local_client
 
 
@@ -75,6 +78,59 @@ async def test_openai_plugin_resolve_action(kind: ActionKind, name: str) -> None
     assert action is not None
     assert action.name == f'openai/{name}'
     assert action.kind == ActionKind.MODEL
+
+
+GPT_6_ASTRA_SUPPORTS = {
+    'multiturn': True,
+    'media': True,
+    'tools': False,
+    'systemRole': True,
+    'output': [SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
+}
+
+
+def test_gpt_6_astra_catalog_entry() -> None:
+    """gpt-6-astra is a catalog entry with media, system role, and json, but no tools."""
+    info = SUPPORTED_OPENAI_MODELS['gpt-6-astra']
+
+    assert info.label == 'OpenAI - gpt-6-astra'
+    assert info.supports == Supports(
+        multiturn=True,
+        media=True,
+        tools=False,
+        system_role=True,
+        output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
+    )
+
+
+@pytest.mark.asyncio
+async def test_gpt_6_astra_registered_without_tools() -> None:
+    """init() and resolve() both register gpt-6-astra with the catalog supports."""
+    plugin = OpenAI(api_key='test-key')
+
+    init_action = next((a for a in await plugin.init() if a.name == 'openai/gpt-6-astra'), None)
+    resolved = await plugin.resolve(ActionKind.MODEL, OpenAI.gpt_model('gpt-6-astra').name)
+
+    assert init_action is not None
+    assert resolved is not None
+    for action in (init_action, resolved):
+        assert action.metadata is not None
+        model_meta = cast(dict[str, Any], action.metadata['model'])
+        assert model_meta['label'] == 'OpenAI - gpt-6-astra'
+        assert model_meta['supports'] == GPT_6_ASTRA_SUPPORTS
+
+
+@pytest.mark.asyncio
+async def test_unlisted_chat_model_resolves_with_default_supports() -> None:
+    """An id outside the catalog is registered with multiturn only, so tools, media, and json stay hidden."""
+    plugin = OpenAI(api_key='test-key')
+
+    action = await plugin.resolve(ActionKind.MODEL, 'openai/gpt-6-nova')
+
+    assert action is not None
+    assert action.metadata is not None
+    model_meta = cast(dict[str, Any], action.metadata['model'])
+    assert model_meta['supports'] == {'multiturn': True}
 
 
 @pytest.mark.asyncio
