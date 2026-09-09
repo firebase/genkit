@@ -19,6 +19,8 @@
 from typing import Any, Literal
 
 A2UI_MIME_TYPE = 'application/a2ui+json'
+A2UI_CATALOG_VALUE_TYPE = 'a2ui-catalog'
+DEFAULT_CATALOG_ID = 'basic'
 DEFAULT_VERSION = 'v0.9'
 SupportedVersion = Literal['v0.9', 'v0.9.1']
 BASIC_CATALOG_ID = 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json'

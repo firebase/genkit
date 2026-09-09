@@ -446,6 +446,24 @@ async def test_values_default_model_ref_is_name() -> None:
 
 
 @pytest.mark.asyncio
+async def test_values_lists_a2ui_catalog() -> None:
+    """The Developer UI lists registered A2UI catalogs at /api/values?type=a2ui-catalog."""
+    registry = Registry()
+    catalog = {
+        'id': 'https://example.com/catalogs/banner.json',
+        'components': [{'name': 'Banner', 'description': 'A banner.', 'props': 'title: string.'}],
+    }
+    registry.register_value('a2ui-catalog', catalog['id'], catalog)
+    client = await _registry_asgi_client(registry)
+    try:
+        response = await client.get('/api/values?type=a2ui-catalog')
+        assert response.status_code == 200
+        assert response.json() == {catalog['id']: catalog}
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
 async def test_no_cors_headers_returned(asgi_client: AsyncClient) -> None:
     """Test that the reflection server does not return CORS headers, matching JS/Go."""
     response = await asgi_client.get('/api/__health', headers={'Origin': 'https://evil.example'})

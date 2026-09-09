@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import pytest
-from genkit_a2ui import A2UI_MIME_TYPE, A2ui
+from genkit_a2ui import A2UI_MIME_TYPE, Surfaces
 from helpers import (
     A2UI_FENCE,
     BASIC_CATALOG_ID,
@@ -68,7 +68,7 @@ async def test_generate_a2ui_sends_click_to_model_as_text() -> None:
                 ],
             )
         ],
-        use=[A2ui()],
+        use=[Surfaces()],
     )
 
     assert not request_has_a2ui_part(pm)
@@ -113,7 +113,7 @@ async def test_generate_a2ui_replays_prior_surface_as_fence() -> None:
             ),
             Message(role=Role.USER, content=[text_part('thanks')]),
         ],
-        use=[A2ui()],
+        use=[Surfaces()],
     )
 
     assert not request_has_a2ui_part(pm)
@@ -166,7 +166,7 @@ async def test_generate_a2ui_splits_replayed_surfaces_around_a_click() -> None:
                 ],
             )
         ],
-        use=[A2ui()],
+        use=[Surfaces()],
     )
 
     assert not request_has_a2ui_part(pm)
@@ -190,7 +190,7 @@ async def test_generate_a2ui_empty_ui_message_keeps_placeholder_before_model() -
             Message(role=Role.MODEL, content=[a2ui_data_part([])]),
             Message(role=Role.USER, content=[text_part('hi')]),
         ],
-        use=[A2ui()],
+        use=[Surfaces()],
     )
 
     assert not request_has_a2ui_part(pm)
@@ -221,7 +221,7 @@ async def test_generate_a2ui_keeps_neighbor_text_when_rewriting_ui() -> None:
             ),
             Message(role=Role.USER, content=[text_part('thanks')]),
         ],
-        use=[A2ui()],
+        use=[Surfaces()],
     )
 
     assert not request_has_a2ui_part(pm)
@@ -256,7 +256,7 @@ async def test_generate_a2ui_new_surface_does_not_reuse_history_id() -> None:
             ),
             Message(role=Role.USER, content=[text_part(WEATHER_PROMPT)]),
         ],
-        use=[A2ui(surface_id='sfc-new')],
+        use=[Surfaces(surface_id='sfc-new')],
     )
     message = assert_finished_message(response)
     ids = create_surface_ids(message.content)
@@ -281,7 +281,7 @@ async def test_generate_a2ui_drops_bare_a2ui_mime_part() -> None:
                 ],
             )
         ],
-        use=[A2ui()],
+        use=[Surfaces()],
     )
 
     assert not request_has_a2ui_part(pm)

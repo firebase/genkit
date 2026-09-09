@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from string import Template
+from typing import Any, cast
 
 from ._types import BASIC_CATALOG_ID
 
@@ -97,6 +98,37 @@ class A2uiCatalogComponent:
 class A2uiCatalog:
     id: str
     components: tuple[A2uiCatalogComponent, ...]
+
+    def as_value(self) -> dict[str, object]:
+        return {
+            'id': self.id,
+            'components': [{'name': c.name, 'description': c.description, 'props': c.props} for c in self.components],
+        }
+
+    @staticmethod
+    def from_value(value: object) -> A2uiCatalog | None:
+        if isinstance(value, A2uiCatalog):
+            return value
+        if not isinstance(value, dict):
+            return None
+        payload = cast(dict[str, Any], value)
+        catalog_id = payload.get('id')
+        raw = payload.get('components')
+        if not isinstance(catalog_id, str) or not catalog_id or not isinstance(raw, list):
+            return None
+        components: list[A2uiCatalogComponent] = []
+        for item in raw:
+            row = cast(dict[str, Any], item) if isinstance(item, dict) else None
+            if row is None or not isinstance(row.get('name'), str):
+                return None
+            components.append(
+                A2uiCatalogComponent(
+                    name=row['name'],
+                    description=row['description'] if isinstance(row.get('description'), str) else '',
+                    props=row['props'] if isinstance(row.get('props'), str) else '',
+                )
+            )
+        return A2uiCatalog(id=catalog_id, components=tuple(components))
 
 
 BASIC_CATALOG = A2uiCatalog(

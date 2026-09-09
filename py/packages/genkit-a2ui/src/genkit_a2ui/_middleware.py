@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""A2ui generate middleware."""
+"""Surfaces generate middleware."""
 
 from __future__ import annotations
 
@@ -29,7 +29,8 @@ from genkit._core._model import Message, ModelRequest, ModelResponse, ModelRespo
 from genkit._core._typing import FinishReason, Part, Role, TextPart
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, ModelHookParams
 
-from ._catalog import BASIC_CATALOG, A2uiCatalog, render_catalog_instructions
+from ._catalog import A2uiCatalog, render_catalog_instructions
+from ._loader import resolve_catalog
 from ._parser import A2uiParseError, Segment, StreamParser
 from ._part import a2ui_part, envelopes_from_parts, has_a2ui_mime
 from ._types import DEFAULT_VERSION, SURFACE_KEYS, Envelope, SupportedVersion, ValidateMode
@@ -42,19 +43,21 @@ ABNORMAL_FINISH_REASONS = frozenset({
 })
 
 
-class A2uiConfig(BaseModel):
-    """Options for :class:`A2ui`."""
+class SurfacesConfig(BaseModel):
+    """Options for :class:`Surfaces`."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
 
     instructions: Literal['system', 'none'] = 'system'
     validation: ValidateMode = Field(default='warn', alias='validate')
     surface_id: str | None = Field(default=None, alias='surfaceId')
+    # Registry id from load_catalog. The Developer UI lists those same ids.
+    catalog: str | None = None
     # A typo here would stamp envelopes the renderer cannot paint.
     version: SupportedVersion = DEFAULT_VERSION
 
 
-class A2ui(BaseMiddleware[A2uiConfig]):
+class Surfaces(BaseMiddleware[SurfacesConfig]):
     """Rewrites A2UI fenced model output into data parts.
 
     On the next turn, inbound A2UI parts become text so the model can see
@@ -68,7 +71,7 @@ class A2ui(BaseMiddleware[A2uiConfig]):
         ctx: GenerateMiddlewareContext,
         next_fn: Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        catalog = BASIC_CATALOG
+        catalog = resolve_catalog(registry=ctx.ai.registry, catalog=self.config.catalog)
         version = self.config.version or DEFAULT_VERSION
         validate = self.config.validation
         # Chunks are rewritten as fences close. The finished message is parsed

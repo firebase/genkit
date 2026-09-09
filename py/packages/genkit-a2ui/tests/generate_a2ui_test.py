@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""L1 pins: a finished ``ai.generate(..., use=[A2ui()])`` returns data parts, not fences."""
+"""L1 pins: a finished ``ai.generate(..., use=[Surfaces()])`` returns data parts, not fences."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ import json
 from typing import Any
 
 import pytest
-from genkit_a2ui import A2ui, A2uiParseError
+from genkit_a2ui import A2uiParseError, Surfaces
 from helpers import (
     WEATHER_PROMPT,
     a2ui_parts,
@@ -55,7 +55,7 @@ async def test_generate_a2ui_rewrites_fence_to_data_part() -> None:
     fence = weather_fence()
     pm.responses = [model_ok(fence)]
 
-    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[A2ui()])
+    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[Surfaces()])
     message = assert_finished_message(response)
     assert envelopes(message.content)
     assert create_surface_ids(message.content)
@@ -69,7 +69,7 @@ async def test_generate_a2ui_leaves_plain_prose_untouched() -> None:
     ai, pm = setup()
     pm.responses = [model_ok('just chatting')]
 
-    response = await ai.generate(model='programmableModel', prompt='hi', use=[A2ui()])
+    response = await ai.generate(model='programmableModel', prompt='hi', use=[Surfaces()])
     message = assert_finished_message(response)
     assert_no_a2ui_parts(message.content)
     assert joined_text(message.content) == 'just chatting'
@@ -82,7 +82,7 @@ async def test_generate_a2ui_fence_only_returns_data_part() -> None:
     ai, pm = setup()
     pm.responses = [model_ok(fence_only())]
 
-    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[A2ui()])
+    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[Surfaces()])
     message = assert_finished_message(response)
     assert envelopes(message.content)
     assert_no_fence_in_text(message.content)
@@ -104,7 +104,7 @@ async def test_generate_a2ui_stitches_fence_split_across_parts() -> None:
         )
     ]
 
-    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[A2ui()])
+    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[Surfaces()])
     message = assert_finished_message(response)
     assert len(a2ui_parts(message.content)) == 1
     assert envelopes(message.content)
@@ -118,7 +118,7 @@ async def test_generate_a2ui_keeps_prose_on_both_sides_of_part() -> None:
     body = weather_fence().replace('Here is the weather:\n', '')
     pm.responses = [model_ok(f'intro\n{body}outro')]
 
-    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[A2ui()])
+    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[Surfaces()])
     message = assert_finished_message(response)
     content = message.content
     assert len(content) == 3
@@ -136,7 +136,7 @@ async def test_generate_a2ui_stream_and_final_share_surface_id() -> None:
     pm.responses = [model_ok(fence)]
     pm.chunks = [[ModelResponseChunk(role=Role.MODEL, content=[text_part(fence)])]]
 
-    stream = ai.generate_stream(model='programmableModel', prompt=WEATHER_PROMPT, use=[A2ui()])
+    stream = ai.generate_stream(model='programmableModel', prompt=WEATHER_PROMPT, use=[Surfaces()])
     streamed: list[str] = []
     async for chunk in stream.stream:
         streamed.extend(create_surface_ids(chunk.content))
@@ -166,7 +166,7 @@ async def test_generate_a2ui_flushes_open_fence_at_end_of_turn() -> None:
     stream = ai.generate_stream(
         model='programmableModel',
         prompt=WEATHER_PROMPT,
-        use=[A2ui(surface_id='sfc')],
+        use=[Surfaces(surface_id='sfc')],
     )
     streamed_envs: list[dict[str, Any]] = []
     async for chunk in stream.stream:
@@ -184,7 +184,7 @@ async def test_generate_a2ui_flushes_withheld_prose_at_end_of_turn() -> None:
     pm.responses = [model_ok(full)]
     pm.chunks = [[ModelResponseChunk(role=Role.MODEL, content=[text_part(ch)]) for ch in full]]
 
-    stream = ai.generate_stream(model='programmableModel', prompt='hi', use=[A2ui()])
+    stream = ai.generate_stream(model='programmableModel', prompt='hi', use=[Surfaces()])
     streamed = ''
     async for chunk in stream.stream:
         streamed += joined_text(chunk.content)
@@ -200,7 +200,7 @@ async def test_generate_a2ui_drops_bad_block_and_keeps_prose() -> None:
     ai, pm = setup()
     pm.responses = [model_ok(bad_component_fence())]
 
-    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[A2ui()])
+    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[Surfaces()])
     message = assert_finished_message(response)
     assert_no_a2ui_parts(message.content)
     assert_no_fence_in_text(message.content)
@@ -217,7 +217,7 @@ async def test_generate_a2ui_strict_raises_on_bad_block() -> None:
         await ai.generate(
             model='programmableModel',
             prompt=WEATHER_PROMPT,
-            use=[A2ui(validate='strict')],
+            use=[Surfaces(validate='strict')],
         )
 
 
@@ -232,7 +232,7 @@ async def test_generate_stream_strict_raises_on_bad_block() -> None:
     stream = ai.generate_stream(
         model='programmableModel',
         prompt=WEATHER_PROMPT,
-        use=[A2ui(validate='strict')],
+        use=[Surfaces(validate='strict')],
     )
     with pytest.raises(A2uiParseError, match='NotAThing'):
         async for _chunk in stream.stream:
@@ -257,7 +257,7 @@ async def test_generate_a2ui_skips_rewrite_when_blocked_or_aborted() -> None:
         response = await ai.generate(
             model='programmableModel',
             prompt=WEATHER_PROMPT,
-            use=[A2ui(validate='strict')],
+            use=[Surfaces(validate='strict')],
         )
         message = assert_finished_message(response, finish_reason=reason)
         assert response.finish_message == 'safety'
@@ -281,7 +281,7 @@ async def test_generate_a2ui_other_keeps_raw_fence() -> None:
     response = await ai.generate(
         model='programmableModel',
         prompt=WEATHER_PROMPT,
-        use=[A2ui(validate='strict')],
+        use=[Surfaces(validate='strict')],
     )
     message = assert_finished_message(response, finish_reason=FinishReason.OTHER)
     assert response.finish_message == 'provider other'
@@ -306,7 +306,7 @@ async def test_generate_stream_blocked_paints_card_but_response_keeps_fence() ->
     stream = ai.generate_stream(
         model='programmableModel',
         prompt=WEATHER_PROMPT,
-        use=[A2ui(validate='strict')],
+        use=[Surfaces(validate='strict')],
     )
     streamed_envs: list[dict[str, Any]] = []
     async for chunk in stream.stream:
@@ -336,7 +336,7 @@ async def test_generate_stream_other_paints_card_but_response_keeps_fence() -> N
     stream = ai.generate_stream(
         model='programmableModel',
         prompt=WEATHER_PROMPT,
-        use=[A2ui(validate='strict')],
+        use=[Surfaces(validate='strict')],
     )
     streamed_envs: list[dict[str, Any]] = []
     async for chunk in stream.stream:
@@ -355,7 +355,7 @@ async def test_generate_a2ui_mints_new_surface_id() -> None:
     ai, pm = setup()
     pm.responses = [model_ok(weather_fence())]
 
-    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[A2ui()])
+    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[Surfaces()])
     message = assert_finished_message(response)
     ids = create_surface_ids(message.content)
     assert ids
@@ -364,24 +364,24 @@ async def test_generate_a2ui_mints_new_surface_id() -> None:
 
 @pytest.mark.asyncio
 async def test_generate_a2ui_injects_catalog_instructions_by_default() -> None:
-    """Default A2ui() tells the model how to emit an A2UI fence."""
+    """Default Surfaces() tells the model how to emit an A2UI fence."""
     ai, pm = setup()
     pm.responses = [model_ok('ok')]
 
-    await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[A2ui()])
+    await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[Surfaces()])
     assert 'Rendering UI with A2UI' in request_system_text(pm)
 
 
 @pytest.mark.asyncio
 async def test_generate_a2ui_instructions_none_does_not_inject_catalog() -> None:
-    """A2ui(instructions='none') leaves the system prompt without catalog instructions."""
+    """Surfaces(instructions='none') leaves the system prompt without catalog instructions."""
     ai, pm = setup()
     pm.responses = [model_ok('ok')]
 
     await ai.generate(
         model='programmableModel',
         prompt=WEATHER_PROMPT,
-        use=[A2ui(instructions='none')],
+        use=[Surfaces(instructions='none')],
     )
     assert 'Rendering UI with A2UI' not in request_system_text(pm)
 
@@ -402,7 +402,7 @@ async def test_generate_a2ui_rewrites_candidates_message_too() -> None:
         )
     ]
 
-    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[A2ui()])
+    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[Surfaces()])
     finished = assert_finished_message(response)
     assert envelopes(finished.content)
     assert_no_fence_in_text(finished.content)
@@ -428,7 +428,7 @@ async def test_generate_a2ui_rewrites_candidates_when_message_missing() -> None:
         )
     ]
 
-    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[A2ui()])
+    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[Surfaces()])
     finished = assert_finished_message(response)
     assert envelopes(finished.content)
     assert_no_fence_in_text(finished.content)
@@ -447,25 +447,24 @@ async def test_generate_a2ui_off_drops_block_without_root() -> None:
     response = await ai.generate(
         model='programmableModel',
         prompt=WEATHER_PROMPT,
-        use=[A2ui(validate='off')],
+        use=[Surfaces(validate='off')],
     )
     message = assert_finished_message(response)
     assert_no_a2ui_parts(message.content)
     assert_no_fence_in_text(message.content)
 
 
-def test_a2ui_rejects_unknown_catalog_kwarg() -> None:
-    """A2ui(catalog=...) is not a knob; construction fails."""
-    with pytest.raises(ValidationError):
-        A2ui(catalog='basic')
+def test_a2ui_catalog_string_is_the_lookup_id() -> None:
+    """catalog= is the registry id generate and the Developer UI look up."""
+    assert Surfaces(catalog='basic').config.catalog == 'basic'
 
 
 def test_a2ui_accepts_camel_surface_id() -> None:
     """surfaceId= is the same knob as surface_id=."""
-    assert A2ui(surfaceId='sfc').config.surface_id == 'sfc'
+    assert Surfaces(surfaceId='sfc').config.surface_id == 'sfc'
 
 
 def test_a2ui_rejects_unknown_version() -> None:
     """A typo version is rejected so it cannot stamp envelopes the renderer will drop."""
     with pytest.raises(ValidationError):
-        A2ui(version='v9')
+        Surfaces(version='v9')
