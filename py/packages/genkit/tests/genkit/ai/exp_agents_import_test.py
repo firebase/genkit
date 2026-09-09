@@ -71,6 +71,24 @@ def test_exp_types_import() -> None:
     assert remote_agent is not None
 
 
+def test_from_genkit_agent_is_not_importable() -> None:
+    with pytest.raises(ModuleNotFoundError):
+        import genkit.agent  # ty: ignore[unresolved-import]  # noqa: F401
+
+
+def test_from_genkit_exp_agent_imports() -> None:
+    from genkit.exp.agent import (  # noqa: F401
+        Agent,
+        FileSessionStore,
+        InMemorySessionStore,
+        remote_agent as _remote_agent,
+    )
+
+    assert Agent is not None
+    assert InMemorySessionStore is not None
+    assert _remote_agent is not None
+
+
 @pytest.mark.asyncio
 async def test_exp_genkit_define_agent_one_turn() -> None:
     ai = Genkit()

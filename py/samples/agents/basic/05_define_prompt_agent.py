@@ -26,8 +26,8 @@ from __future__ import annotations
 
 from genkit_google_genai import GoogleAI
 
-from genkit.agent import InMemorySessionStore
 from genkit.exp import Genkit
+from genkit.exp.agent import InMemorySessionStore
 
 ai = Genkit(plugins=[GoogleAI()])
 store = InMemorySessionStore()

@@ -53,7 +53,8 @@ import asyncio
 from typing import Any
 
 from genkit import ActionRunContext, GenkitError, Message, Part, TextPart
-from genkit.agent import (
+from genkit.exp import Genkit
+from genkit.exp.agent import (
     AgentChat,
     AgentError,
     AgentFinishReason,
@@ -65,7 +66,6 @@ from genkit.agent import (
     TurnContext,
     TurnResult,
 )
-from genkit.exp import Genkit
 
 ai = Genkit()
 store = InMemorySessionStore()

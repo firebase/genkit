@@ -31,7 +31,8 @@ from genkit_google_genai import GoogleAI
 from pydantic import BaseModel
 
 from genkit import ActionRunContext, FinishReason, GenkitError, Message, ToolRunContext
-from genkit.agent import (
+from genkit.exp import Genkit
+from genkit.exp.agent import (
     AgentFinishReason,
     AgentInput,
     AgentResult,
@@ -42,7 +43,6 @@ from genkit.agent import (
     TurnContext,
     TurnResult,
 )
-from genkit.exp import Genkit
 
 
 class JobState(BaseModel):

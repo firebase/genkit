@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 
 # serve_agent needs the agent subsystem; skip the whole module where it isn't built.
-_genkit_agent = pytest.importorskip('genkit.agent', reason='agents API not available')
+_genkit_agent = pytest.importorskip('genkit.exp.agent', reason='agents API not available')
 if not hasattr(_genkit_agent, 'InMemorySessionStore'):
     pytest.skip('agents API not available', allow_module_level=True)
 InMemorySessionStore = _genkit_agent.InMemorySessionStore

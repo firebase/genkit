@@ -61,8 +61,8 @@ from genkit._core._typing import (
     SessionSnapshot as SessionSnapshotSchema,
     TextPart,
 )
-from genkit.agent import Agent
 from genkit.exp import Genkit
+from genkit.exp.agent import Agent
 
 TERMINAL_STATUSES = {'completed', 'failed', 'aborted'}
 DEFAULT_STEP_TIMEOUT_S = 5.0

@@ -38,7 +38,7 @@ from genkit._core._typing import (
     SnapshotStatus,
     TextPart,
 )
-from genkit.agent import AgentFinishReason
+from genkit.exp.agent import AgentFinishReason
 
 
 def input_text(inp: AgentInput) -> str:

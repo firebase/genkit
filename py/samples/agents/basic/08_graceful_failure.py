@@ -29,7 +29,8 @@ from __future__ import annotations
 from genkit_google_genai import GoogleAI
 
 from genkit import ActionRunContext, GenkitError, Message, Part, TextPart
-from genkit.agent import (
+from genkit.exp import Genkit
+from genkit.exp.agent import (
     AgentError,
     AgentFinishReason,
     AgentInput,
@@ -39,7 +40,6 @@ from genkit.agent import (
     TurnContext,
     TurnResult,
 )
-from genkit.exp import Genkit
 
 ai = Genkit(plugins=[GoogleAI()])
 store = InMemorySessionStore()

@@ -38,8 +38,8 @@ from genkit._core._typing import (
     ToolResponse,
     ToolResponsePart,
 )
-from genkit.agent import AgentError, InMemorySessionStore
 from genkit.exp import Genkit
+from genkit.exp.agent import AgentError, InMemorySessionStore
 
 
 def test_tag_history_for_render_copies_messages() -> None:

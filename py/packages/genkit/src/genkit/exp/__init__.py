@@ -30,7 +30,8 @@ agent = ai.define_agent(
 ```
 """
 
-from genkit.agent import (
+from genkit.exp._api import Genkit
+from genkit.exp.agent import (
     Agent,
     AgentChat,
     AgentChunk,
@@ -68,7 +69,6 @@ from genkit.agent import (
     TurnResult,
     remote_agent,
 )
-from genkit.exp._api import Genkit
 
 __all__ = [
     'Genkit',

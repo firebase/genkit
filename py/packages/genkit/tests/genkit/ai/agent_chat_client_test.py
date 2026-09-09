@@ -59,8 +59,8 @@ from genkit._core._typing import (
     ToolResponsePart,
     TurnEnd,
 )
-from genkit.agent import InMemorySessionStore
 from genkit.exp import Genkit
+from genkit.exp.agent import InMemorySessionStore
 
 # ---------------------------------------------------------------------------
 # Unit tests for JSON patch application
