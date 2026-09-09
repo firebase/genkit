@@ -31,10 +31,12 @@ processes, and status subscriptions enable features like a cross-process
 stop button.
 
 ```python
-from genkit_google_cloud import FirestoreSessionStore
+from genkit.exp import Genkit
+from genkit_google_cloud.exp import FirestoreSessionStore
 
+ai = Genkit()
 store = FirestoreSessionStore()  # uses Application Default Credentials
-# pass `store` where your agent setup takes a session store
+agent = ai.define_agent(name='assistant', store=store)
 ```
 
 Notes:

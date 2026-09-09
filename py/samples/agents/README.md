@@ -8,7 +8,7 @@ from genkit.exp import Genkit, InMemorySessionStore
 
 One `Agent`, a `store=`, and `send` / `resume`. These samples use
 `InMemorySessionStore` so they run on `GEMINI_API_KEY` alone. When you
-deploy, pass `FirestoreSessionStore()` from `genkit-google-cloud` in the
+deploy, pass `FirestoreSessionStore()` from `genkit_google_cloud.exp` in the
 same slot.
 
 ```bash
