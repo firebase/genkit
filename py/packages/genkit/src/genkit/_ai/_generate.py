@@ -935,14 +935,16 @@ def closed_round_from_exc(
         exc = callback_cause
         reason = None
         pipe_failed = True
-    if isinstance(exc, MissingOperationError | ModelContractError):
-        raise exc
-    if isinstance(exc, ValidationError | PydanticSerializationError):
-        raise exc
-    if isinstance(exc, GenkitError) and isinstance(exc.cause, ValidationError | PydanticSerializationError):
-        raise exc
     if isinstance(exc, Interrupt):
         raise
+    # Bad config= is still setup. After the model spoke — on_chunk,
+    # wrap_generate after next_fn, or the tool loop — it is a dead turn.
+    schema_exc = isinstance(exc, ValidationError | PydanticSerializationError) or (
+        isinstance(exc, GenkitError) and isinstance(exc.cause, ValidationError | PydanticSerializationError)
+    )
+    setup_input = isinstance(exc, GenkitError) and (exc.original_message or '').startswith('Invalid input for action')
+    if schema_exc and reason is not RuntimeErrorReason.TOOL_FAILED and not pipe_failed and setup_input:
+        raise exc
     if isinstance(exc, GenkitError):
         # str(GenkitError) prefixes STATUS:. The finish_message they read
         # is the wrapper's wording plus the cause they actually hit.
@@ -1095,16 +1097,10 @@ async def _generate_action_turn(
             raw_request=turn_options,
             mw_pipeline=mw_pipeline,
         )
-        # NOTE: in the future we should make it possible to interrupt a restart, but
-        # at the moment it's too complicated because it's not clear how to return a
-        # response that amends history but doesn't generate a new message, so we throw
         if interrupted_response:
-            raise GenkitError(
-                status='FAILED_PRECONDITION',
-                message='One or more tools triggered an interrupt during a restarted execution.',
-                details={'message': interrupted_response.message},
-                reason=RuntimeErrorReason.INVALID_RESUME,
-            )
+            # The restart paused again. Same leftover as the first
+            # interrupt — they can answer it.
+            return interrupted_response
         turn_options = revised_request
         latest_messages[:] = list(turn_options.messages or [])
 
@@ -1167,11 +1163,21 @@ async def _generate_action_turn(
                 exc=exc,
                 caller_stopped=ctx.abort_signal.is_set() or isinstance(exc, asyncio.CancelledError),
             )
-        assert_hook_kept_operation(
-            boxed=turn.boxed,
-            after_hooks=model_response,
-            name=turn.name or turn_model.name,
-        )
+        try:
+            assert_hook_kept_operation(
+                boxed=turn.boxed,
+                after_hooks=model_response,
+                name=turn.name or turn_model.name,
+            )
+        except MissingOperationError as exc:
+            # start() already billed a ticket. Dropping it is a dead
+            # turn: keep the handle so they can still check or cancel.
+            return closed_round_from_exc(
+                response=turn.boxed,
+                messages=list(turn_options.messages),
+                exc=exc,
+                caller_stopped=False,
+            )
 
         def message_parser(msg: Message) -> Any:  # noqa: ANN401
             if turn.formatter is None:
@@ -1387,7 +1393,8 @@ async def _generate_action_turn(
     try:
         response = await dispatch_generate(generate_params, run_ctx, finish_iteration)
     except (Exception, asyncio.CancelledError) as exc:
-        if isinstance(exc, GenkitError) and current_turn == 0 and not iteration_finished:
+        if current_turn == 0 and not iteration_finished and not isinstance(exc, asyncio.CancelledError):
+            # Nothing has run yet. Same as a bad prompt= — raise.
             raise
         return closed_round_from_exc(
             response=finished_response,
@@ -1395,11 +1402,21 @@ async def _generate_action_turn(
             exc=exc,
             caller_stopped=run_ctx.abort_signal.is_set() or isinstance(exc, asyncio.CancelledError),
         )
-    assert_hook_kept_operation(
-        boxed=turn.boxed,
-        after_hooks=response,
-        name=turn.name,
-    )
+    try:
+        assert_hook_kept_operation(
+            boxed=turn.boxed,
+            after_hooks=response,
+            name=turn.name,
+        )
+    except MissingOperationError as exc:
+        # start() already billed a ticket. Dropping it is a dead
+        # turn: keep the handle so they can still check or cancel.
+        return closed_round_from_exc(
+            response=turn.boxed,
+            messages=latest_messages,
+            exc=exc,
+            caller_stopped=False,
+        )
     out = turn.output
     output = OutputConfig(
         format=out.format if out else None,
@@ -2025,9 +2042,30 @@ async def _resolve_resume_options(
     ])
 
     tool_responses = []
-    for (index, _), (resumed_request, resumed_response) in zip(indexed_requests, resolved, strict=True):
-        tool_responses.append(Part(root=resumed_response))
+    has_interrupts = False
+    for (index, _orig_part), (resumed_request, resumed_response) in zip(indexed_requests, resolved, strict=True):
         updated_content[index] = Part(root=resumed_request)
+        if resumed_response is None:
+            has_interrupts = True
+            continue
+        tool_responses.append(Part(root=resumed_response))
+
+    if has_interrupts:
+        for (index, _orig), (resumed_request, resumed_response) in zip(indexed_requests, resolved, strict=True):
+            if resumed_response is None:
+                continue
+            updated_content[index] = _to_pending_response(resumed_request, resumed_response)
+        interrupted = ModelResponse(
+            finish_reason=FinishReason.INTERRUPTED,
+            finish_message='One or more tool calls resulted in interrupts.',
+            message=Message(
+                role=last_message.role,
+                content=updated_content,
+                metadata=last_message.metadata,
+            ),
+            request=ModelRequest(messages=list(messages[:-1])),
+        )
+        return (raw_request, interrupted, None)
 
     if len(tool_responses) != len(tool_requests):
         raise GenkitError(
@@ -2062,7 +2100,7 @@ async def _resolve_resumed_tool_request(
     raw_request: GenerateActionOptions,
     tool_request_part: Part,
     mw_pipeline: _GenerateMiddlewarePipeline | None = None,
-) -> tuple[ToolRequestPart, ToolResponsePart]:
+) -> tuple[ToolRequestPart, ToolResponsePart | None]:
     """Resolve a single tool request from pending output, resume.respond, or resume.restart."""
     # Type narrowing: ensure we're working with a ToolRequestPart
     if not isinstance(tool_request_part.root, ToolRequestPart):
@@ -2143,11 +2181,17 @@ async def _resolve_resumed_tool_request(
     )
     if restart_trp:
         tool = await resolve_tool(registry, tool_req_root.tool_request.name)
-        executed = await _run_restart_through_middleware(
-            tool=tool,
-            restart_trp=restart_trp,
-            mw_pipeline=mw_pipeline,
-        )
+        try:
+            executed = await _run_restart_through_middleware(
+                tool=tool,
+                restart_trp=restart_trp,
+                mw_pipeline=mw_pipeline,
+            )
+        except Exception as e:
+            intr = _interrupt_from_tool_exc(e)
+            if intr is not None:
+                return (_interrupt_request_part(tool_req_root, intr), None)
+            raise
         metadata = dict(tool_req_root.metadata) if tool_req_root.metadata else {}
         interrupt = metadata.get('interrupt')
         if interrupt:
@@ -2223,11 +2267,8 @@ async def _run_restart_through_middleware(
                     'restarted tool triggered an interrupt',
                     tool=restart_trp.tool_request.name,
                 )
-            # Re-interrupting during restart is a hard error — same as the legacy
-            # run_tool_after_restart path, which raises FAILED_PRECONDITION when
-            # the inner tool throws an Interrupt during restart. Surface the
-            # underlying interrupt reason so callers know why (e.g. missing
-            # toolApproved metadata for ToolApproval).
+            # wrap_tool paused again. generate turns this into the same
+            # interrupted leftover they already know how to answer.
             raise restart_interrupt_error(intr) from e
         raise
 

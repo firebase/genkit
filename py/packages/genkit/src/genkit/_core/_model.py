@@ -555,7 +555,9 @@ class ModelResponse(GenkitModel, Generic[OutputT]):
 
         try:
             parsed = self._raw_parsed_output()
-        except ValueError:
+        except Exception as exc:
+            if isinstance(exc, GenkitError) and (exc.original_message or '').startswith('Invalid output_schema'):
+                raise
             preview = (self.text or '')[:200]
             self._mark_invalid_output(f'Model output was not valid JSON for the requested schema: {preview}')
             return
@@ -634,7 +636,7 @@ class ModelResponse(GenkitModel, Generic[OutputT]):
 
         try:
             parsed = self._raw_parsed_output()
-        except ValueError:
+        except Exception:
             if wants_schema:
                 return cast(OutputT, None)
             raise

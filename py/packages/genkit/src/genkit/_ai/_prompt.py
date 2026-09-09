@@ -446,12 +446,12 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
     def stream(
         self,
         input: InputT | dict[str, Any] | None = None,
-        *,
-        timeout: float | None = None,
         **opts: Unpack[PromptGenerateOptions],
     ) -> ModelStreamResponse[OutputT]:
         """Stream the prompt execution, returning (stream, response_future)."""
-        channel: Channel[ModelResponseChunk[OutputT], ModelResponse[OutputT]] = Channel(timeout=timeout)
+        if 'timeout' in opts:
+            raise TypeError("ExecutablePrompt.stream() got an unexpected keyword argument 'timeout'")
+        channel: Channel[ModelResponseChunk[OutputT], ModelResponse[OutputT]] = Channel()
         stream_opts: PromptGenerateOptions = {
             **opts,  # ty doesn't infer Unpack[TD] as TD in function body (PEP 692 gap)
             'on_chunk': lambda c: channel.send(cast('ModelResponseChunk[OutputT]', c)),
@@ -1130,6 +1130,7 @@ def _parse_dotprompt_use(raw: Any) -> list[MiddlewareRef] | None:  # noqa: ANN40
         raise GenkitError(
             status='INVALID_ARGUMENT',
             message=f'dotprompt `use` must be a list, got {type(raw).__name__}',
+            reason=RuntimeErrorReason.INVALID_INPUT,
         )
     refs: list[MiddlewareRef] = []
     for i, entry in enumerate(raw):
@@ -1138,6 +1139,7 @@ def _parse_dotprompt_use(raw: Any) -> list[MiddlewareRef] | None:  # noqa: ANN40
                 raise GenkitError(
                     status='INVALID_ARGUMENT',
                     message=f'dotprompt `use[{i}]` is an empty string',
+                    reason=RuntimeErrorReason.INVALID_INPUT,
                 )
             refs.append(MiddlewareRef(name=entry))
         elif isinstance(entry, dict):
@@ -1146,12 +1148,14 @@ def _parse_dotprompt_use(raw: Any) -> list[MiddlewareRef] | None:  # noqa: ANN40
                 raise GenkitError(
                     status='INVALID_ARGUMENT',
                     message=f'dotprompt `use[{i}]` is missing required `name` field',
+                    reason=RuntimeErrorReason.INVALID_INPUT,
                 )
             refs.append(MiddlewareRef(name=name, config=entry.get('config')))
         else:
             raise GenkitError(
                 status='INVALID_ARGUMENT',
                 message=f'dotprompt `use[{i}]` must be a string or map, got {type(entry).__name__}',
+                reason=RuntimeErrorReason.INVALID_INPUT,
             )
     return refs
 

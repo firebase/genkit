@@ -330,18 +330,24 @@ async def test_unserializable_tool_output_is_invalid_argument() -> None:
         )
     )
 
-    with pytest.raises(GenkitError) as ei:
-        await generate_action(
-            ai.registry,
-            GenerateActionOptions(
-                model='programmableModel',
-                messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'snap'}]})],
-                tools=['screenshot'],
-            ),
-        )
+    response = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='programmableModel',
+            messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'snap'}]})],
+            tools=['screenshot'],
+        ),
+    )
     assert ran
-    assert ei.value.status == 'INVALID_ARGUMENT'
-    assert 'screenshot' in ei.value.original_message
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.finish_message is not None
+    assert 'screenshot' in response.finish_message
+    assert 'not JSON-serializable' in response.finish_message
+    assert response.message is None
+    assert response.error is not None
+    assert response.error.status == 'INVALID_ARGUMENT'
+    assert response.error.reason is RuntimeErrorReason.TOOL_FAILED
+    assert [message.role for message in response.messages] == ['user']
 
 
 @pytest.mark.asyncio

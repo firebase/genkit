@@ -1395,7 +1395,6 @@ class Genkit:
         output_constrained: bool | None = None,
         use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
         docs: list[Document] | None = None,
-        timeout: float | None = None,
     ) -> ModelStreamResponse[OutputT]: ...
 
     # Overload: config=ModelRefConfigT | Mapping, output_schema=type[T] -> ModelStreamResponse[T]
@@ -1423,7 +1422,6 @@ class Genkit:
         output_constrained: bool | None = None,
         use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
         docs: list[Document] | None = None,
-        timeout: float | None = None,
     ) -> ModelStreamResponse[OutputT]: ...
 
     # Overload: config=ModelConfigDict, no output_schema -> ModelStreamResponse[Any]
@@ -1451,7 +1449,6 @@ class Genkit:
         output_constrained: bool | None = None,
         use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
         docs: list[Document] | None = None,
-        timeout: float | None = None,
     ) -> ModelStreamResponse[Any]: ...
 
     # Overload: config=ModelRefConfigT | Mapping, no output_schema -> ModelStreamResponse[Any]
@@ -1479,7 +1476,6 @@ class Genkit:
         output_constrained: bool | None = None,
         use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
         docs: list[Document] | None = None,
-        timeout: float | None = None,
     ) -> ModelStreamResponse[Any]: ...
 
     def generate_stream(
@@ -1505,7 +1501,6 @@ class Genkit:
         output_constrained: bool | None = None,
         use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
         docs: list[Document] | None = None,
-        timeout: float | None = None,
     ) -> ModelStreamResponse[Any]:
         """Stream generated text, returning a ModelStreamResponse with .stream and .response.
 
@@ -1520,7 +1515,7 @@ class Genkit:
                 print(chunk.text)
             final = await stream.response
         """
-        channel: Channel[ModelResponseChunk, ModelResponse[Any]] = Channel(timeout=timeout)
+        channel: Channel[ModelResponseChunk, ModelResponse[Any]] = Channel()
 
         async def _run_generate() -> ModelResponse[Any]:
             # One call-scoped registry layer holds anything inline (tools +

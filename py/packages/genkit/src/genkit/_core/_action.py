@@ -607,12 +607,11 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
         input: InputT | None = None,
         context: dict[str, Any] | None = None,
         telemetry_labels: dict[str, object] | None = None,
-        timeout: float | None = None,
         init: InitT | None = None,
         input_stream: AsyncIterator[InputT] | None = None,
     ) -> StreamResponse[ChunkT, OutputT]:
         """Execute and return a StreamResponse with .stream and .response properties."""
-        channel: Channel[ChunkT, ActionResponse[OutputT]] = Channel(timeout=timeout)
+        channel: Channel[ChunkT, ActionResponse[OutputT]] = Channel()
 
         def send_chunk(c: ChunkT) -> None:
             channel.send(c)

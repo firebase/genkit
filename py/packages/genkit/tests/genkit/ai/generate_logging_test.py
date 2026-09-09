@@ -15,7 +15,6 @@ from genkit._ai._model import resolve_model_arg
 from genkit._ai._testing import define_programmable_model
 from genkit._ai._tools import Interrupt, respond_to_interrupt, restart_tool
 from genkit._core._environment import GENKIT_ENV
-from genkit._core._error import GenkitError
 from genkit._core._logger import GENKIT_LOG, get_logger
 from genkit._core._model import GenerateActionOptions
 from genkit._core._registry import Registry
@@ -345,8 +344,8 @@ async def test_restarted_tool_interrupt_logs(monkeypatch: pytest.MonkeyPatch) ->
         ),
     )
 
-    with capture_logs() as entries, pytest.raises(GenkitError, match='interrupted again'):
-        await generate_action(
+    with capture_logs() as entries:
+        response = await generate_action(
             ai.registry,
             GenerateActionOptions(
                 model='programmableModel',
@@ -356,6 +355,7 @@ async def test_restarted_tool_interrupt_logs(monkeypatch: pytest.MonkeyPatch) ->
             ),
         )
 
+    assert response.finish_reason == FinishReason.INTERRUPTED
     restarted = [e for e in entries if e['event'] == 'restarted tool triggered an interrupt']
     assert len(restarted) == 1
     assert restarted[0]['tool'] == 'hold'

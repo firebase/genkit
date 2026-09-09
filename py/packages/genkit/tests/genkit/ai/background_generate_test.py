@@ -155,13 +155,31 @@ class DropsOperation(BaseMiddleware):
 
 
 @pytest.mark.asyncio
-async def test_generate_fails_when_wrap_model_drops_operation(ai: Genkit) -> None:
-    """A hook that drops a billed ticket is a missing handle on both doors."""
+async def test_generate_keeps_operation_when_wrap_model_drops_ticket(ai: Genkit) -> None:
+    """A hook that drops a billed ticket still leaves the handle to check or cancel."""
     register_bg_model(ai)
 
-    with pytest.raises(GenkitError, match='did not return an operation') as generate_info:
-        await ai.generate(model='bg-model', prompt='a cat surfing', use=[DropsOperation()])
-    assert generate_info.value.status == 'FAILED_PRECONDITION'
+    response = await ai.generate(model='bg-model', prompt='a cat surfing', use=[DropsOperation()])
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.finish_message is not None
+    assert 'did not return an operation' in response.finish_message
+    assert response.message is None
+    assert response.error is not None
+    assert response.error.status == 'FAILED_PRECONDITION'
+    assert response.error.reason is None
+    assert response.error.message == response.finish_message
+    assert [message.role for message in response.messages] == [Role.USER]
+    assert response.messages[0].text == 'a cat surfing'
+    assert response.operation is not None
+    assert response.operation.id == 'bg-op-123'
+    assert response.operation.error is not None
+    assert response.operation.error.message == response.finish_message
+
+
+@pytest.mark.asyncio
+async def test_generate_operation_raises_when_wrap_model_drops_ticket(ai: Genkit) -> None:
+    """generate_operation still wants a live ticket, not a dropped handle."""
+    register_bg_model(ai)
 
     with pytest.raises(GenkitError, match='did not return an operation') as operation_info:
         await ai.generate_operation(model='bg-model', prompt='a cat surfing', use=[DropsOperation()])
@@ -180,13 +198,31 @@ class DropsGenerate(BaseMiddleware):
 
 
 @pytest.mark.asyncio
-async def test_generate_fails_when_wrap_generate_drops_operation(ai: Genkit) -> None:
-    """Same missing-handle error if wrap_generate rebuilds the response without the ticket."""
+async def test_generate_keeps_operation_when_wrap_generate_drops_ticket(ai: Genkit) -> None:
+    """A wrap_generate that rebuilds without the ticket still leaves the handle."""
     register_bg_model(ai)
 
-    with pytest.raises(GenkitError, match='did not return an operation') as generate_info:
-        await ai.generate(model='bg-model', prompt='a cat surfing', use=[DropsGenerate()])
-    assert generate_info.value.status == 'FAILED_PRECONDITION'
+    response = await ai.generate(model='bg-model', prompt='a cat surfing', use=[DropsGenerate()])
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.finish_message is not None
+    assert 'did not return an operation' in response.finish_message
+    assert response.message is None
+    assert response.error is not None
+    assert response.error.status == 'FAILED_PRECONDITION'
+    assert response.error.reason is None
+    assert response.error.message == response.finish_message
+    assert [message.role for message in response.messages] == [Role.USER]
+    assert response.messages[0].text == 'a cat surfing'
+    assert response.operation is not None
+    assert response.operation.id == 'bg-op-123'
+    assert response.operation.error is not None
+    assert response.operation.error.message == response.finish_message
+
+
+@pytest.mark.asyncio
+async def test_generate_operation_raises_when_wrap_generate_drops_ticket(ai: Genkit) -> None:
+    """generate_operation still wants a live ticket if wrap_generate dropped it."""
+    register_bg_model(ai)
 
     with pytest.raises(GenkitError, match='did not return an operation') as operation_info:
         await ai.generate_operation(model='bg-model', prompt='a cat surfing', use=[DropsGenerate()])
@@ -394,8 +430,31 @@ async def test_box_stamps_operation_action_so_check_can_poll(ai: Genkit) -> None
 
 
 @pytest.mark.asyncio
-async def test_background_start_must_return_operation(ai: Genkit) -> None:
-    """start() returns an Operation. A ModelResponse is a plugin bug."""
+async def test_generate_background_start_without_operation_returns_closed_history(ai: Genkit) -> None:
+    """start() that returns a ModelResponse leaves the prompt and no ticket."""
+
+    async def start(_request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(operation=Operation(id='boxed-1', done=False))
+
+    _register_raw_background(ai, name='boxed-bg', start=start)
+
+    response = await ai.generate(model='boxed-bg', prompt='a cat')
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.finish_message is not None
+    assert "'boxed-bg' did not return an operation" in response.finish_message
+    assert response.message is None
+    assert response.error is not None
+    assert response.error.status == 'FAILED_PRECONDITION'
+    assert response.error.reason is None
+    assert response.error.message == response.finish_message
+    assert [message.role for message in response.messages] == [Role.USER]
+    assert response.messages[0].text == 'a cat'
+    assert response.operation is None
+
+
+@pytest.mark.asyncio
+async def test_generate_operation_raises_when_start_returns_no_ticket(ai: Genkit) -> None:
+    """generate_operation still raises when start() did not return a ticket."""
 
     async def start(_request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
         return ModelResponse(operation=Operation(id='boxed-1', done=False))
@@ -403,60 +462,86 @@ async def test_background_start_must_return_operation(ai: Genkit) -> None:
     _register_raw_background(ai, name='boxed-bg', start=start)
 
     with pytest.raises(GenkitError, match="'boxed-bg' did not return an operation") as exc_info:
-        await ai.generate(model='boxed-bg', prompt='a cat')
+        await ai.generate_operation(model='boxed-bg', prompt='a cat')
 
     assert exc_info.value.status == 'FAILED_PRECONDITION'
 
 
 @pytest.mark.asyncio
-async def test_define_model_returning_operation_raises(ai: Genkit) -> None:
-    """A chat model that returns a bare Operation is registered on the wrong kind."""
+async def test_generate_chat_model_returning_operation_returns_closed_history(ai: Genkit) -> None:
+    """A chat model that returns a bare Operation leaves the prompt and no model message."""
 
     async def model_fn(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
         return Operation(id='sneaky', done=False)
 
     ai.define_model(name='plain', fn=cast(Any, model_fn))
 
-    with pytest.raises(GenkitError, match='define_background_model') as exc_info:
-        await ai.generate(model='plain', prompt='hi')
-
-    assert exc_info.value.status == 'FAILED_PRECONDITION'
-    assert 'plain' in str(exc_info.value)
+    response = await ai.generate(model='plain', prompt='hi')
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.finish_message is not None
+    assert 'define_background_model' in response.finish_message
+    assert 'plain' in response.finish_message
+    assert response.message is None
+    assert response.error is not None
+    assert response.error.status == 'FAILED_PRECONDITION'
+    assert response.error.reason is None
+    assert response.error.message == response.finish_message
+    assert [message.role for message in response.messages] == [Role.USER]
+    assert response.messages[0].text == 'hi'
+    assert response.operation is None
 
 
 @pytest.mark.asyncio
-async def test_define_model_returning_dict_raises(ai: Genkit) -> None:
-    """A chat model that returns a dict is a plugin bug, not an AttributeError."""
+async def test_generate_chat_model_returning_dict_returns_closed_history(ai: Genkit) -> None:
+    """A chat model that returns a dict leaves the prompt and no model message."""
 
     async def model_fn(_request: ModelRequest, _ctx: ActionRunContext) -> dict[str, object]:
         return {'operation': {'id': 'op-1', 'done': False}}
 
     ai.define_model(name='plain-dict', fn=model_fn)
 
-    with pytest.raises(GenkitError, match="Model 'plain-dict' did not return a ModelResponse") as exc_info:
-        await ai.generate(model='plain-dict', prompt='hi')
-
-    assert exc_info.value.status == 'FAILED_PRECONDITION'
+    response = await ai.generate(model='plain-dict', prompt='hi')
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.finish_message is not None
+    assert "Model 'plain-dict' did not return a ModelResponse" in response.finish_message
+    assert response.message is None
+    assert response.error is not None
+    assert response.error.status == 'FAILED_PRECONDITION'
+    assert response.error.reason is None
+    assert response.error.message == response.finish_message
+    assert [message.role for message in response.messages] == [Role.USER]
+    assert response.messages[0].text == 'hi'
+    assert response.operation is None
 
 
 @pytest.mark.asyncio
-async def test_define_model_returning_none_raises(ai: Genkit) -> None:
-    """A chat model that returns None is a plugin bug, not an AttributeError."""
+async def test_generate_chat_model_returning_none_returns_closed_history(ai: Genkit) -> None:
+    """A chat model that returns None leaves the prompt and no model message."""
 
     async def model_fn(_request: ModelRequest, _ctx: ActionRunContext) -> None:
         return None
 
     ai.define_model(name='plain-none', fn=model_fn)
 
-    with pytest.raises(GenkitError, match="Model 'plain-none' did not return a ModelResponse") as exc_info:
-        await ai.generate(model='plain-none', prompt='hi')
-
-    assert exc_info.value.status == 'FAILED_PRECONDITION'
+    response = await ai.generate(model='plain-none', prompt='hi')
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.finish_message is not None
+    assert "Model 'plain-none' did not return a ModelResponse" in response.finish_message
+    assert response.message is None
+    assert response.error is not None
+    assert response.error.status == 'FAILED_PRECONDITION'
+    assert response.error.reason is None
+    assert response.error.message == response.finish_message
+    assert [message.role for message in response.messages] == [Role.USER]
+    assert response.messages[0].text == 'hi'
+    assert response.operation is None
 
 
 @pytest.mark.asyncio
-async def test_define_model_returning_model_response_with_operation_raises(ai: Genkit) -> None:
-    """A chat model that stuffs a handle onto ModelResponse is the same mistake."""
+async def test_generate_chat_model_returning_response_with_operation_returns_closed_history(
+    ai: Genkit,
+) -> None:
+    """A chat model that stuffs a handle onto ModelResponse does not keep that ticket."""
 
     async def model_fn(_request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
         return ModelResponse(
@@ -466,10 +551,18 @@ async def test_define_model_returning_model_response_with_operation_raises(ai: G
 
     ai.define_model(name='plain', fn=model_fn)
 
-    with pytest.raises(GenkitError, match='define_background_model') as exc_info:
-        await ai.generate(model='plain', prompt='hi')
-
-    assert exc_info.value.status == 'FAILED_PRECONDITION'
+    response = await ai.generate(model='plain', prompt='hi')
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.finish_message is not None
+    assert 'define_background_model' in response.finish_message
+    assert response.message is None
+    assert response.error is not None
+    assert response.error.status == 'FAILED_PRECONDITION'
+    assert response.error.reason is None
+    assert response.error.message == response.finish_message
+    assert [message.role for message in response.messages] == [Role.USER]
+    assert response.messages[0].text == 'hi'
+    assert response.operation is None
 
 
 def test_model_response_messages_sees_request_set_after_first_read() -> None:

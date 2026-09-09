@@ -204,6 +204,17 @@ async def test_streaming_action_with_stream_method() -> None:
     assert chunks == ['1', '2']
 
 
+def test_action_stream_does_not_accept_timeout() -> None:
+    """action.stream has no timeout=; the async for waits until the run finishes."""
+
+    async def foo(input: str, ctx: ActionRunContext) -> int:
+        return 1
+
+    action = Action(name='foo', kind=ActionKind.CUSTOM, fn=foo)
+    with pytest.raises(TypeError, match='timeout'):
+        action.stream('foo', timeout=5)  # type: ignore[call-arg]
+
+
 def test_parse_plugin_name_from_action_name() -> None:
     """Parse plugin name from the action name."""
     assert parse_plugin_name_from_action_name('foo') is None

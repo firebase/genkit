@@ -1108,8 +1108,8 @@ async def test_resume_requires_model_tool_request_not_tool_turn() -> None:
 
 
 @pytest.mark.asyncio
-async def test_restarted_tool_that_interrupts_again_raises_invalid_resume() -> None:
-    """A tool that interrupts again on restart raises; reason is INVALID_RESUME."""
+async def test_restarted_tool_that_interrupts_again_returns_interrupted() -> None:
+    """A tool that pauses again on restart returns INTERRUPTED they can answer."""
     ai = Genkit()
     pm, _ = define_programmable_model(ai)
 
@@ -1135,20 +1135,24 @@ async def test_restarted_tool_that_interrupts_again_raises_invalid_resume() -> N
         ),
     )
 
-    with pytest.raises(GenkitError) as ei:
-        await generate_action(
-            ai.registry,
-            GenerateActionOptions(
-                model='programmableModel',
-                messages=list(first.messages),
-                tools=['hold'],
-                resume=Resume(restart=[restart_tool(interrupt=first.interrupts[0])]),
-            ),
-        )
-    assert ei.value.status == 'FAILED_PRECONDITION'
-    assert ei.value.reason is RuntimeErrorReason.INVALID_RESUME
-    assert 'interrupted again' in ei.value.original_message.lower()
-    assert 'INVALID_RESUME' not in ei.value.original_message
+    response = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='programmableModel',
+            messages=list(first.messages),
+            tools=['hold'],
+            resume=Resume(restart=[restart_tool(interrupt=first.interrupts[0])]),
+        ),
+    )
+    assert response.finish_reason == FinishReason.INTERRUPTED
+    assert response.finish_message == 'One or more tool calls resulted in interrupts.'
+    assert response.error is None
+    assert response.message is not None
+    assert response.messages[-1] == response.message
+    assert [m.role for m in response.messages] == [Role.USER, Role.MODEL]
+    assert response.interrupts
+    assert response.interrupts[0].metadata is not None
+    assert response.interrupts[0].metadata['interrupt'] == {'hold': True}
 
 
 async def _screenshot_confirm_interrupted() -> tuple[Genkit, Any]:
