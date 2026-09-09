@@ -268,6 +268,7 @@ async def test_generate_stream_send_chunk_tool_response_part_is_forwarded() -> N
     assert first.tool_response.name == 'deploy'
     assert first.tool_response.ref == 'mine'
     assert first.tool_response.output == 'uploading'
+    assert (sent[0].custom or {}).get('keepInHistory') is False
     assert _tool_outputs(response.messages) == ['done']
 
 
@@ -450,7 +451,7 @@ async def test_generate_stream_recipe_schema_does_not_apply_to_send_chunk() -> N
 
     sent = _send_chunks(chunks)
     assert sent
-    assert not isinstance(sent[0].output, Recipe)
+    assert sent[0].output is None
     assert 'live' not in _message_texts(response.messages)
 
 
@@ -489,6 +490,47 @@ async def test_generate_stream_model_chunks_are_still_recipe_next_to_send_chunk(
     assert model_chunks
     assert isinstance(model_chunks[0].output, Recipe)
     assert model_chunks[0].output.title == 'Pie'
+    assert _tool_outputs(response.messages) == ['done']
+
+
+@pytest.mark.asyncio
+async def test_generate_stream_json_send_chunk_does_not_leave_output_on_later_tool_chunks() -> None:
+    """A json-looking send_chunk does not become leftover chunk.output on later tool-role chunks."""
+    ai = Genkit(model='programmableModel')
+    pm, _ = define_programmable_model(ai)
+    leftover = '{"title": "Pie", "steps": ["mix"]}'
+    recipe_json = '{"title": "Pie", "steps": ["bake"]}'
+
+    @ai.tool(name='deploy')
+    async def deploy(_req: dict, ctx: ToolRunContext) -> str:
+        ctx.send_chunk(_text_part(leftover))
+        return 'done'
+
+    pm.chunks = [[ModelResponseChunk(role=Role.MODEL, content=[_text_part(recipe_json)])]]
+    pm.responses = [
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(
+                role=Role.MODEL,
+                content=[
+                    _text_part(recipe_json),
+                    Part(root=ToolRequestPart(tool_request=ToolRequest(name='deploy', ref='r1', input={}))),
+                ],
+            ),
+        ),
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[_text_part(recipe_json)]),
+        ),
+    ]
+    chunks, response = await _collect_stream(ai, prompt='go', tools=[deploy], output_schema=Recipe)
+    tool_chunks = [chunk for chunk in chunks if chunk.role == Role.TOOL]
+    assert tool_chunks
+    for chunk in tool_chunks:
+        assert chunk.output is None
+    model_chunks = [chunk for chunk in chunks if chunk.role == Role.MODEL]
+    assert isinstance(model_chunks[-1].output, Recipe)
+    assert model_chunks[-1].output.steps == ['bake']
     assert _tool_outputs(response.messages) == ['done']
 
 

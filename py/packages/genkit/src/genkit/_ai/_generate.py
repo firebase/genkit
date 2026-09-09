@@ -682,6 +682,24 @@ async def generate_with_request(
     )
 
 
+KEEP_IN_HISTORY_CUSTOM_KEY = 'keepInHistory'
+
+
+def empty_chunk_output(_chunk: ModelResponseChunk[Any]) -> None:
+    """Tool-role leftover parse: the parts are the payload, not `.output`."""
+    return None
+
+
+def mark_stream_only(chunk: ModelResponseChunk[Any]) -> None:
+    """Mark a mid-tool update so a wire hop still leaves it off history."""
+    chunk._keep_in_history = False
+    custom = chunk.custom
+    if isinstance(custom, dict):
+        chunk.custom = {**custom, KEEP_IN_HISTORY_CUSTOM_KEY: False}
+    else:
+        chunk.custom = {KEEP_IN_HISTORY_CUSTOM_KEY: False}
+
+
 class ChunkAccumulator:
     """Tracks role and message-index state across a streaming turn's chunks.
 
@@ -719,14 +737,15 @@ class ChunkAccumulator:
         self.prev_chunks.append(chunk)
 
         # Leftover parse is the model's output. Tool-role chunks are the
-        # parts the tool sent, not that schema.
+        # parts the tool sent, so `.output` stays empty.
         apply_schema = role == Role.MODEL
         return ModelResponseChunk(
             chunk,
             index=self.message_index,
             previous_chunks=prev_to_send,
-            chunk_parser=self._chunk_parser if apply_schema else None,
+            chunk_parser=self._chunk_parser if apply_schema else empty_chunk_output,
             schema_type=self.schema_type if apply_schema else None,
+            keep_in_history=getattr(chunk, '_keep_in_history', True),
         )
 
     def stream_chunk(
@@ -735,10 +754,13 @@ class ChunkAccumulator:
         chunk: ModelResponseChunk[Any],
         role: Role,
         ctx: GenerateMiddlewareContext,
+        keep_in_history: bool = True,
     ) -> None:
         """Send one framework-wrapped chunk through the current stream chain."""
         if ctx.on_chunk is None:
             return
+        if keep_in_history is False:
+            mark_stream_only(chunk)
         ctx.on_chunk(self.make(role=role, chunk=chunk))
 
     @contextlib.contextmanager
@@ -941,6 +963,7 @@ async def _generate_action_turn(
                     chunk=ModelResponseChunk(role=Role.TOOL, content=parts),
                     role=Role.TOOL,
                     ctx=run_ctx,
+                    keep_in_history=False,
                 )
             except Exception as e:
                 logger.debug(
@@ -970,6 +993,7 @@ async def _generate_action_turn(
                     ),
                     role=Role.TOOL,
                     ctx=run_ctx,
+                    keep_in_history=False,
                 )
             except Exception as e:
                 logger.debug(

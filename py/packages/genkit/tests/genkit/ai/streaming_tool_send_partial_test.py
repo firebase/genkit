@@ -18,17 +18,21 @@ import pytest
 from pydantic import BaseModel
 
 from genkit import Genkit, Message, ModelResponse, ModelResponseChunk, restart_tool
+from genkit._ai._agents._client import StreamedMessageAccumulator
+from genkit._ai._generate import mark_stream_only
 from genkit._ai._testing import define_programmable_model
 from genkit._ai._tools import Interrupt, ToolRunContext
 from genkit._core._error import GenkitError
 from genkit._core._middleware import BaseMiddleware, GenerateHookParams, GenerateMiddlewareContext
 from genkit._core._typing import (
+    AgentStreamChunk,
     FinishReason,
     Part,
     Role,
     TextPart,
     ToolRequest,
     ToolRequestPart,
+    ToolResponse,
     ToolResponsePart,
 )
 
@@ -65,6 +69,16 @@ def _model_says(text: str) -> ModelResponse:
         finish_reason=FinishReason.STOP,
         message=Message(role=Role.MODEL, content=[_text_part(text)]),
     )
+
+
+def _message_texts(messages: Sequence[Message]) -> list[str]:
+    texts: list[str] = []
+    for msg in messages:
+        for part in msg.content:
+            text_val = getattr(part.root, 'text', None)
+            if text_val:
+                texts.append(str(text_val))
+    return texts
 
 
 def _tool_outputs(messages: Sequence[Message]) -> list[object]:
@@ -325,8 +339,7 @@ async def test_generate_stream_send_partial_chunk_output_is_not_the_progress() -
         if chunk.role == Role.TOOL and any((p.root.metadata or {}).get('partial') is True for p in chunk.content)
     ]
     assert sent_chunks
-    assert not isinstance(sent_chunks[0].output, Progress)
-    assert sent_chunks[0].output != progress
+    assert sent_chunks[0].output is None
     _assert_stamped(_partials(chunks)[0], name='deploy', ref='r1', output=progress)
     assert _tool_outputs(response.messages) == ['done']
 
@@ -785,6 +798,165 @@ async def test_agent_send_stream_includes_tool_send_partial() -> None:
                 found.append(root)
     await turn.response
     _assert_stamped(found[0], name='deploy', ref='r1', output=progress)
+
+
+@pytest.mark.asyncio
+async def test_agent_chat_messages_keep_return_not_mid_tool_updates() -> None:
+    """After send, chat.messages has the return; the next turn does not see mid-tool parts."""
+    ai = Genkit(model='programmableModel')
+    pm, _ = define_programmable_model(ai)
+    progress = Progress(step='uploading', percent=50)
+
+    @ai.tool(name='deploy')
+    async def deploy(_req: dict, ctx: ToolRunContext) -> str:
+        ctx.send_chunk(_text_part('svc-00042 is live'))
+        ctx.send_partial(progress)
+        return 'done'
+
+    ai.define_prompt(name='shipAgent', model='programmableModel', tools=[deploy])
+    agent = ai.define_prompt_agent(name='shipAgent')
+    pm.responses = [
+        _model_calls(('deploy', 'r1')),
+        _model_says('ok'),
+        _model_says('again-ok'),
+    ]
+
+    chat = agent.chat()
+    await chat.send('go')
+    assert _tool_outputs(chat.messages) == ['done']
+    assert not _has_partial_part(chat.messages)
+    assert 'svc-00042 is live' not in _message_texts(chat.messages)
+
+    turn = chat.send_stream('again')
+    async for _item in turn.stream:
+        pass
+    await turn.response
+    req = pm.last_request
+    assert req is not None
+    assert 'svc-00042 is live' not in _message_texts(req.messages)
+    assert not _has_partial_part(req.messages)
+    assert _tool_outputs(req.messages) == ['done']
+
+
+@pytest.mark.asyncio
+async def test_agent_next_turn_drops_send_chunk_tool_response_part() -> None:
+    """send_chunk(ToolResponsePart) is streamed; chat.messages and the next turn keep only the return."""
+    ai = Genkit(model='programmableModel')
+    pm, _ = define_programmable_model(ai)
+    stamped = Part(
+        root=ToolResponsePart(tool_response=ToolResponse(name='deploy', ref='mine', output='uploading')),
+    )
+
+    @ai.tool(name='deploy')
+    async def deploy(_req: dict, ctx: ToolRunContext) -> str:
+        ctx.send_chunk(stamped)
+        return 'done'
+
+    ai.define_prompt(name='shipAgent', model='programmableModel', tools=[deploy])
+    agent = ai.define_prompt_agent(name='shipAgent')
+    pm.responses = [
+        _model_calls(('deploy', 'r1')),
+        _model_says('ok'),
+        _model_says('again-ok'),
+    ]
+
+    chat = agent.chat()
+    await chat.send('go')
+    assert _tool_outputs(chat.messages) == ['done']
+
+    turn = chat.send_stream('again')
+    async for _item in turn.stream:
+        pass
+    await turn.response
+    req = pm.last_request
+    assert req is not None
+    assert _tool_outputs(req.messages) == ['done']
+    assert _tool_outputs(chat.messages) == ['done']
+
+
+@pytest.mark.asyncio
+async def test_agent_next_turn_drops_send_chunk_tool_request_part() -> None:
+    """send_chunk(ToolRequestPart) is streamed; the next turn does not replay it."""
+    ai = Genkit(model='programmableModel')
+    pm, _ = define_programmable_model(ai)
+    sneak = Part(root=ToolRequestPart(tool_request=ToolRequest(name='sneak', ref='x', input={})))
+
+    @ai.tool(name='deploy')
+    async def deploy(_req: dict, ctx: ToolRunContext) -> str:
+        ctx.send_chunk(sneak)
+        return 'done'
+
+    ai.define_prompt(name='shipAgent', model='programmableModel', tools=[deploy])
+    agent = ai.define_prompt_agent(name='shipAgent')
+    pm.responses = [
+        _model_calls(('deploy', 'r1')),
+        _model_says('ok'),
+        _model_says('again-ok'),
+    ]
+
+    chat = agent.chat()
+    await chat.send('go')
+    sneak_names = [
+        part.root.tool_request.name
+        for msg in chat.messages
+        for part in msg.content
+        if isinstance(part.root, ToolRequestPart)
+    ]
+    assert 'sneak' not in sneak_names
+
+    turn = chat.send_stream('again')
+    async for _item in turn.stream:
+        pass
+    await turn.response
+    req = pm.last_request
+    assert req is not None
+    req_names = [
+        part.root.tool_request.name
+        for msg in req.messages
+        for part in msg.content
+        if isinstance(part.root, ToolRequestPart)
+    ]
+    assert 'sneak' not in req_names
+
+
+def test_agent_history_still_drops_send_chunk_tool_response_after_wire_hop() -> None:
+    """After dump/validate, send_chunk(ToolResponsePart) still stays off history."""
+    mid = ModelResponseChunk(
+        role=Role.TOOL,
+        content=[
+            Part(root=ToolResponsePart(tool_response=ToolResponse(name='deploy', ref='mine', output='uploading'))),
+        ],
+    )
+    mark_stream_only(mid)
+    dumped = AgentStreamChunk.model_validate(
+        AgentStreamChunk(model_chunk=mid).model_dump(by_alias=True, exclude_none=True)
+    )
+    acc = StreamedMessageAccumulator()
+    acc.add(dumped)
+    assert _tool_outputs(acc.messages()) == []
+
+
+@pytest.mark.asyncio
+async def test_generate_stream_json_send_chunk_then_send_partial_output_stays_empty() -> None:
+    """After a json-looking send_chunk, send_partial and the return have chunk.output None."""
+    ai = Genkit(model='programmableModel')
+    pm, _ = define_programmable_model(ai)
+    leftover = '{"title": "Pie", "steps": ["mix"]}'
+    progress = Progress(step='uploading', percent=50)
+
+    @ai.tool(name='deploy')
+    async def deploy(_req: dict, ctx: ToolRunContext) -> str:
+        ctx.send_chunk(_text_part(leftover))
+        ctx.send_partial(progress)
+        return 'done'
+
+    pm.responses = [_model_calls(('deploy', 'r1')), _model_says('ok')]
+    chunks, response = await _collect_stream(ai, prompt='go', tools=[deploy], output_schema=Recipe)
+    for chunk in chunks:
+        if chunk.role == Role.TOOL:
+            assert chunk.output is None
+    _assert_stamped(_partials(chunks)[0], name='deploy', ref='r1', output=progress)
+    assert _tool_outputs(response.messages) == ['done']
 
 
 @pytest.mark.asyncio
