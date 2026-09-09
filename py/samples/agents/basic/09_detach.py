@@ -30,7 +30,7 @@ import asyncio
 from genkit_google_genai import GoogleAI
 from pydantic import BaseModel
 
-from genkit import ActionRunContext, FinishReason, Genkit, GenkitError, Message, ToolRunContext
+from genkit import ActionRunContext, FinishReason, GenkitError, Message, ToolRunContext
 from genkit.agent import (
     AgentFinishReason,
     AgentInput,
@@ -42,6 +42,7 @@ from genkit.agent import (
     TurnContext,
     TurnResult,
 )
+from genkit.exp import Genkit
 
 
 class JobState(BaseModel):

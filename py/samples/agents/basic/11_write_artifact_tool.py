@@ -27,8 +27,8 @@ from __future__ import annotations
 from genkit_google_genai import GoogleAI
 from genkit_middleware import Artifacts, Middleware
 
-from genkit import Genkit
 from genkit.agent import InMemorySessionStore
+from genkit.exp import Genkit
 
 ai = Genkit(plugins=[GoogleAI(), Middleware()])
 store = InMemorySessionStore()

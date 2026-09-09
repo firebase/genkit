@@ -35,7 +35,7 @@ from pathlib import Path
 
 from genkit_google_genai import GoogleAI
 
-from genkit import ActionRunContext, FinishReason, Genkit, Message
+from genkit import ActionRunContext, FinishReason, Message
 from genkit.agent import (
     AgentFinishReason,
     AgentInput,
@@ -45,6 +45,7 @@ from genkit.agent import (
     TurnContext,
     TurnResult,
 )
+from genkit.exp import Genkit
 
 ai = Genkit(plugins=[GoogleAI()])
 store = InMemorySessionStore()

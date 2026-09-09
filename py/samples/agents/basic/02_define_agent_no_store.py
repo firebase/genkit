@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from genkit_google_genai import GoogleAI
 
-from genkit import Genkit
+from genkit.exp import Genkit
 
 ai = Genkit(plugins=[GoogleAI()])
 

@@ -27,6 +27,7 @@ secondary indexes.
 Example:
     ```python
     from genkit import Genkit
+    from genkit.exp import Genkit as ExpGenkit
     from genkit_google_genai import GoogleAI
     from genkit_google_cloud import (
         FirestoreSessionStore,
@@ -42,9 +43,10 @@ Example:
     await ai.generate(prompt='Hello, world!')
     # => Traces exported asynchronously to Cloud Trace (latency, tokens, status)
 
-    # 3. Persist agent sessions in Firestore (ADC / FIRESTORE_EMULATOR_HOST)
+    # 3. Persist experimental agent sessions in Firestore (ADC / FIRESTORE_EMULATOR_HOST)
+    exp = ExpGenkit(plugins=[GoogleAI()])
     store = FirestoreSessionStore()
-    agent = ai.define_agent(name='assistant', store=store)
+    agent = exp.define_agent(name='assistant', store=store)
     ```
 
 Requirements:

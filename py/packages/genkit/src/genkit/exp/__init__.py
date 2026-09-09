@@ -1,4 +1,4 @@
-# Copyright 2025 Google LLC
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Agent types. Experimental — import the instance from ``genkit.exp``.
+"""Experimental APIs. Agents stay here even after Genkit Python is GA.
 
 ```python
 from genkit.exp import Genkit, InMemorySessionStore
@@ -30,53 +30,50 @@ agent = ai.define_agent(
 ```
 """
 
-from genkit._ai._agents._base import Agent
-from genkit._ai._agents._client import (
+from genkit.agent import (
+    Agent,
     AgentChat,
     AgentChunk,
     AgentClient,
     AgentError,
-    AgentInterrupt,
-    AgentResponse,
-    AgentTransport,
-    AgentTurn,
-    DetachedTask,
-)
-from genkit._ai._agents._runtime import AgentFn, AgentInitError, SessionRunner
-from genkit._ai._agents._session import (
-    Session,
-    SessionStore,
-    SnapshotStatusStream,
-    SnapshotSubscriber,
-)
-from genkit._ai._agents._session_stores._file_store import FileSessionStore
-from genkit._ai._agents._session_stores._inmemory_store import InMemorySessionStore
-from genkit._ai._agents._transports._http import HttpAgentTransport, remote_agent
-from genkit._ai._agents._types import (
-    ChunkTransform,
-    StateTransform,
-    TurnContext,
-    TurnResult,
-)
-from genkit._core._typing import (
     AgentFinishReason,
+    AgentFn,
     AgentInit,
+    AgentInitError,
     AgentInput,
+    AgentInterrupt,
     AgentOutput,
+    AgentResponse,
     AgentResult,
     AgentStreamChunk,
+    AgentTransport,
+    AgentTurn,
     Artifact,
+    ChunkTransform,
+    DetachedTask,
+    FileSessionStore,
+    HttpAgentTransport,
+    InMemorySessionStore,
+    Session,
+    SessionRunner,
     SessionSnapshot,
     SessionState,
+    SessionStore,
     SnapshotStatus,
+    SnapshotStatusStream,
+    SnapshotSubscriber,
+    StateTransform,
+    TurnContext,
     TurnEnd,
+    TurnResult,
+    remote_agent,
 )
+from genkit.exp._api import Genkit
 
 __all__ = [
-    # Agent handles
+    'Genkit',
     'Agent',
     'AgentClient',
-    # Agent Client APIs
     'AgentChat',
     'AgentTurn',
     'AgentChunk',
@@ -88,22 +85,18 @@ __all__ = [
     'AgentTransport',
     'HttpAgentTransport',
     'remote_agent',
-    # Agent function protocol
     'AgentFn',
     'SessionRunner',
     'TurnContext',
     'TurnResult',
-    # Session persistence
     'Session',
     'SessionStore',
     'SnapshotStatusStream',
     'SnapshotSubscriber',
     'InMemorySessionStore',
     'FileSessionStore',
-    # Callbacks and transforms
     'StateTransform',
     'ChunkTransform',
-    # Wire types
     'AgentFinishReason',
     'AgentInit',
     'AgentInput',
