@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from genkit_a2ui import A2UI_MIME_TYPE
@@ -18,42 +19,39 @@ A2UI_FENCE = '```a2ui'
 WEATHER_PROMPT = 'Show me the weather in Tokyo'
 
 
+def fence_block(envelopes: list[dict[str, Any]]) -> str:
+    return f'{A2UI_FENCE}\n{json.dumps(envelopes, indent=2)}\n```\n'
+
+
+def weather_surface(*, catalog_id: str = BASIC_CATALOG_ID, text: str = 'hi') -> list[dict[str, Any]]:
+    return [
+        {'createSurface': {'surfaceId': 'SURFACE_ID', 'catalogId': catalog_id}},
+        {
+            'updateComponents': {
+                'surfaceId': 'SURFACE_ID',
+                'components': [{'id': 'root', 'component': 'Text', 'text': text}],
+            }
+        },
+    ]
+
+
 def weather_fence(*, catalog_id: str = BASIC_CATALOG_ID, text: str = 'hi') -> str:
-    return (
-        'Here is the weather:\n'
-        f'{A2UI_FENCE}\n'
-        '['
-        f'{{ "createSurface": {{ "surfaceId": "SURFACE_ID", "catalogId": "{catalog_id}" }} }}, '
-        '{ "updateComponents": { "surfaceId": "SURFACE_ID", "components": ['
-        f'{{ "id": "root", "component": "Text", "text": "{text}" }}'
-        '] } }'
-        ']\n'
-        '```\n'
-    )
+    return 'Here is the weather:\n' + fence_block(weather_surface(catalog_id=catalog_id, text=text))
 
 
 def fence_only(*, catalog_id: str = BASIC_CATALOG_ID) -> str:
-    return (
-        f'{A2UI_FENCE}\n'
-        '['
-        f'{{ "createSurface": {{ "surfaceId": "SURFACE_ID", "catalogId": "{catalog_id}" }} }}, '
-        '{ "updateComponents": { "surfaceId": "SURFACE_ID", "components": ['
-        '{ "id": "root", "component": "Text", "text": "hi" }'
-        '] } }'
-        ']\n'
-        '```\n'
-    )
+    return fence_block(weather_surface(catalog_id=catalog_id))
 
 
 def bad_component_fence() -> str:
-    return (
-        'oops:\n'
-        f'{A2UI_FENCE}\n'
-        '[{ "updateComponents": { "surfaceId": "SURFACE_ID", "components": ['
-        '{ "id": "root", "component": "NotAThing" }'
-        '] } }]\n'
-        '```\n'
-    )
+    return 'oops:\n' + fence_block([
+        {
+            'updateComponents': {
+                'surfaceId': 'SURFACE_ID',
+                'components': [{'id': 'root', 'component': 'NotAThing'}],
+            }
+        }
+    ])
 
 
 def broken_fence() -> str:
@@ -61,16 +59,15 @@ def broken_fence() -> str:
 
 
 def no_root_fence(*, catalog_id: str = BASIC_CATALOG_ID) -> str:
-    return (
-        f'{A2UI_FENCE}\n'
-        '['
-        f'{{ "createSurface": {{ "surfaceId": "SURFACE_ID", "catalogId": "{catalog_id}" }} }}, '
-        '{ "updateComponents": { "surfaceId": "SURFACE_ID", "components": ['
-        '{ "id": "leaf", "component": "Text", "text": "hi" }'
-        '] } }'
-        ']\n'
-        '```\n'
-    )
+    return fence_block([
+        {'createSurface': {'surfaceId': 'SURFACE_ID', 'catalogId': catalog_id}},
+        {
+            'updateComponents': {
+                'surfaceId': 'SURFACE_ID',
+                'components': [{'id': 'leaf', 'component': 'Text', 'text': 'hi'}],
+            }
+        },
+    ])
 
 
 def a2ui_data_part(envelopes: list[dict[str, Any]]) -> Part:

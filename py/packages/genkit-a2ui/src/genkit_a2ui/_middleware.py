@@ -30,7 +30,7 @@ from genkit._core._typing import FinishReason, Part, Role, TextPart
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, ModelHookParams
 
 from ._catalog import BASIC_CATALOG, A2uiCatalog, render_catalog_instructions
-from ._parser import A2uiParseError, Segment, StreamParser, new_stream_parser
+from ._parser import A2uiParseError, Segment, StreamParser
 from ._part import a2ui_part, envelopes_from_parts, has_a2ui_mime
 from ._types import DEFAULT_VERSION, SURFACE_KEYS, Envelope, SupportedVersion, ValidateMode
 
@@ -71,8 +71,10 @@ class A2ui(BaseMiddleware[A2uiConfig]):
         catalog = BASIC_CATALOG
         version = self.config.version or DEFAULT_VERSION
         validate = self.config.validation
+        # Chunks are rewritten as fences close. The finished message is parsed
+        # again so response.message matches; SurfaceIdReplay replays the same ids.
         replay = SurfaceIdReplay(mint=surface_id_factory(policy=self.config.surface_id))
-        parser = new_stream_parser(
+        parser = StreamParser(
             catalog=catalog,
             validate=validate,
             version=version,
@@ -169,18 +171,11 @@ def part_text(*, part: Part) -> str | None:
 def parts_from_segments(*, segments: list[Segment]) -> list[Part]:
     out: list[Part] = []
     for seg in segments:
-        if seg.is_envelope:
+        if seg.envelopes:
             out.append(a2ui_part(seg.envelopes))
         elif seg.prose:
             out.append(Part(TextPart(text=seg.prose)))
     return out
-
-
-def parts_for_text_part(*, src: Part, segments: list[Segment]) -> list[Part]:
-    src_text = part_text(part=src) or ''
-    if len(segments) == 1 and not segments[0].is_envelope and segments[0].prose == src_text:
-        return [src]
-    return parts_from_segments(segments=segments)
 
 
 def rewrite_parts(*, parts: list[Part], parser: StreamParser, flush_nontext: bool) -> list[Part]:
@@ -188,7 +183,12 @@ def rewrite_parts(*, parts: list[Part], parser: StreamParser, flush_nontext: boo
     for part in parts:
         text = part_text(part=part)
         if text:
-            out.extend(parts_for_text_part(src=part, segments=parser.push(text=text)))
+            segments = parser.push(text=text)
+            # Keep the original part when the parser did not split or rewrite it.
+            if len(segments) == 1 and not segments[0].envelopes and segments[0].prose == text:
+                out.append(part)
+            else:
+                out.extend(parts_from_segments(segments=segments))
             continue
         if flush_nontext:
             out.extend(parts_from_segments(segments=parser.flush()))
@@ -220,7 +220,7 @@ def transform_response(
         message = Message(response.candidates[0].message)
     if message is None:
         return response
-    parser = new_stream_parser(
+    parser = StreamParser(
         catalog=catalog,
         validate=validate,
         version=version,

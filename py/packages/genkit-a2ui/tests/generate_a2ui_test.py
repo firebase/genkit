@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
@@ -151,11 +152,14 @@ async def test_generate_a2ui_stream_and_final_share_surface_id() -> None:
 async def test_generate_a2ui_flushes_open_fence_at_end_of_turn() -> None:
     """An unterminated fence still reaches the stream when the turn ends."""
     ai, pm = setup()
-    unterminated = (
-        '```a2ui\n'
-        '[{ "updateComponents": { "surfaceId": "SURFACE_ID", '
-        '"components": [{ "id": "root", "component": "Text", "text": "hi" }] } }]'
-    )
+    unterminated = '```a2ui\n' + json.dumps([
+        {
+            'updateComponents': {
+                'surfaceId': 'SURFACE_ID',
+                'components': [{'id': 'root', 'component': 'Text', 'text': 'hi'}],
+            }
+        }
+    ])
     pm.responses = [model_ok(unterminated)]
     pm.chunks = [[ModelResponseChunk(role=Role.MODEL, content=[text_part(unterminated)])]]
 

@@ -22,7 +22,7 @@ import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import cast
+from typing import Any, cast
 
 from genkit._core._logger import get_logger
 
@@ -32,35 +32,26 @@ from ._types import DEFAULT_VERSION, SURFACE_ID_PLACEHOLDER, SURFACE_KEYS, Envel
 logger = get_logger(__name__)
 
 OPEN_FENCE_RE = re.compile(r'(?i)```a2ui[ \t]*\r?\n')
+# Hold back a trailing `, ``, or incomplete ```a2ui so a fence split across
+# chunks is not leaked as prose.
 PARTIAL_OPEN_FENCE_RE = re.compile(r'(?i)(?:`|``|```(?:a(?:2(?:u(?:i[ \t]*\r?)?)?)?)?)$')
 CLOSE_FENCE_RE = re.compile(r'^[ \t]*```', re.MULTILINE)
 LEADING_NEWLINE_RE = re.compile(r'^[ \t]*\r?\n')
 
 
-def as_object_dict(*, value: object) -> dict[str, object] | None:
-    if not isinstance(value, dict):
-        return None
-    return cast(dict[str, object], value)
-
-
 @dataclass
 class Segment:
+    """Prose, or a finished A2UI block (`envelopes` set)."""
+
     prose: str = ''
     envelopes: list[Envelope] = field(default_factory=list)
-    is_envelope: bool = False
-
-
-@dataclass
-class ParserOptions:
-    catalog: A2uiCatalog | None
-    validate: ValidateMode
-    version: str
-    surface_id: Callable[[], str]
 
 
 @dataclass
 class ClosedBlock:
-    waiting: bool = False
+    """A finished fence, or `need_more` if the closing ``` has not arrived."""
+
+    need_more: bool = False
     envelopes: list[Envelope] | None = None
 
 
@@ -69,13 +60,23 @@ class A2uiParseError(ValueError):
 
 
 class StreamParser:
-    def __init__(self, *, opts: ParserOptions) -> None:
-        self.opts = opts
+    def __init__(
+        self,
+        *,
+        catalog: A2uiCatalog | None,
+        validate: ValidateMode,
+        version: str,
+        surface_id: Callable[[], str],
+    ) -> None:
+        self.catalog = catalog
+        self.validate = validate or 'warn'
+        self.version = version or DEFAULT_VERSION
+        self.surface_id = surface_id
         self.buffer = ''
         self.in_block = False
         self.current_surface_id = ''
         self.block_scan = 0
-        self.known_components = {c.name for c in opts.catalog.components} if opts.catalog is not None else set()
+        self.known_components = {c.name for c in catalog.components} if catalog is not None else set()
 
     def push(self, *, text: str) -> list[Segment]:
         self.buffer += text
@@ -108,11 +109,11 @@ class StreamParser:
                 continue
 
             taken = self.take_closed_block(final=final)
-            if taken.waiting:
+            if taken.need_more:
                 break
             if taken.envelopes:
                 flush_prose()
-                segments.append(Segment(envelopes=taken.envelopes, is_envelope=True))
+                segments.append(Segment(envelopes=taken.envelopes))
         flush_prose()
         return segments
 
@@ -124,7 +125,7 @@ class StreamParser:
         self.buffer = self.buffer[match.end() :]
         self.in_block = True
         self.block_scan = 0
-        self.current_surface_id = self.opts.surface_id()
+        self.current_surface_id = self.surface_id()
         return prefix
 
     def take_safe_prose(self) -> str:
@@ -146,7 +147,7 @@ class StreamParser:
                 nl = self.buffer.rfind('\n')
                 if nl + 1 > self.block_scan:
                     self.block_scan = nl + 1
-                return ClosedBlock(waiting=True)
+                return ClosedBlock(need_more=True)
             batch = self.finalize_block(raw=self.buffer)
             self.buffer = ''
             self.in_block = False
@@ -163,14 +164,14 @@ class StreamParser:
 
     def reject(self, *, message: str) -> None:
         full = f'A2UI: {message}'
-        if self.opts.validate == 'off':
+        if self.validate == 'off':
             return
-        if self.opts.validate == 'strict':
+        if self.validate == 'strict':
             raise A2uiParseError(full)
         logger.warning('%s (dropping block/envelope)', full)
 
     def finalize_block(self, *, raw: str) -> list[Envelope] | None:
-        surface_id = self.current_surface_id or self.opts.surface_id()
+        surface_id = self.current_surface_id or self.surface_id()
         self.current_surface_id = ''
 
         text = raw.strip()
@@ -191,50 +192,51 @@ class StreamParser:
         if not out:
             return None
 
-        has_create = any('createSurface' in e for e in out)
-        if has_create:
+        if any('createSurface' in e for e in out):
+            # New card. Stamp the minted id so we don't reuse one the model
+            # copied from a prior surface in history.
             for e in out:
                 force_surface_id(envelope=e, surface_id=surface_id)
-            msg = validate_root(envelopes=out)
-            if msg:
-                self.reject(message=msg)
-                return None
+            return self.require_root(envelopes=out)
+
+        existing_id = next((envelope_surface_id(envelope=e) for e in out if envelope_surface_id(envelope=e)), '')
+        if existing_id and existing_id != surface_id:
+            # Update to a surface the model already knows. Don't invent a
+            # createSurface — that would wipe the card the click landed on.
             return out
 
-        target_id = surface_id
-        for e in out:
-            found = envelope_surface_id(envelope=e)
-            if found:
-                target_id = found
-                break
-        if target_id != surface_id:
-            return out
-
-        msg = validate_root(envelopes=out)
-        if msg:
-            self.reject(message=msg)
+        # New card that omitted createSurface. Add one so the client has a
+        # surface to paint before the updates land.
+        if self.require_root(envelopes=out) is None:
             return None
-        catalog_id = self.opts.catalog.id if self.opts.catalog is not None else ''
+        catalog_id = self.catalog.id if self.catalog is not None else ''
         create: Envelope = {
-            'version': self.opts.version,
+            'version': self.version,
             'createSurface': {'surfaceId': surface_id, 'catalogId': catalog_id},
         }
         return [create, *out]
 
+    def require_root(self, *, envelopes: list[Envelope]) -> list[Envelope] | None:
+        msg = validate_root(envelopes=envelopes)
+        if msg:
+            self.reject(message=msg)
+            return None
+        return envelopes
+
     def normalize_envelope(self, *, env: object, surface_id: str) -> Envelope | None:
-        payload = as_object_dict(value=env)
-        if payload is None:
+        if not isinstance(env, dict):
             self.reject(message='envelope must be an object.')
             return None
+        payload = cast(dict[str, Any], env)
         raw_version = payload.get('version')
-        version = raw_version if isinstance(raw_version, str) and raw_version else self.opts.version
+        version = raw_version if isinstance(raw_version, str) and raw_version else self.version
 
         for key in SURFACE_KEYS:
-            body = as_object_dict(value=payload.get(key))
-            if body is None:
+            body = payload.get(key)
+            if not isinstance(body, dict):
                 continue
             fill_placeholder_id(body=body, surface_id=surface_id)
-            if key == 'updateComponents' and self.opts.validate != 'off':
+            if key == 'updateComponents' and self.validate != 'off':
                 err = self.validate_components(components=body.get('components'))
                 if err:
                     self.reject(message=err)
@@ -248,17 +250,17 @@ class StreamParser:
         return None
 
     def validate_components(self, *, components: object) -> str:
-        if self.opts.catalog is None:
+        if self.catalog is None:
             return ''
         if not isinstance(components, list):
             return 'updateComponents.components must be an array.'
         for item in components:
-            component = as_object_dict(value=item)
-            name = component.get('component') if component is not None else None
+            row = cast(dict[str, Any], item) if isinstance(item, dict) else None
+            name = row.get('component') if row is not None else None
             if not isinstance(name, str):
                 return 'every component needs a "component" type name.'
             if name not in self.known_components:
-                return f'component {name!r} is not in catalog {self.opts.catalog.id!r}.'
+                return f'component {name!r} is not in catalog {self.catalog.id!r}.'
         return ''
 
 
@@ -300,20 +302,3 @@ def validate_root(*, envelopes: list[Envelope]) -> str:
     if not saw_list:
         return ''
     return 'component list must contain a component id "root".'
-
-
-def new_stream_parser(
-    *,
-    catalog: A2uiCatalog | None,
-    validate: ValidateMode,
-    version: str,
-    surface_id: Callable[[], str],
-) -> StreamParser:
-    return StreamParser(
-        opts=ParserOptions(
-            catalog=catalog,
-            validate=validate or 'warn',
-            version=version or DEFAULT_VERSION,
-            surface_id=surface_id,
-        )
-    )

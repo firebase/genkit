@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from string import Template
 
 from ._types import BASIC_CATALOG_ID
 
@@ -199,28 +200,47 @@ BASIC_CATALOG = A2uiCatalog(
 )
 
 
-def render_catalog_instructions(catalog: A2uiCatalog) -> str:
-    component_docs = '\n'.join(f'- {c.name}: {c.description} Props: {c.props}' for c in catalog.components)
-    has = {c.name for c in catalog.components}
-    style_section = _render_style_tips(has)
-    example_section = _render_example(catalog, has)
-    inputs = [name for name in ('TextField', 'CheckBox', 'Slider') if name in has]
-    forms_section = ''
-    if inputs:
-        input_list = ', '.join(inputs)
-        forms_section = f"""
-- Forms: input components ({input_list}) do NOT send their values automatically.
+FORMS_SECTION = Template("""
+- Forms: input components ($input_list) do NOT send their values automatically.
   To capture what the user entered you MUST do BOTH of these:
   1. Bind each input's `value` to a data-model path, e.g.
-     `{{ "component": "TextField", "label": "Email", "value": {{ "path": "/email" }} }}`.
+     `{ "component": "TextField", "label": "Email", "value": { "path": "/email" } }`.
      Typing updates the data model at that path.
   2. On the submit `Button`, echo those same paths in
      `action.event.context` so their current values are sent back to you, e.g.
-     `"context": {{ "email": {{ "path": "/email" }}, "name": {{ "path": "/name" }} }}`.
-  Without the `{{ path }}` bindings and the button `context`, the action arrives
-  with an empty `context` and the entered values are lost."""
+     `"context": { "email": { "path": "/email" }, "name": { "path": "/name" } }`.
+  Without the `{ path }` bindings and the button `context`, the action arrives
+  with an empty `context` and the entered values are lost.""")
 
-    return f"""# Rendering UI with A2UI
+WEATHER_EXAMPLE = Template("""
+
+Example (a small weather card):
+```a2ui
+[
+  { "createSurface": { "surfaceId": "SURFACE_ID", "catalogId": "$catalog_id" } },
+  { "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
+    { "id": "root", "component": "Card", "child": "body" },
+    { "id": "body", "component": "Column", "children": ["title", "temp"] },
+    { "id": "title", "component": "Text", "text": "Weather in Tokyo", "variant": "h3" },
+    { "id": "temp", "component": "Text", "text": { "path": "/temp" } }
+  ] } },
+  { "updateDataModel": { "surfaceId": "SURFACE_ID", "path": "/temp", "value": "18°C" } }
+]
+```""")
+
+MINIMAL_EXAMPLE = Template("""
+
+Example (a minimal surface):
+```a2ui
+[
+  { "createSurface": { "surfaceId": "SURFACE_ID", "catalogId": "$catalog_id" } },
+  { "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
+    { "id": "root", "component": "$root" }
+  ] } }
+]
+```""")
+
+INSTRUCTIONS = Template("""# Rendering UI with A2UI
 
 You can render rich, interactive UI (not just text) by emitting an A2UI surface.
 When a result is better *shown* than *told* (weather, lists, forms, comparisons,
@@ -236,29 +256,42 @@ Rules:
 - Every component has a `component` (type name) and an `id`. Container
   components reference their children by id via a `children` array; single-child
   wrappers reference one `child` id.
-- Values can be literals, or a data-model binding `{{ "path": "/somePath" }}`.
+- Values can be literals, or a data-model binding `{ "path": "/somePath" }`.
 - Use `createSurface` first (with `catalogId`), then `updateComponents` to add
   the component list, then optionally `updateDataModel` to set data. You may
   combine them in one array, in order.
 - Interactive components fire an `action` with an event `name`; that name is
-  sent back to you when the user interacts, so choose meaningful names.{forms_section}
+  sent back to you when the user interacts, so choose meaningful names.$forms_section
 - When a user interacts with a surface (e.g. presses a button) and you respond
   with updated UI, RE-RENDER THE WHOLE SURFACE: start again with
   `createSurface` followed by `updateComponents`. Do not emit a bare
   `updateDataModel`/`updateComponents` expecting a previous surface to still
-  exist.{style_section}
+  exist.$style_section
 
 The catalogId to use is:
-"{catalog.id}"
+"$catalog_id"
 
 Available components:
-{component_docs}{example_section}
+$component_docs$example_section
 
 Do not explain the JSON; just render the block. Use "SURFACE_ID" literally as a
-placeholder for the surface id — the system replaces it with a real id."""
+placeholder for the surface id — the system replaces it with a real id.""")
 
 
-def _render_style_tips(has: set[str]) -> str:
+def render_catalog_instructions(catalog: A2uiCatalog) -> str:
+    has = {c.name for c in catalog.components}
+    inputs = [name for name in ('TextField', 'CheckBox', 'Slider') if name in has]
+    forms_section = FORMS_SECTION.substitute(input_list=', '.join(inputs)) if inputs else ''
+    return INSTRUCTIONS.substitute(
+        forms_section=forms_section,
+        style_section=render_style_tips(has=has),
+        catalog_id=catalog.id,
+        component_docs='\n'.join(f'- {c.name}: {c.description} Props: {c.props}' for c in catalog.components),
+        example_section=render_example(catalog=catalog, has=has),
+    )
+
+
+def render_style_tips(*, has: set[str]) -> str:
     tips: list[str] = []
     containers = [c for c in ('Card', 'Column', 'Row') if c in has]
     if containers:
@@ -281,32 +314,8 @@ def _render_style_tips(has: set[str]) -> str:
     return '\n\nMake it look good, not bland:\n' + '\n'.join(tips)
 
 
-def _render_example(catalog: A2uiCatalog, has: set[str]) -> str:
+def render_example(*, catalog: A2uiCatalog, has: set[str]) -> str:
     if {'Card', 'Column', 'Text'} <= has:
-        return f"""
-
-Example (a small weather card):
-```a2ui
-[
-  {{ "createSurface": {{ "surfaceId": "SURFACE_ID", "catalogId": "{catalog.id}" }} }},
-  {{ "updateComponents": {{ "surfaceId": "SURFACE_ID", "components": [
-    {{ "id": "root", "component": "Card", "child": "body" }},
-    {{ "id": "body", "component": "Column", "children": ["title", "temp"] }},
-    {{ "id": "title", "component": "Text", "text": "Weather in Tokyo", "variant": "h3" }},
-    {{ "id": "temp", "component": "Text", "text": {{ "path": "/temp" }} }}
-  ] }} }},
-  {{ "updateDataModel": {{ "surfaceId": "SURFACE_ID", "path": "/temp", "value": "18°C" }} }}
-]
-```"""
+        return WEATHER_EXAMPLE.substitute(catalog_id=catalog.id)
     root = catalog.components[0].name if catalog.components else 'Text'
-    return f"""
-
-Example (a minimal surface):
-```a2ui
-[
-  {{ "createSurface": {{ "surfaceId": "SURFACE_ID", "catalogId": "{catalog.id}" }} }},
-  {{ "updateComponents": {{ "surfaceId": "SURFACE_ID", "components": [
-    {{ "id": "root", "component": "{root}" }}
-  ] }} }}
-]
-```"""
+    return MINIMAL_EXAMPLE.substitute(catalog_id=catalog.id, root=root)
