@@ -1883,8 +1883,9 @@ class Genkit:
         if not response.operation:
             raise missing_operation_error(name=model_action.name)
         if response.error is not None:
-            # This call is "give me the ticket." A leftover start is not
-            # that ticket — while-not-done would poll it as a live job.
+            # This call is "give me the ticket." A start that already
+            # failed is not that ticket — while-not-done would poll it
+            # as a live job.
             raise GenkitError(
                 status=cast(StatusName, response.error.status or 'INTERNAL'),
                 message=response.error.message,

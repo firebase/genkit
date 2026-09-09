@@ -539,8 +539,8 @@ class ModelResponse(GenkitModel, Generic[OutputT]):
     def assert_valid_schema(self) -> None:
         """Mark this response as unusable structured output without throwing.
 
-        A leftover echo or a wrong-shape JSON is not a Recipe. generate()
-        still returns so the leftover stays on ``.text``; the model's finish
+        Raw text or a wrong-shape JSON is not a Recipe. generate()
+        still returns so that text stays on ``.text``; the model's finish
         reason stays intact and ``error`` records the post-processing failure.
         ``.output`` is None.
         A blocked/aborted/interrupted/other finish keeps the model's reason.
@@ -622,8 +622,8 @@ class ModelResponse(GenkitModel, Generic[OutputT]):
     def output(self) -> OutputT:
         """Parsed structured output, or None when the reply is not that shape.
 
-        generate() does not throw on a leftover string. If you asked for a
-        schema and this is not it, read ``error`` / ``.text`` instead.
+        generate() does not throw when the text is not the schema. If you
+        asked for a schema and this is not it, read ``error`` / ``.text``.
         """
         schema = self.request.output_schema if self.request is not None else None
         wants_schema = schema is not None or self._schema_type is not None

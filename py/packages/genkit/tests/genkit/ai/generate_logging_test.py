@@ -125,7 +125,7 @@ async def test_blocked_finish_still_logs_model_responded(monkeypatch: pytest.Mon
 
 
 @pytest.mark.asyncio
-async def test_leftover_logs_model_finish_reason(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_invalid_output_logs_model_finish_reason(monkeypatch: pytest.MonkeyPatch) -> None:
     """Output validation does not replace the model's reason in its breadcrumb."""
     structlog.reset_defaults()
     monkeypatch.setenv(GENKIT_LOG, 'debug')

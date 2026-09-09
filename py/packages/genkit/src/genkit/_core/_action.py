@@ -827,7 +827,7 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
                     output = await self._invoke(input, ctx)
                 latency_ms = (time.perf_counter() - start_time) * 1000
                 output = cast(OutputT, _record_latency(output, latency_ms))
-                # Leftover generate returns a response instead of raising.
+                # A dead turn returns a response instead of raising.
                 # /util/generate is the Dev UI path; paint that span error
                 # so the trace is not a win.
                 if (

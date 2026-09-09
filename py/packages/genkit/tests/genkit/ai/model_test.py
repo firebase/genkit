@@ -460,7 +460,7 @@ def test_assert_valid_schema_passes_when_output_conforms() -> None:
 
 
 def test_assert_valid_schema_names_non_json_output() -> None:
-    """A leftover echo string is a schema miss, not a json5 column error."""
+    """A raw echo string is a schema miss, not a json5 column error."""
     response = ModelResponse(
         message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='[ECHO] hi'))]),
         finish_reason=FinishReason.STOP,
@@ -476,7 +476,7 @@ def test_assert_valid_schema_names_non_json_output() -> None:
 
 
 def test_assert_valid_schema_keeps_blocked_finish() -> None:
-    """A safety refusal keeps finish_reason=blocked; leftover is on .text."""
+    """A safety refusal keeps finish_reason=blocked; the text stays on .text."""
     response = ModelResponse(
         finish_reason=FinishReason.BLOCKED,
         finish_message='Content was blocked',

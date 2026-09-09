@@ -261,8 +261,8 @@ async def test_generate_keeps_operation_when_wrap_model_raises_after_start(ai: G
 
 
 @pytest.mark.asyncio
-async def test_generate_operation_leftover_is_not_a_clean_start(ai: Genkit) -> None:
-    """generate_operation does not hand back a live-looking ticket after leftover start."""
+async def test_generate_operation_failed_start_is_not_a_clean_start(ai: Genkit) -> None:
+    """generate_operation does not hand back a live-looking ticket after a failed start."""
     register_bg_model(ai)
 
     with pytest.raises(GenkitError) as raised:
@@ -345,6 +345,8 @@ async def test_generate_rejects_resume_on_background_model(ai: Genkit) -> None:
         )
 
     assert exc_info.value.status == 'FAILED_PRECONDITION'
+    assert exc_info.value.reason is RuntimeErrorReason.INVALID_RESUME
+    assert 'INVALID_RESUME' not in exc_info.value.original_message
     assert starts == []
 
 

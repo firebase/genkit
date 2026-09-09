@@ -1209,7 +1209,7 @@ class AgentChat(Generic[StateT]):
             self.messages.append(inp.message)
 
         # This session never sees a detached turn's chunks, so start from an empty
-        # accumulator — otherwise a prior turn's leftover messages would be folded
+        # accumulator — otherwise a prior turn's messages would be folded
         # in when the output settles.
         self._turn_accumulator = StreamedMessageAccumulator()
 

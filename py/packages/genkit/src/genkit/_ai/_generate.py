@@ -350,7 +350,7 @@ def resolve_middleware_from_use(
                     'a BaseMiddleware instance in use= so the framework can normalize it.'
                 ),
                 source='genkit.generate',
-                reason=RuntimeErrorReason.ACTION_NOT_FOUND,
+                reason=RuntimeErrorReason.INVALID_INPUT,
             )
         if not isinstance(defn, GenerateMiddleware):
             raise GenkitError(
@@ -903,13 +903,15 @@ def closed_round_failure(
     The unanswered model call is dropped so the caller can send the
     history again.
     """
-    out = response if response is not None else ModelResponse()
+    # Hooks and the model may still hold the response they returned, so
+    # finish_reason, error, and a cleared message go on a copy.
+    out = response.model_copy() if response is not None else ModelResponse()
     out.finish_reason = finish_reason
     out.finish_message = finish_message
     out.error = error
     out.message = None
     if out.operation is not None and out.operation.error is None:
-        # The ticket already started. The leftover why lives on the
+        # The ticket already started. The failure why lives on the
         # handle so check/cancel is not a clean start.
         out.operation = out.operation.model_copy(update={'error': Error(message=finish_message)})
     if out.request is None:
@@ -942,8 +944,8 @@ def closed_round_from_exc(
     if isinstance(exc, Interrupt):
         raise
     if isinstance(exc, GenkitError):
-        # str(GenkitError) prefixes STATUS:. The leftover they read is
-        # the wrapper's wording plus the cause they actually hit.
+        # str(GenkitError) prefixes STATUS:. The finish_message they read
+        # is the wrapper's wording plus the cause they actually hit.
         finish_message = exc.original_message or ''
         if exc.cause is not None:
             cause_text = str(exc.cause)
@@ -954,6 +956,7 @@ def closed_round_from_exc(
     else:
         finish_message = str(exc) or type(exc).__name__
     if caller_stopped:
+        finish_message = 'Generation aborted.'
         status = 'CANCELLED'
         details = exc.details if isinstance(exc, GenkitError) else None
     elif pipe_failed:
@@ -1075,6 +1078,7 @@ async def _generate_action_turn(
                     f"Cannot resume background model '{turn_model.name}'; "
                     'a background start cannot satisfy an interrupted tool turn'
                 ),
+                reason=RuntimeErrorReason.INVALID_RESUME,
             )
         turn_options, turn.formatter = apply_format(turn_options, format_def)
         turn.output = turn_options.output
@@ -1099,6 +1103,7 @@ async def _generate_action_turn(
                 status='FAILED_PRECONDITION',
                 message='One or more tools triggered an interrupt during a restarted execution.',
                 details={'message': interrupted_response.message},
+                reason=RuntimeErrorReason.INVALID_RESUME,
             )
         turn_options = revised_request
         latest_messages[:] = list(turn_options.messages or [])
@@ -1244,7 +1249,7 @@ async def _generate_action_turn(
             log_responded()
             if generated_msg is not None:
                 # wrap_generate may still raise after next_fn; keep this
-                # closed model turn on latest_messages so leftover can resend it.
+                # closed model turn on latest_messages so they can resend it.
                 latest_messages[:] = [*turn_options.messages, generated_msg]
             return _persist_threaded_conversation(response, turn_options.messages)
 
@@ -1549,7 +1554,7 @@ async def apply_resources(
                 raise GenkitError(
                     status='NOT_FOUND',
                     message=f'failed to find matching resource for {ref_uri}',
-                    reason=RuntimeErrorReason.ACTION_NOT_FOUND,
+                    reason=RuntimeErrorReason.INVALID_INPUT,
                 )
 
             # Normalize to ResourceInput for matching
@@ -1560,7 +1565,7 @@ async def apply_resources(
                 raise GenkitError(
                     status='NOT_FOUND',
                     message=f'failed to find matching resource for {ref_uri}',
-                    reason=RuntimeErrorReason.ACTION_NOT_FOUND,
+                    reason=RuntimeErrorReason.INVALID_INPUT,
                 )
 
             # Execute the resource
@@ -1664,7 +1669,7 @@ async def resolve_parameters(
             raise GenkitError(
                 status='INVALID_ARGUMENT',
                 message=f'Unable to resolve format {request.output.format}',
-                reason=RuntimeErrorReason.ACTION_NOT_FOUND,
+                reason=RuntimeErrorReason.INVALID_INPUT,
             )
         format_def = cast(FormatDef, looked_up_format)
 
@@ -2212,7 +2217,7 @@ async def _run_restart_through_middleware(
         intr = _interrupt_from_tool_exc(e)
         if intr is not None:
             # run_tool_after_restart already logged when the tool body interrupted.
-            # wrap_tool can raise Interrupt itself; that's the only leftover case.
+            # wrap_tool can raise Interrupt itself; that's the only interrupt path.
             if not isinstance(e, GenkitError):
                 logger.debug(
                     'restarted tool triggered an interrupt',

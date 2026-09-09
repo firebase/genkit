@@ -1057,7 +1057,7 @@ async def generate_prompt_agent_turn(
         )
         return TurnResult(finish_reason=AgentFinishReason.INTERRUPTED)
 
-    # Max-turns abort has no leftover message (the refused round was
+    # Max-turns abort has no model message (the refused round was
     # dropped) but request.messages still has the closed tool turns.
     await persist_turn_messages(
         session_runner=session_runner,

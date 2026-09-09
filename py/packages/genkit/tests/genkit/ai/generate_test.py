@@ -18,6 +18,7 @@ from pydantic import BaseModel, TypeAdapter
 from genkit import ActionKind, Document, Genkit, Message, MiddlewareRef, ModelResponse, ModelResponseChunk
 from genkit._ai._generate import ChunkAccumulator, _augment_with_context, generate_action
 from genkit._ai._model import text_from_content, text_from_message
+from genkit._ai._resource import ResourceInput, ResourceOutput, define_resource
 from genkit._ai._testing import (
     ProgrammableModel,
     define_echo_model,
@@ -33,6 +34,8 @@ from genkit._core._typing import (
     FinishReason,
     GenerateActionOutputConfig,
     Part,
+    Resource1,
+    ResourcePart,
     Resume,
     Role,
     TextPart,
@@ -2485,7 +2488,7 @@ async def test_generate_requires_at_least_one_message(
 
 @pytest.mark.asyncio
 async def test_generate_returns_on_blocked_finish() -> None:
-    """Blocked is a refusal that still returns so the leftover is on the response."""
+    """Blocked is a refusal that still returns so the text stays on the response."""
     ai = Genkit(model='programmableModel')
     pm, _ = define_programmable_model(ai)
     pm.responses = [
@@ -2736,8 +2739,8 @@ async def test_default_max_turns_drops_fifty_first_tool_round() -> None:
 
 
 @pytest.mark.asyncio
-async def test_leftover_after_tool_turn_keeps_intermediate_messages() -> None:
-    """A leftover after a tool turn still has that tool request and reply on .messages."""
+async def test_closed_history_after_tool_turn_keeps_intermediate_messages() -> None:
+    """A dead turn after a tool turn still has that tool request and reply on .messages."""
     ai = Genkit(model='programmableModel')
     pm, _ = define_programmable_model(ai)
 
@@ -3572,7 +3575,7 @@ async def test_first_turn_task_cancellation_returns_structured_response() -> Non
     response = await task
 
     assert response.finish_reason == FinishReason.ABORTED
-    assert response.finish_message == 'CancelledError'
+    assert response.finish_message == 'Generation aborted.'
     assert response.message is None
     assert response.error is not None
     assert response.error.status == 'CANCELLED'
@@ -3611,7 +3614,7 @@ async def test_task_cancel_after_tool_turn_keeps_closed_rounds() -> None:
     response = await task
 
     assert response.finish_reason == FinishReason.ABORTED
-    assert response.finish_message == 'CancelledError'
+    assert response.finish_message == 'Generation aborted.'
     assert response.message is None
     assert response.error is not None
     assert response.error.status == 'CANCELLED'
@@ -4006,8 +4009,8 @@ async def test_generate_middleware_genkit_error_after_next_fn_keeps_model_turn()
 
 
 @pytest.mark.asyncio
-async def test_util_generate_leftover_paints_span_error() -> None:
-    """Dev UI /util/generate leftover must not look like a win on the action span."""
+async def test_util_generate_dead_turn_paints_span_error() -> None:
+    """Dev UI /util/generate after a dead turn must not look like a win on the action span."""
     from opentelemetry import trace as trace_api
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -4134,7 +4137,7 @@ async def test_generate_returns_typed_output_when_schema_matches() -> None:
 
 @pytest.mark.asyncio
 async def test_generate_enum_off_list_is_error_finish() -> None:
-    """An enum reply that is not one of the listed values is a leftover."""
+    """An enum reply that is not one of the listed values is invalid output."""
     ai = Genkit(model='programmableModel')
     pm, _ = define_programmable_model(ai)
     pm.responses = [
@@ -4193,7 +4196,55 @@ async def test_generate_unknown_format_is_invalid_argument() -> None:
     with pytest.raises(GenkitError, match='Unable to resolve format') as raised:
         await ai.generate(prompt='hi', output_format='no-such-format')
     assert raised.value.status == 'INVALID_ARGUMENT'
-    assert raised.value.reason is RuntimeErrorReason.ACTION_NOT_FOUND
+    assert raised.value.reason is RuntimeErrorReason.INVALID_INPUT
+    assert 'ACTION_NOT_FOUND' not in raised.value.original_message
+
+
+@pytest.mark.asyncio
+async def test_unknown_middleware_raises_with_invalid_input() -> None:
+    """A middleware name that is not registered is a bad argument, not a missing action."""
+    ai = Genkit(model='programmableModel')
+    define_programmable_model(ai)
+
+    with pytest.raises(GenkitError) as raised:
+        await ai.generate(prompt='hi', use=[MiddlewareRef(name='ghost')])
+    error = raised.value
+    assert error.status == 'NOT_FOUND'
+    assert error.reason is RuntimeErrorReason.INVALID_INPUT
+    assert 'ghost' in error.original_message
+    assert 'ACTION_NOT_FOUND' not in error.original_message
+
+
+@pytest.mark.asyncio
+async def test_unmatched_resource_raises_with_invalid_input() -> None:
+    """A resource URI that matches nothing is a bad argument, not a missing action."""
+    ai = Genkit(model='programmableModel')
+    define_programmable_model(ai)
+
+    async def other_resource(inp: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
+        return ResourceOutput(content=[Part(root=TextPart(text='other'))])
+
+    define_resource(ai.registry, {'uri': 'test://other'}, other_resource)
+
+    with pytest.raises(GenkitError) as raised:
+        await generate_action(
+            ai.registry,
+            GenerateActionOptions(
+                model='programmableModel',
+                messages=[
+                    Message(
+                        role=Role.USER,
+                        content=[Part(root=ResourcePart(resource=Resource1(uri='test://missing')))],
+                    )
+                ],
+                resources=['test://other'],
+            ),
+        )
+    error = raised.value
+    assert error.status == 'NOT_FOUND'
+    assert error.reason is RuntimeErrorReason.INVALID_INPUT
+    assert 'test://missing' in error.original_message
+    assert 'ACTION_NOT_FOUND' not in error.original_message
 
 
 @pytest.mark.asyncio
@@ -4237,3 +4288,116 @@ async def test_unknown_agent_raises_with_action_not_found() -> None:
     assert error.reason is RuntimeErrorReason.ACTION_NOT_FOUND
     assert "Agent 'ghost' not found" in error.original_message
     assert 'ACTION_NOT_FOUND' not in error.original_message
+
+
+@pytest.mark.asyncio
+async def test_generate_without_model_or_default_raises_model_not_found() -> None:
+    """generate() with no model and no constructor default is MODEL_NOT_FOUND."""
+    ai = Genkit()
+
+    with pytest.raises(GenkitError) as raised:
+        await ai.generate(prompt='hi')
+    error = raised.value
+    assert error.status == 'INVALID_ARGUMENT'
+    assert error.reason is RuntimeErrorReason.MODEL_NOT_FOUND
+    assert 'No model configured' in error.original_message
+    assert 'MODEL_NOT_FOUND' not in error.original_message
+
+
+@pytest.mark.asyncio
+async def test_generate_jsonl_with_object_schema_raises_invalid_schema() -> None:
+    """jsonl needs an array of objects; a lone object schema is INVALID_SCHEMA."""
+    ai = Genkit(model='programmableModel')
+    define_programmable_model(ai)
+
+    with pytest.raises(GenkitError) as raised:
+        await ai.generate(prompt='hi', output_format='jsonl', output_schema={'type': 'object'})
+    error = raised.value
+    assert error.status == 'INVALID_ARGUMENT'
+    assert error.reason is RuntimeErrorReason.INVALID_SCHEMA
+    assert 'jsonl' in error.original_message
+    assert 'INVALID_SCHEMA' not in error.original_message
+
+
+@pytest.mark.asyncio
+async def test_generate_enum_with_object_schema_raises_invalid_schema() -> None:
+    """enum needs a string schema; an object schema is INVALID_SCHEMA."""
+    ai = Genkit(model='programmableModel')
+    define_programmable_model(ai)
+
+    with pytest.raises(GenkitError) as raised:
+        await ai.generate(prompt='hi', output_format='enum', output_schema={'type': 'object'})
+    error = raised.value
+    assert error.status == 'INVALID_ARGUMENT'
+    assert error.reason is RuntimeErrorReason.INVALID_SCHEMA
+    assert 'enum' in error.original_message
+    assert 'INVALID_SCHEMA' not in error.original_message
+
+
+@pytest.mark.asyncio
+async def test_generate_array_with_object_schema_raises_invalid_schema() -> None:
+    """array format needs an array schema; an object schema is INVALID_SCHEMA."""
+    ai = Genkit(model='programmableModel')
+    define_programmable_model(ai)
+
+    with pytest.raises(GenkitError) as raised:
+        await ai.generate(prompt='hi', output_format='array', output_schema={'type': 'object'})
+    error = raised.value
+    assert error.status == 'INVALID_ARGUMENT'
+    assert error.reason is RuntimeErrorReason.INVALID_SCHEMA
+    assert 'array' in error.original_message
+    assert 'INVALID_SCHEMA' not in error.original_message
+
+
+@pytest.mark.asyncio
+async def test_generate_unknown_resource_name_raises_invalid_input() -> None:
+    """A resource name that is not registered is a bad argument."""
+    ai = Genkit(model='programmableModel')
+    define_programmable_model(ai)
+
+    with pytest.raises(GenkitError) as raised:
+        await generate_action(
+            ai.registry,
+            GenerateActionOptions(
+                model='programmableModel',
+                messages=[
+                    Message(
+                        role=Role.USER,
+                        content=[Part(root=ResourcePart(resource=Resource1(uri='test://file')))],
+                    )
+                ],
+                resources=['ghost'],
+            ),
+        )
+    error = raised.value
+    assert error.status == 'INVALID_ARGUMENT'
+    assert error.reason is RuntimeErrorReason.INVALID_INPUT
+    assert 'ghost' in error.original_message
+    assert 'INVALID_INPUT' not in error.original_message
+
+
+@pytest.mark.asyncio
+async def test_generate_numeric_resource_raises_invalid_input() -> None:
+    """A resource entry that is not a name or action is a bad argument."""
+    ai = Genkit(model='programmableModel')
+    define_programmable_model(ai)
+
+    with pytest.raises(GenkitError) as raised:
+        await generate_action(
+            ai.registry,
+            GenerateActionOptions.model_construct(
+                model='programmableModel',
+                messages=[
+                    Message(
+                        role=Role.USER,
+                        content=[Part(root=ResourcePart(resource=Resource1(uri='test://file')))],
+                    )
+                ],
+                resources=[123],
+            ),
+        )
+    error = raised.value
+    assert error.status == 'INVALID_ARGUMENT'
+    assert error.reason is RuntimeErrorReason.INVALID_INPUT
+    assert 'Resources must be strings or actions' in error.original_message
+    assert 'INVALID_INPUT' not in error.original_message

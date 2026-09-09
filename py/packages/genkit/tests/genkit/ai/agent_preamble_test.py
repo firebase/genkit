@@ -323,7 +323,7 @@ async def test_prompt_agent_tool_messages_preserved_verbatim() -> None:
 
 @pytest.mark.asyncio
 async def test_prompt_agent_schema_miss_keeps_invalid_argument() -> None:
-    """A leftover Recipe is a failed turn with the generate() status, not UNKNOWN."""
+    """An invalid Recipe is a failed turn with the generate() status, not UNKNOWN."""
 
     class Recipe(BaseModel):
         title: str
@@ -392,7 +392,7 @@ async def test_prompt_agent_blocked_snapshot_is_not_resumable() -> None:
 
 @pytest.mark.asyncio
 async def test_prompt_agent_client_managed_blocked_is_not_next_turn_history() -> None:
-    """A safety leftover is this turn's reply, not the next generate's history."""
+    """A safety refusal is this turn's reply, not the next generate's history."""
     ai = Genkit()
     pm, _ = define_programmable_model(ai)
     ai.define_prompt(name='blocked', model='programmableModel')

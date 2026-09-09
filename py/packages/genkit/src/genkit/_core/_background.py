@@ -207,6 +207,7 @@ class BackgroundAction(Generic[OutputT]):
             raise GenkitError(
                 status='UNIMPLEMENTED',
                 message=f'Background action {operation.action} does not support cancellation.',
+                reason=RuntimeErrorReason.UNSUPPORTED_BY_MODEL,
             )
         result = await self.cancel_action.run(operation, context=context)
         return _ensure_operation(response=result.response, name=self.cancel_action.name)
@@ -423,15 +424,18 @@ def require_operation(*, value: object) -> Operation:
         raise GenkitError(
             status='INVALID_ARGUMENT',
             message='got ModelResponse; pass response.operation',
+            reason=RuntimeErrorReason.INVALID_INPUT,
         )
     if isinstance(value, Mapping):
         raise GenkitError(
             status='INVALID_ARGUMENT',
             message='got a dump; pass Operation.model_validate(...)',
+            reason=RuntimeErrorReason.INVALID_INPUT,
         )
     raise GenkitError(
         status='INVALID_ARGUMENT',
         message=f'got {type(value).__name__}, expected Operation',
+        reason=RuntimeErrorReason.INVALID_INPUT,
     )
 
 
@@ -445,6 +449,7 @@ async def resolve_operation_action(
         raise GenkitError(
             status='INVALID_ARGUMENT',
             message='Provided operation is missing original request information',
+            reason=RuntimeErrorReason.INVALID_INPUT,
         )
 
     try:

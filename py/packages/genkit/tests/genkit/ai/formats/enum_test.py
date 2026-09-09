@@ -9,7 +9,7 @@ import pytest
 
 from genkit import Message, ModelResponseChunk
 from genkit._ai._formats._enum import EnumFormat
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._typing import Part, TextPart
 
 
@@ -88,6 +88,8 @@ class TestEnumFormatErrors:
         with pytest.raises(GenkitError) as exc_info:
             enum_fmt.handle({'type': 'number'})
         assert "Must supply a schema of type 'string' with an 'enum' property" in str(exc_info.value)
+        assert exc_info.value.reason is RuntimeErrorReason.INVALID_SCHEMA
+        assert 'INVALID_SCHEMA' not in exc_info.value.original_message
 
     def test_throws_error_for_array_schema_type(self) -> None:
         """Test that array schema type raises error."""
@@ -96,6 +98,8 @@ class TestEnumFormatErrors:
         with pytest.raises(GenkitError) as exc_info:
             enum_fmt.handle({'type': 'array'})
         assert "Must supply a schema of type 'string' with an 'enum' property" in str(exc_info.value)
+        assert exc_info.value.reason is RuntimeErrorReason.INVALID_SCHEMA
+        assert 'INVALID_SCHEMA' not in exc_info.value.original_message
 
     def test_accepts_enum_schema_type(self) -> None:
         """Test that 'enum' schema type is accepted."""

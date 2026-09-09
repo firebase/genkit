@@ -27,7 +27,7 @@ from genkit._ai._tools import (
     response,
 )
 from genkit._core._action import Action, create_action_key, parse_action_key
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._model import GenerateActionOptions, MultipartToolResponseData
 from genkit._core._schema import to_json_schema
 from genkit._core._typing import (
@@ -69,7 +69,9 @@ def test_response_rejects_hollow_parts() -> None:
     with pytest.raises(GenkitError) as ei:
         response({'ok': True}, parts=[Part(root=DataPart())])
     assert ei.value.status == 'INVALID_ARGUMENT'
+    assert ei.value.reason is RuntimeErrorReason.INVALID_PART
     assert 'no live payload' in ei.value.original_message
+    assert 'INVALID_PART' not in ei.value.original_message
 
 
 def test_response_builds_the_envelope() -> None:
@@ -97,21 +99,27 @@ def test_response_rejects_bare_part() -> None:
     with pytest.raises(GenkitError) as ei:
         response({'ok': True}, parts=_png())  # type: ignore[arg-type]
     assert ei.value.status == 'INVALID_ARGUMENT'
+    assert ei.value.reason is RuntimeErrorReason.INVALID_PART
     assert 'parts' in ei.value.original_message
+    assert 'INVALID_PART' not in ei.value.original_message
 
 
 def test_response_rejects_non_part_parts() -> None:
     with pytest.raises(GenkitError) as ei:
         response({'ok': True}, parts='not-a-part')  # type: ignore[arg-type]
     assert ei.value.status == 'INVALID_ARGUMENT'
+    assert ei.value.reason is RuntimeErrorReason.INVALID_PART
     assert 'parts' in ei.value.original_message
+    assert 'INVALID_PART' not in ei.value.original_message
 
 
 def test_response_rejects_non_dict_metadata() -> None:
     with pytest.raises(GenkitError) as ei:
         response(1, metadata='nope')  # type: ignore[arg-type]
     assert ei.value.status == 'INVALID_ARGUMENT'
+    assert ei.value.reason is RuntimeErrorReason.INVALID_INPUT
     assert 'metadata' in ei.value.original_message
+    assert 'INVALID_INPUT' not in ei.value.original_message
 
 
 class CamelOut(BaseModel):

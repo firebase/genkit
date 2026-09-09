@@ -147,7 +147,7 @@ class Registry:
                 raise GenkitError(
                     status='NOT_FOUND',
                     message=f"Schema '{name}' not found",
-                    reason=RuntimeErrorReason.ACTION_NOT_FOUND,
+                    reason=RuntimeErrorReason.INVALID_INPUT,
                 )
             return schema
 

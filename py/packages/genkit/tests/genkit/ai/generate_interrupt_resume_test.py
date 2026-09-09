@@ -1054,7 +1054,7 @@ async def test_resume_requires_last_message_model_with_tool_requests() -> None:
 
 @pytest.mark.asyncio
 async def test_resume_requires_model_tool_request_not_text_only() -> None:
-    """A model turn with no tool request is not a resume leftover."""
+    """A model turn with no tool request is not a resume point."""
     ai = Genkit()
     _, _ = define_programmable_model(ai)
 
@@ -1078,7 +1078,7 @@ async def test_resume_requires_model_tool_request_not_text_only() -> None:
 
 @pytest.mark.asyncio
 async def test_resume_requires_model_tool_request_not_tool_turn() -> None:
-    """A transcript that already ends on a tool message is not a resume leftover."""
+    """A transcript that already ends on a tool message is not a resume point."""
     ai = Genkit()
     _, _ = define_programmable_model(ai)
 
@@ -1104,6 +1104,50 @@ async def test_resume_requires_model_tool_request_not_tool_turn() -> None:
     assert ei.value.status == 'FAILED_PRECONDITION'
     assert ei.value.reason is RuntimeErrorReason.INVALID_RESUME
     assert "cannot 'resume'" in ei.value.original_message.lower()
+    assert 'INVALID_RESUME' not in ei.value.original_message
+
+
+@pytest.mark.asyncio
+async def test_restarted_tool_that_interrupts_again_raises_invalid_resume() -> None:
+    """A tool that interrupts again on restart raises; reason is INVALID_RESUME."""
+    ai = Genkit()
+    pm, _ = define_programmable_model(ai)
+
+    @ai.tool(name='hold')
+    async def hold(_: dict) -> str:  # noqa: ARG001
+        raise Interrupt({'hold': True})
+
+    pm.responses.append(
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message.model_validate({
+                'role': 'model',
+                'content': [{'toolRequest': {'ref': '1', 'name': 'hold', 'input': {}}}],
+            }),
+        )
+    )
+    first = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='programmableModel',
+            messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})],
+            tools=['hold'],
+        ),
+    )
+
+    with pytest.raises(GenkitError) as ei:
+        await generate_action(
+            ai.registry,
+            GenerateActionOptions(
+                model='programmableModel',
+                messages=list(first.messages),
+                tools=['hold'],
+                resume=Resume(restart=[restart_tool(interrupt=first.interrupts[0])]),
+            ),
+        )
+    assert ei.value.status == 'FAILED_PRECONDITION'
+    assert ei.value.reason is RuntimeErrorReason.INVALID_RESUME
+    assert 'interrupted again' in ei.value.original_message.lower()
     assert 'INVALID_RESUME' not in ei.value.original_message
 
 
@@ -1205,8 +1249,10 @@ async def test_resume_rejects_hollow_pending_content() -> None:
             ),
         )
     assert ei.value.status == 'INVALID_ARGUMENT'
+    assert ei.value.reason is RuntimeErrorReason.INVALID_PART
     assert 'screenshot' in ei.value.original_message
     assert 'pendingContent' in ei.value.original_message
+    assert 'INVALID_PART' not in ei.value.original_message
 
 
 @pytest.mark.asyncio
@@ -1224,8 +1270,10 @@ async def test_resume_rejects_non_dict_pending_metadata() -> None:
             ),
         )
     assert ei.value.status == 'INVALID_ARGUMENT'
+    assert ei.value.reason is RuntimeErrorReason.INVALID_INPUT
     assert 'screenshot' in ei.value.original_message
     assert 'pendingMetadata' in ei.value.original_message
+    assert 'INVALID_INPUT' not in ei.value.original_message
 
 
 async def _restart_screenshot(*, with_passthrough: bool = False) -> tuple[Any, Any]:

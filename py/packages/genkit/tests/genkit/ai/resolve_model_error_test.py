@@ -40,10 +40,11 @@ async def test_resolve_parameters_missing_prefix_hints_plugin_namespace() -> Non
 
 
 @pytest.mark.asyncio
-async def test_resolve_parameters_no_model_is_invalid_argument() -> None:
+async def test_resolve_parameters_no_model_is_model_not_found() -> None:
     registry = Registry()
     with pytest.raises(GenkitError) as exc_info:
         await resolve_parameters(registry, GenerateActionOptions(messages=[]))
     assert exc_info.value.status == 'INVALID_ARGUMENT'
-    assert exc_info.value.reason is None
+    assert exc_info.value.reason is RuntimeErrorReason.MODEL_NOT_FOUND
     assert 'No model configured' in str(exc_info.value)
+    assert 'MODEL_NOT_FOUND' not in exc_info.value.original_message

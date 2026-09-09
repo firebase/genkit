@@ -75,7 +75,7 @@ StatusName = Literal[
 
 
 class RuntimeErrorReason(StrEnum):
-    """Extra why on a classified leftover or a helper raise.
+    """Extra why on a classified generate failure or a helper raise.
 
     The message stays human. The helper that fails sets this so it
     bubbles on the exception the caller actually catches.

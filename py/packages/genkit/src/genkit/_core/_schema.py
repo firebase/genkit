@@ -85,8 +85,8 @@ def parse_schema(*, data: object, json_schema: dict[str, Any]) -> None:
     for error in errors:
         path = '/'.join(str(part) for part in error.absolute_path) or '(root)'
         lines.append(f'- {path}: {error.message}')
-    # Field paths are enough to debug; the leftover and the schema are
-    # already on the response, and stuffing them into error.message
+    # Field paths are enough to debug; the invalid value and the schema
+    # are already on the response, and stuffing them into error.message
     # bloated traces.
     raise GenkitError(
         status='INVALID_ARGUMENT',
