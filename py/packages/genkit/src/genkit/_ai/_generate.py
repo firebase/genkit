@@ -371,7 +371,6 @@ class _GenerateMiddlewarePipeline:
 
     middleware: list[MiddlewareDef]
     ctx: GenerateMiddlewareContext
-    latest_messages: list[Message]
 
 
 def _prepare_middleware(
@@ -383,7 +382,6 @@ def _prepare_middleware(
     return _GenerateMiddlewarePipeline(
         middleware=[_copy_middleware_instance(mw) for mw in middleware],
         ctx=ctx,
-        latest_messages=[],
     )
 
 
@@ -703,7 +701,9 @@ async def generate_with_request(
             raw_request = raw_request.model_copy()
             raw_request.tools = existing
     else:
-        mw_pipeline = _GenerateMiddlewarePipeline(middleware=[], ctx=run_ctx, latest_messages=[])
+        mw_pipeline = _GenerateMiddlewarePipeline(middleware=[], ctx=run_ctx)
+
+    latest_messages = list(raw_request.messages or [])
 
     if is_debug_enabled(logger):
         resolved: dict[str, object] = {
@@ -726,13 +726,14 @@ async def generate_with_request(
             mw_pipeline=mw_pipeline,
             message_index=message_index,
             current_turn=current_turn,
+            latest_messages=latest_messages,
         )
     except Exception as exc:
         if streaming_callback_cause(exc=exc) is None:
             raise
         return closed_round_from_exc(
             response=None,
-            messages=list(mw_pipeline.latest_messages),
+            messages=list(latest_messages),
             exc=exc,
             caller_stopped=False,
         )
@@ -955,11 +956,12 @@ async def _generate_action_turn(
     mw_pipeline: _GenerateMiddlewarePipeline,
     message_index: int,
     current_turn: int,
+    latest_messages: list[Message],
 ) -> ModelResponse:
     """Run one model call plus tool resolution, then recurse for the next turn."""
     middleware = mw_pipeline.middleware
     run_ctx = mw_pipeline.ctx
-    mw_pipeline.latest_messages = list(raw_request.messages or [])
+    latest_messages[:] = list(raw_request.messages or [])
     if run_ctx.abort_signal.is_set():
         return closed_round_failure(
             response=None,
@@ -1072,7 +1074,7 @@ async def _generate_action_turn(
                 details={'message': interrupted_response.message},
             )
         turn_options = revised_request
-        mw_pipeline.latest_messages = list(turn_options.messages or [])
+        latest_messages[:] = list(turn_options.messages or [])
 
         chunks = ChunkAccumulator(
             params.message_index,
@@ -1306,7 +1308,7 @@ async def _generate_action_turn(
         next_request.messages = next_messages
         # Tools already ran. A later pipe failure still has this
         # closed round to resend.
-        mw_pipeline.latest_messages = list(next_messages)
+        latest_messages[:] = list(next_messages)
 
         # If the loop will continue, stream out the tool response message...
         if tool_msg:
@@ -1325,6 +1327,7 @@ async def _generate_action_turn(
             mw_pipeline=mw_pipeline,
             current_turn=current_turn + 1,
             message_index=chunks.message_index + 1,
+            latest_messages=latest_messages,
         )
 
     generate_params = GenerateHookParams(
@@ -1339,7 +1342,7 @@ async def _generate_action_turn(
             raise
         return closed_round_from_exc(
             response=None,
-            messages=mw_pipeline.latest_messages,
+            messages=latest_messages,
             exc=exc,
             caller_stopped=run_ctx.abort_signal.is_set() or isinstance(exc, asyncio.CancelledError),
         )
