@@ -93,6 +93,7 @@ from genkit._core._registry import Registry
 from genkit._core._schema import check_output_schema
 from genkit._core._tracing import SpanMetadata, run_in_new_span
 from genkit._core._typing import (
+    Error,
     FinishReason,
     GenerateActionOutputConfig,
     MiddlewareRef,
@@ -360,6 +361,7 @@ def resolve_middleware_from_use(
                     '@ai.middleware(...), a middleware plugin, or inline use= normalization.'
                 ),
                 source='genkit.generate',
+                reason=RuntimeErrorReason.INVALID_INPUT,
             )
         cfg = entry.config if isinstance(entry.config, dict) else None
         out.append(defn.instantiate(cfg))
@@ -622,7 +624,8 @@ async def generate_action(
     this wrapper because the action runtime already opens its own span.
     """
     span_name = 'generate'
-    with run_in_new_span(SpanMetadata(name=span_name, type='util', input=raw_request)) as span:
+    span_metadata = SpanMetadata(name=span_name, type='util', input=raw_request)
+    with run_in_new_span(span_metadata) as span:
         result = await generate_with_request(
             registry=registry,
             raw_request=raw_request,
@@ -634,6 +637,8 @@ async def generate_action(
         )
         with contextlib.suppress(Exception):
             span.set_attribute('genkit:output', result.model_dump_json(by_alias=True, exclude_none=True))
+        if result.error is not None:
+            span_metadata.state = 'error'
         return result
 
 
@@ -658,6 +663,7 @@ async def generate_with_request(
         raise GenkitError(
             status='INVALID_ARGUMENT',
             message='at least one message is required in generate request',
+            reason=RuntimeErrorReason.INVALID_INPUT,
         )
     registry = registry if registry.is_child else registry.new_child()
 
@@ -902,6 +908,10 @@ def closed_round_failure(
     out.finish_message = finish_message
     out.error = error
     out.message = None
+    if out.operation is not None and out.operation.error is None:
+        # The ticket already started. The leftover why lives on the
+        # handle so check/cancel is not a clean start.
+        out.operation = out.operation.model_copy(update={'error': Error(message=finish_message)})
     if out.request is None:
         out.request = ModelRequest(messages=list(messages))
     return _persist_threaded_conversation(out, messages)
@@ -916,11 +926,13 @@ def closed_round_from_exc(
     reason: RuntimeErrorReason | None = None,
 ) -> ModelResponse:
     callback_cause = streaming_callback_cause(exc=exc)
+    pipe_failed = False
     if callback_cause is not None:
         # The stream pipe is framework plumbing, not a tool or model
         # sentinel. Keep the sink's wording; drop any loop reason.
         exc = callback_cause
         reason = None
+        pipe_failed = True
     if isinstance(exc, MissingOperationError | ModelContractError):
         raise exc
     if isinstance(exc, ValidationError | PydanticSerializationError):
@@ -929,10 +941,24 @@ def closed_round_from_exc(
         raise exc
     if isinstance(exc, Interrupt):
         raise
-    finish_message = str(exc) or type(exc).__name__
+    if isinstance(exc, GenkitError):
+        # str(GenkitError) prefixes STATUS:. The leftover they read is
+        # the wrapper's wording plus the cause they actually hit.
+        finish_message = exc.original_message or ''
+        if exc.cause is not None:
+            cause_text = str(exc.cause)
+            if cause_text and cause_text not in finish_message:
+                finish_message = f'{finish_message}: {cause_text}' if finish_message else cause_text
+        if not finish_message:
+            finish_message = type(exc).__name__
+    else:
+        finish_message = str(exc) or type(exc).__name__
     if caller_stopped:
         status = 'CANCELLED'
         details = exc.details if isinstance(exc, GenkitError) else None
+    elif pipe_failed:
+        status = 'INTERNAL'
+        details = None
     elif isinstance(exc, GenkitError):
         status = exc.status
         details = exc.details
@@ -1131,7 +1157,7 @@ async def _generate_action_turn(
                 )
         except (Exception, asyncio.CancelledError) as exc:
             return closed_round_from_exc(
-                response=None,
+                response=turn.boxed,
                 messages=list(turn_options.messages),
                 exc=exc,
                 caller_stopped=ctx.abort_signal.is_set() or isinstance(exc, asyncio.CancelledError),
@@ -1216,6 +1242,10 @@ async def _generate_action_turn(
             if len(tool_requests) == 0:
                 response.assert_valid_schema()
             log_responded()
+            if generated_msg is not None:
+                # wrap_generate may still raise after next_fn; keep this
+                # closed model turn on latest_messages so leftover can resend it.
+                latest_messages[:] = [*turn_options.messages, generated_msg]
             return _persist_threaded_conversation(response, turn_options.messages)
 
         max_iters = turn_options.max_turns if turn_options.max_turns is not None else DEFAULT_MAX_TURNS
@@ -1336,13 +1366,26 @@ async def _generate_action_turn(
         iteration=current_turn,
         message_index=message_index,
     )
+    iteration_finished = False
+    finished_response: ModelResponse | None = None
+
+    async def finish_iteration(
+        params: GenerateHookParams,
+        ctx: GenerateMiddlewareContext,
+    ) -> ModelResponse:
+        nonlocal iteration_finished, finished_response
+        result = await run_one_iteration(params, ctx)
+        finished_response = result
+        iteration_finished = True
+        return result
+
     try:
-        response = await dispatch_generate(generate_params, run_ctx, run_one_iteration)
+        response = await dispatch_generate(generate_params, run_ctx, finish_iteration)
     except (Exception, asyncio.CancelledError) as exc:
-        if isinstance(exc, GenkitError):
+        if isinstance(exc, GenkitError) and current_turn == 0 and not iteration_finished:
             raise
         return closed_round_from_exc(
-            response=None,
+            response=finished_response,
             messages=latest_messages,
             exc=exc,
             caller_stopped=run_ctx.abort_signal.is_set() or isinstance(exc, asyncio.CancelledError),
@@ -1569,6 +1612,7 @@ def assert_valid_tool_names(tools: list[Action]) -> None:
             raise GenkitError(
                 status='INVALID_ARGUMENT',
                 message=(f"Cannot provide two tools with the same name: '{tool.name}' and '{seen[short]}'"),
+                reason=RuntimeErrorReason.INVALID_INPUT,
             )
         seen[short] = tool.name
 
@@ -2040,6 +2084,7 @@ async def _resolve_resumed_tool_request(
                 message=(
                     f'Tool {tool_name!r} pendingMetadata must be a dict, got {type(pending_part_metadata).__name__}.'
                 ),
+                reason=RuntimeErrorReason.INVALID_INPUT,
             )
         revised_trp = ToolRequestPart(
             tool_request=tool_req_root.tool_request,

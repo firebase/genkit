@@ -29,7 +29,7 @@ import threading
 import uuid
 from collections.abc import Awaitable, Callable, Coroutine, Mapping, Sequence
 from pathlib import Path
-from typing import Any, TypeVar, overload
+from typing import Any, TypeVar, cast, overload
 
 import anyio
 import uvicorn
@@ -105,7 +105,7 @@ from genkit._core._dap import (
     define_dynamic_action_provider as define_dap_block,
 )
 from genkit._core._environment import is_dev_environment
-from genkit._core._error import GenkitError, RuntimeErrorReason
+from genkit._core._error import GenkitError, RuntimeErrorReason, StatusName
 from genkit._core._logger import configure_logging, get_logger, resolve_level
 from genkit._core._middleware import (
     BaseMiddleware,
@@ -1882,5 +1882,14 @@ class Genkit:
 
         if not response.operation:
             raise missing_operation_error(name=model_action.name)
-
+        if response.error is not None:
+            # This call is "give me the ticket." A leftover start is not
+            # that ticket — while-not-done would poll it as a live job.
+            # The handle is on the exception so check/cancel is a catch.
+            raise GenkitError(
+                status=cast(StatusName, response.error.status or 'INTERNAL'),
+                message=response.error.message,
+                reason=response.error.reason,
+                details={'operation': response.operation.model_dump(by_alias=True, exclude_none=True)},
+            )
         return response.operation

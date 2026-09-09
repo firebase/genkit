@@ -31,6 +31,7 @@ from genkit._core._registry import Registry
 from genkit._core._typing import (
     DocumentPart,
     FinishReason,
+    GenerateActionOutputConfig,
     Part,
     Resume,
     Role,
@@ -2478,6 +2479,8 @@ async def test_generate_requires_at_least_one_message(
             ),
         )
     assert exc_info.value.status == 'INVALID_ARGUMENT'
+    assert exc_info.value.reason is RuntimeErrorReason.INVALID_INPUT
+    assert 'INVALID_INPUT' not in exc_info.value.original_message
 
 
 @pytest.mark.asyncio
@@ -3509,6 +3512,47 @@ async def test_generate_on_chunk_failure_returns_closed_history() -> None:
 
 
 @pytest.mark.asyncio
+async def test_generate_on_chunk_genkit_error_is_internal_not_the_sink_reason() -> None:
+    """A sink that raises GenkitError is still a dead pipe, not TOOL_FAILED."""
+    ai = Genkit(model='programmableModel')
+    pm, _ = define_programmable_model(ai)
+    pm.responses = [
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='done'))]),
+        )
+    ]
+    pm.chunks = [[ModelResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='partial'))])]]
+
+    def on_chunk(_: ModelResponseChunk) -> None:
+        raise GenkitError(
+            status='NOT_FOUND',
+            message='sink closed',
+            reason=RuntimeErrorReason.TOOL_FAILED,
+        )
+
+    response = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='programmableModel',
+            messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])],
+        ),
+        on_chunk=on_chunk,
+    )
+
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.finish_message == 'sink closed'
+    assert response.message is None
+    assert response.error is not None
+    assert response.error.status == 'INTERNAL'
+    assert response.error.reason is None
+    assert response.error.details is None
+    assert response.error.message == response.finish_message
+    assert [message.role for message in response.messages] == [Role.USER]
+    assert response.messages[0].text == 'hi'
+
+
+@pytest.mark.asyncio
 async def test_first_turn_task_cancellation_returns_structured_response() -> None:
     ai = Genkit(model='waitingModel')
     started = asyncio.Event()
@@ -3790,6 +3834,231 @@ async def test_generate_middleware_failure_keeps_closed_rounds() -> None:
     assert response.message is None
     assert [m.role for m in response.messages] == [Role.USER, Role.MODEL, Role.TOOL]
     assert _tool_output(response.messages[2]) == '72F'
+
+
+@pytest.mark.asyncio
+async def test_generate_middleware_genkit_error_keeps_closed_rounds() -> None:
+    """A GenkitError from wrap_generate after a closed tool round is still resendable."""
+    ai = Genkit(model='programmableModel')
+    pm, _ = define_programmable_model(ai)
+
+    @ai.tool(name='lookup')
+    async def lookup() -> str:
+        return '72F'
+
+    class Config(BaseModel):
+        pass
+
+    @ai.middleware(name='deny_second_turn_typed')
+    class DenySecondTurn(BaseMiddleware[Config]):
+        async def wrap_generate(
+            self,
+            params: GenerateHookParams,
+            ctx: GenerateMiddlewareContext,
+            next_fn: Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+        ) -> ModelResponse:
+            if params.iteration == 1:
+                raise GenkitError(
+                    status='FAILED_PRECONDITION',
+                    message='hook denied',
+                    reason=RuntimeErrorReason.INVALID_INPUT,
+                )
+            return await next_fn(params, ctx)
+
+    pm.responses = [_model_calls_tool(name='lookup', ref='r1')]
+
+    response = await ai.generate(prompt='keep going', tools=['lookup'], use=[DenySecondTurn()])
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.finish_message == 'hook denied'
+    assert response.error is not None
+    assert response.error.status == 'FAILED_PRECONDITION'
+    assert response.error.reason is RuntimeErrorReason.INVALID_INPUT
+    assert 'INVALID_INPUT' not in (response.error.message or '')
+    assert response.message is None
+    assert [m.role for m in response.messages] == [Role.USER, Role.MODEL, Role.TOOL]
+    assert _tool_output(response.messages[2]) == '72F'
+
+
+@pytest.mark.asyncio
+async def test_generate_first_turn_middleware_genkit_error_still_raises() -> None:
+    """A GenkitError before any model or tool turn is still setup."""
+    ai = Genkit(model='programmableModel')
+    pm, _ = define_programmable_model(ai)
+    pm.responses = [
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='hi'))]),
+        )
+    ]
+
+    class Config(BaseModel):
+        pass
+
+    @ai.middleware(name='deny_first_turn')
+    class DenyFirstTurn(BaseMiddleware[Config]):
+        async def wrap_generate(
+            self,
+            params: GenerateHookParams,
+            ctx: GenerateMiddlewareContext,
+            next_fn: Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+        ) -> ModelResponse:
+            raise GenkitError(
+                status='FAILED_PRECONDITION',
+                message='hook denied',
+                reason=RuntimeErrorReason.INVALID_INPUT,
+            )
+
+    with pytest.raises(GenkitError) as raised:
+        await ai.generate(prompt='start', use=[DenyFirstTurn()])
+    assert raised.value.status == 'FAILED_PRECONDITION'
+    assert raised.value.reason is RuntimeErrorReason.INVALID_INPUT
+    assert raised.value.original_message == 'hook denied'
+
+
+@pytest.mark.asyncio
+async def test_generate_middleware_genkit_error_after_next_fn_keeps_closed_rounds() -> None:
+    """A wrap_generate GenkitError after next_fn still leaves the closed tool round."""
+    ai = Genkit(model='programmableModel')
+    pm, _ = define_programmable_model(ai)
+
+    @ai.tool(name='lookup')
+    async def lookup() -> str:
+        return '72F'
+
+    class Config(BaseModel):
+        pass
+
+    @ai.middleware(name='deny_after_next_fn')
+    class DenyAfterNextFn(BaseMiddleware[Config]):
+        async def wrap_generate(
+            self,
+            params: GenerateHookParams,
+            ctx: GenerateMiddlewareContext,
+            next_fn: Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+        ) -> ModelResponse:
+            await next_fn(params, ctx)
+            raise GenkitError(
+                status='FAILED_PRECONDITION',
+                message='hook after closed',
+                reason=RuntimeErrorReason.INVALID_INPUT,
+            )
+
+    pm.responses = [
+        _model_calls_tool(name='lookup', ref='r1'),
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='done'))]),
+        ),
+    ]
+
+    response = await ai.generate(prompt='keep going', tools=['lookup'], use=[DenyAfterNextFn()])
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.finish_message == 'hook after closed'
+    assert response.error is not None
+    assert response.error.status == 'FAILED_PRECONDITION'
+    assert response.error.reason is RuntimeErrorReason.INVALID_INPUT
+    assert 'INVALID_INPUT' not in (response.error.message or '')
+    assert response.message is None
+    assert [m.role for m in response.messages] == [Role.USER, Role.MODEL, Role.TOOL, Role.MODEL]
+    assert _tool_output(response.messages[2]) == '72F'
+
+
+@pytest.mark.asyncio
+async def test_generate_middleware_genkit_error_after_next_fn_keeps_model_turn() -> None:
+    """A wrap_generate GenkitError after a completed model turn is still resendable."""
+    ai = Genkit(model='programmableModel')
+    pm, _ = define_programmable_model(ai)
+
+    class Config(BaseModel):
+        pass
+
+    @ai.middleware(name='deny_after_model')
+    class DenyAfterModel(BaseMiddleware[Config]):
+        async def wrap_generate(
+            self,
+            params: GenerateHookParams,
+            ctx: GenerateMiddlewareContext,
+            next_fn: Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+        ) -> ModelResponse:
+            await next_fn(params, ctx)
+            raise GenkitError(
+                status='FAILED_PRECONDITION',
+                message='hook after closed',
+                reason=RuntimeErrorReason.INVALID_INPUT,
+            )
+
+    pm.responses = [
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='done'))]),
+        )
+    ]
+
+    response = await ai.generate(prompt='keep going', use=[DenyAfterModel()])
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.finish_message == 'hook after closed'
+    assert response.error is not None
+    assert response.error.status == 'FAILED_PRECONDITION'
+    assert response.error.reason is RuntimeErrorReason.INVALID_INPUT
+    assert response.message is None
+    assert [m.role for m in response.messages] == [Role.USER, Role.MODEL]
+    assert response.messages[1].text == 'done'
+
+
+@pytest.mark.asyncio
+async def test_util_generate_leftover_paints_span_error() -> None:
+    """Dev UI /util/generate leftover must not look like a win on the action span."""
+    from opentelemetry import trace as trace_api
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+    class Recipe(BaseModel):
+        title: str
+
+    ai = Genkit(model='programmableModel')
+    pm, _ = define_programmable_model(ai)
+    pm.responses = [
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='not json'))]),
+        )
+    ]
+
+    provider = trace_api.get_tracer_provider()
+    if not isinstance(provider, TracerProvider):
+        provider = TracerProvider()
+        trace_api.set_tracer_provider(provider)
+    exporter = InMemorySpanExporter()
+    processor = SimpleSpanProcessor(exporter)
+    provider.add_span_processor(processor)
+    try:
+        action = await ai.registry.resolve_action(kind=ActionKind.UTIL, name='generate')
+        assert action is not None
+        action_response = await action.run(
+            GenerateActionOptions(
+                model='programmableModel',
+                messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='give me a recipe'))])],
+                output=GenerateActionOutputConfig(
+                    json_schema=Recipe.model_json_schema(),
+                    schema_type=Recipe,
+                ),
+            )
+        )
+        response = cast(ModelResponse, action_response.response)
+        assert response.finish_reason == FinishReason.STOP
+        assert response.text == 'not json'
+        assert response.error is not None
+        generate_spans = [span for span in exporter.get_finished_spans() if span.name == 'generate']
+        assert generate_spans
+        attrs = generate_spans[-1].attributes or {}
+        assert attrs.get('genkit:state') == 'error'
+    finally:
+        exporter.clear()
+        if hasattr(provider, '_active_span_processor'):
+            provider._active_span_processor._span_processors = tuple(
+                p for p in provider._active_span_processor._span_processors if p is not processor
+            )
 
 
 @pytest.mark.asyncio

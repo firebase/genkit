@@ -729,6 +729,7 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
         raise GenkitError(
             status='INVALID_ARGUMENT',
             message='at least one message is required in generate request',
+            reason=RuntimeErrorReason.INVALID_INPUT,
         )
 
     output_config = OutputConfig(

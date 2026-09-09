@@ -25,7 +25,7 @@ from pydantic import BaseModel
 
 from genkit import ActionKind, Document, Genkit, Message
 from genkit._core._action import ActionRunContext, _action_context
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._middleware import BaseMiddleware, GenerateHookParams, GenerateMiddlewareContext, ModelHookParams
 from genkit._core._model import ModelRequest, ModelResponse, ModelResponseChunk
 from genkit._core._typing import (
@@ -191,6 +191,92 @@ async def test_generate_fails_when_wrap_generate_drops_operation(ai: Genkit) -> 
     with pytest.raises(GenkitError, match='did not return an operation') as operation_info:
         await ai.generate_operation(model='bg-model', prompt='a cat surfing', use=[DropsGenerate()])
     assert operation_info.value.status == 'FAILED_PRECONDITION'
+
+
+class RaisesAfterStart(BaseMiddleware):
+    async def wrap_generate(
+        self,
+        params: GenerateHookParams,
+        ctx: GenerateMiddlewareContext,
+        next_fn: Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+    ) -> ModelResponse:
+        await next_fn(params, ctx)
+        raise GenkitError(
+            status='FAILED_PRECONDITION',
+            message='hook after start',
+            reason=RuntimeErrorReason.INVALID_INPUT,
+        )
+
+
+@pytest.mark.asyncio
+async def test_generate_keeps_operation_when_wrap_generate_raises_after_start(ai: Genkit) -> None:
+    """A hook that starts then raises still leaves the ticket to check or cancel."""
+    register_bg_model(ai)
+
+    response = await ai.generate(model='bg-model', prompt='a cat surfing', use=[RaisesAfterStart()])
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.finish_message == 'hook after start'
+    assert response.error is not None
+    assert response.error.status == 'FAILED_PRECONDITION'
+    assert response.error.reason is RuntimeErrorReason.INVALID_INPUT
+    assert response.message is None
+    assert response.operation is not None
+    assert response.operation.id == 'bg-op-123'
+    assert response.operation.action == '/background-model/bg-model'
+    assert response.operation.error is not None
+    assert response.operation.error.message == 'hook after start'
+
+
+class RaisesAfterStartModel(BaseMiddleware):
+    async def wrap_model(
+        self,
+        params: ModelHookParams,
+        ctx: GenerateMiddlewareContext,
+        next_fn: Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+    ) -> ModelResponse:
+        await next_fn(params, ctx)
+        raise GenkitError(
+            status='FAILED_PRECONDITION',
+            message='hook after start',
+            reason=RuntimeErrorReason.INVALID_INPUT,
+        )
+
+
+@pytest.mark.asyncio
+async def test_generate_keeps_operation_when_wrap_model_raises_after_start(ai: Genkit) -> None:
+    """A wrap_model that starts then raises still leaves the ticket to check or cancel."""
+    register_bg_model(ai)
+
+    response = await ai.generate(model='bg-model', prompt='a cat surfing', use=[RaisesAfterStartModel()])
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.finish_message == 'hook after start'
+    assert response.error is not None
+    assert response.error.status == 'FAILED_PRECONDITION'
+    assert response.message is None
+    assert response.operation is not None
+    assert response.operation.id == 'bg-op-123'
+    assert response.operation.action == '/background-model/bg-model'
+    assert response.operation.error is not None
+    assert response.operation.error.message == 'hook after start'
+
+
+@pytest.mark.asyncio
+async def test_generate_operation_leftover_is_not_a_clean_start(ai: Genkit) -> None:
+    """generate_operation does not hand back a live-looking ticket after leftover start."""
+    register_bg_model(ai)
+
+    with pytest.raises(GenkitError) as raised:
+        await ai.generate_operation(model='bg-model', prompt='a cat surfing', use=[RaisesAfterStart()])
+    assert raised.value.status == 'FAILED_PRECONDITION'
+    assert raised.value.reason is RuntimeErrorReason.INVALID_INPUT
+    assert raised.value.original_message == 'hook after start'
+    dumped = raised.value.details.get('operation') if isinstance(raised.value.details, dict) else None
+    assert isinstance(dumped, dict)
+    assert dumped.get('id') == 'bg-op-123'
+    leftover = Operation.model_validate(dumped)
+    assert leftover.action == '/background-model/bg-model'
+    assert leftover.error is not None
+    assert leftover.error.message == 'hook after start'
 
 
 class SwallowsStart(BaseMiddleware):
