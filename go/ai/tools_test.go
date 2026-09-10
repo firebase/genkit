@@ -1935,3 +1935,51 @@ func TestDeprecatedRestart_CarriesResumeAsGiven(t *testing.T) {
 		t.Errorf("restart state = %+v, want the resume value as given", restart.Restart)
 	}
 }
+
+// TestInterruptVerbs_NilToolRequest pins that a tool request part with no
+// request, which the kind check alone lets through, is declined by every
+// verb that would otherwise dereference it: the typed claim reports false,
+// the part verbs return an error, and the deprecated verbs return nil or an
+// error as their contracts say.
+func TestInterruptVerbs_NilToolRequest(t *testing.T) {
+	tl := NewTool("t", "d", func(ctx *ToolContext, _ struct{}) (string, error) { return "", nil })
+
+	rawKeyed := NewToolRequestPart(nil)
+	rawKeyed.Metadata = map[string]any{"interrupt": true}
+	typed := &Part{Kind: PartToolRequest, Interrupt: &ToolInterrupt{}}
+
+	for name, part := range map[string]*Part{"raw key": rawKeyed, "typed field": typed} {
+		t.Run(name, func(t *testing.T) {
+			if part.IsInterrupt() || part.IsRestart() {
+				t.Error("a tool request part with no ToolRequest must not read as an interrupt or a restart")
+			}
+			if err := part.Validate(); err == nil {
+				t.Error("Validate() = nil, want the missing request reported")
+			}
+			if _, ok := tl.Interrupted(part); ok {
+				t.Error("Interrupted claimed a part with no request")
+			}
+			if _, err := part.ToToolRestart(nil); err == nil {
+				t.Error("ToToolRestart accepted a part with no request")
+			}
+			if _, err := part.ToToolRestartWithInput(struct{}{}, nil); err == nil {
+				t.Error("ToToolRestartWithInput accepted a part with no request")
+			}
+			if _, err := part.ToToolResponse("out"); err == nil {
+				t.Error("ToToolResponse accepted a part with no request")
+			}
+			if tl.Respond(part, "out", nil) != nil {
+				t.Error("Respond built a part from a request part with no request")
+			}
+			if tl.Restart(part, nil) != nil {
+				t.Error("Restart built a part from a request part with no request")
+			}
+			if _, err := tl.RespondWith(part, "out"); err == nil {
+				t.Error("RespondWith accepted a part with no request")
+			}
+			if _, err := tl.RestartWith(part); err == nil {
+				t.Error("RestartWith accepted a part with no request")
+			}
+		})
+	}
+}

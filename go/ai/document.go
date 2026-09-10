@@ -521,9 +521,10 @@ func wirePayload(v any) (payload any, set bool) {
 // typed field, or the state a part hand-assembled with the wire keys
 // describes. Every reader of interrupt state goes through it, so such a part
 // behaves like one built by the loop, without being copied or mutated. Nil
-// for any other part.
+// for any other part, and for a tool request part with no [ToolRequest]: it
+// names no tool, so no verb could act on it, and [Part.Validate] reports it.
 func (p *Part) interruptState() *ToolInterrupt {
-	if !p.IsToolRequest() {
+	if !p.IsToolRequest() || p.ToolRequest == nil {
 		return nil
 	}
 	if p.Interrupt != nil {
@@ -542,7 +543,7 @@ func (p *Part) interruptState() *ToolInterrupt {
 // "resumed": false is not a restart: the tool re-executes without a resume
 // payload, as it would for a request the model made afresh.
 func (p *Part) restartState() *ToolRestart {
-	if !p.IsToolRequest() {
+	if !p.IsToolRequest() || p.ToolRequest == nil {
 		return nil
 	}
 	if p.Restart != nil {

@@ -930,7 +930,7 @@ func (p *Part) ToToolResponse(output any) (*Part, error) {
 // Deprecated: Use [Part.ToToolResponse], or claim the part with
 // [InterruptibleToolAction.Interrupted] and use [InterruptedCall.Respond].
 func (t *InterruptibleToolAction[In, Out, Res]) Respond(toolReq *Part, output any, opts *RespondOptions) *Part {
-	if !toolReq.IsToolRequest() {
+	if !toolReq.IsToolRequest() || toolReq.ToolRequest == nil {
 		return nil
 	}
 	if opts == nil {
@@ -947,7 +947,7 @@ func (t *InterruptibleToolAction[In, Out, Res]) Respond(toolReq *Part, output an
 // Deprecated: Use [Part.ToToolRestart], or claim the part with
 // [InterruptibleToolAction.Interrupted] and use [InterruptedCall.Restart].
 func (t *InterruptibleToolAction[In, Out, Res]) Restart(p *Part, opts *RestartOptions) *Part {
-	if !p.IsToolRequest() {
+	if !p.IsToolRequest() || p.ToolRequest == nil {
 		return nil
 	}
 	if opts == nil {
@@ -1001,6 +1001,9 @@ func (t *InterruptibleToolAction[In, Out, Res]) checkToolRequest(fnName string, 
 	}
 	if !toolReq.IsToolRequest() {
 		return status.Errorf(ErrInvalidPart, "%s: part is not a tool request", fnName)
+	}
+	if toolReq.ToolRequest == nil {
+		return status.Errorf(ErrInvalidPart, "%s: tool request part has no request", fnName)
 	}
 	if toolReq.ToolRequest.Name != t.Name() {
 		return status.Errorf(status.ErrInvalidArgument, "%s: tool request is for %q, not %q", fnName, toolReq.ToolRequest.Name, t.Name())
