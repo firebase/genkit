@@ -32,8 +32,7 @@ from genkit_google_genai import GoogleAI
 from genkit_middleware import Middleware, ToolApproval
 from pydantic import BaseModel, Field
 
-from genkit import Genkit
-from genkit._core._typing import ToolRequestPart
+from genkit import Genkit, Part
 from genkit.agent import (
     AgentFinishReason,
     InMemorySessionStore,
@@ -79,9 +78,7 @@ async def main() -> None:
     assert out1.finish_reason == AgentFinishReason.INTERRUPTED
 
     # Human approves each pending tool call, then one resume continues the turn.
-    restart_parts: list[ToolRequestPart] = [
-        intr.restart(resumed_metadata={'tool_approved': True}) for intr in out1.interrupts
-    ]
+    restart_parts: list[Part] = [intr.restart(resumed_metadata={'tool_approved': True}) for intr in out1.interrupts]
     out2 = await chat.resume(restart=restart_parts)
     assert out2.finish_reason == AgentFinishReason.STOP
 
