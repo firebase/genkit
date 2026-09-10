@@ -27,6 +27,7 @@ from openai.types import CompletionUsage
 from openai.types.completion_usage import CompletionTokensDetails, PromptTokensDetails
 
 from genkit import (
+    GenkitError,
     Message,
     ModelRequest,
     ModelResponse,
@@ -398,10 +399,17 @@ class OpenAIModel:
         openai_config.pop('stream_options', None)
         logger.debug('OpenAI generate request', model=self._model, streaming=False)
         response = await self._openai_client.chat.completions.create(**openai_config)
+        if not response.choices:
+            raise GenkitError(
+                status='INTERNAL',
+                message='No choices in completion.',
+                details={'usage': _usage_from_completion(response.usage).model_dump(exclude_none=True)},
+            )
+
         logger.debug(
             'OpenAI raw API response',
             model=self._model,
-            finish_reason=str(response.choices[0].finish_reason) if response.choices else None,
+            finish_reason=str(response.choices[0].finish_reason),
         )
 
         result = ModelResponse(
@@ -435,6 +443,7 @@ class OpenAIModel:
         tool_calls: dict[int, Any] = {}
         accumulated_content: list[Part] = []
         usage: CompletionUsage | None = None
+        saw_choice = False
         async for chunk in stream:  # type: ignore
             # Usage rides on a final chunk that carries no choices.
             if chunk.usage is not None:
@@ -442,6 +451,7 @@ class OpenAIModel:
             if not chunk.choices:
                 continue
 
+            saw_choice = True
             delta = chunk.choices[0].delta
 
             # Text content chunk
@@ -486,6 +496,13 @@ class OpenAIModel:
                     for tool_call in delta.tool_calls
                 ]
                 callback(ModelResponseChunk(role=Role.MODEL, content=content))
+
+        if not saw_choice:
+            raise GenkitError(
+                status='INTERNAL',
+                message='No choices in completion.',
+                details={'usage': _usage_from_completion(usage).model_dump(exclude_none=True)},
+            )
 
         if tool_calls:
             message = MessageConverter.to_genkit(
