@@ -766,8 +766,16 @@ func LookupBackgroundModel(g *Genkit, name string) ai.BackgroundModel {
 //
 // # Options
 //
-//   - [ai.WithInputSchema]: Provide a custom JSON schema instead of inferring from the type parameter
-//   - [ai.WithInputSchemaName]: Reference a pre-registered schema by name
+// An explicit schema stands in for a type parameter, so the input options
+// require In to be any and the output options require Out to be any; any
+// other type panics here.
+//
+//   - [ai.WithInputSchema]: Provide a JSON schema for the input
+//   - [ai.WithInputSchemaName]: Reference a pre-registered input schema by name
+//   - [ai.WithInputType]: Derive the input schema from a Go value (prefer the In type parameter)
+//   - [ai.WithOutputSchema]: Provide a JSON schema for the output
+//   - [ai.WithOutputSchemaName]: Reference a pre-registered output schema by name
+//   - [ai.WithStrictSchema]: Have the provider enforce the input schema strictly, where supported
 //
 // Example:
 //
@@ -820,8 +828,16 @@ func DefineTool[In, Out any](g *Genkit, name, description string, fn ai.ToolFunc
 //
 // # Options
 //
-//   - [ai.WithInputSchema]: Provide a custom JSON schema instead of inferring from the type parameter
-//   - [ai.WithInputSchemaName]: Reference a pre-registered schema by name
+// An explicit schema stands in for a type parameter, so the input options
+// require In to be any and the output options require Out to be any; any
+// other type panics here.
+//
+//   - [ai.WithInputSchema]: Provide a JSON schema for the input
+//   - [ai.WithInputSchemaName]: Reference a pre-registered input schema by name
+//   - [ai.WithInputType]: Derive the input schema from a Go value (prefer the In type parameter)
+//   - [ai.WithOutputSchema]: Provide a JSON schema for the output
+//   - [ai.WithOutputSchemaName]: Reference a pre-registered output schema by name
+//   - [ai.WithStrictSchema]: Have the provider enforce the input schema strictly, where supported
 //
 // Example:
 //
@@ -942,8 +958,16 @@ func DefineToolWithInputSchema[Out any](g *Genkit, name, description string, inp
 //
 // # Options
 //
-//   - [ai.WithInputSchema]: Provide a custom JSON schema instead of inferring from the type parameter
-//   - [ai.WithInputSchemaName]: Reference a pre-registered schema by name
+// An explicit input schema stands in for In, which must then be any; the
+// output options describe the logical output (the envelope's output field)
+// the tool advertises, and carry no such constraint.
+//
+//   - [ai.WithInputSchema]: Provide a JSON schema for the input
+//   - [ai.WithInputSchemaName]: Reference a pre-registered input schema by name
+//   - [ai.WithInputType]: Derive the input schema from a Go value
+//   - [ai.WithOutputSchema]: Provide a JSON schema for the advertised output
+//   - [ai.WithOutputSchemaName]: Reference a pre-registered output schema by name
+//   - [ai.WithStrictSchema]: Have the provider enforce the input schema strictly, where supported
 //
 // Example:
 //

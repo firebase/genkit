@@ -433,8 +433,7 @@ func requireObjectTypeParam[T any](ctor, name, what string) {
 }
 
 // NewTool creates a new [ToolAction]. It can be passed directly to [Generate].
-// Use [WithInputSchema] or [WithOutputSchema] to provide custom JSON schemas
-// instead of inferring them from the type parameters. Inside the function,
+// The options it accepts are listed on [ToolOption]. Inside the function,
 // [tool.AttachParts] adds content parts (e.g. media) to the response and
 // [tool.SendPartial] streams progress, neither of which changes the signature.
 //
@@ -482,8 +481,7 @@ func NewMultipartTool[In any](name, description string, fn MultipartToolFunc[In]
 
 // NewInterruptibleTool creates a new unregistered [InterruptibleToolAction].
 // It can be passed directly to [Generate], which registers it for the duration
-// of the call. Use [WithInputSchema] or [WithOutputSchema] to provide custom
-// JSON schemas instead of inferring them from the type parameters.
+// of the call. The options it accepts are listed on [ToolOption].
 //
 // Inside the function, [tool.Interrupt] pauses generation; the resume
 // parameter is nil on that first call and set to what the caller sent when

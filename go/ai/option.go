@@ -1099,7 +1099,18 @@ type toolOptions struct {
 	StrictSchema *bool
 }
 
-// ToolOption is an option for defining a tool.
+// ToolOption is an option for defining a tool, accepted by every tool
+// constructor ([NewTool], [NewInterruptibleTool], and their genkit
+// counterparts). An explicit schema stands in for a type parameter, so the
+// input options require In to be any and the output options require Out to
+// be any; any other type panics at definition.
+//
+//   - [WithInputSchema]: Provide a JSON schema for the input
+//   - [WithInputSchemaName]: Reference a pre-registered input schema by name
+//   - [WithInputType]: Derive the input schema from a Go value (prefer the In type parameter)
+//   - [WithOutputSchema]: Provide a JSON schema for the output
+//   - [WithOutputSchemaName]: Reference a pre-registered output schema by name
+//   - [WithStrictSchema]: Have the provider enforce the input schema strictly, where supported
 type ToolOption interface {
 	applyTool(*toolOptions)
 }
