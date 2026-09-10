@@ -58,7 +58,13 @@ type Part struct {
 //
 // On the wire it is carried in the part's metadata map (under "interrupt", or
 // "resolvedInterrupt" once resolved) for compatibility with the JS runtime;
-// marshaling folds it in and unmarshaling lifts it back out.
+// marshaling folds it in and unmarshaling lifts it back out. In process the
+// state lives on [Part.Interrupt] alone: the generate loop and unmarshaling
+// set the field and leave the metadata map to user and plugin metadata, so
+// the key is not on Metadata in process. A part assembled with the key
+// instead of the field reads as the same state through [Part.IsInterrupt],
+// [InterruptAs] and [InterruptibleToolAction.Interrupted], while its field
+// stays nil, so read the state through those rather than through the field.
 type ToolInterrupt struct {
 	// Data is the payload the tool interrupted with, e.g. the question it
 	// needs answered. It must serialize to a JSON object (a struct or a map);
@@ -75,7 +81,9 @@ type ToolInterrupt struct {
 //
 // On the wire it is carried in the part's metadata map (under "resumed" and
 // "replacedInput") for compatibility with the JS runtime; marshaling folds it
-// in and unmarshaling lifts it back out.
+// in and unmarshaling lifts it back out. As with [ToolInterrupt], a part
+// assembled with the keys reads as the same state through [Part.IsRestart]
+// and the generate loop while its [Part.Restart] field stays nil.
 type ToolRestart struct {
 	// Resume is the payload delivered to the tool function's resume parameter,
 	// e.g. the user's answer to the question the tool interrupted with. It must

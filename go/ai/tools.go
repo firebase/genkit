@@ -833,9 +833,12 @@ func (t *InterruptibleToolAction[In, Out, Res]) Interrupted(part *Part) (*Interr
 
 // Restart returns the part that re-executes the tool with resume delivered to
 // its resume parameter (or to [ToolContext.Resumed], for a tool written
-// against [ToolContext]). Pass the zero value, or nil for a map, for a bare
-// restart: the tool then re-executes with an empty payload, so restarting is
-// itself the approval for a tool that keys on the presence of a resume.
+// against [ToolContext]). A nil map is a bare restart: the part carries the
+// bare marker and the tool re-executes with an empty payload, so restarting
+// is itself the approval for a tool that keys on the presence of a resume. A
+// struct Res has no bare form: its zero value is sent as an object with zero
+// fields, which the tool reads the same way and a peer runtime sees as an
+// explicit answer.
 func (c *InterruptedCall[In, Out, Res]) Restart(resume Res) *Part {
 	return buildRestartPart(c.Part, resume, nil, false)
 }
@@ -1039,9 +1042,11 @@ func bareIfNil(v any) any {
 }
 
 // newResponsePart builds the tool response [Part] that resolves an interrupted
-// call with a pre-computed output. The interruptResponse marker tells the
-// generate loop to resolve the interrupt instead of re-executing the tool;
-// metadata, when non-nil, replaces the bare marker.
+// call with a pre-computed output. The generate loop resolves the interrupt by
+// the part's place in the Respond list, matched on tool name and ref; the
+// interruptResponse marker is the wire contract's mark of a caller-provided
+// response, which the JS runtime writes too, and metadata, when non-nil,
+// rides under it in place of the bare marker.
 func newResponsePart(interruptPart *Part, output any, metadata map[string]any) *Part {
 	resp := NewResponseForToolRequest(interruptPart, output)
 	resp.Metadata = map[string]any{metaInterruptResponse: true}
