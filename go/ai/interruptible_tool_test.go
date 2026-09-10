@@ -34,6 +34,7 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/status"
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/google/go-cmp/cmp"
 )
 
 // newToolTestRegistry returns a registry with the formats and generate action
@@ -251,45 +252,25 @@ func TestInterruptibleTool_OutputSchemaSurvivesLookup(t *testing.T) {
 	}
 }
 
-// TestInterruptibleTool_OutputSchemaOptions covers the explicit output schema
-// options: with Out being any the custom schema reaches the definition, and
-// with a concrete Out the constructor panics rather than advertising a schema
-// that disagrees with the type.
+// TestInterruptibleTool_OutputSchemaOptions pins that NewInterruptibleTool
+// runs the output schema check NewTool runs (tools_test.go covers the option
+// itself; both constructors share newTool): with a concrete Out the
+// constructor panics, naming itself, rather than advertising a schema that
+// disagrees with the type.
 func TestInterruptibleTool_OutputSchemaOptions(t *testing.T) {
-	customSchema := map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"answer": map[string]any{"type": "string"},
-		},
-	}
-
-	t.Run("custom schema reaches the definition when Out is any", func(t *testing.T) {
-		tl := ai.NewInterruptibleTool("t", "d",
-			func(ctx context.Context, input any, res *struct{}) (any, error) { return nil, nil },
-			ai.WithOutputSchema(customSchema))
-
-		def := tl.Definition()
-		props, ok := def.OutputSchema["properties"].(map[string]any)
-		if !ok || props["answer"] == nil {
-			t.Errorf("OutputSchema = %v, want the custom schema, not the envelope", def.OutputSchema)
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic for an output schema option with concrete Out")
 		}
-	})
-
-	t.Run("panics for concrete Out", func(t *testing.T) {
-		defer func() {
-			r := recover()
-			if r == nil {
-				t.Fatal("expected panic for an output schema option with concrete Out")
-			}
-			err, ok := r.(error)
-			if !ok || !strings.Contains(err.Error(), "ai.NewInterruptibleTool") {
-				t.Errorf("panic = %v, want it to name ai.NewInterruptibleTool", r)
-			}
-		}()
-		ai.NewInterruptibleTool("t", "d",
-			func(ctx context.Context, input any, res *struct{}) (string, error) { return "", nil },
-			ai.WithOutputSchemaName("Answer"))
-	})
+		err, ok := r.(error)
+		if !ok || !strings.Contains(err.Error(), "ai.NewInterruptibleTool") {
+			t.Errorf("panic = %v, want it to name ai.NewInterruptibleTool", r)
+		}
+	}()
+	ai.NewInterruptibleTool("t", "d",
+		func(ctx context.Context, input any, res *struct{}) (string, error) { return "", nil },
+		ai.WithOutputSchemaName("Answer"))
 }
 
 // TestTool_SendPartialNoOpWithoutStreaming confirms SendPartial is a safe no-op
@@ -507,21 +488,29 @@ func TestInterruptibleTool_Respond(t *testing.T) {
 }
 
 // TestPartToRestart_Flow covers the ai.Part verbs used by callers that don't
-// have the tool value in scope (e.g. a UI handler holding only the part).
+// have the tool value in scope (e.g. a UI handler holding only the part): they
+// build the same parts as the typed verbs of a claimed call, so the loop run
+// in TestInterruptibleTool_TypedRestart covers both.
 func TestPartToRestart_Flow(t *testing.T) {
 	reg := newTransferTestRegistry(t)
-	transfer, recorded := interruptOnce(t, reg)
-	resp, interrupt := generateUntilInterrupt(t, reg, transfer)
+	transfer, _ := interruptOnce(t, reg)
+	_, interrupt := generateUntilInterrupt(t, reg, transfer)
+	call := claim(t, transfer, interrupt)
 
 	restart, err := interrupt.ToToolRestart(confirmation{Approved: true})
 	if err != nil {
 		t.Fatalf("ToToolRestart: %v", err)
 	}
-	if got := resumeWith(t, reg, resp, transfer, ai.WithResume(restart)); got != "done" {
-		t.Errorf("final text = %q, want %q", got, "done")
+	if diff := cmp.Diff(call.Restart(confirmation{Approved: true}), restart); diff != "" {
+		t.Errorf("ToToolRestart differs from InterruptedCall.Restart (-typed +part):\n%s", diff)
 	}
-	if gotResume, _, _ := recorded(); gotResume == nil || !gotResume.Approved {
-		t.Errorf("resumed tool saw %+v, want Approved=true", gotResume)
+
+	response, err := interrupt.ToToolResponse(transferOut{Status: "manually approved"})
+	if err != nil {
+		t.Fatalf("ToToolResponse: %v", err)
+	}
+	if diff := cmp.Diff(call.Respond(transferOut{Status: "manually approved"}), response); diff != "" {
+		t.Errorf("ToToolResponse differs from InterruptedCall.Respond (-typed +part):\n%s", diff)
 	}
 }
 

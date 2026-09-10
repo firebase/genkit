@@ -786,13 +786,7 @@ func TestPartInterruptWireRoundTrip(t *testing.T) {
 				t.Fatalf("marshal: %v", err)
 			}
 
-			var wire struct {
-				Metadata map[string]any `json:"metadata"`
-			}
-			if err := json.Unmarshal(b, &wire); err != nil {
-				t.Fatalf("unmarshal wire: %v", err)
-			}
-			if diff := cmp.Diff(tt.wantWire, wire.Metadata); diff != "" {
+			if diff := cmp.Diff(tt.wantWire, wireMetadataOf(t, orig)); diff != "" {
 				t.Errorf("wire metadata mismatch (-want +got):\n%s", diff)
 			}
 
