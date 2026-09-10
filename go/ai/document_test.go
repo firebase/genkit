@@ -807,6 +807,51 @@ func TestPartInterruptWireRoundTrip(t *testing.T) {
 	}
 }
 
+// TestPartWireMarkersReadByTruthiness pins how the wire keys are read when a
+// part arrives from a peer: the JS runtime tests them by truthiness, so null
+// and false mean no state, true means state with no payload, and any other
+// value is the payload as sent, even one Go cannot deliver to a tool.
+func TestPartWireMarkersReadByTruthiness(t *testing.T) {
+	tests := []struct {
+		name          string
+		wire          string
+		wantInterrupt bool
+		wantRestart   bool
+		wantResume    any
+	}{
+		{"interrupt null", `{"toolRequest":{"name":"t"},"metadata":{"interrupt":null}}`, false, false, nil},
+		{"interrupt false", `{"toolRequest":{"name":"t"},"metadata":{"interrupt":false}}`, false, false, nil},
+		{"interrupt true", `{"toolRequest":{"name":"t"},"metadata":{"interrupt":true}}`, true, false, nil},
+		{"resumed null", `{"toolRequest":{"name":"t"},"metadata":{"resumed":null}}`, false, false, nil},
+		{"resumed false", `{"toolRequest":{"name":"t"},"metadata":{"resumed":false}}`, false, false, nil},
+		{"resumed true", `{"toolRequest":{"name":"t"},"metadata":{"resumed":true}}`, false, true, nil},
+		{"resumed scalar", `{"toolRequest":{"name":"t"},"metadata":{"resumed":"approved"}}`, false, true, "approved"},
+		{"interrupt and resumed", `{"toolRequest":{"name":"t"},"metadata":{"interrupt":{"why":"x"},"resumed":{"ok":true}}}`, true, true, map[string]any{"ok": true}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var p Part
+			if err := json.Unmarshal([]byte(tt.wire), &p); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			if got := p.IsInterrupt(); got != tt.wantInterrupt {
+				t.Errorf("IsInterrupt() = %v, want %v", got, tt.wantInterrupt)
+			}
+			if got := p.IsRestart(); got != tt.wantRestart {
+				t.Errorf("IsRestart() = %v, want %v", got, tt.wantRestart)
+			}
+			if tt.wantRestart {
+				if diff := cmp.Diff(tt.wantResume, p.Restart.Resume); diff != "" {
+					t.Errorf("Restart.Resume mismatch (-want +got):\n%s", diff)
+				}
+			}
+			if err := p.Validate(); err != nil {
+				t.Errorf("Validate() = %v, want nil", err)
+			}
+		})
+	}
+}
+
 func TestPartKindString(t *testing.T) {
 	for kind, want := range map[PartKind]string{
 		PartText:         "text",
@@ -844,6 +889,15 @@ func TestPartValidate(t *testing.T) {
 			p.Restart = &ToolRestart{}
 			return p
 		}()},
+		// The JS restartTool spreads the interrupted part's metadata onto the
+		// restart, so a restart still carrying the interrupt it resolves is
+		// the normal cross-runtime shape.
+		{"restart of an unresolved interrupt", func() *Part {
+			p := toolReq()
+			p.Interrupt = &ToolInterrupt{}
+			p.Restart = &ToolRestart{}
+			return p
+		}()},
 		{"custom", NewCustomPart(map[string]any{"k": "v"})},
 		{"resource", NewResourcePart("res://x")},
 	}
@@ -874,12 +928,6 @@ func TestPartValidate(t *testing.T) {
 		{"tool response on a tool request", func() *Part {
 			p := toolReq()
 			p.ToolResponse = &ToolResponse{Name: "t"}
-			return p
-		}()},
-		{"unresolved interrupt and restart", func() *Part {
-			p := toolReq()
-			p.Interrupt = &ToolInterrupt{}
-			p.Restart = &ToolRestart{}
 			return p
 		}()},
 	}

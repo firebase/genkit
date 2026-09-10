@@ -502,12 +502,19 @@ func orTrue(v any) any {
 	return v
 }
 
-// payloadOf decodes the wire encoding written by orTrue: true means no payload.
-func payloadOf(v any) any {
-	if b, ok := v.(bool); ok && b {
-		return nil
+// wirePayload decodes a wire marker written by orTrue, the way the JS runtime
+// reads these keys, by truthiness: an absent key, null and false mean no
+// state, true means state with no payload, and any other value is the payload
+// itself. A part that carries "interrupt": null therefore reads as a plain
+// tool request, not as a bare interrupt.
+func wirePayload(v any) (payload any, set bool) {
+	switch b := v.(type) {
+	case nil:
+		return nil, false
+	case bool:
+		return nil, b
 	}
-	return v
+	return v, true
 }
 
 // interruptState returns the interrupt state of a tool request part: the
@@ -522,16 +529,18 @@ func (p *Part) interruptState() *ToolInterrupt {
 	if p.Interrupt != nil {
 		return p.Interrupt
 	}
-	if v, ok := p.Metadata[metaInterrupt]; ok {
-		return &ToolInterrupt{Data: payloadOf(v)}
+	if v, ok := wirePayload(p.Metadata[metaInterrupt]); ok {
+		return &ToolInterrupt{Data: v}
 	}
-	if v, ok := p.Metadata[metaResolvedInterrupt]; ok {
-		return &ToolInterrupt{Data: payloadOf(v), Resolved: true}
+	if v, ok := wirePayload(p.Metadata[metaResolvedInterrupt]); ok {
+		return &ToolInterrupt{Data: v, Resolved: true}
 	}
 	return nil
 }
 
-// restartState is [Part.interruptState] for the restart state.
+// restartState is [Part.interruptState] for the restart state. A part marked
+// "resumed": false is not a restart: the tool re-executes without a resume
+// payload, as it would for a request the model made afresh.
 func (p *Part) restartState() *ToolRestart {
 	if !p.IsToolRequest() {
 		return nil
@@ -539,12 +548,12 @@ func (p *Part) restartState() *ToolRestart {
 	if p.Restart != nil {
 		return p.Restart
 	}
-	resume, resumed := p.Metadata[metaResumed]
-	original, replaced := p.Metadata[metaReplacedInput]
-	if !resumed && !replaced {
+	resume, resumed := wirePayload(p.Metadata[metaResumed])
+	original := p.Metadata[metaReplacedInput]
+	if !resumed && original == nil {
 		return nil
 	}
-	return &ToolRestart{Resume: payloadOf(resume), OriginalInput: original}
+	return &ToolRestart{Resume: resume, OriginalInput: original}
 }
 
 // liftWireMetadata moves the interrupt and restart state a tool request part
@@ -584,6 +593,9 @@ func (p *Part) typedClone() *Part {
 // kind's own payload field is set and that no field belonging to another kind
 // is set (e.g. no ToolResponse on a tool request part, no Interrupt on a text
 // part). It reports the first inconsistency found.
+//
+// A restart part may still carry the interrupt it resolves: that is the shape
+// the JS runtime's restartTool builds, and the restart supersedes it.
 func (p *Part) Validate() error {
 	if p == nil {
 		return status.Errorf(ErrInvalidPart, "part is nil")
@@ -624,9 +636,6 @@ func (p *Part) Validate() error {
 	}
 	if r, ok := required[p.Kind]; ok && !r.set {
 		return status.Errorf(ErrInvalidPart, "field %s is required on a %s part", r.name, p.Kind)
-	}
-	if it, rs := p.interruptState(), p.restartState(); it != nil && !it.Resolved && rs != nil {
-		return status.Errorf(ErrInvalidPart, "part cannot both await an interrupt and be a restart; resolve the interrupt first")
 	}
 	return nil
 }

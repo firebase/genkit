@@ -164,11 +164,45 @@ func objectPayload(data any, what string) (map[string]any, error) {
 	case map[string]any:
 		return v, nil
 	}
+	if err := checkObjectPayload(data, what); err != nil {
+		return nil, err
+	}
 	m, err := base.StructToMap(data)
 	if err != nil {
 		return nil, fmt.Errorf("%s must serialize to a JSON object (a struct or map), got %T: %w", what, data, err)
 	}
 	return m, nil
+}
+
+// checkObjectPayload is the check half of [objectPayload], for the verbs that
+// only need to know that a payload will serialize as a JSON object and can
+// leave the conversion to the reader: it costs a type inspection, not a JSON
+// round trip. nil passes, as a bare interrupt or restart.
+func checkObjectPayload(data any, what string) error {
+	if data == nil || objectValue(data) {
+		return nil
+	}
+	return fmt.Errorf("%s must serialize to a JSON object (a struct or map), got %T", what, data)
+}
+
+// objectValue reports whether v is a Go value that serializes to a JSON object
+// by construction: a struct, possibly behind pointers, or a map with string
+// keys. Scalars, slices and arrays are not, and neither is nil.
+func objectValue(v any) bool {
+	t := reflect.TypeOf(v)
+	for t != nil && t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if t == nil {
+		return false
+	}
+	switch t.Kind() {
+	case reflect.Struct:
+		return true
+	case reflect.Map:
+		return t.Key().Kind() == reflect.String
+	}
+	return false
 }
 
 // InterruptOptions provides configuration for tool interruption.
@@ -906,8 +940,9 @@ func (t *InterruptibleToolAction[In, Out, Res]) Respond(toolReq *Part, output an
 }
 
 // Restart creates a part for [WithToolRestarts] to re-execute an interrupted tool call with additional context.
-// Returns nil if the part is not a tool request or the resume data does not
-// serialize to a JSON object.
+// Returns nil if the part is not a tool request. The resume data is carried as
+// given: a value that is not a JSON object resumes the tool with an empty
+// payload, the way a peer runtime's marker would.
 //
 // Deprecated: Use [Part.ToToolRestart], or claim the part with
 // [InterruptibleToolAction.Interrupted] and use [InterruptedCall.Restart].
@@ -917,9 +952,6 @@ func (t *InterruptibleToolAction[In, Out, Res]) Restart(p *Part, opts *RestartOp
 	}
 	if opts == nil {
 		opts = &RestartOptions{}
-	}
-	if _, err := objectPayload(opts.ResumedMetadata, "resume data"); err != nil {
-		return nil
 	}
 	return buildRestartPart(p, opts.ResumedMetadata, opts.ReplaceInput)
 }

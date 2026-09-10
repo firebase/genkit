@@ -1917,3 +1917,21 @@ func TestPartClone_IsolatesInterruptPayloads(t *testing.T) {
 		t.Errorf("cloned struct payload = %v, want the value copied through", got)
 	}
 }
+
+// TestDeprecatedRestart_CarriesResumeAsGiven pins that the deprecated Restart
+// builds a part from whatever resume data it is handed, as it did before the
+// typed verbs existed: a non-object value rides to the loop, which reads it as
+// a bare restart, rather than turning the whole call into a nil part.
+func TestDeprecatedRestart_CarriesResumeAsGiven(t *testing.T) {
+	tl := NewTool("t", "d", func(ctx *ToolContext, _ struct{}) (string, error) { return "", nil })
+	part := NewToolRequestPart(&ToolRequest{Name: "t"})
+	part.Interrupt = &ToolInterrupt{}
+
+	restart := tl.Restart(part, &RestartOptions{ResumedMetadata: "approved"})
+	if restart == nil {
+		t.Fatal("Restart returned nil for a scalar resume value")
+	}
+	if !restart.IsRestart() || restart.Restart.Resume != "approved" {
+		t.Errorf("restart state = %+v, want the resume value as given", restart.Restart)
+	}
+}

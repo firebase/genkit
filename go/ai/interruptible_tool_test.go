@@ -23,7 +23,9 @@ package ai_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -880,5 +882,119 @@ func TestInterruptibleTool_UnregisteredViaWithTools(t *testing.T) {
 	}
 	if got := resp.Text(); got != "done" {
 		t.Errorf("Text() = %q, want done", got)
+	}
+}
+
+// jsRestartOf builds the restart part the JS runtime's restartTool builds for
+// an interrupted request: the interrupted part's metadata spread onto the
+// restart, "interrupt" key included, with "resumed" added. It goes through
+// JSON so the part is exactly what a peer runtime would send.
+func jsRestartOf(t *testing.T, interrupt *ai.Part, resumed any) *ai.Part {
+	t.Helper()
+	raw, err := json.Marshal(interrupt)
+	if err != nil {
+		t.Fatalf("marshal interrupt: %v", err)
+	}
+	var wire map[string]any
+	if err := json.Unmarshal(raw, &wire); err != nil {
+		t.Fatalf("unmarshal interrupt: %v", err)
+	}
+	meta, _ := wire["metadata"].(map[string]any)
+	if meta == nil {
+		meta = map[string]any{}
+		wire["metadata"] = meta
+	}
+	meta["resumed"] = resumed
+	raw, err = json.Marshal(wire)
+	if err != nil {
+		t.Fatalf("marshal restart: %v", err)
+	}
+	var restart ai.Part
+	if err := json.Unmarshal(raw, &restart); err != nil {
+		t.Fatalf("unmarshal restart: %v", err)
+	}
+	return &restart
+}
+
+// TestResume_AcceptsJSRestartShape pins that a restart part still carrying
+// the interrupt it resolves, the shape every JS client sends, resumes the
+// tool: the restart supersedes the interrupt rather than conflicting with it.
+func TestResume_AcceptsJSRestartShape(t *testing.T) {
+	reg := newTransferTestRegistry(t)
+	transfer, saw := interruptOnce(t, reg)
+	resp, interrupt := generateUntilInterrupt(t, reg, transfer)
+
+	restart := jsRestartOf(t, interrupt, map[string]any{"approved": true})
+	if !restart.IsInterrupt() || !restart.IsRestart() {
+		t.Fatalf("restart = %+v, want both the interrupt and the restart state lifted", restart)
+	}
+
+	if got := resumeWith(t, reg, resp, transfer, ai.WithResume(restart)); got != "done" {
+		t.Errorf("Text() = %q, want done", got)
+	}
+	if res, _, _ := saw(); res == nil || !res.Approved {
+		t.Errorf("tool saw resume = %+v, want approved", res)
+	}
+}
+
+// TestResume_NonObjectResumeMarkers pins how a resumed marker Go cannot
+// deliver as an object is read, matching the JS runtime's truthiness rule:
+// false is not a resumption and the tool re-executes afresh; any other
+// non-object value is a bare restart.
+func TestResume_NonObjectResumeMarkers(t *testing.T) {
+	t.Run("false re-executes without a resume payload", func(t *testing.T) {
+		reg := newTransferTestRegistry(t)
+		transfer, saw := interruptOnce(t, reg)
+		resp, interrupt := generateUntilInterrupt(t, reg, transfer)
+
+		resp2, err := ai.Generate(context.Background(), reg,
+			ai.WithModelName("test/model"),
+			ai.WithMessages(resp.History()...),
+			ai.WithTools(transfer),
+			ai.WithResume(jsRestartOf(t, interrupt, false)))
+		// The tool saw no resume, so it interrupted again, which the loop
+		// reports as a failed precondition next to the partial response.
+		if !errors.Is(err, status.ErrFailedPrecondition) || resp2 == nil {
+			t.Fatalf("resume Generate = (%v, %v), want the re-interrupted partial and FAILED_PRECONDITION", resp2, err)
+		}
+		if resp2.FinishReason != ai.FinishReasonInterrupted {
+			t.Errorf("FinishReason = %q, want interrupted", resp2.FinishReason)
+		}
+		if res, _, _ := saw(); res != nil {
+			t.Errorf("tool saw resume = %+v, want none", res)
+		}
+	})
+
+	for _, marker := range []any{"approved", 1.0, []any{"a"}} {
+		t.Run(fmt.Sprintf("%T is a bare restart", marker), func(t *testing.T) {
+			reg := newTransferTestRegistry(t)
+			transfer, saw := interruptOnce(t, reg)
+			resp, interrupt := generateUntilInterrupt(t, reg, transfer)
+
+			if got := resumeWith(t, reg, resp, transfer, ai.WithResume(jsRestartOf(t, interrupt, marker))); got != "done" {
+				t.Errorf("Text() = %q, want done", got)
+			}
+			if res, _, _ := saw(); res == nil || res.Approved {
+				t.Errorf("tool saw resume = %+v, want the zero value of a bare restart", res)
+			}
+		})
+	}
+}
+
+// TestWithResume_NilPartIsReported pins that a nil in the resume list, which
+// a deprecated verb returns for a part it cannot restart, is reported as such
+// rather than as a part of the wrong kind.
+func TestWithResume_NilPartIsReported(t *testing.T) {
+	reg := newTransferTestRegistry(t)
+	transfer, _ := interruptOnce(t, reg)
+	resp, _ := generateUntilInterrupt(t, reg, transfer)
+
+	_, err := ai.Generate(context.Background(), reg,
+		ai.WithModelName("test/model"),
+		ai.WithMessages(resp.History()...),
+		ai.WithTools(transfer),
+		ai.WithResume(nil))
+	if err == nil || !strings.Contains(err.Error(), "part is nil") {
+		t.Errorf("error = %v, want it to report the nil part", err)
 	}
 }

@@ -2249,9 +2249,19 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 				// replaced the input, the original one.
 				resumedCtx := ctx
 				if rs := restartPart.restartState(); rs != nil {
-					resume, err := objectPayload(rs.Resume, "resume data")
-					if err != nil {
-						return nil, status.Errorf(status.ErrInvalidArgument, "handleResumedToolRequest: restart for tool %q: %w", restartPart.ToolRequest.Name, err)
+					var resume map[string]any
+					if rs.Resume == nil || objectValue(rs.Resume) {
+						var err error
+						if resume, err = objectPayload(rs.Resume, "resume data"); err != nil {
+							return nil, status.Errorf(status.ErrInvalidArgument, "handleResumedToolRequest: restart for tool %q: %w", restartPart.ToolRequest.Name, err)
+						}
+					} else {
+						// A peer runtime may mark a restart with any truthy
+						// JSON value: the JS restartTool passes its
+						// resumedMetadata through as given. Go delivers only
+						// an object to the tool, so such a marker reads as a
+						// bare restart.
+						logger.Debug(ctx, "resume payload is not a JSON object; restarting with an empty payload", "tool", restartPart.ToolRequest.Name, "type", fmt.Sprintf("%T", rs.Resume))
 					}
 					if resume == nil {
 						resume = map[string]any{}
@@ -2314,20 +2324,23 @@ func handleResumeOption(ctx context.Context, r api.Registry, genOpts *GenerateAc
 		return &resumeOptionOutput{revisedRequest: genOpts}, nil
 	}
 
+	// Validate runs first so that a nil part, which a deprecated verb returns
+	// for a request it cannot restart, is reported as nil rather than as the
+	// wrong kind.
 	for _, part := range genOpts.Resume.Respond {
-		if !part.IsToolResponse() {
-			return nil, status.Errorf(status.ErrInvalidArgument, "handleResumeOption: respond part is not a tool response")
-		}
 		if err := part.Validate(); err != nil {
 			return nil, status.Errorf(status.ErrInvalidArgument, "handleResumeOption: respond part: %w", err)
 		}
+		if !part.IsToolResponse() {
+			return nil, status.Errorf(status.ErrInvalidArgument, "handleResumeOption: respond part is not a tool response")
+		}
 	}
 	for _, part := range genOpts.Resume.Restart {
-		if !part.IsToolRequest() {
-			return nil, status.Errorf(ErrInvalidPart, "handleResumeOption: restart part is not a tool request")
-		}
 		if err := part.Validate(); err != nil {
 			return nil, status.Errorf(ErrInvalidPart, "handleResumeOption: restart part: %w", err)
+		}
+		if !part.IsToolRequest() {
+			return nil, status.Errorf(ErrInvalidPart, "handleResumeOption: restart part is not a tool request")
 		}
 	}
 
