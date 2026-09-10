@@ -111,12 +111,16 @@ func SendChunk(ctx context.Context, chunk *ai.ModelResponseChunk) {
 
 // AttachParts attaches additional content parts (e.g., media) to the tool's
 // response. This can be called from any tool to produce a multipart response
-// without changing the function signature. A nil part is ignored, so a
-// constructor's failed result can be passed without a check.
+// without changing the function signature, and from a WrapTool hook, before
+// or after it runs the tool: the parts collect for the whole call and land
+// on the response in call order. A nil part is ignored, so a constructor's
+// failed result can be passed without a check.
 //
-// Safe for concurrent use from goroutines the tool function spawns; parts are
-// appended in call order per goroutine, with no ordering guarantee across
-// goroutines.
+// The parts are folded into the response when the call returns, so they must
+// be attached before then: a goroutine the tool spawns may attach as long as
+// the tool waits for it, and one that outlives the call attaches to nothing.
+// Safe for concurrent use from such goroutines, with no ordering guarantee
+// across them.
 func AttachParts(ctx context.Context, parts ...*ai.Part) {
 	sink := base.ToolPartSinkKey.FromContext(ctx)
 	if sink == nil {
@@ -124,7 +128,7 @@ func AttachParts(ctx context.Context, parts ...*ai.Part) {
 	}
 	for _, p := range parts {
 		if p != nil {
-			sink(p)
+			sink.Add(p)
 		}
 	}
 }

@@ -18,6 +18,7 @@ package base
 
 import (
 	"context"
+	"sync"
 )
 
 // A ContextKey is a unique, typed key for a value stored in a context.
@@ -72,8 +73,33 @@ var ToolResumeKey = NewContextKey[any]()
 // (OriginalInput).
 var ToolOriginalInputKey = NewContextKey[any]()
 
-// ToolPartSinkKey is the context key for the sink that collects content parts
-// attached during tool execution. Set by ai around a tool function, read by
-// ai/tool (AttachParts). The any value is *ai.Part (typed as any to avoid a
-// circular import). The sink is safe for concurrent use.
-var ToolPartSinkKey = NewContextKey[func(any)]()
+// ToolPartSinkKey is the context key for the [PartSink] that collects content
+// parts attached during one tool call. Set by ai around the whole tool call,
+// the WrapTool hook chain included, so a hook can attach parts too; read by
+// ai/tool (AttachParts).
+var ToolPartSinkKey = NewContextKey[*PartSink]()
+
+// PartSink collects the content parts attached during one tool call. The
+// values are *ai.Part, typed as any to avoid a circular import. It is safe
+// for concurrent use: a tool may attach from goroutines it waits for.
+type PartSink struct {
+	mu    sync.Mutex
+	parts []any
+}
+
+// Add appends part.
+func (s *PartSink) Add(part any) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.parts = append(s.parts, part)
+}
+
+// Drain returns the parts attached so far, in call order, and empties the
+// sink, so that a part attached after the call returned is not folded twice.
+func (s *PartSink) Drain() []any {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	parts := s.parts
+	s.parts = nil
+	return parts
+}

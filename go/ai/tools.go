@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
-	"sync"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
@@ -581,41 +580,43 @@ func newToolContext(ctx context.Context) *ToolContext {
 	return tc
 }
 
-// runToolFunc runs one tool invocation: it installs the part sink that
-// [tool.AttachParts] writes to, runs the function, and folds the attached
-// parts into the response.
+// runToolFunc runs one tool invocation. The generate loop installs the part
+// sink [tool.AttachParts] writes to around the whole tool call, WrapTool
+// hooks included, and folds it when the call returns; a direct run (RunRaw,
+// the Dev UI) has no loop, so the sink is installed and folded here.
 func runToolFunc(ctx context.Context, run func(ctx context.Context) (*MultipartToolResponse, error)) (*MultipartToolResponse, error) {
-	// The sink may be called from goroutines the tool function spawns
-	// (mirroring tool.SendPartial, which is also safe for concurrent use), so
-	// guard the slice.
-	var partsMu sync.Mutex
-	var parts []*Part
-	ctx = base.ToolPartSinkKey.NewContext(ctx, func(part any) {
-		if p, ok := part.(*Part); ok {
-			partsMu.Lock()
-			parts = append(parts, p)
-			partsMu.Unlock()
+	if base.ToolPartSinkKey.FromContext(ctx) != nil {
+		resp, err := run(ctx)
+		if err != nil {
+			return nil, err
 		}
-	})
-
-	resp, err := run(ctx)
+		if resp == nil {
+			resp = &MultipartToolResponse{}
+		}
+		return resp, nil
+	}
+	sink := &base.PartSink{}
+	resp, err := run(base.ToolPartSinkKey.NewContext(ctx, sink))
 	if err != nil {
 		return nil, err
 	}
+	return foldAttachedParts(resp, sink), nil
+}
 
-	// A multipart function may return a nil response with no error, which
-	// the envelope treats as an empty one, so attached parts still have a
-	// response to land on.
+// foldAttachedParts appends the parts attached to sink during a tool call to
+// resp and returns it. A multipart function may return a nil response with no
+// error, which the envelope treats as an empty one, so the parts still have a
+// response to land on.
+func foldAttachedParts(resp *MultipartToolResponse, sink *base.PartSink) *MultipartToolResponse {
 	if resp == nil {
 		resp = &MultipartToolResponse{}
 	}
-
-	partsMu.Lock()
-	defer partsMu.Unlock()
-	if len(parts) > 0 {
-		resp.Content = append(resp.Content, parts...)
+	for _, p := range sink.Drain() {
+		if part, ok := p.(*Part); ok {
+			resp.Content = append(resp.Content, part)
+		}
 	}
-	return resp, nil
+	return resp
 }
 
 // Name returns the name of the tool.

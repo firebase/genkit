@@ -77,18 +77,15 @@ func TestInterrupt_BareAndNonObject(t *testing.T) {
 	}
 }
 
-// partSinkContext mirrors what ai installs around a tool function.
+// partSinkContext mirrors what ai installs around a tool call.
 func partSinkContext() (context.Context, func() []*ai.Part) {
-	var mu sync.Mutex
-	var parts []*ai.Part
-	ctx := base.ToolPartSinkKey.NewContext(context.Background(), func(p any) {
-		mu.Lock()
-		defer mu.Unlock()
-		parts = append(parts, p.(*ai.Part))
-	})
+	sink := &base.PartSink{}
+	ctx := base.ToolPartSinkKey.NewContext(context.Background(), sink)
 	return ctx, func() []*ai.Part {
-		mu.Lock()
-		defer mu.Unlock()
+		var parts []*ai.Part
+		for _, p := range sink.Drain() {
+			parts = append(parts, p.(*ai.Part))
+		}
 		return parts
 	}
 }

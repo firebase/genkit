@@ -1652,6 +1652,11 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 				})
 			}
 
+			// The part sink spans the whole call, WrapTool hooks included,
+			// so a hook can attach parts before or after running the tool.
+			sink := &base.PartSink{}
+			toolCtx = base.ToolPartSinkKey.NewContext(toolCtx, sink)
+
 			multipartResp, err := runTool(toolCtx, tool, toolReq)
 			if err != nil {
 				var tie *base.ToolInterruptError
@@ -1670,6 +1675,7 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 				resultChan <- result[*MultipartToolResponse]{index: idx, err: toolFailureError(ctx, toolReq.Name, err)}
 				return
 			}
+			multipartResp = foldAttachedParts(multipartResp, sink)
 
 			newPart := clone(p)
 			stampPendingToolOutcome(newPart, multipartResp)
@@ -2278,6 +2284,8 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 					Ref:   restartPart.ToolRequest.Ref,
 					Input: restartPart.ToolRequest.Input,
 				}
+				sink := &base.PartSink{}
+				resumedCtx = base.ToolPartSinkKey.NewContext(resumedCtx, sink)
 				multipartResp, err := runTool(resumedCtx, tool, restartToolReq)
 				if err != nil {
 					var tie *base.ToolInterruptError
@@ -2292,6 +2300,7 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 
 					return nil, toolFailureError(ctx, restartPart.ToolRequest.Name, err)
 				}
+				multipartResp = foldAttachedParts(multipartResp, sink)
 
 				newToolReq := resolvedPart(p)
 

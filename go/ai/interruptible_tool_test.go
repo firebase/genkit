@@ -1069,3 +1069,48 @@ func TestResume_PayloadReachesEveryReaderAlike(t *testing.T) {
 		t.Errorf("resume parameter saw %s, tool.ResumeData saw %s, ai.ResumedValue saw %d; want int, int, 5", paramType, dataType, viaValue)
 	}
 }
+
+// TestAttachParts_FromWrapToolHook pins that the part sink spans the whole
+// tool call: a WrapTool hook attaches parts before and after running the
+// tool, and they land on the tool response next to the tool's own, in call
+// order, instead of vanishing because the sink was installed inside the call.
+func TestAttachParts_FromWrapToolHook(t *testing.T) {
+	reg := newToolTestRegistry(t)
+	defineToolThenFinishModel(reg, ai.NewToolRequestPart(&ai.ToolRequest{Name: "shot", Input: map[string]any{}}))
+	shot := defineTestTool(reg, "shot", "takes a screenshot",
+		func(ctx context.Context, _ struct{}) (string, error) {
+			tool.AttachParts(ctx, ai.NewTextPart("tool"))
+			return "captured", nil
+		})
+	attach := ai.MiddlewareFunc(func(ctx context.Context) (*ai.Hooks, error) {
+		return &ai.Hooks{
+			WrapTool: func(ctx context.Context, p *ai.ToolParams, next ai.ToolNext) (*ai.MultipartToolResponse, error) {
+				tool.AttachParts(ctx, ai.NewTextPart("before"))
+				resp, err := next(ctx, p)
+				tool.AttachParts(ctx, ai.NewTextPart("after"))
+				return resp, err
+			},
+		}, nil
+	})
+
+	resp, err := ai.Generate(context.Background(), reg,
+		ai.WithModelName("test/model"),
+		ai.WithPrompt("go"),
+		ai.WithTools(shot),
+		ai.WithUse(attach))
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	var got []string
+	for _, m := range resp.History() {
+		if m.Role != ai.RoleTool {
+			continue
+		}
+		for _, p := range m.Content[0].ToolResponse.Content {
+			got = append(got, p.Text)
+		}
+	}
+	if diff := cmp.Diff([]string{"before", "tool", "after"}, got); diff != "" {
+		t.Errorf("attached parts mismatch (-want +got):\n%s", diff)
+	}
+}
