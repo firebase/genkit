@@ -780,7 +780,7 @@ if len(parts) > 0 {
 }
 ```
 
-`call.Respond(output)` answers the call outright instead of running the tool again, and `call.RestartWithInput(input, confirmation)` re-runs it with arguments the person revised. A tool that pauses with something to say, such as why it needs approval, passes a struct or a map to `tool.Interrupt`, and the flow reads it back with `ai.InterruptAs`.
+`call.Respond(output)` answers the call outright instead of running the tool again, and `call.RestartWithInput(input, confirmation)` re-runs it with arguments the person revised. The answer a restart carries is validated against the schema inferred from `Confirmation` before the tool re-executes, as the model's input is against `TransferInput`. A tool that pauses with something to say, such as why it needs approval, passes a struct or a map to `tool.Interrupt`, and the flow reads it back with `ai.InterruptAs`.
 
 A tool can also be a pure question: its function only returns `tool.Interrupt(ctx, nil)`, the input is the question, and `call.Respond(answer)` supplies the answer as the tool's output.
 
