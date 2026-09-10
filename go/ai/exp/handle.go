@@ -351,12 +351,13 @@ func (h *AgentHandle) GetLatestSnapshot(ctx context.Context, sessionID string, o
 
 // Abort asks the background work behind a pending snapshot to stop, through
 // the agent's abort companion action, and returns the snapshot's status after
-// the attempt: [SnapshotStatusAborting] when the row was pending (the stop
-// landed, and the row settles as [SnapshotStatusAborted] once the worker's
-// finalize stamps the state on) or already aborting, or the existing terminal
-// status (the abort was a no-op) when it had already settled. A missing
-// snapshot is NOT_FOUND, matching the companion action remote callers use
-// (unlike [Agent.Abort], which reports it as "").
+// the attempt: [SnapshotStatusAborting] when the row was pending or already
+// aborting, or the existing terminal status (the abort was a no-op) when it
+// had already settled. An aborting row settles once the worker's finalize
+// stamps the state on, with how the work actually ended (see
+// [SnapshotStatusAborting]). A missing snapshot is NOT_FOUND, matching the
+// companion action remote callers use (unlike [Agent.Abort], which reports it
+// as "").
 //
 // It returns FAILED_PRECONDITION when the agent has no session store
 // ([ErrSessionStoreNotConfigured]) or the store cannot observe aborts (no

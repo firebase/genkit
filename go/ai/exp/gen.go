@@ -36,10 +36,10 @@ type AgentAbortResponse struct {
 	SnapshotID string `json:"snapshotId"`
 	// Status is the snapshot's status after the abort attempt. For a pending
 	// snapshot this is [SnapshotStatusAborting]: the flip that stops the work
-	// landed, and the finalize that stamps the state and settles the row as
-	// [SnapshotStatusAborted] follows. For an already-settled snapshot this is
-	// the existing status (the abort is a no-op), and for a row already aborting
-	// it is [SnapshotStatusAborting] again.
+	// landed, and the finalize that stamps the state and settles the row follows
+	// (see [SnapshotStatusAborting] for how it settles). For an already-settled
+	// snapshot this is the existing status (the abort is a no-op), and for a row
+	// already aborting it is [SnapshotStatusAborting] again.
 	Status SnapshotStatus `json:"status,omitempty"`
 }
 
@@ -415,7 +415,7 @@ type SessionState[State any] struct {
 // state through the last committed turn and [SnapshotStatusCompleted] /
 // [SnapshotStatusFailed] when the agent finishes. An abort in the meantime
 // flips the row to [SnapshotStatusAborting] to stop the work, and the same
-// finalize then lands it as [SnapshotStatusAborted] with the state. A
+// finalize then lands it with the state and how the work actually ended. A
 // detached run's settled rows are therefore shaped like a synchronous one's:
 // the same statuses mean the same things whichever way the invocation ran.
 //
@@ -430,16 +430,22 @@ const (
 	// processing the queued inputs. The snapshot will be rewritten with a
 	// terminal status once the background work finishes.
 	SnapshotStatusPending SnapshotStatus = "pending"
-	// SnapshotStatusAborting indicates the abort companion action stopped a
-	// detached invocation and its worker is winding down toward the finalize
-	// that stamps the state onto the row. The flip is what cancels the work; the
-	// finalize that follows writes [SnapshotStatusAborted] with the state through
-	// the last committed turn. It is not terminal, so a wait keeps waiting, and it
-	// is not resumable: the row carries no state yet, and resuming from the
-	// parent snapshot would fork away from the work the finalize is about to
-	// commit. The worker keeps refreshing [SessionSnapshot.HeartbeatAt] while it
-	// drains, so a stale beat means it died between the two writes and a read
-	// surfaces the row as [SnapshotStatusExpired].
+	// SnapshotStatusAborting indicates the abort companion action asked a
+	// detached invocation to stop and its worker is winding down toward the
+	// finalize that stamps the state onto the row. The flip cancels the work's
+	// context, and the abort is best effort from there: it stops the turn in
+	// flight and drops the inputs queued behind it, and the finalize writes how
+	// that turn ended, with the state through the last committed turn.
+	// [SnapshotStatusAborted] means the stop cut the turn short (a partial reply
+	// committed beside the cancellation included) or that no turn had run yet,
+	// [SnapshotStatusCompleted] that the turn still finished without an error,
+	// and [SnapshotStatusFailed] that it broke on its own before the stop reached
+	// it. It is not terminal, so a wait keeps waiting, and it is not resumable:
+	// the row carries no state yet, and resuming from the parent snapshot would
+	// fork away from the work the finalize is about to commit. The worker keeps
+	// refreshing [SessionSnapshot.HeartbeatAt] while it drains, so a stale beat
+	// means it died between the two writes and a read surfaces the row as
+	// [SnapshotStatusExpired].
 	SnapshotStatusAborting SnapshotStatus = "aborting"
 	// SnapshotStatusCompleted indicates the snapshot captures a settled state.
 	SnapshotStatusCompleted SnapshotStatus = "completed"
@@ -455,7 +461,9 @@ const (
 	// not finish has its response discarded with that turn, so re-sending the
 	// conversation runs it again. A detached run reaches this status through
 	// [SnapshotStatusAborting]: the abort flips the row to stop the work, and the
-	// finalize that follows writes this status together with the state.
+	// finalize that follows writes this status together with the state when the
+	// stop is what ended the work (see [SnapshotStatusAborting] for the other
+	// outcomes).
 	SnapshotStatusAborted SnapshotStatus = "aborted"
 	// SnapshotStatusFailed indicates a turn ended with an error. The snapshot's
 	// Error field describes the failure, and its state is what the turn

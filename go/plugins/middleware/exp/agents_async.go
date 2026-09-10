@@ -36,7 +36,7 @@ package exp
 // companion action, the wait tool its waitForSnapshot counterpart, which
 // blocks next to the store rather than making this middleware re-read on a
 // timer, and the abort tool its abort counterpart, which flips a pending row
-// to aborted so the sub-agent's runtime cancels the work.
+// to aborting so the sub-agent's runtime cancels the work.
 
 import (
 	"context"
@@ -136,7 +136,8 @@ type backgroundTaskReport struct {
 	Name string `json:"name,omitempty"`
 	// Status is the task's lifecycle state: "pending", "completed", "failed",
 	// "aborted", "expired" (worker presumed dead), "aborting" (the stop was
-	// delivered and the task is winding down toward "aborted"), or "unknown"
+	// delivered and the task is winding down; it settles with how its work
+	// ended, see stoppedTaskSettles), or "unknown"
 	// (the ID could not be resolved; see Error). It
 	// answers what the reader must act on rather than mirroring the stored
 	// row, so a task that committed without producing an answer reports
@@ -321,10 +322,17 @@ func (a *Agents) backgroundTaskTools(st *agentsState) []ai.Tool {
 			"Waits until the given background sub-agent tasks finish and returns their results. Set timeoutSeconds to bound the wait; on timeout the current statuses are returned. Set waitFor to \"first\" to return as soon as any one task settles.",
 			a.waitForBackgroundTasks(st)),
 		aix.NewTool(names.abort,
-			"Stops background sub-agent tasks whose results are no longer needed, and returns where that left each one. A live task reports \"aborting\" while it winds down and settles as \"aborted\"; a task that had already finished is unaffected and reports its result.",
+			"Stops background sub-agent tasks whose results are no longer needed, and returns where that left each one. A live task reports \"aborting\" while it winds down and "+stoppedTaskSettles+"; a task that had already finished is unaffected and reports its result.",
 			a.taskReportTool(st, a.abortSnapshot())),
 	}
 }
+
+// stoppedTaskSettles is how a task settles once the stop signal reaches it,
+// in the words the abort tool's description and the aborting report share:
+// the abort is best effort, and the row records how the work actually ended.
+var stoppedTaskSettles = fmt.Sprintf(
+	"settles with how its work ended: %q when the stop ended it, %q if its turn still finished without an error, %q if it broke before the stop reached it",
+	aix.SnapshotStatusAborted, aix.SnapshotStatusCompleted, aix.SnapshotStatusFailed)
 
 // taskReportTool builds a non-blocking background-task tool: one companion
 // dispatch per task, then a report of where that left it. The dispatch is the
@@ -720,8 +728,8 @@ func (a *Agents) reportTask(ctx context.Context, g *genkit.Genkit, st *agentsSta
 		}
 	case aix.SnapshotStatusAborting:
 		report.Error = fmt.Sprintf(
-			"The stop signal reached the task and it is winding down; its progress is being saved and it will settle as %q. No further action is needed to stop it; collect the settled state with %s if you need it.",
-			aix.SnapshotStatusAborted, a.backgroundToolNames().wait)
+			"The stop signal reached the task and it is winding down; its progress is being saved and it "+stoppedTaskSettles+". No further action is needed to stop it; collect the settled state with %s if you need it.",
+			a.backgroundToolNames().wait)
 	case aix.SnapshotStatusFailed:
 		report.Error = subAgentFailureMessage(snap.FinishReason, snap.Error, lastModelMessage(snap)) +
 			" The task's progress up to the failure is saved; continue it with " + a.continueToolName() + " using this taskId."
