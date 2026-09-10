@@ -10,7 +10,7 @@ from pydantic import BaseModel, TypeAdapter
 
 from genkit import Message, ModelResponseChunk
 from genkit._ai._formats._jsonl import JsonlFormat
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._typing import Part, TextPart
 
 
@@ -118,6 +118,8 @@ class TestJsonlFormatErrors:
         with pytest.raises(GenkitError) as exc_info:
             jsonl_fmt.handle({'type': 'string'})
         assert "Must supply an 'array' schema type" in str(exc_info.value)
+        assert exc_info.value.reason is RuntimeErrorReason.INVALID_SCHEMA
+        assert 'INVALID_SCHEMA' not in exc_info.value.original_message
 
     def test_throws_error_for_array_with_non_object_items(self) -> None:
         """Test that array with non-object items raises error."""
@@ -126,6 +128,8 @@ class TestJsonlFormatErrors:
         with pytest.raises(GenkitError) as exc_info:
             jsonl_fmt.handle({'type': 'array', 'items': {'type': 'string'}})
         assert "containing 'object' items" in str(exc_info.value)
+        assert exc_info.value.reason is RuntimeErrorReason.INVALID_SCHEMA
+        assert 'INVALID_SCHEMA' not in exc_info.value.original_message
 
 
 class TestJsonlFormatInstructions:
