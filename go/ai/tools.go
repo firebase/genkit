@@ -26,6 +26,7 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
+	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/status"
 	"github.com/firebase/genkit/go/internal/base"
 )
@@ -819,6 +820,12 @@ func (t *InterruptibleToolAction[In, Out, Res]) Interrupted(part *Part) (*Interr
 	}
 	input, err := base.ConvertToExact[In](part.ToolRequest.Input)
 	if err != nil {
+		// The part is this tool's, so a decode failure is a mismatch between
+		// In and the recorded input (a field's type changed since the
+		// session was stored, say), not another tool's part. The claim still
+		// reports false, as documented, and says why here, since the
+		// unresolved request the next Generate reports cannot.
+		logger.Debug(context.Background(), "tool declined to claim its interrupt: the input does not decode as In", "tool", t.Name(), "error", err)
 		return nil, false
 	}
 	return &InterruptedCall[In, Out, Res]{Part: part, Input: input}, true
