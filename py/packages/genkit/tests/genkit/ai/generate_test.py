@@ -17,7 +17,7 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from genkit import ActionKind, Document, Genkit, Message, MiddlewareRef, ModelResponse, ModelResponseChunk
 from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
-from genkit._ai._generate import ChunkAccumulator, _augment_with_context, generate_action
+from genkit._ai._generate import ChunkAccumulator, augment_with_context, generate_action
 from genkit._ai._model import text_from_content, text_from_message
 from genkit._ai._resource import ResourceInput, ResourceOutput, define_resource
 from genkit._ai._testing import (
@@ -34,6 +34,7 @@ from genkit._core._typing import (
     DocumentPart,
     FinishReason,
     GenerateActionOutputConfig,
+    GenerationUsage,
     Part,
     Resource1,
     ResourcePart,
@@ -184,7 +185,7 @@ async def test_simulates_doc_grounding(
 
 
 # --------------------------------------------------------------------------- #
-# Unit tests for the private _augment_with_context helper                     #
+# Unit tests for the private augment_with_context helper                     #
 # --------------------------------------------------------------------------- #
 
 
@@ -196,7 +197,7 @@ def test_augment_with_context_ignores_no_docs() -> None:
         ],
     )
 
-    transformed_req = _augment_with_context(req)
+    transformed_req = augment_with_context(req)
 
     assert transformed_req is req
 
@@ -213,7 +214,7 @@ def test_augment_with_context_adds_docs_as_context() -> None:
         ],
     )
 
-    transformed_req = _augment_with_context(req)
+    transformed_req = augment_with_context(req)
 
     assert transformed_req == ModelRequest(
         messages=[
@@ -249,7 +250,7 @@ def test_augment_with_context_does_not_mutate_input() -> None:
     )
     original_content_len = len(original_user_msg.content)
 
-    transformed_req = _augment_with_context(req)
+    transformed_req = augment_with_context(req)
 
     assert transformed_req is not req
     assert transformed_req.messages[0] is not original_user_msg
@@ -261,7 +262,7 @@ def test_augment_with_context_skips_when_context_already_rendered() -> None:
     """Already-rendered context (purpose=context, no pending flag) is left untouched.
 
     If a message already contains a context part that was previously rendered
-    (non-pending), _augment_with_context should return the original request
+    (non-pending), augment_with_context should return the original request
     unchanged rather than injecting the docs again.
     """
     req = ModelRequest(
@@ -284,7 +285,7 @@ def test_augment_with_context_skips_when_context_already_rendered() -> None:
         ],
     )
 
-    transformed_req = _augment_with_context(req)
+    transformed_req = augment_with_context(req)
 
     assert transformed_req is req
 
@@ -293,7 +294,7 @@ def test_augment_with_context_with_purpose_part() -> None:
     """A pending context placeholder is replaced in-place with the rendered docs.
 
     Prompts can include a Part with metadata={'purpose': 'context', 'pending': True}
-    as a placeholder.  _augment_with_context locates it and swaps it out for the
+    as a placeholder.  augment_with_context locates it and swaps it out for the
     actual rendered document context, preserving the surrounding parts.
     """
     req = ModelRequest(
@@ -316,7 +317,7 @@ def test_augment_with_context_with_purpose_part() -> None:
         ],
     )
 
-    transformed_req = _augment_with_context(req)
+    transformed_req = augment_with_context(req)
 
     assert transformed_req == ModelRequest(
         messages=[
@@ -617,7 +618,7 @@ async def test_util_generate_action_runs_use_middleware() -> None:
     """The Dev UI hits ``/util/generate`` directly with ``use=[MiddlewareRef(...)]``.
 
     That entry point skips the in-process ``generate_action`` veneer, so
-    middleware resolution has to live in ``generate_with_request``, not in
+    middleware resolution has to live in ``run_generate``, not in
     the veneer. Without that, a hook the user configured in the UI silently
     drops on the floor — exactly the bug this test pins down.
     """
@@ -1048,7 +1049,7 @@ async def test_wrap_generate_called_per_turn() -> None:
     """wrap_generate is invoked for each turn of the generate loop.
 
     This is the two-turn regression test: verifies middleware runs on *every*
-    recursive _generate_action_turn call (turn 0 + turn 1 after tool response).
+    recursive run_wrap_generate call (turn 0 + turn 1 after tool response).
     """
     # Each test-local class closes over its own list so the test can inspect
     # what wrap_generate saw across the (potentially many) fresh instances the
@@ -1425,7 +1426,7 @@ async def test_middleware_wrap_tool_interrupt_handled_as_interrupt_not_crash() -
     """Interrupt raised by wrap_tool middleware is converted to an interrupt part.
 
     This is a regression test: before the fix, a middleware-raised Interrupt
-    bypassed _resolve_tool_request's except block and propagated uncaught through
+    bypassed execute_tool_request's except block and propagated uncaught through
     asyncio.gather, crashing generation instead of surfacing as a tool interrupt.
     """
     from genkit._ai._tools import Interrupt
@@ -1776,7 +1777,7 @@ async def test_queue_drain_streams_each_message_at_one_index() -> None:
 async def test_restart_path_routes_through_wrap_tool_middleware() -> None:
     """Restarting a tool via ``resume_restart`` must invoke ``wrap_tool`` middleware.
 
-    Regression: ``_resolve_resumed_tool_request`` used to call
+    Regression: ``resolve_resumed_tool`` used to call
     ``run_tool_after_restart`` directly, skipping the middleware chain. That
     silently bypassed ToolApproval / Filesystem / etc. on every restart.
     """
@@ -2618,7 +2619,7 @@ async def test_generate_rejects_negative_max_turns() -> None:
     ai = Genkit(model='programmableModel')
     define_programmable_model(ai)
 
-    with pytest.raises(GenkitError, match='max turns must be greater than 0, got -1') as raised:
+    with pytest.raises(GenkitError, match='max turns cannot be negative, got -1') as raised:
         await ai.generate(prompt='hi', max_turns=-1)
     assert raised.value.status == 'INVALID_ARGUMENT'
     assert raised.value.reason is RuntimeErrorReason.INVALID_INPUT
@@ -5270,6 +5271,7 @@ async def test_generate_wrap_generate_dict_after_short_circuit_next_fn_keeps_mod
             return ModelResponse(
                 finish_reason=FinishReason.STOP,
                 message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='cached'))]),
+                usage=GenerationUsage(input_tokens=11, output_tokens=7, total_tokens=18),
             )
 
     @ai.middleware(name='dump_after_cache')
@@ -5300,6 +5302,10 @@ async def test_generate_wrap_generate_dict_after_short_circuit_next_fn_keeps_mod
     assert response.message is None
     assert [m.role for m in response.messages] == [Role.USER, Role.MODEL]
     assert response.messages[1].text == 'cached'
+    assert response.usage is not None
+    assert response.usage.input_tokens == 11
+    assert response.usage.output_tokens == 7
+    assert response.usage.total_tokens == 18
 
 
 @pytest.mark.asyncio
@@ -5322,6 +5328,7 @@ async def test_generate_wrap_generate_action_input_error_after_short_circuit_nex
             return ModelResponse(
                 finish_reason=FinishReason.STOP,
                 message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='cached'))]),
+                usage=GenerationUsage(input_tokens=11, output_tokens=7, total_tokens=18),
             )
 
     @ai.middleware(name='deny_after_cache_generate')
@@ -5356,6 +5363,10 @@ async def test_generate_wrap_generate_action_input_error_after_short_circuit_nex
     assert response.message is None
     assert [m.role for m in response.messages] == [Role.USER, Role.MODEL]
     assert response.messages[1].text == 'cached'
+    assert response.usage is not None
+    assert response.usage.input_tokens == 11
+    assert response.usage.output_tokens == 7
+    assert response.usage.total_tokens == 18
 
 
 @pytest.mark.asyncio

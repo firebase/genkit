@@ -1032,7 +1032,7 @@ async def generate_prompt_agent_turn(
     session_runner: SessionRunner,
     ctx: ActionRunContext,
     registry: Registry,
-    gen_options: GenerateActionOptions,
+    options: GenerateActionOptions,
     history: list[MessageData],
 ) -> TurnResult | None:
     """Run generate for one agent turn and persist session messages."""
@@ -1042,7 +1042,7 @@ async def generate_prompt_agent_turn(
 
     response = await generate_action(
         registry,
-        gen_options,
+        options,
         on_chunk=on_chunk,
         abort_signal=ctx.abort_signal,
         context=ctx.context,
