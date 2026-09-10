@@ -58,6 +58,7 @@ jobs:
           # Publish all core and plugin packages for v0.10.0 release.
           PACKAGES=(
             py/packages/genkit
+            py/packages/genkit-a2ui
             py/packages/genkit-amazon-bedrock
             py/packages/genkit-anthropic
             py/packages/genkit-django
