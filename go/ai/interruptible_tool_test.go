@@ -1025,3 +1025,47 @@ func TestInterruptAs_DecodesIntoAnyMatchingType(t *testing.T) {
 		t.Errorf("InterruptAs[same type] = (%+v, %v), want the payload decoded", same, ok)
 	}
 }
+
+// TestResume_PayloadReachesEveryReaderAlike pins that one restart reads the
+// same through every reader: a map restarted in process keeps its Go types
+// in the tool's resume parameter, in tool.ResumeData and in ai.ResumedValue,
+// rather than widening to float64 in one of them.
+func TestResume_PayloadReachesEveryReaderAlike(t *testing.T) {
+	reg := newToolTestRegistry(t)
+	defineToolThenFinishModel(reg, ai.NewToolRequestPart(&ai.ToolRequest{Name: "count", Input: map[string]any{}}))
+
+	var (
+		paramType, dataType string
+		viaValue            int
+	)
+	count := defineTestInterruptibleTool(reg, "count", "d",
+		func(ctx context.Context, _ struct{}, res *map[string]any) (string, error) {
+			if res == nil {
+				return "", tool.Interrupt(ctx, nil)
+			}
+			paramType = fmt.Sprintf("%T", (*res)["n"])
+			rd, _ := tool.ResumeData[map[string]any](ctx)
+			dataType = fmt.Sprintf("%T", rd["n"])
+			viaValue, _ = ai.ResumedValue[int](ctx, "n")
+			return "ok", nil
+		})
+
+	resp, err := ai.Generate(context.Background(), reg,
+		ai.WithModelName("test/model"),
+		ai.WithPrompt("count"),
+		ai.WithTools(count))
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	interrupts := resp.Interrupts()
+	if len(interrupts) != 1 {
+		t.Fatalf("expected 1 interrupt, got %d", len(interrupts))
+	}
+	call := claim(t, count, interrupts[0])
+	if got := resumeWith(t, reg, resp, count, ai.WithResume(call.Restart(map[string]any{"n": 5}))); got != "done" {
+		t.Errorf("Text() = %q, want done", got)
+	}
+	if paramType != "int" || dataType != "int" || viaValue != 5 {
+		t.Errorf("resume parameter saw %s, tool.ResumeData saw %s, ai.ResumedValue saw %d; want int, int, 5", paramType, dataType, viaValue)
+	}
+}

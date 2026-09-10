@@ -2248,25 +2248,24 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 				// The tool sees the restart through the context: the resume
 				// payload it was given (an empty map for a bare restart, so the
 				// call still reads as a resumption) and, when the caller
-				// replaced the input, the original one.
+				// replaced the input, the original one. The payload rides as
+				// given, a map or the caller's struct, and each reader
+				// converts it to what it returns, so a typed restart reaches
+				// the tool's resume parameter without a conversion.
 				resumedCtx := ctx
 				if rs := restartPart.restartState(); rs != nil {
-					var resume map[string]any
-					if base.IsNil(rs.Resume) || base.IsJSONObject(rs.Resume) {
-						var err error
-						if resume, err = base.ObjectPayload(rs.Resume, "resume data"); err != nil {
-							return nil, status.Errorf(status.ErrInvalidArgument, "handleResumedToolRequest: restart for tool %q: %w", restartPart.ToolRequest.Name, err)
-						}
-					} else {
+					var resume any = map[string]any{}
+					switch {
+					case base.IsNil(rs.Resume):
+					case base.IsJSONObject(rs.Resume):
+						resume = rs.Resume
+					default:
 						// A peer runtime may mark a restart with any truthy
 						// JSON value: the JS restartTool passes its
 						// resumedMetadata through as given. Go delivers only
 						// an object to the tool, so such a marker reads as a
 						// bare restart.
 						logger.Debug(ctx, "resume payload is not a JSON object; restarting with an empty payload", "tool", restartPart.ToolRequest.Name, "type", fmt.Sprintf("%T", rs.Resume))
-					}
-					if resume == nil {
-						resume = map[string]any{}
 					}
 					resumedCtx = base.ToolResumeKey.NewContext(resumedCtx, resume)
 					if rs.OriginalInput != nil {

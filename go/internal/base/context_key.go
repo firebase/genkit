@@ -53,12 +53,17 @@ var ToolPartialSenderKey = NewContextKey[func(context.Context, any)]()
 var ToolChunkSenderKey = NewContextKey[func(context.Context, any)]()
 
 // ToolResumeKey is the context key holding the data a caller sent when
-// restarting an interrupted tool call, as a map. Set by ai/generate.go
-// (handleResumedToolRequest) from the restart part's ai.ToolRestart state,
-// read by ai (ToolContext.Resumed, IsToolResumed, ResumedValue) and by ai/tool
-// (ResumeData). A bare restart stores an empty map, so presence of the key,
-// not its contents, marks a call as resumed.
-var ToolResumeKey = NewContextKey[map[string]any]()
+// restarting an interrupted tool call, as the caller gave it: a map[string]any
+// after a wire hop or from a map restart, the caller's struct from a typed
+// restart in process. Set by ai/generate.go (handleResumedToolRequest) from
+// the restart part's ai.ToolRestart state; each reader converts it to what it
+// returns with [ConvertTo], so a value that is already the wanted type is
+// handed over untouched, with its Go types intact: ai (ToolContext.Resumed,
+// IsToolResumed, ResumedValue), ai/tool (ResumeData), and the resume
+// parameter of an ai.NewInterruptibleTool tool. A bare restart stores an
+// empty map, so presence of the key, not its contents, marks a call as
+// resumed.
+var ToolResumeKey = NewContextKey[any]()
 
 // ToolOriginalInputKey is the context key holding a tool call's pre-replacement
 // input, set when the caller restarted the call with a new input. Set by

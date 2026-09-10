@@ -340,8 +340,8 @@ func IsToolResumed(ctx context.Context) bool {
 // which embeds [context.Context].
 func ResumedValue[T any](ctx context.Context, key string) (T, bool) {
 	var zero T
-	m := base.ToolResumeKey.FromContext(ctx)
-	if m == nil {
+	m, ok := resumedMap(ctx)
+	if !ok {
 		return zero, false
 	}
 	v, ok := m[key]
@@ -349,6 +349,23 @@ func ResumedValue[T any](ctx context.Context, key string) (T, bool) {
 		return zero, false
 	}
 	return base.ConvertTo[T](v)
+}
+
+// resumedMap returns the resume payload of a restarted call as a map, and
+// false when the call is not a resumption. The payload rides the context as
+// the caller gave it, so a struct from a typed restart is converted here and
+// a map is handed over untouched.
+func resumedMap(ctx context.Context) (map[string]any, bool) {
+	v := base.ToolResumeKey.FromContext(ctx)
+	if v == nil {
+		return nil, false
+	}
+	m, ok := base.ConvertTo[map[string]any](v)
+	if !ok || m == nil {
+		// Still a resumption: an empty payload keeps IsResumed true.
+		return map[string]any{}, true
+	}
+	return m, true
 }
 
 // OriginalInputAs returns the original input typed appropriately.
@@ -479,7 +496,10 @@ func NewInterruptibleTool[In, Out, Res any](name, description string, fn Interru
 	return newTool[In, Out, Res](ctor, name, description, opts, func(ctx context.Context, input In) (Out, error) {
 		var resume *Res
 		if v := base.ToolResumeKey.FromContext(ctx); v != nil {
-			r, err := base.MapToStruct[Res](v)
+			// A value the caller built as Res is handed over as is, so an
+			// in-process restart keeps its Go types; a map from the wire or
+			// from a map restart decodes into Res.
+			r, err := base.ConvertToExact[Res](v)
 			if err != nil {
 				var zero Out
 				return zero, fmt.Errorf("tool %q: failed to convert resume data: %w", name, err)
@@ -551,11 +571,14 @@ func toolMetadata(name, description string, multipart bool, originalOutputSchema
 // newToolContext builds the [ToolContext] a tool function written against it
 // receives, lifting the restart state off the context.
 func newToolContext(ctx context.Context) *ToolContext {
-	return &ToolContext{
+	tc := &ToolContext{
 		Context:       ctx,
-		Resumed:       base.ToolResumeKey.FromContext(ctx),
 		OriginalInput: base.ToolOriginalInputKey.FromContext(ctx),
 	}
+	if m, ok := resumedMap(ctx); ok {
+		tc.Resumed = m
+	}
+	return tc
 }
 
 // runToolFunc runs one tool invocation: it installs the part sink that
