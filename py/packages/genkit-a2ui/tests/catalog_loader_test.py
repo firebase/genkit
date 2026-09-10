@@ -208,6 +208,32 @@ def test_load_catalog_same_catalog_twice_is_ok() -> None:
     assert load_catalog(ai, BANNER_CATALOG) == BANNER_CATALOG
 
 
+def test_load_catalog_raises_when_id_already_holds_something_else() -> None:
+    ai, _ = setup()
+    ai.registry.register_value(A2UI_CATALOG_VALUE_TYPE, BANNER_CATALOG.id, 'not-a-catalog')
+    with pytest.raises(ValueError, match='is not a catalog'):
+        load_catalog(ai, BANNER_CATALOG)
+
+
+def test_load_catalog_file_names_the_path_when_the_file_is_not_utf8(tmp_path: Path) -> None:
+    ai, _ = setup()
+    path = tmp_path / 'catalog.json'
+    path.write_bytes(b'\xff\xfe not utf-8')
+    with pytest.raises(ValueError, match=str(path)) as exc_info:
+        load_catalog_file(ai, str(path))
+    assert isinstance(exc_info.value.__cause__, UnicodeDecodeError)
+
+
+def test_load_catalog_file_names_the_path_when_a_component_has_no_name(tmp_path: Path) -> None:
+    path = tmp_path / 'catalog.json'
+    path.write_text(
+        json.dumps({'id': BANNER_CATALOG.id, 'components': [{'description': 'no name'}]}),
+        encoding='utf-8',
+    )
+    with pytest.raises(ValueError, match=str(path)):
+        load_catalog_file(setup()[0], str(path))
+
+
 def test_a2ui_catalog_is_a_registry_id_string() -> None:
     assert Surfaces(catalog=BANNER_CATALOG.id).config.catalog == BANNER_CATALOG.id
 

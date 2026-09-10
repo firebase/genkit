@@ -243,7 +243,13 @@ async def test_generate_stream_strict_raises_on_bad_block() -> None:
 @pytest.mark.asyncio
 async def test_generate_a2ui_skips_rewrite_when_blocked_or_aborted() -> None:
     """A stopped turn keeps the finish reason and does not salvage a card."""
-    for reason in (FinishReason.BLOCKED, FinishReason.ABORTED, FinishReason.INTERRUPTED):
+    for reason in (
+        FinishReason.BLOCKED,
+        FinishReason.ABORTED,
+        FinishReason.INTERRUPTED,
+        FinishReason.FAILED,
+        FinishReason.UNKNOWN,
+    ):
         ai, pm = setup()
         raw = broken_fence()
         pm.responses = [
@@ -439,8 +445,8 @@ async def test_generate_a2ui_rewrites_candidates_when_message_missing() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_a2ui_off_drops_block_without_root() -> None:
-    """validate='off' drops a surface that has no root and does not raise."""
+async def test_generate_a2ui_off_keeps_surface_without_root() -> None:
+    """validate='off' still returns the surface when the component list has no root."""
     ai, pm = setup()
     pm.responses = [model_ok(no_root_fence())]
 
@@ -450,8 +456,63 @@ async def test_generate_a2ui_off_drops_block_without_root() -> None:
         use=[Surfaces(validate='off')],
     )
     message = assert_finished_message(response)
+    assert envelopes(message.content)
+    assert_no_fence_in_text(message.content)
+
+
+@pytest.mark.asyncio
+async def test_generate_a2ui_warn_drops_surface_without_root() -> None:
+    """Default warn drops a surface that has no root and keeps no fence."""
+    ai, pm = setup()
+    pm.responses = [model_ok(no_root_fence())]
+
+    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[Surfaces()])
+    message = assert_finished_message(response)
     assert_no_a2ui_parts(message.content)
     assert_no_fence_in_text(message.content)
+
+
+@pytest.mark.asyncio
+async def test_generate_a2ui_empty_text_part_mid_fence_still_returns_a_card() -> None:
+    """An empty text part in the middle of a fence does not drop the card."""
+    ai, pm = setup()
+    fence = weather_fence()
+    mid = len(fence) // 2
+    pm.responses = [
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(
+                role=Role.MODEL,
+                content=[text_part(fence[:mid]), text_part(''), text_part(fence[mid:])],
+            ),
+        )
+    ]
+
+    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[Surfaces()])
+    message = assert_finished_message(response)
+    assert envelopes(message.content)
+    assert_no_fence_in_text(message.content)
+
+
+@pytest.mark.asyncio
+async def test_generate_a2ui_truncated_fence_on_length_stays_as_prose() -> None:
+    """A length-stopped turn keeps the unfinished fence as text instead of dropping it."""
+    ai, pm = setup()
+    raw = 'Here is the weather:\n```a2ui\n[{"createSurface":'
+    pm.responses = [
+        ModelResponse(
+            finish_reason=FinishReason.LENGTH,
+            finish_message='max tokens',
+            message=Message(role=Role.MODEL, content=[text_part(raw)]),
+        )
+    ]
+
+    response = await ai.generate(model='programmableModel', prompt=WEATHER_PROMPT, use=[Surfaces()])
+    message = assert_finished_message(response, finish_reason=FinishReason.LENGTH)
+    assert response.finish_message == 'max tokens'
+    assert_no_a2ui_parts(message.content)
+    assert '```a2ui' in joined_text(message.content)
+    assert 'createSurface' in joined_text(message.content)
 
 
 def test_a2ui_catalog_string_is_the_lookup_id() -> None:

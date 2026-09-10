@@ -36,11 +36,13 @@ def load_catalog(ai: GenkitLike, catalog: A2uiCatalog) -> A2uiCatalog:
     existing = ai.registry.lookup_value(A2UI_CATALOG_VALUE_TYPE, catalog.id)
     if existing is not None:
         current = A2uiCatalog.from_value(existing)
-        if current is not None and current != catalog:
+        if current is None:
+            raise ValueError(f'a2ui: load_catalog: registry value {catalog.id!r} is not a catalog')
+        if current != catalog:
             logger.warning(
                 'a2ui: load_catalog: a different catalog is already registered under this id; keeping the existing one'
             )
-        return current or catalog
+        return current
     ai.registry.register_value(A2UI_CATALOG_VALUE_TYPE, catalog.id, catalog.as_value())
     return catalog
 
@@ -56,13 +58,16 @@ def register_basic_catalog(ai: GenkitLike) -> A2uiCatalog:
 def read_catalog_file(*, path: str) -> A2uiCatalog:
     try:
         raw = json.loads(Path(path).read_text(encoding='utf-8'))
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         raise ValueError(f'a2ui: failed to read catalog file {path!r}: {exc}') from exc
     except json.JSONDecodeError as exc:
         raise ValueError(f'a2ui: catalog file {path!r} is not valid JSON: {exc}') from exc
     catalog = A2uiCatalog.from_value(raw)
     if catalog is None:
-        raise ValueError(f'a2ui: catalog file {path!r} must have an "id" and a "components" array')
+        raise ValueError(
+            f'a2ui: catalog file {path!r} is not a catalog '
+            '(need an id, a components array, and a name on every component)'
+        )
     return catalog
 
 

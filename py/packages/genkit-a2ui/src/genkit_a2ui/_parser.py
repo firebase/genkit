@@ -49,10 +49,11 @@ class Segment:
 
 @dataclass
 class ClosedBlock:
-    """A finished fence, or `need_more` if the closing ``` has not arrived."""
+    """A finished fence, raw prose to keep, or `need_more` if the closing ``` has not arrived."""
 
     need_more: bool = False
     envelopes: list[Envelope] | None = None
+    prose: str = ''
 
 
 class A2uiParseError(ValueError):
@@ -114,6 +115,8 @@ class StreamParser:
             if taken.envelopes:
                 flush_prose()
                 segments.append(Segment(envelopes=taken.envelopes))
+            elif taken.prose:
+                prose_buf += taken.prose
         flush_prose()
         return segments
 
@@ -148,11 +151,12 @@ class StreamParser:
                 if nl + 1 > self.block_scan:
                     self.block_scan = nl + 1
                 return ClosedBlock(need_more=True)
-            batch = self.finalize_block(raw=self.buffer)
+            raw = self.buffer
+            result = self.finalize_block(raw=raw)
             self.buffer = ''
             self.in_block = False
             self.block_scan = 0
-            return ClosedBlock(envelopes=batch)
+            return closed_block(result=result, closed=False)
 
         match_start = self.block_scan + match.start()
         match_end = self.block_scan + match.end()
@@ -160,7 +164,7 @@ class StreamParser:
         self.buffer = LEADING_NEWLINE_RE.sub('', self.buffer[match_end:], count=1)
         self.in_block = False
         self.block_scan = 0
-        return ClosedBlock(envelopes=self.finalize_block(raw=block_text))
+        return closed_block(result=self.finalize_block(raw=block_text), closed=True)
 
     def reject(self, *, message: str) -> None:
         full = f'A2UI: {message}'
@@ -170,7 +174,7 @@ class StreamParser:
             raise A2uiParseError(full)
         logger.warning('%s (dropping block/envelope)', full)
 
-    def finalize_block(self, *, raw: str) -> list[Envelope] | None:
+    def finalize_block(self, *, raw: str) -> list[Envelope] | str | None:
         surface_id = self.current_surface_id or self.surface_id()
         self.current_surface_id = ''
 
@@ -181,7 +185,10 @@ class StreamParser:
             parsed: object = json.loads(text)
         except json.JSONDecodeError as exc:
             self.reject(message=f'failed to parse envelope block as JSON: {exc}')
-            return None
+            if self.validate == 'strict':
+                return None
+            # warn / off: the caller still has the model text, even if it is not a card.
+            return raw
 
         raw_envelopes = parsed if isinstance(parsed, list) else [parsed]
         out: list[Envelope] = []
@@ -217,6 +224,8 @@ class StreamParser:
         return [create, *out]
 
     def require_root(self, *, envelopes: list[Envelope]) -> list[Envelope] | None:
+        if self.validate == 'off':
+            return envelopes
         msg = validate_root(envelopes=envelopes)
         if msg:
             self.reject(message=msg)
@@ -262,6 +271,17 @@ class StreamParser:
             if name not in self.known_components:
                 return f'component {name!r} is not in catalog {self.catalog.id!r}.'
         return ''
+
+
+def closed_block(*, result: list[Envelope] | str | None, closed: bool) -> ClosedBlock:
+    if isinstance(result, list):
+        return ClosedBlock(envelopes=result)
+    if isinstance(result, str):
+        fence = f'```a2ui\n{result}'
+        if closed:
+            fence += '\n```'
+        return ClosedBlock(prose=fence)
+    return ClosedBlock()
 
 
 def fill_placeholder_id(*, body: dict[str, object], surface_id: str) -> None:

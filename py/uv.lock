@@ -1624,6 +1624,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+a2ui = [
+    { name = "genkit-a2ui" },
+]
 amazon-bedrock = [
     { name = "genkit-amazon-bedrock" },
 ]
@@ -1666,6 +1669,7 @@ requires-dist = [
     { name = "anyio", specifier = ">=4.9.0" },
     { name = "asgiref", specifier = ">=3.8.1" },
     { name = "dotpromptz", specifier = ">=0.1.5" },
+    { name = "genkit-a2ui", marker = "extra == 'a2ui'", editable = "packages/genkit-a2ui" },
     { name = "genkit-amazon-bedrock", marker = "extra == 'amazon-bedrock'", editable = "packages/genkit-amazon-bedrock" },
     { name = "genkit-anthropic", marker = "extra == 'anthropic'", editable = "packages/genkit-anthropic" },
     { name = "genkit-django", marker = "extra == 'django'", editable = "packages/genkit-django" },
@@ -1699,7 +1703,7 @@ requires-dist = [
     { name = "uvloop", marker = "sys_platform != 'win32'", specifier = ">=0.21.0" },
     { name = "websockets", specifier = ">=13.0.0" },
 ]
-provides-extras = ["amazon-bedrock", "anthropic", "django", "evaluators", "fastapi", "flask", "google-cloud", "google-genai", "middleware", "ollama", "openai", "vertex-ai"]
+provides-extras = ["a2ui", "amazon-bedrock", "anthropic", "django", "evaluators", "fastapi", "flask", "google-cloud", "google-genai", "middleware", "ollama", "openai", "vertex-ai"]
 
 [[package]]
 name = "genkit-a2ui"

@@ -39,7 +39,9 @@ ABNORMAL_FINISH_REASONS = frozenset({
     FinishReason.BLOCKED,
     FinishReason.ABORTED,
     FinishReason.INTERRUPTED,
+    FinishReason.FAILED,
     FinishReason.OTHER,
+    FinishReason.UNKNOWN,
 })
 
 
@@ -61,8 +63,9 @@ class Surfaces(BaseMiddleware[SurfacesConfig]):
     """Rewrites A2UI fenced model output into data parts.
 
     On the next turn, inbound A2UI parts become text so the model can see
-    prior surfaces and button clicks. A stopped turn (blocked / cancelled /
-    aborted / other) is left alone — the stop is the result, not a salvaged card.
+    prior surfaces and button clicks. A stopped turn (blocked / interrupted /
+    aborted / failed / unknown / other) is left alone — the stop is the result,
+    not a salvaged card.
     """
 
     async def wrap_model(
@@ -169,8 +172,10 @@ class SurfaceIdReplay:
 
 
 def part_text(*, part: Part) -> str | None:
+    # Empty text is still a text part. Treating it as missing would flush an
+    # open fence and drop the card.
     root = part.root
-    if isinstance(root, TextPart) and root.text:
+    if isinstance(root, TextPart):
         return root.text
     return None
 
@@ -189,7 +194,7 @@ def rewrite_parts(*, parts: list[Part], parser: StreamParser, flush_nontext: boo
     out: list[Part] = []
     for part in parts:
         text = part_text(part=part)
-        if text:
+        if text is not None:
             segments = parser.push(text=text)
             # Keep the original part when the parser did not split or rewrite it.
             if len(segments) == 1 and not segments[0].envelopes and segments[0].prose == text:
