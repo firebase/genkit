@@ -485,11 +485,15 @@ func (p *Part) wireMetadata() map[string]any {
 		m = make(map[string]any, 2)
 	}
 	if it := p.Interrupt; it != nil {
-		key := metaInterrupt
+		// The typed state is authoritative: a stale key of the other
+		// resolution state, left by a part assembled with the keys and then
+		// resolved on the field, would otherwise read back as the state.
+		key, stale := metaInterrupt, metaResolvedInterrupt
 		if it.Resolved {
-			key = metaResolvedInterrupt
+			key, stale = stale, key
 		}
 		m[key] = orTrue(it.Data)
+		delete(m, stale)
 	}
 	if rs := p.Restart; rs != nil {
 		m[metaResumed] = orTrue(rs.Resume)

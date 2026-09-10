@@ -1034,7 +1034,11 @@ func buildRestartPart(interruptPart *Part, resume, newInput any, replace bool) *
 		Ref:   toolReq.Ref,
 		Input: input,
 	})
-	restartPart.Metadata = stripWireKeys(maps.Clone(interruptPart.Metadata))
+	// The restart keeps the interrupted part's metadata, less its interrupt
+	// state and less the loop's bookkeeping of a sibling's outcome
+	// (pendingOutput and its companions), which describes the request in
+	// history, not the restart.
+	restartPart.Metadata = stripPendingKeys(stripWireKeys(maps.Clone(interruptPart.Metadata)))
 	restartPart.Restart = &ToolRestart{Resume: bareIfNil(resume), OriginalInput: originalInput}
 	return restartPart
 }

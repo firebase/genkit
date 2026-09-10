@@ -1555,6 +1555,18 @@ func resolvedPart(p *Part) *Part {
 	return newPart
 }
 
+// stripPendingKeys deletes the keys stampPendingToolOutcome writes from m in
+// place and returns m, or nil when nothing is left.
+func stripPendingKeys(m map[string]any) map[string]any {
+	for _, key := range [...]string{"pendingOutput", "pendingMetadata", "pendingContent"} {
+		delete(m, key)
+	}
+	if len(m) == 0 {
+		return nil
+	}
+	return m
+}
+
 // stampPendingToolOutcome records a resolved tool call's response on its
 // request part so a later resume replays it (see handleResumedToolRequest).
 // The response's metadata and content ride under their own keys;

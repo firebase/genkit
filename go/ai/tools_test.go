@@ -2042,3 +2042,21 @@ func TestRestartWithInput_ReplacementIsExplicit(t *testing.T) {
 		}
 	})
 }
+
+// TestBuildRestartPart_DropsPendingBookkeeping pins that a restart part does
+// not carry the loop's record of a completed sibling (pendingOutput and its
+// companions) off the interrupted part it is built from: that record
+// describes the request in history, and a restart must not replay it.
+func TestBuildRestartPart_DropsPendingBookkeeping(t *testing.T) {
+	part := NewToolRequestPart(&ToolRequest{Name: "transfer"})
+	part.Interrupt = &ToolInterrupt{}
+	part.Metadata = map[string]any{"pendingOutput": "stale", "pendingMetadata": map[string]any{}, "pendingContent": []any{}, "keep": "me"}
+
+	restart, err := part.ToToolRestart(nil)
+	if err != nil {
+		t.Fatalf("ToToolRestart: %v", err)
+	}
+	if diff := cmp.Diff(map[string]any{"keep": "me"}, restart.Metadata); diff != "" {
+		t.Errorf("restart metadata mismatch (-want +got):\n%s", diff)
+	}
+}

@@ -807,6 +807,37 @@ func TestPartInterruptWireRoundTrip(t *testing.T) {
 	}
 }
 
+// TestPartWireMetadata_TypedStateWinsOverStaleKey pins that folding the typed
+// interrupt state into the wire keys drops the key of the other resolution
+// state: a part assembled with the raw "interrupt" key and then resolved on
+// the field marshals as resolved only, so it does not read back as pending
+// after a wire hop.
+func TestPartWireMetadata_TypedStateWinsOverStaleKey(t *testing.T) {
+	p := NewToolRequestPart(&ToolRequest{Name: "transfer"})
+	p.Metadata = map[string]any{"interrupt": map[string]any{"reason": "old"}}
+	p.Interrupt = &ToolInterrupt{Data: map[string]any{"reason": "old"}, Resolved: true}
+
+	wire := wireMetadataOf(t, p)
+	if _, ok := wire["interrupt"]; ok {
+		t.Errorf("wire metadata = %v, want the stale interrupt key dropped", wire)
+	}
+	if _, ok := wire["resolvedInterrupt"]; !ok {
+		t.Errorf("wire metadata = %v, want resolvedInterrupt", wire)
+	}
+
+	b, err := json.Marshal(p)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var lifted Part
+	if err := json.Unmarshal(b, &lifted); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if lifted.IsInterrupt() || lifted.Interrupt == nil || !lifted.Interrupt.Resolved {
+		t.Errorf("after a wire hop the part reads as %+v, want a resolved interrupt", lifted.Interrupt)
+	}
+}
+
 // TestPartWireMarkersReadByTruthiness pins how the wire keys are read when a
 // part arrives from a peer: the JS runtime tests them by truthiness, so null
 // and false mean no state, true means state with no payload, and any other
