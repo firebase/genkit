@@ -26,8 +26,6 @@ from dataclasses import dataclass
 from typing import Any, TypeVar, cast
 
 from pydantic import BaseModel, ValidationError
-from pydantic_core import PydanticSerializationError
-from typing_extensions import Never
 
 from genkit._ai._agents._session import get_current_session
 from genkit._ai._formats._types import FormatDef, Formatter
@@ -658,11 +656,15 @@ async def generate_with_request(
     """
     # Shallow-copy the wire-shape struct so per-field updates below (and any
     # future mutations) don't leak back to the caller's ``raw_request``.
-    raw_request = raw_request.model_copy()
-    if not raw_request.messages:
+    # Empty messages is a valid start (model speaks first); normalize None here
+    # so the rest of generate can treat the field as a list.
+    raw_request = raw_request.model_copy(
+        update={'messages': list(raw_request.messages or [])},
+    )
+    if raw_request.max_turns is not None and raw_request.max_turns < 0:
         raise GenkitError(
             status='INVALID_ARGUMENT',
-            message='at least one message is required in generate request',
+            message=f'max turns must be greater than 0, got {raw_request.max_turns}',
             reason=RuntimeErrorReason.INVALID_INPUT,
         )
     registry = registry if registry.is_child else registry.new_child()
@@ -691,22 +693,26 @@ async def generate_with_request(
     mw_pipeline: _GenerateMiddlewarePipeline | None = None
     if middleware:
         mw_pipeline = _prepare_middleware(middleware, ctx=run_ctx)
-        mw_tools: list[Action[Any, Any, Never]] = []
+        mw_tools: list[Action[Any, Any, Any, Any]] = []
         for mw in mw_pipeline.middleware:
-            contributed = mw.tools(mw_pipeline.ctx)
-            mw_tools.extend(contributed)
+            mw_tools.extend(mw.tools(mw_pipeline.ctx))
 
         if mw_tools:
-            mw_tool_names: list[str] = []
-            for t in mw_tools:
-                registry.register_action_from_instance(t)
-                mw_tool_names.append(t.name)
             existing = list(raw_request.tools) if raw_request.tools else []
-            for name in mw_tool_names:
-                if name not in existing:
-                    existing.append(name)
+            declared = set(existing)
+            contributed_names: list[str] = []
+            for t in mw_tools:
+                name = t.name
+                if name in declared or name in contributed_names:
+                    raise GenkitError(
+                        status='INVALID_ARGUMENT',
+                        message=(f"tool '{name}' is contributed by middleware but already declared elsewhere"),
+                        reason=RuntimeErrorReason.INVALID_INPUT,
+                    )
+                registry.register_action_from_instance(t)
+                contributed_names.append(name)
             raw_request = raw_request.model_copy()
-            raw_request.tools = existing
+            raw_request.tools = existing + contributed_names
     else:
         mw_pipeline = _GenerateMiddlewarePipeline(middleware=[], ctx=run_ctx)
 
@@ -849,6 +855,11 @@ def require_model_response(*, raw: object, name: str) -> ModelResponse:
                 'Use define_background_model for background models that return operations.'
             ),
         )
+    return as_model_response(raw=raw, name=name)
+
+
+def as_model_response(*, raw: object, name: str) -> ModelResponse:
+    """A hook or model returns a ModelResponse they can read, not a dict."""
     if not isinstance(raw, ModelResponse):
         raise ModelContractError(
             status='FAILED_PRECONDITION',
@@ -858,17 +869,31 @@ def require_model_response(*, raw: object, name: str) -> ModelResponse:
 
 
 @dataclass
+class ResolvedTurn:
+    """The model they named, looked up before hooks run."""
+
+    model: Action
+    tools: list[Action]
+    formatter: Formatter[Any, Any] | None = None
+
+
+@dataclass
 class Turn:
     """Stamps wrap_generate cannot return — that hook must return ModelResponse.
 
-    Resolve and apply_format run inside the turn. Ticket / schema / parse
-    checks run after the hook returns, so they read this bag.
+    Ticket / schema / parse checks run after the hook returns, so they read this bag.
     """
 
     boxed: ModelResponse | None = None
     name: str = ''
     formatter: Formatter[Any, Any] | None = None
     output: GenerateActionOutputConfig | None = None
+    model_returned: bool = False
+    model_entered: bool = False
+    generate_returned: bool = False
+    generate_result: ModelResponse | None = None
+    next_called: bool = False
+    resolved: bool = False
 
 
 def assert_hook_kept_operation(*, boxed: ModelResponse | None, after_hooks: ModelResponse, name: str) -> None:
@@ -935,16 +960,6 @@ def closed_round_from_exc(
         exc = callback_cause
         reason = None
         pipe_failed = True
-    if isinstance(exc, Interrupt):
-        raise
-    # Bad config= is still setup. After the model spoke — on_chunk,
-    # wrap_generate after next_fn, or the tool loop — it is a dead turn.
-    schema_exc = isinstance(exc, ValidationError | PydanticSerializationError) or (
-        isinstance(exc, GenkitError) and isinstance(exc.cause, ValidationError | PydanticSerializationError)
-    )
-    setup_input = isinstance(exc, GenkitError) and (exc.original_message or '').startswith('Invalid input for action')
-    if schema_exc and reason is not RuntimeErrorReason.TOOL_FAILED and not pipe_failed and setup_input:
-        raise exc
     if isinstance(exc, GenkitError):
         # str(GenkitError) prefixes STATUS:. The finish_message they read
         # is the wrapper's wording plus the cause they actually hit.
@@ -989,6 +1004,7 @@ async def _generate_action_turn(
     message_index: int,
     current_turn: int,
     latest_messages: list[Message],
+    resolved_turn: ResolvedTurn | None = None,
 ) -> ModelResponse:
     """Run one model call plus tool resolution, then recurse for the next turn."""
     middleware = mw_pipeline.middleware
@@ -1003,7 +1019,44 @@ async def _generate_action_turn(
             error=GenkitRuntimeError(status='CANCELLED', message='Generation aborted.'),
         )
 
-    turn = Turn(output=raw_request.output)
+    if resolved_turn is None:
+        turn_model, turn_tools, format_def = await resolve_parameters(registry, raw_request)
+        if turn_model.kind == ActionKind.BACKGROUND_MODEL and raw_request.resume is not None:
+            raise GenkitError(
+                status='FAILED_PRECONDITION',
+                message=(
+                    f"Cannot resume background model '{turn_model.name}'; "
+                    'a background start cannot satisfy an interrupted tool turn'
+                ),
+                reason=RuntimeErrorReason.INVALID_RESUME,
+            )
+        raw_request, formatter = apply_format(raw_request, format_def)
+        if raw_request.resources:
+            raw_request = await apply_resources(registry, raw_request, run_ctx.abort_signal)
+        assert_valid_tool_names(turn_tools)
+        resolved_turn = ResolvedTurn(model=turn_model, tools=turn_tools, formatter=formatter)
+        latest_messages[:] = list(raw_request.messages or [])
+
+    turn = Turn(
+        output=raw_request.output,
+        name=resolved_turn.model.name,
+        formatter=resolved_turn.formatter,
+        resolved=True,
+    )
+
+    def mark_generate_next(
+        fn: Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+    ) -> Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]]:
+        async def run(params: GenerateHookParams, ctx: GenerateMiddlewareContext) -> ModelResponse:
+            result = await fn(params, ctx)
+            if isinstance(result, ModelResponse):
+                turn.generate_returned = True
+                turn.generate_result = result
+                if result.message is not None and (not latest_messages or latest_messages[-1] != result.message):
+                    latest_messages[:] = [*latest_messages, result.message]
+            return result
+
+        return run
 
     async def dispatch_generate(
         params: GenerateHookParams,
@@ -1014,7 +1067,7 @@ async def _generate_action_turn(
         runner: Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]] = next_fn
         for mw in reversed(middleware):
             _mw = mw
-            _inner = runner
+            _inner = mark_generate_next(runner)
 
             async def run_next(
                 p: GenerateHookParams,
@@ -1035,6 +1088,17 @@ async def _generate_action_turn(
             runner = run_next
         return await runner(params, ctx)
 
+    def mark_model_next(
+        fn: Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+    ) -> Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]]:
+        async def run(params: ModelHookParams, ctx: GenerateMiddlewareContext) -> ModelResponse:
+            result = await fn(params, ctx)
+            if isinstance(result, ModelResponse):
+                turn.model_returned = True
+            return result
+
+        return run
+
     async def dispatch_model(
         params: ModelHookParams,
         ctx: GenerateMiddlewareContext,
@@ -1044,7 +1108,7 @@ async def _generate_action_turn(
         runner: Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]] = next_fn
         for mw in reversed(middleware):
             _mw = mw
-            _inner = runner
+            _inner = mark_model_next(runner)
 
             async def run_next(
                 params: ModelHookParams,
@@ -1069,24 +1133,11 @@ async def _generate_action_turn(
         ctx: GenerateMiddlewareContext,
     ) -> ModelResponse:
         """Execute one turn of the generate loop (model call + optional tool resolution)."""
-        # wrap_generate already ran. The name on options is the action.
         turn_options = params.options
-        turn_model, turn_tools, format_def = await resolve_parameters(registry, turn_options)
-        turn.name = turn_model.name
-        if turn_model.kind == ActionKind.BACKGROUND_MODEL and turn_options.resume is not None:
-            raise GenkitError(
-                status='FAILED_PRECONDITION',
-                message=(
-                    f"Cannot resume background model '{turn_model.name}'; "
-                    'a background start cannot satisfy an interrupted tool turn'
-                ),
-                reason=RuntimeErrorReason.INVALID_RESUME,
-            )
-        turn_options, turn.formatter = apply_format(turn_options, format_def)
+        turn_model = resolved_turn.model
+        turn_tools = resolved_turn.tools
+        turn.formatter = resolved_turn.formatter
         turn.output = turn_options.output
-        if turn_options.resources:
-            turn_options = await apply_resources(registry, turn_options, run_ctx.abort_signal)
-        assert_valid_tool_names(turn_tools)
 
         (
             revised_request,
@@ -1124,6 +1175,7 @@ async def _generate_action_turn(
             request = _augment_with_context(request)
 
         async def next_fn(params: ModelHookParams, c: GenerateMiddlewareContext) -> ModelResponse:
+            turn.model_entered = True
             if is_debug_enabled(logger):
                 logger.debug(
                     'calling model',
@@ -1151,10 +1203,13 @@ async def _generate_action_turn(
 
         try:
             with chunks.intercept_model_stream(ctx, role=Role.MODEL):
-                model_response = await dispatch_model(
-                    ModelHookParams(request=request),
-                    ctx,
-                    next_fn,
+                model_response = as_model_response(
+                    raw=await dispatch_model(
+                        ModelHookParams(request=request),
+                        ctx,
+                        next_fn,
+                    ),
+                    name=turn_model.name,
                 )
         except (Exception, asyncio.CancelledError) as exc:
             return closed_round_from_exc(
@@ -1363,6 +1418,7 @@ async def _generate_action_turn(
                 ctx=run_ctx,
             )
 
+        next_request.model = resolved_turn.model.name
         return await _generate_action_turn(
             registry=registry,
             raw_request=next_request,
@@ -1370,6 +1426,7 @@ async def _generate_action_turn(
             current_turn=current_turn + 1,
             message_index=chunks.message_index + 1,
             latest_messages=latest_messages,
+            resolved_turn=resolved_turn,
         )
 
     generate_params = GenerateHookParams(
@@ -1385,19 +1442,20 @@ async def _generate_action_turn(
         ctx: GenerateMiddlewareContext,
     ) -> ModelResponse:
         nonlocal iteration_finished, finished_response
+        turn.next_called = True
         result = await run_one_iteration(params, ctx)
         finished_response = result
         iteration_finished = True
         return result
 
     try:
-        response = await dispatch_generate(generate_params, run_ctx, finish_iteration)
+        response = as_model_response(
+            raw=await dispatch_generate(generate_params, run_ctx, finish_iteration),
+            name=turn.name or 'generate',
+        )
     except (Exception, asyncio.CancelledError) as exc:
-        if current_turn == 0 and not iteration_finished and not isinstance(exc, asyncio.CancelledError):
-            # Nothing has run yet. Same as a bad prompt= — raise.
-            raise
         return closed_round_from_exc(
-            response=finished_response,
+            response=finished_response or turn.generate_result,
             messages=latest_messages,
             exc=exc,
             caller_stopped=run_ctx.abort_signal.is_set() or isinstance(exc, asyncio.CancelledError),
@@ -2012,10 +2070,10 @@ async def _resolve_resume_options(
     if not raw_request.resume:
         return (raw_request, None, None)
 
-    messages = raw_request.messages
-    last_message = messages[-1]
-    tool_requests = [p for p in last_message.content if p.root.tool_request]
-    if not last_message or last_message.role != Role.MODEL or len(tool_requests) == 0:
+    messages = list(raw_request.messages or [])
+    last_message = messages[-1] if messages else None
+    tool_requests = [p for p in last_message.content if p.root.tool_request] if last_message else []
+    if last_message is None or last_message.role != Role.MODEL or len(tool_requests) == 0:
         raise GenkitError(
             status='FAILED_PRECONDITION',
             message=(

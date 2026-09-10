@@ -900,7 +900,7 @@ class RerouteConfig(BaseModel):
 
 
 class Reroute(BaseMiddleware[RerouteConfig]):
-    """Swap ``params.options.model`` before the turn resolves."""
+    """Tries to swap ``params.options.model``. The door already bound the action."""
 
     async def wrap_generate(
         self,
@@ -979,19 +979,19 @@ def assert_ticket(response: ModelResponse, *, op_id: str = 'bg-op-123') -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrap_generate_reroute_to_background_starts_the_job(ai: Genkit) -> None:
-    """A wrap_generate that sets options.model to a Veo id must actually start Veo."""
+async def test_wrap_generate_reroute_to_background_keeps_the_named_model(ai: Genkit) -> None:
+    """A hook that writes a Veo id does not start Veo. They named a chat model."""
     register_bg_model(ai)
     register_plain(ai)
 
     response = await ai.generate(model='plain', prompt='a cat', use=[Reroute(to='bg-model')])
 
-    assert_ticket(response)
+    assert_chat(response, text='from-plain')
 
 
 @pytest.mark.asyncio
-async def test_wrap_generate_reroute_from_background_runs_plain(ai: Genkit) -> None:
-    """The reverse swap must call the chat model and never start()."""
+async def test_wrap_generate_reroute_from_background_still_starts(ai: Genkit) -> None:
+    """They named a background model. A hook cannot turn that into a chat call."""
     starts: list[str] = []
 
     register_bg_model(ai, starts=starts)
@@ -999,35 +999,34 @@ async def test_wrap_generate_reroute_from_background_runs_plain(ai: Genkit) -> N
 
     response = await ai.generate(model='bg-model', prompt='a cat', use=[Reroute(to='plain')])
 
-    assert_chat(response, text='from-plain')
-    assert starts == []
+    assert_ticket(response)
+    assert starts == ['start']
 
 
 @pytest.mark.asyncio
-async def test_wrap_generate_reroute_same_kind_uses_the_new_model(ai: Genkit) -> None:
-    """A flash→pro swap is the same bug without a background model in the mix."""
+async def test_wrap_generate_reroute_same_kind_keeps_the_named_model(ai: Genkit) -> None:
+    """flash→pro in a hook still runs flash."""
     register_plain(ai, name='flash', text='from-flash')
     register_plain(ai, name='pro', text='from-pro')
 
     response = await ai.generate(model='flash', prompt='hi', use=[Reroute(to='pro')])
 
-    assert_chat(response, text='from-pro')
+    assert_chat(response, text='from-flash')
 
 
 @pytest.mark.asyncio
-async def test_wrap_generate_reroute_to_missing_model_is_not_found(ai: Genkit) -> None:
-    """A reroute to a name that is not registered fails at resolve, not silently."""
+async def test_wrap_generate_reroute_to_missing_model_keeps_the_named_model(ai: Genkit) -> None:
+    """A swap to a missing name is ignored. The model they named still runs."""
     register_plain(ai)
 
-    with pytest.raises(GenkitError) as raised:
-        await ai.generate(model='plain', prompt='hi', use=[Reroute(to='no-such-model')])
+    response = await ai.generate(model='plain', prompt='hi', use=[Reroute(to='no-such-model')])
 
-    assert raised.value.status == 'NOT_FOUND'
+    assert_chat(response, text='from-plain')
 
 
 @pytest.mark.asyncio
-async def test_wrap_generate_in_place_model_assignment_runs_the_new_model(ai: Genkit) -> None:
-    """Writing options.model in place is the same swap as model_copy."""
+async def test_wrap_generate_in_place_model_assignment_keeps_the_named_model(ai: Genkit) -> None:
+    """Writing options.model in place does not change which action runs."""
     register_plain(ai, name='flash', text='from-flash')
     register_plain(ai, name='pro', text='from-pro')
 
@@ -1043,17 +1042,19 @@ async def test_wrap_generate_in_place_model_assignment_runs_the_new_model(ai: Ge
 
     response = await ai.generate(model='flash', prompt='hi', use=[InPlace()])
 
-    assert_chat(response, text='from-pro')
+    assert_chat(response, text='from-flash')
 
 
 @pytest.mark.asyncio
-async def test_wrap_generate_rescues_a_missing_model_name(ai: Genkit) -> None:
-    """The original name is never resolved. A swap to a real model runs that model."""
+async def test_wrap_generate_cannot_rescue_a_missing_model_name(ai: Genkit) -> None:
+    """A missing name fails at the door, before a hook can rewrite it."""
     register_plain(ai)
 
-    response = await ai.generate(model='no-such-model', prompt='hi', use=[Reroute(to='plain')])
+    with pytest.raises(GenkitError) as raised:
+        await ai.generate(model='no-such-model', prompt='hi', use=[Reroute(to='plain')])
 
-    assert_chat(response, text='from-plain')
+    assert raised.value.status == 'NOT_FOUND'
+    assert raised.value.reason is RuntimeErrorReason.MODEL_NOT_FOUND
 
 
 @pytest.mark.asyncio
@@ -1079,50 +1080,8 @@ async def test_resume_restart_on_video_without_swap_does_not_run_the_tool(ai: Ge
 
 
 @pytest.mark.asyncio
-async def test_wrap_generate_resume_respond_on_video_swaps_to_flash_and_continues(ai: Genkit) -> None:
-    """Swap off Veo before resolve. Resume stitches, then flash writes the next message."""
-    starts: list[str] = []
-
-    register_bg_model(ai, starts=starts)
-    register_plain(ai)
-
-    response = await ai.generate(
-        model='bg-model',
-        messages=interrupted_history(),
-        resume_respond=[respond_ping()],
-        use=[Reroute(to='plain')],
-    )
-
-    assert_chat(response, text='from-plain', roles=[Role.USER, Role.MODEL, Role.TOOL, Role.MODEL])
-    assert starts == []
-
-
-@pytest.mark.asyncio
-async def test_wrap_generate_resume_restart_on_video_swaps_to_flash_runs_the_tool(ai: Genkit) -> None:
-    """Swap off Veo, then the restarted tool runs and flash continues."""
-    starts: list[str] = []
-    runs: list[str] = []
-
-    register_bg_model(ai, starts=starts)
-    register_plain(ai)
-    register_ping(ai, runs)
-
-    response = await ai.generate(
-        model='bg-model',
-        messages=interrupted_history(),
-        resume_restart=[restart_ping()],
-        tools=['ping'],
-        use=[Reroute(to='plain')],
-    )
-
-    assert_chat(response, text='from-plain', roles=[Role.USER, Role.MODEL, Role.TOOL, Role.MODEL])
-    assert starts == []
-    assert runs == ['ping']
-
-
-@pytest.mark.asyncio
-async def test_wrap_generate_resume_respond_on_flash_swaps_to_video_raises(ai: Genkit) -> None:
-    """A swap onto Veo during resume is still a video start. Don't bill start()."""
+async def test_wrap_generate_cannot_swap_off_video_to_resume(ai: Genkit) -> None:
+    """They named Veo. A hook cannot turn resume into a chat continue."""
     starts: list[str] = []
 
     register_bg_model(ai, starts=starts)
@@ -1130,10 +1089,10 @@ async def test_wrap_generate_resume_respond_on_flash_swaps_to_video_raises(ai: G
 
     with pytest.raises(GenkitError, match='Cannot resume background model') as raised:
         await ai.generate(
-            model='plain',
+            model='bg-model',
             messages=interrupted_history(),
             resume_respond=[respond_ping()],
-            use=[Reroute(to='bg-model')],
+            use=[Reroute(to='plain')],
         )
 
     assert raised.value.status == 'FAILED_PRECONDITION'
@@ -1141,8 +1100,8 @@ async def test_wrap_generate_resume_respond_on_flash_swaps_to_video_raises(ai: G
 
 
 @pytest.mark.asyncio
-async def test_wrap_generate_resume_restart_on_flash_swaps_to_video_does_not_run_the_tool(ai: Genkit) -> None:
-    """Swap onto Veo: reject before the restarted tool runs."""
+async def test_wrap_generate_cannot_swap_off_video_to_restart_a_tool(ai: Genkit) -> None:
+    """They named Veo. A hook cannot make a resume restart run the tool."""
     starts: list[str] = []
     runs: list[str] = []
 
@@ -1152,11 +1111,11 @@ async def test_wrap_generate_resume_restart_on_flash_swaps_to_video_does_not_run
 
     with pytest.raises(GenkitError, match='Cannot resume background model') as raised:
         await ai.generate(
-            model='plain',
+            model='bg-model',
             messages=interrupted_history(),
             resume_restart=[restart_ping()],
             tools=['ping'],
-            use=[Reroute(to='bg-model')],
+            use=[Reroute(to='plain')],
         )
 
     assert raised.value.status == 'FAILED_PRECONDITION'
@@ -1165,33 +1124,104 @@ async def test_wrap_generate_resume_restart_on_flash_swaps_to_video_does_not_run
 
 
 @pytest.mark.asyncio
-async def test_wrap_generate_swaps_to_pro_on_the_turn_after_a_tool(ai: Genkit) -> None:
-    """After a closed tool round, wrap_generate on that turn picks pro."""
-    register_tool_caller(ai, name='flash')
+async def test_wrap_generate_resume_on_flash_ignores_swap_to_video(ai: Genkit) -> None:
+    """They named a chat model. Resume continues there even if a hook writes Veo."""
+    starts: list[str] = []
+
+    register_bg_model(ai, starts=starts)
+    register_plain(ai)
+
+    response = await ai.generate(
+        model='plain',
+        messages=interrupted_history(),
+        resume_respond=[respond_ping()],
+        use=[Reroute(to='bg-model')],
+    )
+
+    assert_chat(response, text='from-plain', roles=[Role.USER, Role.MODEL, Role.TOOL, Role.MODEL])
+    assert starts == []
+
+
+@pytest.mark.asyncio
+async def test_wrap_generate_resume_restart_on_flash_ignores_swap_to_video(ai: Genkit) -> None:
+    """A resume restart on a chat model runs the tool. A Veo id in the hook does not."""
+    starts: list[str] = []
+    runs: list[str] = []
+
+    register_bg_model(ai, starts=starts)
+    register_plain(ai)
+    register_ping(ai, runs)
+
+    response = await ai.generate(
+        model='plain',
+        messages=interrupted_history(),
+        resume_restart=[restart_ping()],
+        tools=['ping'],
+        use=[Reroute(to='bg-model')],
+    )
+
+    assert_chat(response, text='from-plain', roles=[Role.USER, Role.MODEL, Role.TOOL, Role.MODEL])
+    assert starts == []
+    assert runs == ['ping']
+
+
+@pytest.mark.asyncio
+async def test_wrap_generate_cannot_swap_model_on_the_turn_after_a_tool(ai: Genkit) -> None:
+    """After a closed tool round the named model still runs, not the hook's rewrite."""
+    calls = 0
+
+    async def flash(_request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return ModelResponse(
+                message=Message(
+                    role=Role.MODEL,
+                    content=[Part(root=ToolRequestPart(tool_request=ToolRequest(name='ping', input={}, ref='1')))],
+                )
+            )
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='from-flash'))]))
+
+    ai.define_model(name='flash', fn=flash)
     register_plain(ai, name='pro', text='from-pro')
     register_ping(ai)
 
     response = await ai.generate(model='flash', prompt='hi', tools=['ping'], use=[Reroute(to='pro', turn=1)])
 
-    assert_chat(response, text='from-pro', roles=[Role.USER, Role.MODEL, Role.TOOL, Role.MODEL])
+    assert_chat(response, text='from-flash', roles=[Role.USER, Role.MODEL, Role.TOOL, Role.MODEL])
+    assert calls == 2
 
 
 @pytest.mark.asyncio
-async def test_wrap_generate_swaps_to_video_on_the_turn_after_a_tool(ai: Genkit) -> None:
-    """After a closed tool round, a swap to Veo starts the job."""
-    register_tool_caller(ai, name='flash')
+async def test_wrap_generate_cannot_swap_to_video_on_the_turn_after_a_tool(ai: Genkit) -> None:
+    """After a closed tool round a Veo id in the hook does not start a job."""
+    calls = 0
+
+    async def flash(_request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return ModelResponse(
+                message=Message(
+                    role=Role.MODEL,
+                    content=[Part(root=ToolRequestPart(tool_request=ToolRequest(name='ping', input={}, ref='1')))],
+                )
+            )
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='from-flash'))]))
+
+    ai.define_model(name='flash', fn=flash)
     register_bg_model(ai)
     register_ping(ai)
 
     response = await ai.generate(model='flash', prompt='hi', tools=['ping'], use=[Reroute(to='bg-model', turn=1)])
 
-    assert_ticket(response)
-    assert [m.role for m in response.messages] == [Role.USER, Role.MODEL, Role.TOOL]
+    assert_chat(response, text='from-flash', roles=[Role.USER, Role.MODEL, Role.TOOL, Role.MODEL])
+    assert response.operation is None
 
 
 @pytest.mark.asyncio
-async def test_generate_stream_swap_to_pro_streams_pro_text(ai: Genkit) -> None:
-    """generate_stream follows the same swap: chunks and the final reply are pro."""
+async def test_generate_stream_keeps_the_named_model_when_hook_swaps(ai: Genkit) -> None:
+    """generate_stream uses the name they passed. Chunks and the final reply match."""
     register_plain(ai, name='flash', text='from-flash')
     register_plain(ai, name='pro', text='from-pro')
 
@@ -1201,13 +1231,13 @@ async def test_generate_stream_swap_to_pro_streams_pro_text(ai: Genkit) -> None:
         texts.append(chunk.text)
     response = await stream.response
 
-    assert ''.join(texts) == 'from-pro'
-    assert_chat(response, text='from-pro')
+    assert ''.join(texts) == 'from-flash'
+    assert_chat(response, text='from-flash')
 
 
 @pytest.mark.asyncio
-async def test_generate_stream_swap_to_video_returns_a_ticket(ai: Genkit) -> None:
-    """A stream swap to Veo has no token chunks and a ticket on the final response."""
+async def test_generate_stream_keeps_chat_when_hook_writes_video(ai: Genkit) -> None:
+    """A stream hook that writes Veo still streams the chat model they named."""
     register_plain(ai)
     register_bg_model(ai)
 
@@ -1217,30 +1247,8 @@ async def test_generate_stream_swap_to_video_returns_a_ticket(ai: Genkit) -> Non
         texts.append(chunk.text)
     response = await stream.response
 
-    assert texts == []
-    assert_ticket(response)
-
-
-@pytest.mark.asyncio
-async def test_check_operation_polls_the_ticket_from_a_swapped_video_start(ai: Genkit) -> None:
-    """The ticket from a flash→Veo swap is what check_operation polls."""
-
-    async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
-        return Operation(id='bg-op-123', done=False)
-
-    async def check(op: Operation, _ctx: ActionRunContext) -> Operation:
-        return Operation(id=op.id, done=True, action=op.action)
-
-    ai.define_background_model(name='bg-model', start=start, check=check)
-    register_plain(ai)
-
-    response = await ai.generate(model='plain', prompt='a cat', use=[Reroute(to='bg-model')])
-    assert_ticket(response)
-
-    updated = await ai.check_operation(response.operation)
-    assert updated.id == 'bg-op-123'
-    assert updated.done is True
-    assert updated.action == '/background-model/bg-model'
+    assert ''.join(texts) == 'from-plain'
+    assert_chat(response, text='from-plain')
 
 
 @pytest.mark.asyncio
@@ -1276,8 +1284,8 @@ async def test_wrap_generate_on_resume_sees_the_model_message_and_resume(ai: Gen
 
 
 @pytest.mark.asyncio
-async def test_wrap_generate_short_circuit_skips_a_missing_model(ai: Genkit) -> None:
-    """A hook that returns without next never resolves the original name."""
+async def test_wrap_generate_short_circuit_cannot_skip_a_missing_model(ai: Genkit) -> None:
+    """A missing name fails at the door, before a hook can return a cached reply."""
 
     class ReturnsFlashWithoutNext(BaseMiddleware):
         async def wrap_generate(
@@ -1291,9 +1299,11 @@ async def test_wrap_generate_short_circuit_skips_a_missing_model(ai: Genkit) -> 
                 finish_reason=FinishReason.STOP,
             )
 
-    response = await ai.generate(model='no-such-model', prompt='hi', use=[ReturnsFlashWithoutNext()])
+    with pytest.raises(GenkitError) as raised:
+        await ai.generate(model='no-such-model', prompt='hi', use=[ReturnsFlashWithoutNext()])
 
-    assert_chat(response, text='FLASH')
+    assert raised.value.status == 'NOT_FOUND'
+    assert raised.value.reason is RuntimeErrorReason.MODEL_NOT_FOUND
 
 
 @pytest.mark.asyncio
@@ -1309,12 +1319,12 @@ async def test_generate_operation_swap_from_flash_is_not_long_running(ai: Genkit
 
 
 @pytest.mark.asyncio
-async def test_generate_operation_swap_from_video_to_flash_is_missing_operation(ai: Genkit) -> None:
-    """generate_operation on Veo plus a swap to flash runs flash, then wants a ticket."""
+async def test_generate_operation_keeps_the_named_background_model(ai: Genkit) -> None:
+    """generate_operation on Veo returns that ticket. A hook cannot run flash instead."""
     register_bg_model(ai)
     register_plain(ai)
 
-    with pytest.raises(GenkitError, match='did not return an operation') as raised:
-        await ai.generate_operation(model='bg-model', prompt='a cat', use=[Reroute(to='plain')])
+    operation = await ai.generate_operation(model='bg-model', prompt='a cat', use=[Reroute(to='plain')])
 
-    assert raised.value.status == 'FAILED_PRECONDITION'
+    assert operation.id == 'bg-op-123'
+    assert operation.action == '/background-model/bg-model'

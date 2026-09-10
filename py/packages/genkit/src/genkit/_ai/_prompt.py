@@ -725,13 +725,6 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
     tools = await resolve_tools_from_options(registry, options.tools)
     tool_defs = [to_tool_definition(tool) for tool in tools] if tools else []
 
-    if not options.messages:
-        raise GenkitError(
-            status='INVALID_ARGUMENT',
-            message='at least one message is required in generate request',
-            reason=RuntimeErrorReason.INVALID_INPUT,
-        )
-
     output_config = OutputConfig(
         content_type=options.output.content_type if options.output else None,
         format=options.output.format if options.output else None,
@@ -741,7 +734,7 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
     )
     return ModelRequest(
         # Field validators auto-wrap MessageData -> Message and DocumentData -> Document
-        messages=options.messages,  # type: ignore[arg-type]
+        messages=options.messages or [],  # type: ignore[arg-type]
         config=options.config if options.config is not None else {},  # type: ignore[arg-type]
         docs=options.docs if options.docs else None,  # type: ignore[arg-type]
         tools=tool_defs,
