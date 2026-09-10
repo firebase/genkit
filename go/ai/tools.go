@@ -149,37 +149,27 @@ func IsToolInterruptError(err error) (bool, map[string]any) {
 	if !errors.As(err, &ie) {
 		return false, nil
 	}
-	m, _ := interruptPayload(ie.Data)
+	m, _ := objectPayload(ie.Data, "interrupt data")
 	return true, m
 }
 
-// interruptPayload converts interrupt data to the JSON object the wire contract
-// requires: nil stays nil (a bare interrupt), a map is returned as is, and any
-// other value is converted through JSON. A value that serializes to a JSON
-// scalar or array is rejected.
-func interruptPayload(data any) (map[string]any, error) {
+// objectPayload converts an interrupt or resume payload to the JSON object the
+// wire contract requires: nil stays nil (a bare interrupt or restart), a map
+// is returned as is, and any other value is converted through JSON. A value
+// that serializes to a JSON scalar or array is rejected; what names the
+// payload in the error.
+func objectPayload(data any, what string) (map[string]any, error) {
 	switch v := data.(type) {
 	case nil:
 		return nil, nil
 	case map[string]any:
 		return v, nil
-	default:
-		m, err := base.StructToMap(v)
-		if err != nil {
-			return nil, fmt.Errorf("must serialize to a JSON object (a struct or map), got %T: %w", data, err)
-		}
-		return m, nil
 	}
-}
-
-// interruptData converts the metadata carried by an interrupt error into the
-// payload for [ToolInterrupt.Data]. A nil map becomes an untyped nil (a bare
-// interrupt), not a nil map in an interface.
-func interruptData(metadata map[string]any) any {
-	if metadata == nil {
-		return nil
+	m, err := base.StructToMap(data)
+	if err != nil {
+		return nil, fmt.Errorf("%s must serialize to a JSON object (a struct or map), got %T: %w", what, data, err)
 	}
-	return metadata
+	return m, nil
 }
 
 // InterruptOptions provides configuration for tool interruption.
@@ -314,7 +304,7 @@ func (tc *ToolContext) Interrupt(opts *InterruptOptions) error {
 	if opts == nil {
 		opts = &InterruptOptions{}
 	}
-	return &base.ToolInterruptError{Data: interruptData(opts.Metadata)}
+	return &base.ToolInterruptError{Data: opts.Metadata}
 }
 
 // InterruptWith is a convenience function to interrupt a tool with a strongly-typed metadata value.
@@ -327,7 +317,7 @@ func InterruptWith[T any](tc *ToolContext, meta T) error {
 	if err != nil {
 		return fmt.Errorf("InterruptWith: failed to convert metadata: %w", err)
 	}
-	return &base.ToolInterruptError{Data: interruptData(m)}
+	return &base.ToolInterruptError{Data: m}
 }
 
 // InterruptAs returns the data an interrupted tool request carries, decoded
@@ -491,7 +481,7 @@ func NewMultipartTool[In any](name, description string, fn MultipartToolFunc[In]
 	applyToolOutputSchema(metadata, toolOpts.OutputSchema)
 	applyStrictMetadata(metadata, toolOpts.StrictSchema)
 	wrapped := func(ctx context.Context, input In) (*MultipartToolResponse, error) {
-		return runToolFunc(ctx, name, func(ctx context.Context) (*MultipartToolResponse, error) {
+		return runToolFunc(ctx, func(ctx context.Context) (*MultipartToolResponse, error) {
 			return fn(newToolContext(ctx), input)
 		})
 	}
@@ -548,7 +538,7 @@ func newTool[In, Out, Res any](ctor, name, description string, opts []ToolOption
 	applyToolOutputSchema(metadata, toolOpts.OutputSchema)
 	applyStrictMetadata(metadata, toolOpts.StrictSchema)
 	wrapped := func(ctx context.Context, input In) (*MultipartToolResponse, error) {
-		return runToolFunc(ctx, name, func(ctx context.Context) (*MultipartToolResponse, error) {
+		return runToolFunc(ctx, func(ctx context.Context) (*MultipartToolResponse, error) {
 			output, err := run(ctx, input)
 			if err != nil {
 				return nil, err
@@ -599,10 +589,9 @@ func newToolContext(ctx context.Context) *ToolContext {
 }
 
 // runToolFunc runs one tool invocation: it installs the part sink that
-// [tool.AttachParts] writes to, runs the function, folds the attached parts
-// into the response, and validates an interrupt's payload where the tool ran
-// rather than later in the generate loop.
-func runToolFunc(ctx context.Context, name string, run func(ctx context.Context) (*MultipartToolResponse, error)) (*MultipartToolResponse, error) {
+// [tool.AttachParts] writes to, runs the function, and folds the attached
+// parts into the response.
+func runToolFunc(ctx context.Context, run func(ctx context.Context) (*MultipartToolResponse, error)) (*MultipartToolResponse, error) {
 	// The sink may be called from goroutines the tool function spawns
 	// (mirroring tool.SendPartial, which is also safe for concurrent use), so
 	// guard the slice.
@@ -618,12 +607,6 @@ func runToolFunc(ctx context.Context, name string, run func(ctx context.Context)
 
 	resp, err := run(ctx)
 	if err != nil {
-		var ie *base.ToolInterruptError
-		if errors.As(err, &ie) {
-			if vErr := validateInterruptPayload(ie.Data, "interrupt data"); vErr != nil {
-				return nil, fmt.Errorf("tool %q: %w", name, vErr)
-			}
-		}
 		return nil, err
 	}
 
@@ -905,7 +888,7 @@ func (p *Part) toToolRestart(fnName string, resume, newInput any) (*Part, error)
 	if !p.IsInterrupt() {
 		return nil, status.Errorf(ErrInvalidPart, "%s: part is not an interrupted tool request", fnName)
 	}
-	if err := validateInterruptPayload(resume, "resume data"); err != nil {
+	if _, err := objectPayload(resume, "resume data"); err != nil {
 		return nil, status.Errorf(status.ErrInvalidArgument, "%s: %w", fnName, err)
 	}
 	return buildRestartPart(p, resume, newInput), nil
@@ -951,7 +934,7 @@ func (t *InterruptibleToolAction[In, Out, Res]) Restart(p *Part, opts *RestartOp
 	if opts == nil {
 		opts = &RestartOptions{}
 	}
-	if err := validateInterruptPayload(opts.ResumedMetadata, "resume data"); err != nil {
+	if _, err := objectPayload(opts.ResumedMetadata, "resume data"); err != nil {
 		return nil
 	}
 	return buildRestartPart(p, opts.ResumedMetadata, opts.ReplaceInput)
@@ -987,7 +970,7 @@ func (t *InterruptibleToolAction[In, Out, Res]) RestartWith(toolReq *Part, opts 
 	for _, opt := range opts {
 		opt.applyRestartWith(cfg)
 	}
-	if err := validateInterruptPayload(cfg.ResumedMetadata, "resume data"); err != nil {
+	if _, err := objectPayload(cfg.ResumedMetadata, "resume data"); err != nil {
 		return nil, status.Errorf(status.ErrInvalidArgument, "%s: %w", fnName, err)
 	}
 	return buildRestartPart(toolReq, cfg.ResumedMetadata, cfg.ReplaceInput), nil
@@ -1033,19 +1016,13 @@ func buildRestartPart(interruptPart *Part, resume, newInput any) *Part {
 	return restartPart
 }
 
-// bareIfNil normalizes a resume payload: an untyped nil, a nil map, or a nil
-// pointer all mean a bare restart, so they become an untyped nil rather than
-// a typed nil inside the interface, which would serialize as JSON null
-// instead of the bare-restart marker.
+// bareIfNil normalizes an interrupt or resume payload: an untyped nil, a nil
+// map, or a nil pointer all mean a bare interrupt or restart, so they become
+// an untyped nil rather than a typed nil inside the interface, which would
+// serialize as JSON null instead of the bare marker.
 func bareIfNil(v any) any {
-	if v == nil {
+	if base.IsNil(v) {
 		return nil
-	}
-	switch rv := reflect.ValueOf(v); rv.Kind() {
-	case reflect.Map, reflect.Pointer, reflect.Slice, reflect.Interface:
-		if rv.IsNil() {
-			return nil
-		}
 	}
 	return v
 }
@@ -1061,41 +1038,6 @@ func newResponsePart(interruptPart *Part, output any, metadata map[string]any) *
 		resp.Metadata[metaInterruptResponse] = metadata
 	}
 	return resp
-}
-
-// resumePayload converts a restart's resume data to the map the tool sees on
-// its context. A payload set in process is typically a struct, so it is
-// converted the same way a JSON round trip through another runtime would; a
-// bare restart yields an empty map, which still marks the call as a resumption.
-func resumePayload(resume any) (map[string]any, error) {
-	switch v := resume.(type) {
-	case nil:
-		return map[string]any{}, nil
-	case map[string]any:
-		return v, nil
-	default:
-		m, err := base.StructToMap(v)
-		if err != nil {
-			return nil, fmt.Errorf("resume data must serialize to a JSON object (a struct or map), got %T: %w", resume, err)
-		}
-		return m, nil
-	}
-}
-
-// validateInterruptPayload checks that an interrupt or resume payload
-// serializes to a JSON object, as the wire contract requires (an object, or
-// bare when the payload is nil). what names the payload in the error message.
-func validateInterruptPayload(data any, what string) error {
-	if data == nil {
-		return nil
-	}
-	if _, ok := data.(map[string]any); ok {
-		return nil
-	}
-	if _, err := base.StructToMap(data); err != nil {
-		return fmt.Errorf("%s must serialize to a JSON object (a struct or map), got %T: %w", what, data, err)
-	}
-	return nil
 }
 
 // resolveUniqueTools resolves the list of tool refs to a list of all tool names and new tools that must be registered.

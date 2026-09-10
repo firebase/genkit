@@ -1531,11 +1531,16 @@ type toolRunnerFunc = func(ctx context.Context, tool Tool, req *ToolRequest) (*M
 // interruptedPart returns the copy of tool request p that records the
 // interrupt raised for it, carrying the interrupt's data (nil for a bare
 // interrupt) as typed state; the wire marker is written when the part is
-// marshaled.
-func interruptedPart(p *Part, tie *base.ToolInterruptError) *Part {
+// marshaled. The data is checked here, where every interrupt lands whether a
+// tool function or a WrapTool hook raised it, because the part folds it into
+// the wire metadata as a JSON object.
+func interruptedPart(p *Part, tie *base.ToolInterruptError) (*Part, error) {
+	if _, err := objectPayload(tie.Data, "interrupt data"); err != nil {
+		return nil, err
+	}
 	newPart := p.typedClone()
-	newPart.Interrupt = &ToolInterrupt{Data: tie.Data}
-	return newPart
+	newPart.Interrupt = &ToolInterrupt{Data: bareIfNil(tie.Data)}
+	return newPart, nil
 }
 
 // resolvedPart returns the copy of tool request p that records its interrupt,
@@ -1650,7 +1655,12 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 				var tie *base.ToolInterruptError
 				if errors.As(err, &tie) {
 					logger.Debug(ctx, "tool triggered an interrupt", "tool", toolReq.Name)
-					revisedMsg.Content[idx] = interruptedPart(p, tie)
+					interrupt, ierr := interruptedPart(p, tie)
+					if ierr != nil {
+						resultChan <- result[*MultipartToolResponse]{index: idx, err: toolFailureError(ctx, toolReq.Name, ierr)}
+						return
+					}
+					revisedMsg.Content[idx] = interrupt
 					resultChan <- result[*MultipartToolResponse]{index: idx, err: tie}
 					return
 				}
@@ -2239,9 +2249,12 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 				// replaced the input, the original one.
 				resumedCtx := ctx
 				if rs := restartPart.restartState(); rs != nil {
-					resume, err := resumePayload(rs.Resume)
+					resume, err := objectPayload(rs.Resume, "resume data")
 					if err != nil {
 						return nil, status.Errorf(status.ErrInvalidArgument, "handleResumedToolRequest: restart for tool %q: %w", restartPart.ToolRequest.Name, err)
+					}
+					if resume == nil {
+						resume = map[string]any{}
 					}
 					resumedCtx = base.ToolResumeKey.NewContext(resumedCtx, resume)
 					if rs.OriginalInput != nil {
@@ -2259,9 +2272,11 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 					var tie *base.ToolInterruptError
 					if errors.As(err, &tie) {
 						logger.Debug(ctx, "restarted tool triggered an interrupt", "tool", restartPart.ToolRequest.Name)
-						return &resumedToolRequestOutput{
-							interrupt: interruptedPart(p, tie),
-						}, nil
+						interrupt, ierr := interruptedPart(p, tie)
+						if ierr != nil {
+							return nil, toolFailureError(ctx, restartPart.ToolRequest.Name, ierr)
+						}
+						return &resumedToolRequestOutput{interrupt: interrupt}, nil
 					}
 
 					return nil, toolFailureError(ctx, restartPart.ToolRequest.Name, err)

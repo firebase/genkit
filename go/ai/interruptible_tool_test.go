@@ -722,27 +722,42 @@ func TestNewInterruptibleTool_RejectsNonObjectResumeType(t *testing.T) {
 }
 
 // TestInterrupt_NonObjectData_ReturnsClearError covers the same constraint on
-// the interrupt side: interrupting with a scalar surfaces a clear error when
-// the tool runs, for both kinds of tool.
+// the interrupt side: interrupting with a scalar fails the call with a clear
+// error when the loop records the interrupt, for both kinds of tool.
 func TestInterrupt_NonObjectData_ReturnsClearError(t *testing.T) {
-	reg := newToolTestRegistry(t)
-	interruptible := defineTestInterruptibleTool(reg, "bad", "interrupts with a scalar",
-		func(ctx context.Context, _ struct{}, _ *struct{}) (string, error) {
-			return "", tool.Interrupt("not an object")
-		})
-	plain := defineTestTool(reg, "badPlain", "interrupts with a scalar",
-		func(ctx context.Context, _ struct{}) (string, error) {
-			return "", tool.Interrupt("not an object")
-		})
+	for _, tc := range []struct {
+		name   string
+		define func(reg *registry.Registry) ai.Tool
+	}{
+		{"interruptible", func(reg *registry.Registry) ai.Tool {
+			return defineTestInterruptibleTool(reg, "bad", "interrupts with a scalar",
+				func(ctx context.Context, _ struct{}, _ *struct{}) (string, error) {
+					return "", tool.Interrupt("not an object")
+				})
+		}},
+		{"plain", func(reg *registry.Registry) ai.Tool {
+			return defineTestTool(reg, "bad", "interrupts with a scalar",
+				func(ctx context.Context, _ struct{}) (string, error) {
+					return "", tool.Interrupt("not an object")
+				})
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reg := newToolTestRegistry(t)
+			tl := tc.define(reg)
+			defineToolThenFinishModel(reg, ai.NewToolRequestPart(&ai.ToolRequest{Name: "bad", Input: map[string]any{}}))
 
-	for _, tl := range []ai.Tool{interruptible, plain} {
-		_, err := tl.RunRaw(context.Background(), struct{}{})
-		if err == nil {
-			t.Fatalf("%s: expected an error interrupting with non-object data", tl.Name())
-		}
-		if !strings.Contains(err.Error(), "JSON object") {
-			t.Errorf("%s: error = %q, want it to mention the JSON object constraint", tl.Name(), err)
-		}
+			_, err := ai.Generate(context.Background(), reg,
+				ai.WithModelName("test/model"),
+				ai.WithPrompt("go"),
+				ai.WithTools(tl))
+			if err == nil {
+				t.Fatal("expected an error interrupting with non-object data")
+			}
+			if !strings.Contains(err.Error(), "JSON object") {
+				t.Errorf("error = %q, want it to mention the JSON object constraint", err)
+			}
+		})
 	}
 }
 
