@@ -976,51 +976,106 @@ func buildModelChain(mws []namedHooks, fn ModelFunc) ModelFunc {
 // its context from the one it was handed keeps the flag.
 var toolRanKey = base.NewContextKey[*bool]()
 
+// toolStage is one WrapTool hook of a tool call's chain, in chain order; the
+// tool itself is the stage after the last one. id identifies the stage on an
+// interrupt it raises ([ToolInterrupt.RaisedBy]): the middleware's name, made
+// unique within the chain with a "#n" suffix when the name repeats, as inline
+// middleware's does.
+type toolStage struct {
+	id, name string
+	hook     func(ctx context.Context, params *ToolParams, next ToolNext) (*MultipartToolResponse, error)
+}
+
+// toolStages lists the WrapTool hooks of mws in chain order, with their ids.
+func toolStages(mws []namedHooks) []toolStage {
+	var stages []toolStage
+	seen := map[string]int{}
+	for _, mw := range mws {
+		if mw.hooks == nil || mw.hooks.WrapTool == nil {
+			continue
+		}
+		seen[mw.name]++
+		id := mw.name
+		if n := seen[mw.name]; n > 1 {
+			id = fmt.Sprintf("%s#%d", mw.name, n)
+		}
+		stages = append(stages, toolStage{id: id, name: mw.name, hook: mw.hooks.WrapTool})
+	}
+	return stages
+}
+
+// toolStageContext derives the context stage i of a tool call runs with, i
+// == len(stages) being the tool itself. It names the stage, so that
+// tool.Interrupt attributes an interrupt to it, and, when the call is a
+// restart, delivers the restart to the stage it answers: that stage receives
+// the resume payload and the original input; a stage before it, which ran
+// and let the call through, is marked released; a stage after it, which
+// never ran, sees a fresh call, as every stage does when the middleware that
+// raised the interrupt is no longer in the chain. The keys are set on every
+// stage, so nothing a hook's context carries leaks into the next stage.
+func toolStageContext(ctx context.Context, stages []toolStage, i int) context.Context {
+	id := ""
+	if i < len(stages) {
+		id = stages[i].id
+	}
+	ctx = base.ToolHookKey.NewContext(ctx, id)
+	restart := base.ToolRestartKey.FromContext(ctx)
+	if restart == nil {
+		return ctx
+	}
+	answered := len(stages)
+	if restart.RaisedBy != "" {
+		answered = slices.IndexFunc(stages, func(s toolStage) bool { return s.id == restart.RaisedBy })
+	}
+	var resume, original any
+	released := false
+	switch {
+	case i == answered:
+		resume, original = restart.Resume, restart.OriginalInput
+	case i < answered:
+		released = true
+	}
+	ctx = base.ToolResumeKey.NewContext(ctx, resume)
+	ctx = base.ToolOriginalInputKey.NewContext(ctx, original)
+	return base.ToolReleasedKey.NewContext(ctx, released)
+}
+
 // buildToolRunner composes the WrapTool hooks from mws (outer-to-inner) into
 // a single function that executes a tool. The returned function is safe to
 // invoke from concurrent goroutines; each invocation threads its own params
-// through the shared hook chain. When no WrapTool hooks are configured, the
+// through the shared hook chain. Each stage runs with the context
+// toolStageContext derives for it. When no WrapTool hooks are configured, the
 // tool is invoked directly without allocating a ToolParams wrapper.
 func buildToolRunner(mws []namedHooks) func(ctx context.Context, tool Tool, req *ToolRequest) (*MultipartToolResponse, error) {
-	hasHook := false
-	for _, mw := range mws {
-		if mw.hooks != nil && mw.hooks.WrapTool != nil {
-			hasHook = true
-			break
-		}
-	}
-	if !hasHook {
+	stages := toolStages(mws)
+	if len(stages) == 0 {
 		return func(ctx context.Context, tool Tool, req *ToolRequest) (*MultipartToolResponse, error) {
-			return tool.RunRawMultipart(ctx, req.Input)
+			return tool.RunRawMultipart(toolStageContext(ctx, nil, 0), req.Input)
 		}
 	}
 	chain := func(ctx context.Context, params *ToolParams) (*MultipartToolResponse, error) {
 		if ran := toolRanKey.FromContext(ctx); ran != nil {
 			*ran = true
 		}
-		return params.Tool.RunRawMultipart(ctx, params.Request.Input)
+		return params.Tool.RunRawMultipart(toolStageContext(ctx, stages, len(stages)), params.Request.Input)
 	}
-	for i := len(mws) - 1; i >= 0; i-- {
-		mw := mws[i]
-		if mw.hooks == nil || mw.hooks.WrapTool == nil {
-			continue
-		}
-		hook := mw.hooks.WrapTool
-		name := mw.name
+	for i := len(stages) - 1; i >= 0; i-- {
+		stage := stages[i]
 		next := chain
 		chain = func(ctx context.Context, params *ToolParams) (*MultipartToolResponse, error) {
+			ctx = toolStageContext(ctx, stages, i)
 			if !logger.FromContext(ctx).Enabled(ctx, slog.LevelDebug) {
-				return hook(ctx, params, next)
+				return stage.hook(ctx, params, next)
 			}
-			logger.Debug(ctx, "middleware hook started", "middleware", name, "hook", "tool", "tool", params.Tool.Name())
+			logger.Debug(ctx, "middleware hook started", "middleware", stage.name, "hook", "tool", "tool", params.Tool.Name())
 			start := time.Now()
 			var nextCalled atomic.Bool
-			resp, err := hook(ctx, params, func(ctx context.Context, p *ToolParams) (*MultipartToolResponse, error) {
+			resp, err := stage.hook(ctx, params, func(ctx context.Context, p *ToolParams) (*MultipartToolResponse, error) {
 				nextCalled.Store(true)
 				return next(ctx, p)
 			})
 			logger.Debug(ctx, "middleware hook finished",
-				hookLogArgs(name, "tool", start, nextCalled.Load(), err, "tool", params.Tool.Name())...)
+				hookLogArgs(stage.name, "tool", start, nextCalled.Load(), err, "tool", params.Tool.Name())...)
 			return resp, err
 		}
 	}
@@ -1534,14 +1589,16 @@ type toolRunnerFunc = func(ctx context.Context, tool Tool, req *ToolRequest) (*M
 // marshaled. The data is stored as the JSON object it serializes to, the
 // shape it has after a wire hop, so a reader such as [InterruptAs] sees one
 // shape wherever the part came from. tool.Interrupt already normalized it;
-// the conversion here covers an error built with a struct directly.
+// the conversion here covers an error built with a struct directly. The
+// stage that raised the interrupt is recorded with it, for the restart to
+// answer (see restartedToolResponse).
 func interruptedPart(p *Part, tie *base.ToolInterruptError) (*Part, error) {
 	data, err := base.ObjectPayload(tie.Data, "interrupt data")
 	if err != nil {
 		return nil, err
 	}
 	newPart := p.typedClone()
-	newPart.Interrupt = &ToolInterrupt{Data: bareIfNil(data)}
+	newPart.Interrupt = &ToolInterrupt{Data: bareIfNil(data), RaisedBy: tie.RaisedBy}
 	return newPart, nil
 }
 
@@ -2289,9 +2346,10 @@ func respondedToolResponse(tool Tool, respondPart *Part) (*Part, error) {
 }
 
 // restartedToolResponse re-executes tool for a Restart directive and builds
-// its tool response. The tool sees the restart through the context: the
-// resume payload it was given (an empty map for a bare restart, so the call
-// still reads as a resumption) and, when the caller replaced the input, the
+// its tool response. The stage the restart answers, the WrapTool hook that
+// held the call or the tool itself, sees it through the context: the resume
+// payload it was given (an empty map for a bare restart, so the call still
+// reads as a resumption) and, when the caller replaced the input, the
 // original one. The payload rides as given, a map or the caller's struct, and
 // each reader converts it to what it returns, so a typed restart reaches the
 // tool's resume parameter without a conversion. A tool that interrupts again
@@ -2312,20 +2370,30 @@ func restartedToolResponse(ctx context.Context, tool Tool, p, restartPart *Part,
 			// marker reads as a bare restart.
 			logger.Debug(ctx, "resume payload is not a JSON object; restarting with an empty payload", "tool", name, "type", fmt.Sprintf("%T", rs.Resume))
 		}
-		// The payload is checked against the schema the tool advertises
-		// for its resume type, as respondedToolResponse checks a supplied
-		// response against the output schema: a missing or mistyped field
-		// fails the resume here, before the tool runs. A tool that
-		// advertises none (one behind a foreign action) is not checked.
-		if schema, ok := tool.Definition().Metadata[toolResumeSchemaKey].(map[string]any); ok {
-			if err := base.ValidateValue(resume, schema); err != nil {
-				return nil, nil, status.Errorf(status.ErrInvalidArgument, "handleResumedToolRequest: tool %q resume data validation failed: %w", name, err)
+		// A restart answers the stage that raised the interrupt: the
+		// WrapTool hook the interrupted request in history names, or the
+		// tool itself. The hook chain delivers the payload to that stage
+		// alone (see toolStageContext), so a hook's hold never reaches the
+		// tool's resume parameter: the tool re-executes as a fresh call
+		// that may interrupt on its own.
+		raisedBy := ""
+		if it := p.interruptState(); it != nil {
+			raisedBy = it.RaisedBy
+		}
+		// A payload for the tool is checked against the schema the tool
+		// advertises for its resume type, as respondedToolResponse checks
+		// a supplied response against the output schema: a missing or
+		// mistyped field fails the resume here, before the tool runs. A
+		// tool that advertises none (one behind a foreign action) is not
+		// checked, and a hook has no schema to check against.
+		if raisedBy == "" {
+			if schema, ok := tool.Definition().Metadata[toolResumeSchemaKey].(map[string]any); ok {
+				if err := base.ValidateValue(resume, schema); err != nil {
+					return nil, nil, status.Errorf(status.ErrInvalidArgument, "handleResumedToolRequest: tool %q resume data validation failed: %w", name, err)
+				}
 			}
 		}
-		resumedCtx = base.ToolResumeKey.NewContext(resumedCtx, resume)
-		if rs.OriginalInput != nil {
-			resumedCtx = base.ToolOriginalInputKey.NewContext(resumedCtx, rs.OriginalInput)
-		}
+		resumedCtx = base.ToolRestartKey.NewContext(resumedCtx, &base.ToolRestart{Resume: resume, OriginalInput: rs.OriginalInput, RaisedBy: raisedBy})
 	}
 
 	sink := &base.PartSink{}

@@ -267,8 +267,10 @@ func WithResumedMetadata[In any](meta map[string]any) RestartWithOption[In] {
 type ToolContext struct {
 	context.Context
 	// Resumed is the resume payload of a restarted call, as a map, and nil on
-	// a first call. A tool created with [NewInterruptibleTool] receives the
-	// payload typed, as its resume parameter, instead.
+	// a first call or when the restart answers a WrapTool hook's hold rather
+	// than the tool's own interrupt. A tool created with
+	// [NewInterruptibleTool] receives the payload typed, as its resume
+	// parameter, instead.
 	Resumed map[string]any
 	// OriginalInput is the input the tool was first called with when the
 	// caller restarted it with a new one (see
@@ -832,9 +834,11 @@ type InterruptedCall[In, Out, Res any] struct {
 // Interrupted claims part for this tool: it reports whether part is an
 // unresolved interrupt of this tool and, when it is, returns the call with
 // its input decoded. A nil part, a part of another kind, an interrupt already
-// resolved, an interrupt of another tool, or an input that no longer decodes
-// as In all report false. Iterate [ModelResponse.Interrupts] and claim each
-// part with the tools that could have raised it:
+// resolved, an interrupt of another tool, a hold a WrapTool hook raised for
+// this tool (a middleware's interrupt, which [Part.ToToolRestart] answers),
+// or an input that no longer decodes as In all report false. Iterate
+// [ModelResponse.Interrupts] and claim each part with the tools that could
+// have raised it:
 //
 //	for _, part := range resp.Interrupts() {
 //		if call, ok := transferMoney.Interrupted(part); ok {
@@ -843,6 +847,14 @@ type InterruptedCall[In, Out, Res any] struct {
 //	}
 func (t *InterruptibleToolAction[In, Out, Res]) Interrupted(part *Part) (*InterruptedCall[In, Out, Res], bool) {
 	if t == nil || !part.IsInterrupt() || part.ToolRequest.Name != t.Name() {
+		return nil, false
+	}
+	if it := part.interruptState(); it.RaisedBy != "" {
+		// A WrapTool hook held the call before the tool ran, so the pause
+		// is the hook's question, not this tool's: the restart answers the
+		// hook, and the tool then runs afresh. The typed verbs would answer
+		// the wrong party.
+		logger.Debug(context.Background(), "tool declined to claim an interrupt a middleware raised; answer it with Part.ToToolRestart", "tool", t.Name(), "middleware", it.RaisedBy)
 		return nil, false
 	}
 	input, err := base.ConvertToExact[In](part.ToolRequest.Input)
@@ -895,13 +907,15 @@ func (c *InterruptedCall[In, Out, Res]) Respond(output Out) *Part {
 // a middleware's tool; with the tool value in scope,
 // [InterruptibleToolAction.Interrupted] gives the same verb typed.
 //
-// resume is delivered to the tool's resume parameter, or to
-// [ToolContext.Resumed]. It must serialize to a JSON object (a struct or a
-// map), and generation validates it against the tool's resume schema (see
-// [InterruptibleToolAction.Definition]) before the tool re-executes. nil is a
-// bare restart, an empty object: restarting is itself the approval for a tool
-// that keys on the presence of a resume, while a tool whose resume type has
-// required fields needs them filled in.
+// resume is delivered to the stage that raised the interrupt: the tool's
+// resume parameter, or [ToolContext.Resumed], for the tool's own interrupt,
+// where generation first validates it against the tool's resume schema (see
+// [InterruptibleToolAction.Definition]); or the WrapTool hook that held the
+// call, which reads it with [tool.ResumeData], after which the tool runs as a
+// fresh call. It must serialize to a JSON object (a struct or a map). nil is
+// a bare restart, an empty object: restarting is itself the approval for a
+// tool that keys on the presence of a resume, while a tool whose resume type
+// has required fields needs them filled in.
 //
 //	for _, part := range resp.Interrupts() {
 //		restart, err := part.ToToolRestart(map[string]any{"toolApproved": true})

@@ -57,7 +57,8 @@ type Part struct {
 // [Part.ToToolRestart] and [Part.ToToolResponse].
 //
 // On the wire it is carried in the part's metadata map (under "interrupt", or
-// "resolvedInterrupt" once resolved) for compatibility with the JS runtime;
+// "resolvedInterrupt" once resolved, plus "interruptedBy" when a hook raised
+// it) for compatibility with the JS runtime;
 // marshaling folds it in and unmarshaling lifts it back out. In process the
 // state lives on [Part.Interrupt] alone: the generate loop and unmarshaling
 // set the field and leave the metadata map to user and plugin metadata, so
@@ -74,6 +75,14 @@ type ToolInterrupt struct {
 	// that re-executed the tool or by a caller-provided response). A resolved
 	// interrupt is kept for history; the part no longer awaits resolution.
 	Resolved bool
+	// RaisedBy names the WrapTool hook that raised the interrupt, as the
+	// middleware's name (suffixed "#n" when the name repeats in the chain),
+	// and is empty when the tool itself did. A restart answers the stage
+	// named here: the hook reads the payload with [tool.ResumeData] and the
+	// tool then runs as a fresh call, while
+	// [InterruptibleToolAction.Interrupted] claims only the tool's own
+	// interrupts. Carried on the wire as "interruptedBy".
+	RaisedBy string
 }
 
 // ToolRestart marks a tool request [Part] as a restart of an interrupted call,
@@ -470,6 +479,11 @@ const (
 	// metaReplacedInput preserves the original input on a restart part when
 	// the caller replaced it.
 	metaReplacedInput = "replacedInput"
+	// metaInterruptedBy names, on an interrupted tool request part, the
+	// WrapTool hook that raised the interrupt (ToolInterrupt.RaisedBy);
+	// absent when the tool itself did. A Go-only key: the JS runtime has no
+	// tool hooks and carries it through untouched.
+	metaInterruptedBy = "interruptedBy"
 	// metaInterruptResponse marks a caller-provided tool response part that
 	// resolves an interrupt in place of re-executing the tool.
 	metaInterruptResponse = "interruptResponse"
@@ -496,6 +510,11 @@ func (p *Part) wireMetadata() map[string]any {
 		}
 		m[key] = orTrue(it.Data)
 		delete(m, stale)
+		if it.RaisedBy != "" {
+			m[metaInterruptedBy] = it.RaisedBy
+		} else {
+			delete(m, metaInterruptedBy)
+		}
 	}
 	if rs := p.Restart; rs != nil {
 		m[metaResumed] = orTrue(rs.Resume)
@@ -544,11 +563,12 @@ func (p *Part) interruptState() *ToolInterrupt {
 	if p.Interrupt != nil {
 		return p.Interrupt
 	}
+	raisedBy, _ := p.Metadata[metaInterruptedBy].(string)
 	if v, ok := wirePayload(p.Metadata[metaInterrupt]); ok {
-		return &ToolInterrupt{Data: v}
+		return &ToolInterrupt{Data: v, RaisedBy: raisedBy}
 	}
 	if v, ok := wirePayload(p.Metadata[metaResolvedInterrupt]); ok {
-		return &ToolInterrupt{Data: v, Resolved: true}
+		return &ToolInterrupt{Data: v, Resolved: true, RaisedBy: raisedBy}
 	}
 	return nil
 }
@@ -586,7 +606,7 @@ func (p *Part) liftWireMetadata() {
 // stripWireKeys deletes the wire keys from m in place and returns m, or nil
 // when nothing is left.
 func stripWireKeys(m map[string]any) map[string]any {
-	for _, key := range [...]string{metaInterrupt, metaResolvedInterrupt, metaResumed, metaReplacedInput} {
+	for _, key := range [...]string{metaInterrupt, metaResolvedInterrupt, metaInterruptedBy, metaResumed, metaReplacedInput} {
 		delete(m, key)
 	}
 	if len(m) == 0 {

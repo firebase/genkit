@@ -784,7 +784,7 @@ if len(parts) > 0 {
 
 A tool can also be a pure question: its function only returns `tool.Interrupt(ctx, nil)`, the input is the question, and `call.Respond(answer)` supplies the answer as the tool's output.
 
-Without the tool value in scope (a handler that only holds the part, or an interrupt a middleware's tool raised), `part.ToToolRestart(resume)` and `part.ToToolResponse(output)` build the same parts, untyped. A `genkit.DefineTool` tool can interrupt too: return `tool.Interrupt` from it, read the answer back with `tool.ResumeData`, and restart it with a `map[string]any`.
+Without the tool value in scope (a handler that only holds the part, or an interrupt a middleware's tool raised), `part.ToToolRestart(resume)` and `part.ToToolResponse(output)` build the same parts, untyped. A restart answers whoever interrupted: a middleware that held the call, such as `ToolApproval`, reads the answer in its hook, and the tool then runs as a fresh call that can ask its own question, so `Interrupted` declines a middleware's hold. A `genkit.DefineTool` tool can interrupt too: return `tool.Interrupt` from it, read the answer back with `tool.ResumeData`, and restart it with a `map[string]any`.
 
 [See full example](samples/basic-tool-interrupts/main.go)
 
@@ -816,7 +816,7 @@ response, _ := genkit.Generate(ctx, g,
 
 The `middleware` plugin also ships with:
 
-- [`ToolApproval`](plugins/middleware/tool_approval.go) — interrupts any tool not on an allow list and resumes once the call is explicitly approved on restart.
+- [`ToolApproval`](plugins/middleware/tool_approval.go) — holds any tool call not on an allow list until a restart approves it; the tool then runs afresh, and a restart answering the tool's own interrupt passes.
 - [`Filesystem`](samples/basic-middleware/filesystem) — gives the model `list_files` and `read_file` tools (plus `write_file` and `edit_file` when `AllowWriteAccess` is set), all confined to a single `RootDir` via `os.Root` (Go 1.25+) so paths cannot escape via `..`, absolute paths, or symlinks.
 - [`Skills`](samples/basic-middleware/skills) — exposes a library of `SKILL.md` files through a `use_skill` tool so the model can pull in specialised instructions on demand.
 

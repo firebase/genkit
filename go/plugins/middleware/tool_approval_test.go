@@ -18,11 +18,14 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai/tool"
 	"github.com/firebase/genkit/go/core/api"
+	"github.com/firebase/genkit/go/core/status"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/registry"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -407,5 +410,96 @@ func TestToolApprovalResumedWithoutApprovalInterrupts(t *testing.T) {
 	)
 	if err == nil {
 		t.Fatal("expected error from re-interrupted restart, got nil")
+	}
+}
+
+// TestToolApprovalReleasesTheToolsOwnInterrupt pins the two-step flow with an
+// interruptible tool: the hold is the middleware's interrupt, which the tool
+// declines to claim; the approval answers it, after which the tool runs
+// afresh, asks its own question with a nil resume parameter, and the answer
+// to that question passes the gate, since the call was approved.
+func TestToolApprovalReleasesTheToolsOwnInterrupt(t *testing.T) {
+	r := newTestRegistry(t)
+	m := defineToolModel(t, r, "test/transfer", func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+		for _, msg := range req.Messages {
+			if msg.Role == ai.RoleTool {
+				return &ai.ModelResponse{Request: req, Message: ai.NewModelTextMessage("done")}, nil
+			}
+		}
+		return &ai.ModelResponse{
+			Request: req,
+			Message: &ai.Message{
+				Role: ai.RoleModel,
+				Content: []*ai.Part{
+					ai.NewToolRequestPart(&ai.ToolRequest{Name: "transfer", Input: map[string]any{"amount": 200}}),
+				},
+			},
+		}, nil
+	})
+	type confirmation struct {
+		Approved bool `json:"approved"`
+	}
+	var resumes []*confirmation
+	transfer := ai.NewInterruptibleTool("transfer", "moves money",
+		func(ctx context.Context, _ struct {
+			Amount float64 `json:"amount"`
+		}, res *confirmation) (string, error) {
+			resumes = append(resumes, res)
+			if res == nil {
+				return "", tool.Interrupt(ctx, nil)
+			}
+			if !res.Approved {
+				return "cancelled", nil
+			}
+			return "completed", nil
+		})
+	transfer.Register(r)
+	ta := &ToolApproval{} // deny all
+	registerTestMiddleware(r, "toolApproval", ta)
+	generate := func(opts ...ai.GenerateOption) (*ai.ModelResponse, error) {
+		return ai.Generate(ctx, r, append([]ai.GenerateOption{ai.WithModel(m), ai.WithTools(transfer), ai.WithUse(ta)}, opts...)...)
+	}
+
+	resp, err := generate(ai.WithPrompt("go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	held := resp.Interrupts()
+	if len(held) != 1 || held[0].Interrupt == nil || held[0].Interrupt.RaisedBy != ta.Name() {
+		t.Fatalf("interrupts = %+v, want one hold raised by %s", held, ta.Name())
+	}
+	if _, ok := transfer.Interrupted(held[0]); ok {
+		t.Error("the tool claimed the middleware's hold")
+	}
+
+	approve, err := held[0].ToToolRestart(map[string]any{"toolApproved": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp2, err := generate(ai.WithMessages(resp.History()...), ai.WithResume(approve))
+	if !errors.Is(err, status.ErrFailedPrecondition) || resp2 == nil {
+		t.Fatalf("approval = (%v, %v), want the tool's own interrupt under FAILED_PRECONDITION", resp2, err)
+	}
+	if len(resumes) != 1 || resumes[0] != nil {
+		t.Fatalf("tool saw resumes %v, want one fresh call: the approval must not reach it", resumes)
+	}
+	asked := resp2.Interrupts()
+	if len(asked) != 1 || asked[0].Interrupt == nil || asked[0].Interrupt.RaisedBy != "" {
+		t.Fatalf("interrupts = %+v, want the tool's own question", asked)
+	}
+	call, ok := transfer.Interrupted(asked[0])
+	if !ok {
+		t.Fatal("the tool declined its own interrupt")
+	}
+
+	resp3, err := generate(ai.WithMessages(resp2.History()...), ai.WithResume(call.Restart(confirmation{Approved: true})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp3.Text() != "done" {
+		t.Errorf("got %q, want %q", resp3.Text(), "done")
+	}
+	if len(resumes) != 2 || resumes[1] == nil || !resumes[1].Approved {
+		t.Errorf("tool saw resumes %v, want the approval on its second call", resumes)
 	}
 }
