@@ -19,6 +19,7 @@ package tool
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 
@@ -36,11 +37,43 @@ func TestInterrupt_CarriesData(t *testing.T) {
 	if !errors.As(err, &ie) {
 		t.Fatalf("Interrupt returned %T, want *base.ToolInterruptError", err)
 	}
-	if got, ok := ie.Data.(payload); !ok || got.Reason != "large_amount" {
-		t.Errorf("interrupt data = %#v, want payload{large_amount}", ie.Data)
+	// The payload is normalized to the JSON object it serializes to when the
+	// interrupt is raised, the shape it has after a wire hop.
+	if got, ok := ie.Data.(map[string]any); !ok || got["reason"] != "large_amount" {
+		t.Errorf("interrupt data = %#v, want map{reason: large_amount}", ie.Data)
 	}
 	if ok, m := ai.IsToolInterruptError(err); !ok || m["reason"] != "large_amount" {
 		t.Errorf("ai.IsToolInterruptError = (%v, %v), want (true, {reason: large_amount})", ok, m)
+	}
+}
+
+// TestInterrupt_BareAndNonObject pins the two edges of the payload contract: a
+// nil (or nil map) is a bare interrupt with no data, and a value that is not
+// a JSON object is refused at the raise site with a plain error, so it never
+// reaches a reader as an interrupt with its payload silently dropped.
+func TestInterrupt_BareAndNonObject(t *testing.T) {
+	for name, data := range map[string]any{"nil": nil, "nil map": map[string]any(nil)} {
+		t.Run(name, func(t *testing.T) {
+			err := Interrupt(context.Background(), data)
+			var ie *base.ToolInterruptError
+			if !errors.As(err, &ie) || ie.Data != nil {
+				t.Fatalf("Interrupt(%v) = %#v, want a bare interrupt", data, err)
+			}
+			if ok, m := ai.IsToolInterruptError(err); !ok || m != nil {
+				t.Errorf("ai.IsToolInterruptError = (%v, %v), want (true, nil)", ok, m)
+			}
+		})
+	}
+	for name, data := range map[string]any{"string": "approve?", "slice": []string{"a"}, "number": 3} {
+		t.Run(name, func(t *testing.T) {
+			err := Interrupt(context.Background(), data)
+			if ok, _ := ai.IsToolInterruptError(err); ok {
+				t.Fatalf("Interrupt(%v) raised an interrupt, want a plain error", data)
+			}
+			if err == nil || !strings.Contains(err.Error(), "JSON object") {
+				t.Errorf("Interrupt(%v) = %v, want an error naming the JSON object constraint", data, err)
+			}
+		})
 	}
 }
 

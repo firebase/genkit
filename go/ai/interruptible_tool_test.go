@@ -998,3 +998,30 @@ func TestWithResume_NilPartIsReported(t *testing.T) {
 		t.Errorf("error = %v, want it to report the nil part", err)
 	}
 }
+
+// TestInterruptAs_DecodesIntoAnyMatchingType pins that the interrupt data a
+// tool sent as a struct reads back into any type with the same JSON shape,
+// in process as well as after a wire hop: the loop records the data as the
+// JSON object it serializes to, so a handler in another package with its own
+// view of the payload decodes it either way.
+func TestInterruptAs_DecodesIntoAnyMatchingType(t *testing.T) {
+	type transferInterruptView struct {
+		Reason string  `json:"reason"`
+		Amount float64 `json:"amount"`
+	}
+	reg := newTransferTestRegistry(t)
+	transfer, _ := interruptOnce(t, reg)
+	_, interrupt := generateUntilInterrupt(t, reg, transfer)
+
+	if _, ok := interrupt.Interrupt.Data.(map[string]any); !ok {
+		t.Errorf("Interrupt.Data = %T, want the JSON object the tool's struct serializes to", interrupt.Interrupt.Data)
+	}
+	view, ok := ai.InterruptAs[transferInterruptView](interrupt)
+	if !ok || view.Reason != "large_amount" || view.Amount != 200 {
+		t.Errorf("InterruptAs[view] = (%+v, %v), want the payload decoded", view, ok)
+	}
+	same, ok := ai.InterruptAs[transferInterrupt](interrupt)
+	if !ok || same.Reason != "large_amount" {
+		t.Errorf("InterruptAs[same type] = (%+v, %v), want the payload decoded", same, ok)
+	}
+}

@@ -140,69 +140,19 @@ type Tool interface {
 }
 
 // IsToolInterruptError reports whether err is an interrupt raised by a tool
-// call (see [tool.Interrupt]) and returns the interrupt data as a map. It is
-// for code that runs a tool outside of [Generate], such as middleware; inside
-// the loop, interrupts surface through [ModelResponse.Interrupts].
+// call (see [tool.Interrupt]) and returns the interrupt data as a map, nil for
+// a bare interrupt. It is for code that runs a tool outside of [Generate],
+// such as middleware; inside the loop, interrupts surface through
+// [ModelResponse.Interrupts].
 func IsToolInterruptError(err error) (bool, map[string]any) {
 	var ie *base.ToolInterruptError
 	if !errors.As(err, &ie) {
 		return false, nil
 	}
-	m, _ := objectPayload(ie.Data, "interrupt data")
+	// tool.Interrupt normalized the payload when it raised the interrupt;
+	// the conversion here covers an error built with a struct directly.
+	m, _ := base.ObjectPayload(ie.Data, "interrupt data")
 	return true, m
-}
-
-// objectPayload converts an interrupt or resume payload to the JSON object the
-// wire contract requires: nil stays nil (a bare interrupt or restart), a map
-// is returned as is, and any other value is converted through JSON. A value
-// that serializes to a JSON scalar or array is rejected; what names the
-// payload in the error.
-func objectPayload(data any, what string) (map[string]any, error) {
-	switch v := data.(type) {
-	case nil:
-		return nil, nil
-	case map[string]any:
-		return v, nil
-	}
-	if err := checkObjectPayload(data, what); err != nil {
-		return nil, err
-	}
-	m, err := base.StructToMap(data)
-	if err != nil {
-		return nil, fmt.Errorf("%s must serialize to a JSON object (a struct or map), got %T: %w", what, data, err)
-	}
-	return m, nil
-}
-
-// checkObjectPayload is the check half of [objectPayload], for the verbs that
-// only need to know that a payload will serialize as a JSON object and can
-// leave the conversion to the reader: it costs a type inspection, not a JSON
-// round trip. nil passes, as a bare interrupt or restart.
-func checkObjectPayload(data any, what string) error {
-	if data == nil || objectValue(data) {
-		return nil
-	}
-	return fmt.Errorf("%s must serialize to a JSON object (a struct or map), got %T", what, data)
-}
-
-// objectValue reports whether v is a Go value that serializes to a JSON object
-// by construction: a struct, possibly behind pointers, or a map with string
-// keys. Scalars, slices and arrays are not, and neither is nil.
-func objectValue(v any) bool {
-	t := reflect.TypeOf(v)
-	for t != nil && t.Kind() == reflect.Pointer {
-		t = t.Elem()
-	}
-	if t == nil {
-		return false
-	}
-	switch t.Kind() {
-	case reflect.Struct:
-		return true
-	case reflect.Map:
-		return t.Key().Kind() == reflect.String
-	}
-	return false
 }
 
 // InterruptOptions provides configuration for tool interruption.
@@ -906,7 +856,7 @@ func (p *Part) toToolRestart(fnName string, resume, newInput any) (*Part, error)
 	if !p.IsInterrupt() {
 		return nil, status.Errorf(ErrInvalidPart, "%s: part is not an interrupted tool request", fnName)
 	}
-	if _, err := objectPayload(resume, "resume data"); err != nil {
+	if err := base.CheckObjectPayload(resume, "resume data"); err != nil {
 		return nil, status.Errorf(status.ErrInvalidArgument, "%s: %w", fnName, err)
 	}
 	return buildRestartPart(p, resume, newInput), nil
@@ -986,7 +936,7 @@ func (t *InterruptibleToolAction[In, Out, Res]) RestartWith(toolReq *Part, opts 
 	for _, opt := range opts {
 		opt.applyRestartWith(cfg)
 	}
-	if _, err := objectPayload(cfg.ResumedMetadata, "resume data"); err != nil {
+	if err := base.CheckObjectPayload(cfg.ResumedMetadata, "resume data"); err != nil {
 		return nil, status.Errorf(status.ErrInvalidArgument, "%s: %w", fnName, err)
 	}
 	return buildRestartPart(toolReq, cfg.ResumedMetadata, cfg.ReplaceInput), nil

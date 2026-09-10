@@ -1531,15 +1531,17 @@ type toolRunnerFunc = func(ctx context.Context, tool Tool, req *ToolRequest) (*M
 // interruptedPart returns the copy of tool request p that records the
 // interrupt raised for it, carrying the interrupt's data (nil for a bare
 // interrupt) as typed state; the wire marker is written when the part is
-// marshaled. The data is checked here, where every interrupt lands whether a
-// tool function or a WrapTool hook raised it, because the part folds it into
-// the wire metadata as a JSON object.
+// marshaled. The data is stored as the JSON object it serializes to, the
+// shape it has after a wire hop, so a reader such as [InterruptAs] sees one
+// shape wherever the part came from. tool.Interrupt already normalized it;
+// the conversion here covers an error built with a struct directly.
 func interruptedPart(p *Part, tie *base.ToolInterruptError) (*Part, error) {
-	if _, err := objectPayload(tie.Data, "interrupt data"); err != nil {
+	data, err := base.ObjectPayload(tie.Data, "interrupt data")
+	if err != nil {
 		return nil, err
 	}
 	newPart := p.typedClone()
-	newPart.Interrupt = &ToolInterrupt{Data: bareIfNil(tie.Data)}
+	newPart.Interrupt = &ToolInterrupt{Data: bareIfNil(data)}
 	return newPart, nil
 }
 
@@ -2250,9 +2252,9 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 				resumedCtx := ctx
 				if rs := restartPart.restartState(); rs != nil {
 					var resume map[string]any
-					if rs.Resume == nil || objectValue(rs.Resume) {
+					if base.IsNil(rs.Resume) || base.IsJSONObject(rs.Resume) {
 						var err error
-						if resume, err = objectPayload(rs.Resume, "resume data"); err != nil {
+						if resume, err = base.ObjectPayload(rs.Resume, "resume data"); err != nil {
 							return nil, status.Errorf(status.ErrInvalidArgument, "handleResumedToolRequest: restart for tool %q: %w", restartPart.ToolRequest.Name, err)
 						}
 					} else {

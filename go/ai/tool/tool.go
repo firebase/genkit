@@ -31,6 +31,7 @@ package tool
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/internal/base"
@@ -56,11 +57,22 @@ import (
 //
 // data must serialize to a JSON object (a struct or a map): it lands on the
 // interrupted tool request as [ai.ToolInterrupt] data, which the wire protocol
-// encodes as a JSON object. A value that serializes to a JSON scalar or array
-// (e.g. a string, number, or slice) fails the tool call when generation
-// records the interrupt; wrap such values in a struct or map field instead.
+// encodes as a JSON object, and it is converted to that object here, so the
+// data has the same shape in process as after a wire hop. For a value that
+// serializes to a JSON scalar or array (e.g. a string, number, or slice)
+// Interrupt returns a plain error instead of an interrupt, which fails the
+// tool call with a message naming the constraint; wrap such values in a
+// struct or map field instead.
 func Interrupt(ctx context.Context, data any) error {
-	return &base.ToolInterruptError{Data: data}
+	m, err := base.ObjectPayload(data, "interrupt data")
+	if err != nil {
+		return fmt.Errorf("tool.Interrupt: %w", err)
+	}
+	ie := &base.ToolInterruptError{}
+	if m != nil {
+		ie.Data = m
+	}
+	return ie
 }
 
 // SendPartial streams a partial tool response during tool execution.
