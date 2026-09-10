@@ -12,9 +12,9 @@ from typing import Any, cast
 
 import pytest
 import yaml
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
-from genkit import ActionKind, Document, Genkit, Message, MiddlewareRef, ModelResponse, ModelResponseChunk
+from genkit import ActionKind, Document, Genkit, Message, MiddlewareRef, ModelResponse, ModelResponseChunk, Part
 from genkit._ai._generate import ChunkAccumulator, _augment_with_context, generate_action
 from genkit._ai._model import text_from_content, text_from_message
 from genkit._ai._testing import (
@@ -27,9 +27,8 @@ from genkit._core._error import GenkitError
 from genkit._core._model import GenerateActionOptions, ModelRequest
 from genkit._core._registry import Registry
 from genkit._core._typing import (
-    DocumentPart,
     FinishReason,
-    Part,
+    Media,
     Resume,
     Role,
     TextPart,
@@ -116,6 +115,122 @@ async def test_simple_text_generate_request(
 
 
 @pytest.mark.asyncio
+async def test_generate_user_from_text_model_from_text_reads_without_root(
+    setup_test: tuple[Genkit, ProgrammableModel],
+) -> None:
+    ai, pm = setup_test
+    pm.responses.append(
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part.from_text('hello')]),
+        )
+    )
+
+    response = await ai.generate(
+        model='programmableModel',
+        messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
+    )
+
+    assert response.message is not None
+    assert response.message.content[0].text == 'hello'
+    assert response.message.content[0].media is None
+
+
+@pytest.mark.asyncio
+async def test_generate_user_text_and_media_model_sees_both_parts(
+    setup_test: tuple[Genkit, ProgrammableModel],
+) -> None:
+    ai, pm = setup_test
+    pm.responses.append(
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part.from_text('ok')]),
+        )
+    )
+
+    await ai.generate(
+        model='programmableModel',
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[
+                    Part.from_text('caption'),
+                    Part.from_media('https://example.com/x.png'),
+                ],
+            )
+        ],
+    )
+
+    assert pm.last_request is not None
+    parts = pm.last_request.messages[0].content
+    assert parts[0].text == 'caption'
+    assert parts[1].media is not None
+    assert parts[1].media.url == 'https://example.com/x.png'
+    assert parts[1].text is None
+
+
+@pytest.mark.asyncio
+async def test_generate_rejects_text_and_media_on_one_part(
+    setup_test: tuple[Genkit, ProgrammableModel],
+) -> None:
+    """Caption plus image on one part does not reach the model."""
+    ai, _pm = setup_test
+    with pytest.raises(ValidationError, match='exactly one'):
+        await ai.generate(
+            model='programmableModel',
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part(root=TextPart(text='hi', media=Media(url='https://x')))],
+                )
+            ],
+        )
+
+
+@pytest.mark.asyncio
+async def test_generate_rejects_text_and_data_on_one_part(
+    setup_test: tuple[Genkit, ProgrammableModel],
+) -> None:
+    """Caption plus app data on one part does not reach the model."""
+    ai, _pm = setup_test
+    with pytest.raises(ValidationError, match='exactly one'):
+        await ai.generate(
+            model='programmableModel',
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part(root=TextPart(text='hi', data={'recipe': 1}))],
+                )
+            ],
+        )
+
+
+@pytest.mark.asyncio
+async def test_generate_stream_chunk_text_from_factory_part(
+    setup_test: tuple[Genkit, ProgrammableModel],
+) -> None:
+    ai, pm = setup_test
+    pm.responses.append(
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part.from_text('hi')]),
+        )
+    )
+    pm.chunks = [
+        [
+            ModelResponseChunk(role=Role.MODEL, content=[Part.from_text('h')]),
+            ModelResponseChunk(role=Role.MODEL, content=[Part.from_text('i')]),
+        ],
+    ]
+
+    stream_result = ai.generate_stream(model='programmableModel', prompt='do it')
+    texts: list[str] = []
+    async for chunk in stream_result.stream:
+        texts.append(chunk.text)
+    assert texts == ['h', 'i']
+
+
+@pytest.mark.asyncio
 async def test_simulates_doc_grounding(
     setup_test: tuple[Genkit, ProgrammableModel],
 ) -> None:
@@ -139,7 +254,7 @@ async def test_simulates_doc_grounding(
                     content=[Part(TextPart(text='hi'))],
                 ),
             ],
-            docs=[Document(content=[DocumentPart(TextPart(text='doc content 1'))])],
+            docs=[Document(content=[Part(TextPart(text='doc content 1'))])],
         ),
     )
 
@@ -193,8 +308,8 @@ def test_augment_with_context_adds_docs_as_context() -> None:
             Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]),
         ],
         docs=[
-            Document(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
-            Document(content=[DocumentPart(root=TextPart(text='doc content 2'))]),
+            Document(content=[Part(root=TextPart(text='doc content 1'))]),
+            Document(content=[Part(root=TextPart(text='doc content 2'))]),
         ],
     )
 
@@ -219,8 +334,8 @@ def test_augment_with_context_adds_docs_as_context() -> None:
             )
         ],
         docs=[
-            Document(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
-            Document(content=[DocumentPart(root=TextPart(text='doc content 2'))]),
+            Document(content=[Part(root=TextPart(text='doc content 1'))]),
+            Document(content=[Part(root=TextPart(text='doc content 2'))]),
         ],
     )
 
@@ -230,7 +345,7 @@ def test_augment_with_context_does_not_mutate_input() -> None:
     original_user_msg = Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])
     req = ModelRequest(
         messages=[original_user_msg],
-        docs=[Document(content=[DocumentPart(root=TextPart(text='doc content 1'))])],
+        docs=[Document(content=[Part(root=TextPart(text='doc content 1'))])],
     )
     original_content_len = len(original_user_msg.content)
 
@@ -265,7 +380,7 @@ def test_augment_with_context_skips_when_context_already_rendered() -> None:
             ),
         ],
         docs=[
-            Document(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
+            Document(content=[Part(root=TextPart(text='doc content 1'))]),
         ],
     )
 
@@ -297,7 +412,7 @@ def test_augment_with_context_with_purpose_part() -> None:
             ),
         ],
         docs=[
-            Document(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
+            Document(content=[Part(root=TextPart(text='doc content 1'))]),
         ],
     )
 
@@ -321,7 +436,7 @@ def test_augment_with_context_with_purpose_part() -> None:
             )
         ],
         docs=[
-            Document(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
+            Document(content=[Part(root=TextPart(text='doc content 1'))]),
         ],
     )
 
@@ -1135,7 +1250,9 @@ async def test_wrap_tool_called_on_tool_execution() -> None:
             ctx: GenerateMiddlewareContext,
             next_fn: Callable[[ToolHookParams, GenerateMiddlewareContext], Awaitable[MultipartToolResponse]],
         ) -> MultipartToolResponse:
-            tool_names.append(params.tool_request_part.tool_request.name)
+            tool_request = params.tool_request_part.tool_request
+            assert tool_request is not None
+            tool_names.append(tool_request.name)
             return await next_fn(params, ctx)
 
     class ToolTrackerPlugin(MiddlewarePlugin):
@@ -1177,6 +1294,30 @@ async def test_wrap_tool_called_on_tool_execution() -> None:
     )
     assert response.text == 'done'
     assert tool_names == ['myTool']
+
+
+def test_wrap_tool_params_from_tool_request() -> None:
+    scratch = Registry()
+
+    async def fn() -> str:
+        return ''
+
+    tool = define_tool(scratch, fn, name='lookup').action()
+    params = ToolHookParams(tool_request_part=Part.from_tool_request(name='lookup'), tool=tool)
+    assert params.tool_request_part.tool_request is not None
+    assert params.tool_request_part.tool_request.name == 'lookup'
+    assert params.tool_request_part.text is None
+
+
+def test_wrap_tool_params_text_part_raises() -> None:
+    scratch = Registry()
+
+    async def fn() -> str:
+        return ''
+
+    tool = define_tool(scratch, fn, name='lookup').action()
+    with pytest.raises(ValidationError, match='tool request'):
+        ToolHookParams(tool_request_part=Part.from_text('hi'), tool=tool)
 
 
 @pytest.mark.asyncio

@@ -70,7 +70,14 @@ from genkit._ai._tools import Tool
 from genkit._core._action import Action, ActionKind, ActionRunContext, BidiAction, BidiFn, get_current_context
 from genkit._core._error import GenkitError
 from genkit._core._middleware import BaseMiddleware
-from genkit._core._model import ModelConfigDict, ModelRef, ModelRefConfigT
+from genkit._core._model import (
+    ModelConfigDict,
+    ModelRef,
+    ModelRefConfigT,
+    Part,
+    as_resume_respond,
+    as_resume_restart,
+)
 from genkit._core._registry import Registry
 from genkit._core._trace._attrs import metadata_key
 from genkit._core._typing import (
@@ -85,7 +92,6 @@ from genkit._core._typing import (
     GetSnapshotRequest,
     MessageData,
     MiddlewareRef,
-    Part,
     Resume,
     Role,
     SessionSnapshot,
@@ -413,8 +419,8 @@ def define_prompt_agent(
             resume_metadata = None
             if inp.resume is not None:
                 validate_resume_against_history(inp.resume, history)
-                resume_respond = inp.resume.respond or None
-                resume_restart = inp.resume.restart or None
+                resume_respond = [as_resume_respond(p) for p in inp.resume.respond] if inp.resume.respond else None
+                resume_restart = [as_resume_restart(p) for p in inp.resume.restart] if inp.resume.restart else None
                 resume_metadata = inp.resume.metadata or None
 
             executable = await lookup_prompt(registry, name)

@@ -17,6 +17,7 @@ from __future__ import annotations
 import pytest
 from pydantic import BaseModel
 
+from genkit import Part
 from genkit._ai._agents._preamble import (
     HISTORY_TAG,
     PREAMBLE_KEY,
@@ -29,7 +30,6 @@ from genkit._core._typing import (
     AgentFinishReason,
     FinishReason,
     MessageData,
-    Part,
     Role,
     SnapshotStatus,
     TextPart,

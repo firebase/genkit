@@ -27,14 +27,16 @@ from openai import APIStatusError
 
 from genkit import (
     GenkitError,
-    MediaPart,
     Message,
     ModelRequest,
     Part,
-    ReasoningPart,
     Role,
-    TextPart,
     ToolRequest,
+)
+from genkit._core._typing import (
+    MediaPart,
+    ReasoningPart,
+    TextPart,
     ToolRequestPart,
     ToolResponsePart,
 )

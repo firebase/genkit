@@ -43,11 +43,10 @@ from genkit import (
     Message,
     ModelRequest,
     Part,
-    ReasoningPart,
     Role,
-    TextPart,
     ToolDefinition,
 )
+from genkit._core._typing import ReasoningPart, TextPart
 from genkit.plugin_api import GenkitError, ModelConfig
 
 PNG_BYTES = b'\x89PNG\r\n\x1a\nfakeimagedata'

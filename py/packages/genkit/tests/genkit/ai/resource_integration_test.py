@@ -19,14 +19,13 @@
 
 import pytest
 
-from genkit import Message, ModelResponse
+from genkit import Message, ModelResponse, Part
 from genkit._ai._generate import generate_action
 from genkit._ai._resource import ResourceInput, ResourceOutput, define_resource
 from genkit._core._action import ActionRunContext
 from genkit._core._model import GenerateActionOptions, ModelRequest
 from genkit._core._registry import ActionKind, Registry
 from genkit._core._typing import (
-    Part,
     Resource1,
     ResourcePart,
     Role,
@@ -49,7 +48,7 @@ async def test_generate_with_resources() -> None:
     async def mock_model(input: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         # Verify docs are EMPTY (not auto-populated)
         assert not input.docs
-        # Access via root because DocumentPart is a RootModel
+        # Access via root because Part is a RootModel
         # Verify the message content was hydrated (replaced resource part with text part)
         assert input.messages[0].content[0].root.text == 'Resource content for test://foo'
         return ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='Done'))]))

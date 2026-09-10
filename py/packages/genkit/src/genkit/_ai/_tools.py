@@ -24,13 +24,13 @@ from types import UnionType
 from typing import Any, Union, cast, get_args, get_origin, get_type_hints
 
 from opentelemetry import trace as trace_api
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError, GenkitInterrupt
 from genkit._core._logger import get_logger
 from genkit._core._middleware import GenerateMiddlewareContext
-from genkit._core._model import MultipartToolResponse, MultipartToolResponseData, OutputT
+from genkit._core._model import MultipartToolResponse, MultipartToolResponseData, OutputT, Part, as_part
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
 from genkit._core._typing import (
@@ -38,7 +38,7 @@ from genkit._core._typing import (
     DataPart,
     MediaPart,
     Metadata,
-    Part,
+    PartData,
     ReasoningPart,
     ResourcePart,
     TextPart,
@@ -84,6 +84,8 @@ def response(
 def coerce_part(value: object) -> Part | None:
     if isinstance(value, Part):
         return value
+    if isinstance(value, PartData):
+        return Part(root=value.root)
     if isinstance(value, PART_VARIANTS):
         return Part(root=value)
     return None
@@ -122,16 +124,22 @@ def normalize_pending_content(pending_content: object, *, tool_name: str) -> lis
         )
     out: list[dict[str, Any]] = []
     for i, item in enumerate(pending_content):
-        part = coerce_part(item)
-        if part is None and isinstance(item, dict):
-            try:
+        try:
+            part = coerce_part(item)
+            if part is None and isinstance(item, dict):
                 part = Part.model_validate(item)
-            except Exception as e:
-                raise GenkitError(
-                    status='INVALID_ARGUMENT',
-                    message=f'Tool {tool_name!r} pendingContent[{i}] must be a part, got {type(item).__name__}.',
-                    cause=e,
-                ) from e
+        except ValidationError as e:
+            raise GenkitError(
+                status='INVALID_ARGUMENT',
+                message=f'Tool {tool_name!r} pendingContent[{i}]: {e.errors()[0]["msg"]}',
+                cause=e,
+            ) from e
+        except Exception as e:
+            raise GenkitError(
+                status='INVALID_ARGUMENT',
+                message=f'Tool {tool_name!r} pendingContent[{i}] must be a part, got {type(item).__name__}.',
+                cause=e,
+            ) from e
         if part is None:
             raise GenkitError(
                 status='INVALID_ARGUMENT',
@@ -174,7 +182,9 @@ def _usable_locator(value: object) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
-def parts_to_wire(parts: list[Part] | None, *, tool_name: str | None = None) -> list[dict[str, Any]] | None:
+def parts_to_wire(
+    parts: Sequence[Part | PartData] | None, *, tool_name: str | None = None
+) -> list[dict[str, Any]] | None:
     """Dump parts the way a model plugin expects them on the tool message.
 
     A bare dump keeps every unused union sibling as null and uses snake_case
@@ -193,7 +203,7 @@ def parts_to_wire(parts: list[Part] | None, *, tool_name: str | None = None) -> 
     return out
 
 
-def dump_part(part: Part, *, tool_name: str | None = None, what: str = 'content') -> dict[str, Any]:
+def dump_part(part: Part | PartData, *, tool_name: str | None = None, what: str = 'content') -> dict[str, Any]:
     try:
         return part.model_dump(mode='json', by_alias=True, exclude_none=True)
     except GenkitError:
@@ -217,10 +227,11 @@ def live_payload_error(*, tool_name: str, where: str) -> GenkitError:
     )
 
 
-def require_live_part(part: Part, *, tool_name: str | None = None, where: str = 'content') -> Part:
-    dumped = dump_part(part, tool_name=tool_name, what=where)
+def require_live_part(part: Part | PartData, *, tool_name: str | None = None, where: str = 'content') -> Part:
+    p = as_part(part)
+    dumped = dump_part(p, tool_name=tool_name, what=where)
     if wire_part_is_live(dumped):
-        return part
+        return p
     if tool_name is not None:
         raise live_payload_error(tool_name=tool_name, where=where)
     raise GenkitError(
@@ -262,15 +273,16 @@ def dump_tool_metadata(value: dict[str, Any] | None, *, tool_name: str | None = 
     )
 
 
-def as_multipart_tool_response(value: Any, *, tool_name: str | None = None) -> MultipartToolResponse:  # noqa: ANN401
+def as_multipart_tool_response(value: Any, *, tool_name: str | None = None) -> MultipartToolResponse[Any]:  # noqa: ANN401
     """Normalize a tool handler return into the envelope generate already speaks."""
     if isinstance(value, MultipartToolResponseData):
         content = value.content
+        parts: list[Part] | None = None
         if content:
-            content = [require_live_part(part, tool_name=tool_name) for part in content]
+            parts = [require_live_part(part, tool_name=tool_name) for part in content]
         return MultipartToolResponse(
             output=dump_tool_output(value.output, tool_name=tool_name),
-            content=content,
+            content=parts,
             metadata=dump_tool_metadata(value.metadata, tool_name=tool_name),
         )
     return MultipartToolResponse(output=dump_tool_output(value, tool_name=tool_name))

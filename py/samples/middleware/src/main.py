@@ -22,7 +22,8 @@ from collections.abc import Awaitable, Callable
 from genkit_google_genai import GoogleAI
 from pydantic import BaseModel
 
-from genkit import Genkit, ModelResponse, Part, TextPart
+from genkit import Genkit, ModelResponse, Part
+from genkit._core._typing import TextPart
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, ModelHookParams
 
 ai = Genkit(plugins=[GoogleAI()], model=GoogleAI.gemini_model('gemini-flash-latest'))

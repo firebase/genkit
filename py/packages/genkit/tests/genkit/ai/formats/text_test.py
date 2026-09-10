@@ -5,9 +5,9 @@
 
 """Tests for the Text format."""
 
-from genkit import Message, ModelResponseChunk
+from genkit import Message, ModelResponseChunk, Part
 from genkit._ai._formats._text import TextFormat
-from genkit._core._typing import Part, TextPart
+from genkit._core._typing import TextPart
 
 
 class TestTextFormatStreaming:

@@ -31,7 +31,8 @@ from typing import Any
 from _ai import ai
 from pydantic import BaseModel
 
-from genkit import ActionRunContext, Part, TextPart
+from genkit import ActionRunContext, Part
+from genkit._core._typing import TextPart
 from genkit.exp.agent import Artifact
 
 

@@ -9,7 +9,7 @@ import pytest
 import structlog
 from structlog.testing import capture_logs
 
-from genkit import Genkit, Message, ModelResponse
+from genkit import Genkit, Message, ModelResponse, Part
 from genkit._ai._generate import generate_action
 from genkit._ai._model import resolve_model_arg
 from genkit._ai._testing import define_programmable_model
@@ -22,7 +22,6 @@ from genkit._core._registry import Registry
 from genkit._core._typing import (
     FinishReason,
     GenerateActionOutputConfig,
-    Part,
     Resume,
     Role,
     TextPart,

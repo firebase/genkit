@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import pytest
 
+from genkit import Part
 from genkit._ai._agents._runtime import AgentRuntime
 from genkit._ai._agents._session import Session
 from genkit._ai._json_patch import apply_json_patch, diff_json
@@ -25,7 +26,6 @@ from genkit._core._typing import (
     JsonPatchOp,
     JsonPatchOperation,
     ModelResponseChunk,
-    Part,
     SessionState,
     TextPart,
 )

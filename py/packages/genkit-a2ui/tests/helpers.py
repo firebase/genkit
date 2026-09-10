@@ -10,9 +10,9 @@ from typing import Any
 
 from genkit_a2ui import A2UI_MIME_TYPE
 
-from genkit import Genkit, Message, ModelResponse
+from genkit import Genkit, Message, ModelResponse, Part
 from genkit._ai._testing import ProgrammableModel, define_programmable_model
-from genkit._core._typing import DataPart, FinishReason, Part, Role, TextPart
+from genkit._core._typing import DataPart, FinishReason, Role, TextPart
 
 BASIC_CATALOG_ID = 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json'
 A2UI_FENCE = '```a2ui'

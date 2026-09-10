@@ -8,10 +8,10 @@
 import pytest
 from pydantic import BaseModel, TypeAdapter
 
-from genkit import Message, ModelResponseChunk
+from genkit import Message, ModelResponseChunk, Part
 from genkit._ai._formats._jsonl import JsonlFormat
 from genkit._core._error import GenkitError
-from genkit._core._typing import Part, TextPart
+from genkit._core._typing import TextPart
 
 
 class TestJsonlFormatStreaming:

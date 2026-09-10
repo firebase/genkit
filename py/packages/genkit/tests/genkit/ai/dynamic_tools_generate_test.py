@@ -19,7 +19,7 @@
 import pytest
 from pydantic import BaseModel
 
-from genkit import Genkit, Message, ModelResponse
+from genkit import Genkit, Message, ModelResponse, Part
 from genkit._ai._generate import expand_wildcard_tools, resolve_tool
 from genkit._ai._testing import define_programmable_model
 from genkit._core._action import Action, ActionKind
@@ -28,7 +28,6 @@ from genkit._core._error import GenkitError
 from genkit._core._registry import Registry
 from genkit._core._typing import (
     FinishReason,
-    Part,
     Role,
     TextPart,
     ToolRequest,

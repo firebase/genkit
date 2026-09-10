@@ -37,9 +37,9 @@ from genkit import (
     ModelRequest,
     Part,
     Role,
-    TextPart,
     ToolDefinition,
 )
+from genkit._core._typing import TextPart
 
 
 def test_anthropic_name() -> None:

@@ -29,7 +29,8 @@ from typing import Any
 
 import structlog
 
-from genkit import MediaPart, ModelRequest, ModelUsage, Part, TextPart
+from genkit import ModelRequest, ModelUsage, Part
+from genkit._core._typing import MediaPart, TextPart
 
 logger = structlog.get_logger(__name__)
 

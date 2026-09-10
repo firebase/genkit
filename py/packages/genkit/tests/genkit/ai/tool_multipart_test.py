@@ -13,10 +13,10 @@ from collections.abc import Awaitable, Callable
 from datetime import datetime
 
 import pytest
-from pydantic import BaseModel, ConfigDict, TypeAdapter
+from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 from pydantic.alias_generators import to_camel
 
-from genkit import ActionKind, Genkit, Message, MiddlewareRef, ModelResponse
+from genkit import ActionKind, Genkit, Message, MiddlewareRef, ModelResponse, Part
 from genkit._ai._generate import generate_action, to_tool_definition
 from genkit._ai._testing import define_programmable_model
 from genkit._ai._tools import (
@@ -35,7 +35,6 @@ from genkit._core._typing import (
     FinishReason,
     Media,
     MediaPart,
-    Part,
     ReasoningPart,
     Resource,
     ResourcePart,
@@ -66,10 +65,8 @@ def test_response_data_and_reasoning_parts_are_live() -> None:
 
 
 def test_response_rejects_hollow_parts() -> None:
-    with pytest.raises(GenkitError) as ei:
+    with pytest.raises(ValidationError, match='exactly one'):
         response({'ok': True}, parts=[Part(root=DataPart())])
-    assert ei.value.status == 'INVALID_ARGUMENT'
-    assert 'no live payload' in ei.value.original_message
 
 
 def test_response_builds_the_envelope() -> None:

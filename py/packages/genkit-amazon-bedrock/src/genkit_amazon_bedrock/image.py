@@ -36,14 +36,13 @@ from botocore.exceptions import BotoCoreError, ClientError
 from genkit import (
     FinishReason,
     Media,
-    MediaPart,
     Message,
     ModelRequest,
     ModelResponse,
     Part,
     Role,
-    TextPart,
 )
+from genkit._core._typing import MediaPart, TextPart
 from genkit.plugin_api import ActionRunContext, GenkitError, ModelConfig
 from genkit_amazon_bedrock.embedders import InvokeModelTransport
 from genkit_amazon_bedrock.model_info import strip_inference_profile_prefix

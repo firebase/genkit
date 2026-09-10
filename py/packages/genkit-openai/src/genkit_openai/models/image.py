@@ -29,7 +29,6 @@ from openai.types.images_response import ImagesResponse
 
 from genkit import (
     Media,
-    MediaPart,
     Message,
     ModelInfo,
     ModelRequest,
@@ -38,6 +37,7 @@ from genkit import (
     Role,
     Supports,
 )
+from genkit._core._typing import MediaPart
 from genkit.model import FinishReason
 from genkit.plugin_api import ActionRunContext
 from genkit_openai.models.utils import _extract_text, extract_config_dict, reraise_openai_error

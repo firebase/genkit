@@ -47,14 +47,13 @@ Note:
 
 import pytest
 
-from genkit import Genkit, Message, ModelResponse
+from genkit import Genkit, Message, ModelResponse, Part
 from genkit._core._action import ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._model import ModelRequest
 from genkit._core._typing import (
     ModelInfo,
     Operation,
-    Part,
     Role,
     Supports,
     TextPart,

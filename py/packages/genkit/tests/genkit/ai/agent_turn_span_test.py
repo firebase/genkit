@@ -28,6 +28,7 @@ from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
+from genkit import Part
 from genkit._ai._agents._base import define_custom_agent
 from genkit._ai._agents._runtime import SessionRunner
 from genkit._ai._agents._session import Session
@@ -35,7 +36,7 @@ from genkit._ai._agents._types import TurnContext, TurnResult
 from genkit._core._action import ActionRunContext
 from genkit._core._registry import Registry
 from genkit._core._trace._attrs import Attr, metadata_key
-from genkit._core._typing import AgentInput, AgentResult, MessageData, Part, SessionState, TextPart
+from genkit._core._typing import AgentInput, AgentResult, MessageData, SessionState, TextPart
 from genkit.exp.agent import AgentFinishReason, InMemorySessionStore
 
 UUID_RE = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.I)

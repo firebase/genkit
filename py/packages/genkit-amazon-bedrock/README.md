@@ -185,7 +185,8 @@ doing whenever a large static system prompt is sent repeatedly.
 `cache_point_part()` marks where the cacheable prefix ends:
 
 ```python
-from genkit import Part, TextPart
+from genkit import Part
+from genkit._core._typing import TextPart
 from genkit_amazon_bedrock import cache_point_part
 
 CLAUDE = 'bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0'

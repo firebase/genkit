@@ -35,7 +35,6 @@ from openai.types.audio import Transcription, Translation
 from genkit import (
     GenkitError,
     Media,
-    MediaPart,
     Message,
     ModelInfo,
     ModelRequest,
@@ -43,8 +42,8 @@ from genkit import (
     Part,
     Role,
     Supports,
-    TextPart,
 )
+from genkit._core._typing import MediaPart, TextPart
 from genkit.model import FinishReason
 from genkit.plugin_api import ActionRunContext
 from genkit_openai.models.utils import (

@@ -61,16 +61,18 @@ from google.genai.interactions import (
 from pydantic import BaseModel
 
 from genkit import (
-    CustomPart,
     GenkitError,
     Media,
-    MediaPart,
     Part,
+    ToolRequest,
+    ToolResponse,
+)
+from genkit._core._typing import (
+    CustomPart,
+    MediaPart,
     ReasoningPart,
     TextPart,
-    ToolRequest,
     ToolRequestPart,
-    ToolResponse,
     ToolResponsePart,
 )
 from genkit.model import Error, FinishReason, Message, ModelResponse, ModelUsage, Operation, ToolDefinition

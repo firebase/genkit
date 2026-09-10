@@ -25,8 +25,8 @@ from genkit import (
     ModelRequest,
     Part,
     Role,
-    TextPart,
 )
+from genkit._core._typing import TextPart
 
 
 @pytest.fixture

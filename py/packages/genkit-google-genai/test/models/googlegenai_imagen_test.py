@@ -28,14 +28,13 @@ from pytest_mock import MockerFixture
 from genkit import (
     ActionRunContext,
     GenkitError,
-    MediaPart,
     Message,
     ModelRequest,
     ModelResponse,
     Part,
     Role,
-    TextPart,
 )
+from genkit._core._typing import MediaPart, TextPart
 
 
 @pytest.mark.asyncio

@@ -37,11 +37,10 @@ from genkit import (
     ModelResponseChunk,
     Part,
     Role,
-    TextPart,
     ToolDefinition,
     ToolRequest,
-    ToolRequestPart,
 )
+from genkit._core._typing import TextPart, ToolRequestPart
 from genkit.plugin_api import ActionRunContext, GenkitError
 from genkit_amazon_bedrock.converters import (
     bedrock_reasoning_part,

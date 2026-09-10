@@ -27,9 +27,18 @@ from copy import deepcopy
 from dataclasses import dataclass
 from functools import cached_property
 from importlib import import_module
-from typing import Any, ClassVar, Generic, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, cast
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, RootModel, ValidationError, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    RootModel,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 from pydantic.alias_generators import to_camel
 from typing_extensions import TypedDict, TypeVar
 
@@ -41,7 +50,6 @@ from genkit._core._schema import parse_schema
 from genkit._core._typing import (
     Candidate,
     DocumentData,
-    DocumentPart,
     FinishReason,
     GenerateActionOptionsData,
     GenerateActionOutputConfig,
@@ -57,14 +65,16 @@ from genkit._core._typing import (
     MultipartToolResponse as MultipartToolResponseData,
     Operation,
     OutputConfig as OutputConfigData,
-    Part,
+    PartData,
     Resume,
     Role,
     Text,
     TextPart,
     ToolChoice,
     ToolDefinition,
+    ToolRequest,
     ToolRequestPart,
+    ToolResponse,
 )
 
 # Runtime schema for common generate knobs. ModelConfigDict is the
@@ -211,8 +221,263 @@ class ModelRef(Generic[ModelRefConfigT]):
             object.__setattr__(self, 'info', self.info.model_copy(deep=True))
 
 
+# Exclusive kinds. camelCase and snake_case are the same kind so a merged
+# dump of one tool call is not two kinds. custom is the vendor hatch — it
+# may ride on another kind, or be the kind when it's the only payload (a
+# signed thought is still one reasoning part). Metadata rides too. Empty
+# or two exclusive kinds is a validation error so a Message never carries
+# an ambiguous part the model would have to guess at.
+PART_KIND_CANONICAL = {
+    'text': 'text',
+    'media': 'media',
+    'toolRequest': 'toolRequest',
+    'tool_request': 'toolRequest',
+    'toolResponse': 'toolResponse',
+    'tool_response': 'toolResponse',
+    'reasoning': 'reasoning',
+    'resource': 'resource',
+    'data': 'data',
+}
+EXACTLY_ONE_KIND = (
+    'a part must have exactly one of text, media, toolRequest, toolResponse, reasoning, resource, data, or custom'
+)
+
+
+_KIND_ALIAS_PAIRS = (
+    ('toolRequest', 'tool_request'),
+    ('toolResponse', 'tool_response'),
+)
+
+
+def _collapse_kind_aliases(raw: dict[str, object]) -> dict[str, object]:
+    out = dict(raw)
+    for camel, snake in _KIND_ALIAS_PAIRS:
+        if camel in out and snake in out:
+            del out[snake]
+    return out
+
+
+def _kind_names(raw: Mapping[str, object]) -> set[str]:
+    names: set[str] = set()
+    for key, value in raw.items():
+        kind = PART_KIND_CANONICAL.get(key)
+        if kind is not None and value is not None:
+            names.add(kind)
+    return names
+
+
+def _payload_fields(value: object) -> Mapping[str, object]:
+    if isinstance(value, Mapping):
+        return cast(Mapping[str, object], value)
+    if isinstance(value, BaseModel):
+        return value.model_dump(exclude_none=True, by_alias=True)
+    return {}
+
+
+def _require_exactly_one_kind(value: object) -> None:
+    raw = _payload_fields(value)
+    kinds = _kind_names(raw)
+    if len(kinds) > 1:
+        raise ValueError(EXACTLY_ONE_KIND)
+    if len(kinds) == 1:
+        return
+    if raw.get('custom') is not None:
+        return
+    raise ValueError(EXACTLY_ONE_KIND)
+
+
+class Part(PartData):
+    """A single piece of content in a message or document."""
+
+    if TYPE_CHECKING:
+        # They construct a part by naming the kind — Part(text='hi') — not by
+        # wrapping a kind class in root=.
+        def __init__(
+            self,
+            root: object = None,
+            *,
+            text: str | None = None,
+            media: Media | None = None,
+            tool_request: ToolRequest | None = None,
+            tool_response: ToolResponse | None = None,
+            reasoning: str | None = None,
+            data: Any | None = None,  # noqa: ANN401
+            custom: dict[str, Any] | None = None,
+            metadata: dict[str, Any] | None = None,
+        ) -> None: ...
+
+    else:
+
+        def __init__(self, root: object = None, **kwargs: Any) -> None:  # noqa: ANN401
+            if root is not None:
+                super().__init__(root)  # ty: ignore[invalid-argument-type]
+                return
+            super().__init__(kwargs)  # ty: ignore[invalid-argument-type]
+
+    @model_validator(mode='before')
+    @classmethod
+    def _exactly_one_kind(cls, value: object) -> object:
+        # Count kinds on the unwrapped payload, including Part(root=...) and
+        # PartData from plugins or history. A caption plus an image on one
+        # object is two kinds whether it arrived as a dict or a TextPart.
+        if isinstance(value, PartData):
+            _require_exactly_one_kind(value.root)
+            return value.root
+        if isinstance(value, BaseModel):
+            _require_exactly_one_kind(value)
+            return value
+        if isinstance(value, dict):
+            raw = cast(dict[str, object], value)
+            if 'root' in raw:
+                root = raw['root']
+                if isinstance(root, dict):
+                    root = _collapse_kind_aliases(cast(dict[str, object], root))
+                    raw = {**raw, 'root': root}
+                _require_exactly_one_kind(root)
+                return raw
+            collapsed = _collapse_kind_aliases(raw)
+            _require_exactly_one_kind(collapsed)
+            return collapsed
+        return value
+
+    def model_dump(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+        # Standalone dump should match the Message wire — camelCase, no null
+        # siblings — so a part they print or stash looks like what generate sends.
+        kwargs.setdefault('by_alias', True)
+        kwargs.setdefault('exclude_none', True)
+        return super().model_dump(**kwargs)
+
+    def model_dump_json(self, **kwargs: Any) -> str:  # noqa: ANN401
+        kwargs.setdefault('by_alias', True)
+        kwargs.setdefault('exclude_none', True)
+        return super().model_dump_json(**kwargs)
+
+    @classmethod
+    def from_text(cls, text: str, metadata: dict[str, Any] | None = None) -> Part:
+        return cls(text=text, metadata=metadata)
+
+    @classmethod
+    def from_media(
+        cls,
+        url: str,
+        content_type: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Part:
+        return cls(media=Media(url=url, content_type=content_type), metadata=metadata)
+
+    @classmethod
+    def from_tool_request(
+        cls,
+        name: str,
+        input: Any | None = None,  # noqa: ANN401
+        ref: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Part:
+        return cls(tool_request=ToolRequest(name=name, input=input, ref=ref), metadata=metadata)
+
+    @classmethod
+    def from_tool_response(
+        cls,
+        name: str,
+        output: Any | None = None,  # noqa: ANN401
+        ref: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Part:
+        return cls(tool_response=ToolResponse(name=name, output=output, ref=ref), metadata=metadata)
+
+    @classmethod
+    def from_data(cls, data: Any, metadata: dict[str, Any] | None = None) -> Part:  # noqa: ANN401
+        return cls(data=data, metadata=metadata)
+
+    @classmethod
+    def from_custom(cls, custom: dict[str, Any], metadata: dict[str, Any] | None = None) -> Part:
+        return cls(custom=custom, metadata=metadata)
+
+    @classmethod
+    def from_reasoning(cls, reasoning: str, metadata: dict[str, Any] | None = None) -> Part:
+        return cls(reasoning=reasoning, metadata=metadata)
+
+    @property
+    def text(self) -> str | None:
+        return getattr(self.root, 'text', None)
+
+    @property
+    def media(self) -> Media | None:
+        return getattr(self.root, 'media', None)
+
+    @property
+    def tool_request(self) -> ToolRequest | None:
+        return getattr(self.root, 'tool_request', None)
+
+    @property
+    def tool_response(self) -> ToolResponse | None:
+        return getattr(self.root, 'tool_response', None)
+
+    @property
+    def data(self) -> Any | None:  # noqa: ANN401
+        return getattr(self.root, 'data', None)
+
+    @property
+    def custom(self) -> dict[str, Any] | None:
+        return getattr(self.root, 'custom', None)
+
+    @property
+    def reasoning(self) -> str | None:
+        return getattr(self.root, 'reasoning', None)
+
+    @property
+    def metadata(self) -> dict[str, Any] | None:
+        return getattr(self.root, 'metadata', None)
+
+
+RESUME_RESPOND_KIND = 'resume_respond needs a tool response part'
+RESUME_RESTART_KIND = 'resume_restart needs a tool request part'
+WRAP_TOOL_KIND = 'wrap_tool needs a tool request part'
+
+
+def as_part(value: object) -> Part:
+    if isinstance(value, Part):
+        return value
+    if isinstance(value, PartData):
+        return Part(root=value.root)
+    return Part.model_validate(value)
+
+
+def as_resume_respond(value: object) -> Part:
+    # resume_respond is the tool reply they send back on the next generate.
+    part = as_part(value)
+    if part.tool_response is None:
+        raise ValueError(RESUME_RESPOND_KIND)
+    return part
+
+
+def as_resume_restart(value: object) -> Part:
+    # resume_restart is the tool call they want to run again.
+    part = as_part(value)
+    if part.tool_request is None:
+        raise ValueError(RESUME_RESTART_KIND)
+    return part
+
+
+def as_wrap_tool_part(value: object) -> Part:
+    # wrap_tool sees the tool call the model just made.
+    part = as_part(value)
+    if part.tool_request is None:
+        raise ValueError(WRAP_TOOL_KIND)
+    return part
+
+
 class Message(MessageData):
     """Message wrapper with utility properties for text and tool requests."""
+
+    content: list[Part]  # pyright: ignore[reportIncompatibleVariableOverride]  # pyrefly: ignore[bad-override]
+
+    @field_validator('content', mode='before')
+    @classmethod
+    def _wrap_parts(cls, v: object) -> object:
+        if not isinstance(v, list):
+            return v
+        return [as_part(p) for p in v]
 
     def __init__(
         self,
@@ -282,20 +547,29 @@ _TEXT_DATA_TYPE: str = 'text'
 class Document(DocumentData):
     """Multi-part document that can be embedded, indexed, or retrieved."""
 
+    content: list[Part]  # pyright: ignore[reportIncompatibleVariableOverride]  # pyrefly: ignore[bad-override]
+
+    @field_validator('content', mode='before')
+    @classmethod
+    def _wrap_parts(cls, v: object) -> object:
+        if not isinstance(v, list):
+            return v
+        return [as_part(p) for p in v]
+
     def __init__(
         self,
-        content: list[DocumentPart],
+        content: Sequence[PartData],
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """Initialize with content parts and optional metadata."""
-        doc_content = deepcopy(content)
+        doc_content = [as_part(p) for p in deepcopy(content)]
         doc_metadata = deepcopy(metadata)
-        super().__init__(content=doc_content, metadata=doc_metadata)
+        super().__init__(content=cast(list[PartData], doc_content), metadata=doc_metadata)
 
     @staticmethod
     def from_text(text: str, metadata: dict[str, Any] | None = None) -> Document:
         """Create a document from a text string."""
-        return Document(content=[DocumentPart(root=TextPart(text=text))], metadata=metadata)
+        return Document(content=[Part.from_text(text)], metadata=metadata)
 
     @staticmethod
     def from_media(
@@ -304,10 +578,7 @@ class Document(DocumentData):
         metadata: dict[str, Any] | None = None,
     ) -> Document:
         """Create a document from a media URL."""
-        return Document(
-            content=[DocumentPart(root=MediaPart(media=Media(url=url, content_type=content_type)))],
-            metadata=metadata,
-        )
+        return Document(content=[Part.from_media(url, content_type)], metadata=metadata)
 
     @staticmethod
     def from_data(
@@ -802,6 +1073,29 @@ class MultipartToolResponse(MultipartToolResponseData, Generic[OutputT]):
     """
 
     output: OutputT | None = None
+    content: list[Part] | None = None  # pyright: ignore[reportIncompatibleVariableOverride]  # pyrefly: ignore[bad-override]
+
+    @field_validator('content', mode='before')
+    @classmethod
+    def _wrap_parts(cls, v: object) -> object:
+        if not isinstance(v, list):
+            return v
+        return [as_part(p) for p in v]
+
+    def __init__(
+        self,
+        output: OutputT | None = None,
+        content: Sequence[PartData] | None = None,
+        metadata: dict[str, Any] | None = None,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
+        parts = [as_part(p) for p in content] if content is not None else None
+        super().__init__(
+            output=output,
+            content=cast(list[PartData], parts),
+            metadata=metadata,
+            **kwargs,
+        )
 
 
 def text_from_message(msg: Message) -> str:
@@ -809,7 +1103,7 @@ def text_from_message(msg: Message) -> str:
     return text_from_content(msg.content)
 
 
-def text_from_content(content: Sequence[Part | DocumentPart]) -> str:
+def text_from_content(content: Sequence[Part]) -> str:
     """Concatenate text parts.
 
     Thoughts ride on ``ReasoningPart``, so they stay out of ``.text`` —

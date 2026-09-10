@@ -33,11 +33,10 @@ from genkit import (
     ModelResponseChunk,
     ModelUsage,
     Part,
-    ReasoningPart,
     Role,
-    TextPart,
     ToolDefinition,
 )
+from genkit._core._typing import ReasoningPart, TextPart
 from genkit.plugin_api import ActionRunContext, ModelConfig
 from genkit_openai.models.model_info import SUPPORTED_OPENAI_MODELS, KnownGpt
 from genkit_openai.models.utils import (

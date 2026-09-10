@@ -28,14 +28,13 @@ import pytest
 from genkit import Genkit as StableGenkit
 from genkit._ai._testing import define_programmable_model
 from genkit._core._action import ActionRunContext
-from genkit._core._model import Message, ModelResponse
+from genkit._core._model import Message, ModelResponse, Part
 from genkit._core._typing import (
     AgentFinishReason,
     AgentInput,
     AgentResult,
     FinishReason,
     MessageData,
-    Part,
     Role,
     TextPart,
 )

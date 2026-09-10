@@ -26,6 +26,7 @@ from genkit_google_genai.models.interactions_utils import (
 )
 
 from genkit import GenkitError
+from genkit._core._typing import TextPart
 
 
 def test_extract_version_strips_all_pasted_prefixes() -> None:
@@ -121,7 +122,7 @@ def test_client_overrides_from_config_reads_object() -> None:
 def test_steps_with_folded_system_instruction_prepends_system() -> None:
     from genkit_google_genai.models.interactions_utils import steps_with_folded_system_instruction
 
-    from genkit import Message, Part, Role, TextPart
+    from genkit import Message, Part, Role
 
     messages = [
         Message(role=Role.SYSTEM, content=[Part(TextPart(text='Be helpful.'))]),

@@ -19,10 +19,10 @@ import pytest
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 from pydantic.alias_generators import to_camel
 
-from genkit import Genkit, Message, ModelResponse, ModelResponseChunk
+from genkit import Genkit, Message, ModelResponse, ModelResponseChunk, Part
 from genkit._ai._testing import define_programmable_model
 from genkit._core._action import ActionRunContext
-from genkit._core._typing import Part, Role, TextPart
+from genkit._core._typing import Role, TextPart
 
 OutputT = TypeVar('OutputT', bound=BaseModel)
 

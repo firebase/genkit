@@ -12,21 +12,23 @@ from genkit import (
     FinishReason,
     Genkit,
     Media,
-    MediaPart,
     Message,
     ModelResponse,
     MultipartToolResponse,
     Part,
     Role,
-    TextPart,
     ToolRequest,
-    ToolRequestPart,
     ToolResponse,
-    ToolResponsePart,
     response,
 )
 from genkit._ai._testing import ProgrammableModel, define_programmable_model
 from genkit._core._schema import to_json_schema
+from genkit._core._typing import (
+    MediaPart,
+    TextPart,
+    ToolRequestPart,
+    ToolResponsePart,
+)
 
 
 class ShotOut(BaseModel):
