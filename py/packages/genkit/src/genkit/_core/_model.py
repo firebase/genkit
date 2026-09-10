@@ -998,6 +998,21 @@ class ModelRequest(GenkitModel, Generic[ModelRequestConfigT]):
     def output_content_type(self, v: str | None) -> None:
         self.output.content_type = v
 
+    def __eq__(self, other: object) -> bool:
+        # The request they stash from a response is the conversation the
+        # model answered, compared by those fields — not whether it is the
+        # same object the plugin held.
+        if isinstance(other, ModelRequest):
+            return (
+                self.messages == other.messages
+                and self.docs == other.docs
+                and self.config == other.config
+                and self.tools == other.tools
+                and self.tool_choice == other.tool_choice
+                and self.output == other.output
+            )
+        return super().__eq__(other)
+
 
 def as_model_request(value: object) -> ModelRequest:
     if isinstance(value, ModelRequest):
@@ -1243,41 +1258,6 @@ class ModelResponseChunk(GenkitModel, Generic[OutputT]):
             return v
         return [as_part(p) for p in v]
 
-    def __init__(
-        self,
-        chunk: ModelResponseChunk[Any] | None = None,
-        previous_chunks: list[Any] | None = None,
-        index: int | float | None = None,
-        chunk_parser: Callable[..., object] | None = None,
-        schema_type: type[BaseModel] | None = None,
-        **kwargs: Any,  # noqa: ANN401
-    ) -> None:
-        """Initialize from a chunk or keyword arguments."""
-        if chunk is not None:
-            payload: dict[str, Any] = {
-                'role': chunk.role,
-                'index': index,
-                'content': chunk.content,
-                'custom': chunk.custom,
-                'aggregated': chunk.aggregated,
-            }
-            BaseModel.__init__(self, **cast(Any, payload))
-        else:
-            if index is not None:
-                kwargs.setdefault('index', index)
-            if previous_chunks is not None:
-                kwargs.setdefault('previous_chunks', previous_chunks)
-            if chunk_parser is not None:
-                kwargs.setdefault('chunk_parser', chunk_parser)
-            if schema_type is not None:
-                kwargs.setdefault('schema_type', schema_type)
-            BaseModel.__init__(self, **cast(Any, kwargs))
-        self.previous_chunks = previous_chunks if previous_chunks is not None else list(self.previous_chunks or [])
-        if chunk_parser is not None:
-            self.chunk_parser = chunk_parser
-        if schema_type is not None:
-            self.schema_type = schema_type
-
     def __eq__(self, other: object) -> bool:
         """Check equality."""
         if isinstance(other, ModelResponseChunk):
@@ -1328,14 +1308,35 @@ class ModelResponseChunk(GenkitModel, Generic[OutputT]):
 
 def as_model_response_chunk(value: object) -> ModelResponseChunk:
     if isinstance(value, ModelResponseChunk):
-        return ModelResponseChunk(
-            chunk=value,
+        return stream_chunk(
+            value,
             index=value.index,
             previous_chunks=value.previous_chunks,
             chunk_parser=value.chunk_parser,
             schema_type=value.schema_type,
         )
     return ModelResponseChunk.model_validate(value)
+
+
+def stream_chunk(
+    source: ModelResponseChunk,
+    *,
+    index: float | None = None,
+    previous_chunks: list[Any] | None = None,
+    chunk_parser: Callable[..., object] | None = None,
+    schema_type: type[BaseModel] | None = None,
+) -> ModelResponseChunk:
+    """Copy a plugin chunk and stamp stream index / parser on the copy."""
+    return ModelResponseChunk(
+        role=source.role,
+        index=index,
+        content=source.content,
+        custom=source.custom,
+        aggregated=source.aggregated,
+        previous_chunks=list(previous_chunks or []),
+        chunk_parser=chunk_parser,
+        schema_type=schema_type,
+    )
 
 
 class AgentStreamChunk(GenkitModel):
