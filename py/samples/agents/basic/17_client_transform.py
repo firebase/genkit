@@ -35,8 +35,9 @@ from __future__ import annotations
 
 from genkit_google_genai import GoogleAI
 
-from genkit import ActionRunContext, FinishReason, Genkit, Message, Part, TextPart
-from genkit.agent import (
+from genkit import ActionRunContext, FinishReason, Message, Part, TextPart
+from genkit.exp import Genkit
+from genkit.exp.agent import (
     AgentFinishReason,
     AgentInput,
     AgentResult,

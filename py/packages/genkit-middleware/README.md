@@ -206,8 +206,7 @@ system prompt. Intended for agent sessions:
 ```python
 from genkit_middleware import Artifacts, Middleware
 
-from genkit import Genkit
-from genkit.agent import InMemorySessionStore
+from genkit.exp import Genkit, InMemorySessionStore
 from genkit_google_genai import GoogleAI
 
 ai = Genkit(plugins=[GoogleAI(), Middleware()])

@@ -48,7 +48,7 @@ Use `serve_agent` to expose an agent as FastAPI routes (including `/getSnapshot`
 
 ```python
 from fastapi import FastAPI
-from genkit import Genkit
+from genkit.exp import Genkit
 from genkit_fastapi import serve_agent
 from genkit_google_genai import GoogleAI
 

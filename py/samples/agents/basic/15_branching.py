@@ -33,8 +33,9 @@ from __future__ import annotations
 
 from genkit_google_genai import GoogleAI
 
-from genkit import Genkit, GenkitError
-from genkit.agent import InMemorySessionStore
+from genkit import GenkitError
+from genkit.exp import Genkit
+from genkit.exp.agent import InMemorySessionStore
 
 ai = Genkit(plugins=[GoogleAI()])
 # reject_ambiguous_session makes a session-id lookup over a forked history raise

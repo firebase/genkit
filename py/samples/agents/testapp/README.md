@@ -2,7 +2,7 @@
 
 A FastAPI process with the agents in this folder mounted at `/api/<name>`.
 Sessions stay in memory or on disk so it runs on `GEMINI_API_KEY` tonight.
-Swap in `FirestoreSessionStore()` from `genkit-google-cloud` when you
+Swap in `FirestoreSessionStore()` from `genkit_google_cloud.exp` when you
 deploy.
 
 ```bash

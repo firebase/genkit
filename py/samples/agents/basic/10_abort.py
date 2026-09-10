@@ -28,8 +28,9 @@ import asyncio
 
 from genkit_google_genai import GoogleAI
 
-from genkit import Genkit, GenkitError, ToolRunContext
-from genkit.agent import InMemorySessionStore
+from genkit import GenkitError, ToolRunContext
+from genkit.exp import Genkit
+from genkit.exp.agent import InMemorySessionStore
 
 ai = Genkit(plugins=[GoogleAI()])
 store = InMemorySessionStore()

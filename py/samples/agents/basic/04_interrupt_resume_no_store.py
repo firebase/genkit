@@ -30,8 +30,8 @@ from genkit_google_genai import GoogleAI
 from genkit_middleware import Middleware, ToolApproval
 from pydantic import BaseModel, Field
 
-from genkit import Genkit
-from genkit.agent import AgentFinishReason
+from genkit.exp import Genkit
+from genkit.exp.agent import AgentFinishReason
 
 
 class TransferInput(BaseModel):

@@ -42,7 +42,6 @@ from pydantic.alias_generators import to_camel
 from genkit._ai._agents._runtime import SessionRunner
 from genkit._ai._agents._session_stores._inmemory_store import InMemorySessionStore
 from genkit._ai._agents._types import TurnContext, TurnResult
-from genkit._ai._aio import Genkit
 from genkit._ai._testing import ProgrammableModel, define_programmable_model
 from genkit._ai._tools import Interrupt, ToolRunContext
 from genkit._core._action import ActionRunContext
@@ -62,7 +61,8 @@ from genkit._core._typing import (
     SessionSnapshot as SessionSnapshotSchema,
     TextPart,
 )
-from genkit.agent import Agent
+from genkit.exp import Genkit
+from genkit.exp.agent import Agent
 
 TERMINAL_STATUSES = {'completed', 'failed', 'aborted'}
 DEFAULT_STEP_TIMEOUT_S = 5.0

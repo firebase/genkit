@@ -23,7 +23,6 @@ from genkit._ai._agents._preamble import (
     apply_preamble_tags,
     tag_history_for_render,
 )
-from genkit._ai._aio import Genkit
 from genkit._ai._testing import define_programmable_model
 from genkit._core._model import Message, ModelResponse
 from genkit._core._typing import (
@@ -39,7 +38,8 @@ from genkit._core._typing import (
     ToolResponse,
     ToolResponsePart,
 )
-from genkit.agent import AgentError, InMemorySessionStore
+from genkit.exp import Genkit
+from genkit.exp.agent import AgentError, InMemorySessionStore
 
 
 def test_tag_history_for_render_copies_messages() -> None:

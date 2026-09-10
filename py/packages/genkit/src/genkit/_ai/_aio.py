@@ -35,15 +35,7 @@ import anyio
 import uvicorn
 from pydantic import BaseModel
 
-from genkit._ai._agents._base import (
-    Agent,
-    define_agent,
-    define_custom_agent,
-    define_prompt_agent,
-)
-from genkit._ai._agents._runtime import AgentFn
-from genkit._ai._agents._session import SessionStore, StateT, get_current_session
-from genkit._ai._agents._types import ChunkTransform, StateTransform
+from genkit._ai._agents._session import get_current_session
 from genkit._ai._embedding import EmbedderFn, EmbedderInfo, EmbedderRef, define_embedder
 from genkit._ai._evaluator import (
     BatchEvaluatorFn,
@@ -152,7 +144,7 @@ MiddlewareT = TypeVar('MiddlewareT', bound=BaseMiddleware)
 class Genkit:
     """The main entry point for building AI-powered applications.
 
-    Registers plugins, defines flows, tools, and agents, and runs generation.
+    Registers plugins, defines flows and tools, and runs generation.
 
     Example:
         from genkit import Genkit
@@ -836,176 +828,6 @@ class Genkit:
             variant=variant,
             input_schema=input_schema,
             output_schema=output_schema,
-        )
-
-    async def agent(self, name: str) -> Agent:
-        """Look up a registered agent by name."""
-        resolved = await self.registry.resolve_action(ActionKind.AGENT, name)
-        if resolved is None:
-            raise GenkitError(
-                status='NOT_FOUND',
-                message=f"Agent '{name}' not found in registry.",
-            )
-        if not isinstance(resolved, Agent):
-            raise GenkitError(
-                status='INTERNAL',
-                message=f"Registry entry '{name}' is not an Agent.",
-            )
-        return resolved
-
-    def define_custom_agent(
-        self,
-        name: str,
-        fn: AgentFn,
-        *,
-        store: SessionStore[StateT] | None = None,
-        state_transform: StateTransform | None = None,
-        chunk_transform: ChunkTransform | None = None,
-        state_schema: type[StateT] | None = None,
-        description: str | None = None,
-        metadata: dict[str, object] | None = None,
-    ) -> Agent[StateT]:
-        """Define and register an agent with full control over the turn loop.
-
-        fn receives (SessionRunner, ActionRunContext) and must call sess.run(handle_turn)
-        to process inputs, then return an AgentResult.
-
-        Pass ``state_schema`` (a Pydantic model) to type the custom state, so the
-        chat's ``state``, ``response.state``, and streamed ``chunk.custom`` come
-        back as that model instead of a dict.
-        """
-        return define_custom_agent(
-            registry=self.registry,
-            name=name,
-            fn=fn,
-            store=store,
-            state_transform=state_transform,
-            chunk_transform=chunk_transform,
-            state_schema=state_schema,
-            description=description,
-            metadata=metadata,
-        )
-
-    @overload
-    def define_agent(
-        self,
-        name: str,
-        *,
-        model: ModelRef[ModelRefConfigT] | str | None = None,
-        system: str | list[Part] | None = None,
-        tools: Sequence[str | Tool] | None = None,
-        use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
-        config: ModelConfigDict,
-        max_turns: int | None = None,
-        description: str | None = None,
-        metadata: dict[str, object] | None = None,
-        store: SessionStore[StateT] | None = None,
-        state_transform: StateTransform | None = None,
-        chunk_transform: ChunkTransform | None = None,
-        state_schema: type[StateT] | None = None,
-    ) -> Agent[StateT]: ...
-
-    @overload
-    def define_agent(
-        self,
-        name: str,
-        *,
-        model: ModelRef[ModelRefConfigT] | str | None = None,
-        system: str | list[Part] | None = None,
-        tools: Sequence[str | Tool] | None = None,
-        use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
-        config: ModelRefConfigT | Mapping[str, Any] | None = None,
-        max_turns: int | None = None,
-        description: str | None = None,
-        metadata: dict[str, object] | None = None,
-        store: SessionStore[StateT] | None = None,
-        state_transform: StateTransform | None = None,
-        chunk_transform: ChunkTransform | None = None,
-        state_schema: type[StateT] | None = None,
-    ) -> Agent[StateT]: ...
-
-    def define_agent(
-        self,
-        name: str,
-        *,
-        model: ModelRef[ModelRefConfigT] | str | None = None,
-        system: str | list[Part] | None = None,
-        tools: Sequence[str | Tool] | None = None,
-        use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
-        config: BaseModel | ModelConfigDict | Mapping[str, Any] | None = None,
-        max_turns: int | None = None,
-        description: str | None = None,
-        metadata: dict[str, object] | None = None,
-        store: SessionStore[StateT] | None = None,
-        state_transform: StateTransform | None = None,
-        chunk_transform: ChunkTransform | None = None,
-        state_schema: type[StateT] | None = None,
-    ) -> Agent[StateT]:
-        """Define a prompt-backed agent.
-
-        Each turn: attaches session history, calls generate with streaming,
-        updates session. Pass resume in AgentInput to resume from an interrupt.
-
-        Pass ``state_schema`` (a Pydantic model) to type the custom state tools
-        read and write — the chat's ``state``, ``response.state``, and streamed
-        ``chunk.custom`` come back as that model instead of a dict.
-
-        Example:
-            from genkit.agent import InMemorySessionStore
-            from genkit_google_genai import GoogleAI
-
-            agent = ai.define_agent(
-                name='weatherAgent',
-                model=GoogleAI.gemini_model('gemini-flash-latest'),
-                system='Weather assistant.',
-                tools=[current_weather],
-                store=InMemorySessionStore(),
-            )
-            chat = agent.chat()
-            res = await chat.send('Weather in Paris?')
-        """
-        return define_agent(
-            registry=self.registry,
-            name=name,
-            model=model,
-            system=system,
-            tools=tools,
-            use=use,
-            config=config,
-            max_turns=max_turns,
-            description=description,
-            metadata=metadata,
-            store=store,
-            state_transform=state_transform,
-            chunk_transform=chunk_transform,
-            state_schema=state_schema,
-        )
-
-    def define_prompt_agent(
-        self,
-        name: str,
-        *,
-        store: SessionStore[StateT] | None = None,
-        state_transform: StateTransform | None = None,
-        chunk_transform: ChunkTransform | None = None,
-        state_schema: type[StateT] | None = None,
-        description: str | None = None,
-        metadata: dict[str, object] | None = None,
-    ) -> Agent[StateT]:
-        """Wire an already-registered prompt as an agent.
-
-        Looks up the prompt named `name` from the registry. Use when the prompt
-        is defined via ai.define_prompt() or loaded from a .prompt file.
-        """
-        return define_prompt_agent(
-            registry=self.registry,
-            name=name,
-            store=store,
-            state_transform=state_transform,
-            chunk_transform=chunk_transform,
-            state_schema=state_schema,
-            description=description,
-            metadata=metadata,
         )
 
     def define_resource(

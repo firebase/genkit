@@ -35,8 +35,9 @@ from pathlib import Path
 
 from genkit_google_genai import GoogleAI
 
-from genkit import ActionRunContext, FinishReason, Genkit, Message
-from genkit.agent import (
+from genkit import ActionRunContext, FinishReason, Message
+from genkit.exp import Genkit
+from genkit.exp.agent import (
     AgentFinishReason,
     AgentInput,
     AgentResult,
