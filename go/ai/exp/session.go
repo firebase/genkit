@@ -654,7 +654,7 @@ func newSnapshotActions[State any](
 				return nil, status.Errorf(status.ErrInvalidArgument, "abort: snapshotId is required")
 			}
 			// Aborting is an ordinary SaveSnapshot that flips a pending row to
-			// aborted; the store has no dedicated abort method.
+			// aborting; the store has no dedicated abort method.
 			snapStatus, err := abortPendingSnapshot(ctx, store, req.SnapshotID)
 			if err != nil {
 				return nil, fmt.Errorf("abort: %w", err)

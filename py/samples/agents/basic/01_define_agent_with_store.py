@@ -22,7 +22,7 @@ restart, ``load_chat(snapshot_id=...)`` rehydrates the conversation and the
 agent still remembers turn 1.
 
 These samples use ``InMemorySessionStore`` so they run tonight. The same
-``store=`` slot takes ``FirestoreSessionStore`` from ``genkit-google-cloud``
+``store=`` slot takes ``FirestoreSessionStore`` from ``genkit_google_cloud.exp``
 when you ship. Requires GEMINI_API_KEY.
 """
 
@@ -33,8 +33,7 @@ import random
 from genkit_google_genai import GoogleAI
 from pydantic import BaseModel
 
-from genkit import Genkit
-from genkit.agent import InMemorySessionStore
+from genkit.exp import Genkit, InMemorySessionStore
 
 
 class WeatherInput(BaseModel):
@@ -48,7 +47,7 @@ class WeatherOutput(BaseModel):
 
 ai = Genkit(plugins=[GoogleAI()])
 # In-memory so this file runs without GCP. Swap in FirestoreSessionStore from
-# genkit-google-cloud when the session has to survive a deploy.
+# genkit_google_cloud.exp when the session has to survive a deploy.
 store = InMemorySessionStore()
 
 

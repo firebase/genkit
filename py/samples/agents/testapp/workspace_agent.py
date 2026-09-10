@@ -33,7 +33,7 @@ from pydantic import BaseModel
 
 from genkit import ActionRunContext, Part
 from genkit._core._typing import TextPart
-from genkit.agent import Artifact
+from genkit.exp.agent import Artifact
 
 
 class WriteArtifactInput(BaseModel):

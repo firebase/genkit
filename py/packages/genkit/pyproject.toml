@@ -83,6 +83,7 @@ requires-python = ">=3.10"
 version = "0.11.0"
 
 [project.optional-dependencies]
+a2ui                  = ["genkit-a2ui"]
 amazon-bedrock        = ["genkit-amazon-bedrock"]
 anthropic             = ["genkit-anthropic"]
 django                = ["genkit-django"]
@@ -115,6 +116,7 @@ pythonpath = [".", "src", "tests", "packages/genkit/src"]
 testpaths  = ["tests"]
 
 [tool.uv.sources]
+genkit-a2ui                         = { workspace = true }
 genkit-amazon-bedrock               = { workspace = true }
 genkit-anthropic                    = { workspace = true }
 genkit-django                       = { workspace = true }

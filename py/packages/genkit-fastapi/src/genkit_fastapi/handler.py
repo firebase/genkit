@@ -28,7 +28,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from genkit import Action, ActionKind, Genkit, GenkitError
-from genkit.agent import Agent, SessionSnapshot
+from genkit.exp.agent import Agent, SessionSnapshot
 from genkit.plugin_api import ContextProvider, RequestData, get_callable_json
 
 

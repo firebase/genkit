@@ -32,9 +32,10 @@ from __future__ import annotations
 from genkit_google_genai import GoogleAI
 from pydantic import BaseModel, Field
 
-from genkit import ActionRunContext, FinishReason, Genkit, Message, Part
+from genkit import ActionRunContext, FinishReason, Message, Part
 from genkit._core._typing import TextPart
-from genkit.agent import (
+from genkit.exp import Genkit
+from genkit.exp.agent import (
     AgentFinishReason,
     AgentInput,
     AgentResult,
