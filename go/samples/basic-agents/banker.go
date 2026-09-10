@@ -157,7 +157,13 @@ func handleTransferInterrupt(p *Prompter, part *ai.Part) (*ai.Part, error) {
 		// Not our tool's interrupt; let the CLI report it as unresolved.
 		return nil, nil
 	}
-	meta, _ := ai.InterruptAs[TransferInterrupt](part)
+	meta, ok := ai.InterruptAs[TransferInterrupt](part)
+	if !ok {
+		// The tool's interrupt, but not a payload this handler can ask
+		// about; let the CLI report it as unresolved rather than decline a
+		// transfer nobody was asked about.
+		return nil, nil
+	}
 
 	switch meta.Reason {
 	case "insufficient_balance":
