@@ -58,9 +58,9 @@ from genkit import (
     Part,
     Role,
     Supports,
-    TextPart,
     ToolDefinition,
 )
+from genkit._core._typing import TextPart
 from genkit.model import Candidate, FinishReason, get_basic_usage_stats
 from genkit.plugin_api import (
     ActionRunContext,

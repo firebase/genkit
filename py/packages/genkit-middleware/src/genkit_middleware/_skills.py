@@ -26,12 +26,13 @@ from typing import Any
 import yaml
 from pydantic import BaseModel as PydanticBaseModel, Field
 
+from genkit import Part
 from genkit._ai._model import Message
 from genkit._ai._tools import define_tool
 from genkit._core._action import Action
 from genkit._core._model import GenerateActionOptions, ModelResponse
 from genkit._core._registry import Registry
-from genkit._core._typing import Part, Role, TextPart
+from genkit._core._typing import Role, TextPart
 from genkit.middleware import BaseMiddleware, GenerateHookParams, GenerateMiddlewareContext
 
 _SKILLS_MARKER = 'skills-instructions'

@@ -20,12 +20,12 @@ from uuid import uuid4
 
 import pytest
 
+from genkit import Part
 from genkit._ai._agents._session_stores._util import apply_save
 from genkit._ai._agents._snapshot import abort_snapshot_in_store
 from genkit._core._error import GenkitError
 from genkit._core._typing import (
     MessageData,
-    Part,
     SessionSnapshot,
     SessionState,
     SnapshotStatus,

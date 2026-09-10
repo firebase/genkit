@@ -17,8 +17,8 @@
 """Utilities for working with messages."""
 
 from genkit._ai._model import Message
+from genkit._core._model import Part
 from genkit._core._typing import (
-    Part,
     Role,
     TextPart,
 )

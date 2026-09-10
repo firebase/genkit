@@ -18,7 +18,8 @@
 
 from genkit_google_genai import GoogleAI
 
-from genkit import Genkit, Media, MediaPart, MultipartToolResponse, response
+from genkit import Genkit, Media, MultipartToolResponse, response
+from genkit._core._typing import MediaPart
 
 ai = Genkit(plugins=[GoogleAI()], model=GoogleAI.gemini_model('gemini-flash-latest'))
 

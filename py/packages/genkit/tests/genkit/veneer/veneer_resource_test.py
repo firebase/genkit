@@ -24,10 +24,10 @@ from typing import Any, cast
 
 import pytest
 
-from genkit import ActionRunContext, Genkit
+from genkit import ActionRunContext, Genkit, Part
 from genkit._ai._resource import ResourceInput
 from genkit._core._action import ActionKind
-from genkit._core._typing import Part, TextPart
+from genkit._core._typing import TextPart
 
 
 @pytest.mark.asyncio

@@ -29,24 +29,26 @@ from pydantic import ValidationError
 
 from genkit import (
     Constrained,
-    CustomPart,
     FinishReason,
     Media,
-    MediaPart,
     Message,
     Metadata,
     ModelInfo,
     ModelRequest,
     ModelResponseChunk,
     Part,
-    ReasoningPart,
     Role,
     Supports,
-    TextPart,
     ToolDefinition,
-    ToolRequestPart,
 )
 from genkit._core._model import OutputConfig
+from genkit._core._typing import (
+    CustomPart,
+    MediaPart,
+    ReasoningPart,
+    TextPart,
+    ToolRequestPart,
+)
 from genkit.plugin_api import ModelConfig
 
 
@@ -315,16 +317,13 @@ async def test_streaming_generation() -> None:
 
     assert len(collected_chunks) == 3
     chunk0_part = collected_chunks[0].content[0]
-    chunk0_actual = chunk0_part.root if isinstance(chunk0_part, Part) else chunk0_part
-    assert chunk0_actual.text == 'Hello'
+    assert Part.model_validate(chunk0_part).text == 'Hello'
 
     chunk1_part = collected_chunks[1].content[0]
-    chunk1_actual = chunk1_part.root if isinstance(chunk1_part, Part) else chunk1_part
-    assert chunk1_actual.text == ' world'
+    assert Part.model_validate(chunk1_part).text == ' world'
 
     chunk2_part = collected_chunks[2].content[0]
-    chunk2_actual = chunk2_part.root if isinstance(chunk2_part, Part) else chunk2_part
-    assert chunk2_actual.text == '!'
+    assert Part.model_validate(chunk2_part).text == '!'
 
     assert response.usage is not None
     assert response.usage.input_tokens == 10

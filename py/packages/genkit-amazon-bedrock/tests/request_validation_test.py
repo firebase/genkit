@@ -38,11 +38,10 @@ from genkit import (
     Message,
     ModelRequest,
     Part,
-    ReasoningPart,
     Role,
-    TextPart,
     ToolDefinition,
 )
+from genkit._core._typing import ReasoningPart, TextPart
 
 _SERVICE_MODEL = botocore.session.get_session().get_service_model('bedrock-runtime')
 CONVERSE_INPUT_SHAPES = {

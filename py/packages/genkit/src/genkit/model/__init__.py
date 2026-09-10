@@ -31,6 +31,7 @@ from genkit._core._model import (
     ModelResponse,
     ModelResponseChunk,
     ModelUsage,
+    Part,
     get_basic_usage_stats,
 )
 from genkit._core._typing import (
@@ -81,6 +82,7 @@ __all__ = [
     'ModelConfigDict',
     # Message
     'Message',
+    'Part',
     # Usage
     'get_basic_usage_stats',
 ]

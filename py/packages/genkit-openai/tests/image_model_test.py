@@ -30,13 +30,12 @@ from genkit_openai.models.image import (
 )
 
 from genkit import (
-    MediaPart,
     Message,
     ModelRequest,
     Part,
     Role,
-    TextPart,
 )
+from genkit._core._typing import MediaPart, TextPart
 
 
 class TestExtractPromptText:

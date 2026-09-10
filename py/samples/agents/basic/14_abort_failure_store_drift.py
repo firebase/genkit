@@ -52,7 +52,8 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from genkit import ActionRunContext, Genkit, GenkitError, Message, Part, TextPart
+from genkit import ActionRunContext, Genkit, GenkitError, Message, Part
+from genkit._core._typing import TextPart
 from genkit.agent import (
     AgentChat,
     AgentError,

@@ -7,10 +7,10 @@
 
 import pytest
 
-from genkit import Message, ModelResponseChunk
+from genkit import Message, ModelResponseChunk, Part
 from genkit._ai._formats._enum import EnumFormat
 from genkit._core._error import GenkitError
-from genkit._core._typing import Part, TextPart
+from genkit._core._typing import TextPart
 
 
 class TestEnumFormatMessage:

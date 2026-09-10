@@ -30,11 +30,10 @@ from genkit._core._typing import (
     Media,
     MediaPart,
     ModelInfo,
-    Part,
     Role,
     TextPart,
 )
-from genkit.model import Message, ModelRequest, ModelResponse, ModelResponseChunk
+from genkit.model import Message, ModelRequest, ModelResponse, ModelResponseChunk, Part
 
 from ._aio import Genkit
 

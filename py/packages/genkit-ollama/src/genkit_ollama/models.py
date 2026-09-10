@@ -95,17 +95,19 @@ from pydantic.alias_generators import to_camel, to_snake
 from genkit import (
     GenkitError,
     Media,
-    MediaPart,
     Message,
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,
     ModelUsage,
     Part,
-    ReasoningPart,
     Role,
-    TextPart,
     ToolRequest,
+)
+from genkit._core._typing import (
+    MediaPart,
+    ReasoningPart,
+    TextPart,
     ToolRequestPart,
     ToolResponsePart,
 )

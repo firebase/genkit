@@ -19,6 +19,7 @@ import asyncio
 import pytest
 
 import genkit._ai._agents._runtime as runtime_mod
+from genkit import Part
 from genkit._ai._agents._runtime import AgentRuntime, SessionRunner, agent_input_has_payload
 from genkit._ai._agents._session import Session
 from genkit._ai._agents._session_stores._inmemory_store import InMemorySessionStore
@@ -39,7 +40,6 @@ from genkit._core._typing import (
     AgentStreamChunk,
     MessageData,
     ModelResponseChunk,
-    Part,
     Role,
     SessionState,
     SnapshotStatus,

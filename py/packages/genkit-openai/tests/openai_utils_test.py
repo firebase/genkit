@@ -39,16 +39,18 @@ from pydantic import BaseModel
 from genkit import (
     GenkitError,
     Media,
-    MediaPart,
     Message,
     ModelRequest,
     Part,
-    ReasoningPart,
     Role,
-    TextPart,
     ToolRequest,
-    ToolRequestPart,
     ToolResponse,
+)
+from genkit._core._typing import (
+    MediaPart,
+    ReasoningPart,
+    TextPart,
+    ToolRequestPart,
     ToolResponsePart,
 )
 

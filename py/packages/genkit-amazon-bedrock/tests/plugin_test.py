@@ -26,7 +26,8 @@ from genkit_amazon_bedrock import Bedrock, BedrockConfig, ModelDefinition, bedro
 from genkit_amazon_bedrock.transport import BedrockTransport
 from pydantic import ValidationError
 
-from genkit import Document, MediaPart, ModelRequest, ModelResponse
+from genkit import Document, ModelRequest, ModelResponse
+from genkit._core._typing import MediaPart
 from genkit.embedder import EmbedRequest
 from genkit.plugin_api import ActionKind, GenkitError
 

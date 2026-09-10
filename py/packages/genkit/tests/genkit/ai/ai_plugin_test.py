@@ -22,11 +22,11 @@
 
 import pytest
 
-from genkit import Genkit, Message, ModelResponse, Part, Plugin, Role, TextPart
+from genkit import Genkit, Message, ModelResponse, Part, Plugin, Role
 from genkit._core._action import Action, ActionRunContext
 from genkit._core._model import ModelRequest
 from genkit._core._registry import ActionKind
-from genkit._core._typing import ActionMetadata, FinishReason
+from genkit._core._typing import ActionMetadata, FinishReason, TextPart
 from genkit.middleware import BaseMiddleware, GenerateMiddleware
 from genkit.plugin_api import new_middleware
 

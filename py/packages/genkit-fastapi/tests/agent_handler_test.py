@@ -21,10 +21,10 @@ AgentInit = _genkit_agent.AgentInit
 
 from genkit_fastapi import handle_genkit_request, serve_agent  # noqa: E402
 
-from genkit import Genkit  # noqa: E402
+from genkit import Genkit, Part  # noqa: E402
 from genkit._ai._testing import define_programmable_model  # noqa: E402
 from genkit._core._model import Message, ModelResponse, ModelResponseChunk as ModelResponseChunkModel  # noqa: E402
-from genkit._core._typing import FinishReason, Part, Role, TextPart  # noqa: E402
+from genkit._core._typing import FinishReason, Role, TextPart  # noqa: E402
 
 
 def build_agent(name: str) -> Any:

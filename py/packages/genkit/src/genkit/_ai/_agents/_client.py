@@ -21,7 +21,7 @@ import copy
 import inspect
 import json
 import re
-from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Generator, Iterator
+from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Generator, Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Generic, Protocol, TypeVar, cast
 
@@ -40,7 +40,7 @@ from genkit._core._error import (
     StatusName,
 )
 from genkit._core._logger import get_logger
-from genkit._core._model import Message
+from genkit._core._model import Message, Part, as_part
 from genkit._core._typing import (
     AgentFinishReason,
     AgentInit,
@@ -52,7 +52,7 @@ from genkit._core._typing import (
     Media,
     MediaPart,
     MessageData,
-    Part,
+    PartData,
     ReasoningPart,
     Resume,
     Role,
@@ -739,10 +739,6 @@ def validate_init(init: AgentInit) -> None:
         )
 
 
-def as_part(part: Any) -> Part:  # noqa: ANN401
-    return part if isinstance(part, Part) else Part.model_validate(part)
-
-
 class StreamedMessageAccumulator:
     """Rebuilds a turn's messages from its chunk stream.
 
@@ -790,7 +786,7 @@ class StreamedMessageAccumulator:
         if text_buf:
             merged.append(Part(root=TextPart(text=''.join(text_buf))))
         if merged:
-            self.built_messages.append(MessageData(role=self.role, content=merged))
+            self.built_messages.append(MessageData(role=self.role, content=cast(list[PartData], merged)))
         self.role = None
         self.index = None
         self.parts = []
@@ -1511,24 +1507,23 @@ class DetachedTask(Generic[StateT]):
 # ===========================================================================
 
 
-def part_roots(content: list[Part] | None) -> Iterator[object]:
+def part_roots(content: Sequence[PartData] | None) -> Iterator[object]:
     """Yields the inner root of each content part, normalizing dicts to Part."""
     for part in content or []:
-        p = part if isinstance(part, Part) else Part.model_validate(part)
-        yield p.root
+        yield as_part(part).root
 
 
-def text_of(content: list[Part] | None) -> str:
+def text_of(content: Sequence[PartData] | None) -> str:
     """All text parts concatenated."""
     return ''.join(r.text for r in part_roots(content) if isinstance(r, TextPart) and r.text)
 
 
-def reasoning_of(content: list[Part] | None) -> str:
+def reasoning_of(content: Sequence[PartData] | None) -> str:
     """All reasoning parts concatenated."""
     return ''.join(r.reasoning for r in part_roots(content) if isinstance(r, ReasoningPart) and r.reasoning)
 
 
-def first_media_of(content: list[Part] | None) -> Media | None:
+def first_media_of(content: Sequence[PartData] | None) -> Media | None:
     """The first media part, if any."""
     for r in part_roots(content):
         if isinstance(r, MediaPart):
@@ -1536,7 +1531,7 @@ def first_media_of(content: list[Part] | None) -> Media | None:
     return None
 
 
-def first_data_of(content: list[Part] | None) -> Any:  # noqa: ANN401
+def first_data_of(content: Sequence[PartData] | None) -> Any:  # noqa: ANN401
     """The first structured-data part value, if any."""
     for r in part_roots(content):
         data = getattr(r, 'data', None)
@@ -1545,6 +1540,6 @@ def first_data_of(content: list[Part] | None) -> Any:  # noqa: ANN401
     return None
 
 
-def tool_requests_of(content: list[Part] | None) -> list[ToolRequestPart]:
+def tool_requests_of(content: Sequence[PartData] | None) -> list[ToolRequestPart]:
     """All tool-request parts."""
     return [r for r in part_roots(content) if isinstance(r, ToolRequestPart)]

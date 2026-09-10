@@ -23,8 +23,9 @@ from unittest import mock
 
 import pytest
 
+from genkit import Part
 from genkit._ai._agents._transports._http import HttpAgentTransport
-from genkit._core._typing import AgentInit, AgentInput, MessageData, Part, TextPart
+from genkit._core._typing import AgentInit, AgentInput, MessageData, TextPart
 
 URL = 'http://example.test/weatherAgent'
 RESULT_LINE = 'data: {"result": {"finishReason": "stop", "message": {"role": "model", "content": [{"text": "ok"}]}}}'

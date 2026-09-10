@@ -17,6 +17,7 @@ from genkit import (
     ModelResponse,
     ModelResponseChunk,
     ModelUsage,
+    Part,
     Role,
 )
 from genkit._ai._model import text_from_content
@@ -24,10 +25,8 @@ from genkit._core._model import OutputConfig
 from genkit._core._schema import InvalidOutputSchemaError, to_json_schema
 from genkit._core._typing import (
     ActionMetadata,
-    DocumentPart,
     Media,
     MediaPart,
-    Part,
     ReasoningPart,
     TextPart,
     ToolRequest,
@@ -370,21 +369,6 @@ def test_text_from_content_with_parts() -> None:
     assert text_from_content(content) == 'hello world'
 
 
-def test_text_from_content_with_document_parts() -> None:
-    """Test text_from_content with list of DocumentPart objects."""
-    content = [DocumentPart(root=TextPart(text='doc1')), DocumentPart(root=TextPart(text=' doc2'))]
-    assert text_from_content(content) == 'doc1 doc2'
-
-
-def test_text_from_content_with_mixed_parts() -> None:
-    """Test text_from_content with mixed Part and DocumentPart objects."""
-    content = [
-        Part(root=TextPart(text='part')),
-        DocumentPart(root=TextPart(text=' text')),
-    ]
-    assert text_from_content(content) == 'part text'
-
-
 def test_text_from_content_with_empty_list() -> None:
     """Test text_from_content with empty list."""
     assert text_from_content([]) == ''
@@ -403,7 +387,7 @@ def test_text_from_content_with_none_text() -> None:
 def test_text_from_content_skips_thoughts() -> None:
     """Thoughts are scratch work — they do not show up on ``.text``."""
     content = [
-        Part(root=ReasoningPart(reasoning='let me think', text='secret thought')),
+        Part(root=ReasoningPart(reasoning='secret thought')),
         Part(root=TextPart(text='hello')),
     ]
     assert text_from_content(content) == 'hello'

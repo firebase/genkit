@@ -27,14 +27,13 @@ from genkit_amazon_bedrock.image import BedrockImageModel, build_amazon_image_bo
 from genkit import (
     FinishReason,
     Media,
-    MediaPart,
     Message,
     ModelRequest,
     ModelResponse,
     Part,
     Role,
-    TextPart,
 )
+from genkit._core._typing import MediaPart, TextPart
 from genkit.plugin_api import ActionRunContext, GenkitError, ModelConfig, to_json_schema
 
 TITAN_IMAGE = 'amazon.titan-image-generator-v1'
