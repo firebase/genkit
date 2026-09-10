@@ -830,15 +830,16 @@ func (t *InterruptibleToolAction[In, Out, Res]) Interrupted(part *Part) (*Interr
 // restart: the tool then re-executes with an empty payload, so restarting is
 // itself the approval for a tool that keys on the presence of a resume.
 func (c *InterruptedCall[In, Out, Res]) Restart(resume Res) *Part {
-	return buildRestartPart(c.Part, resume, nil)
+	return buildRestartPart(c.Part, resume, nil, false)
 }
 
 // RestartWithInput is [InterruptedCall.Restart] with the tool's input replaced
 // by input, for a person who revised the request before approving it. The
-// tool re-executes with the new input and the original stays on
+// tool re-executes with the new input, whatever its value (a nil pointer or
+// map is sent as JSON null), and the original stays on
 // [ToolRestart.OriginalInput], where [tool.OriginalInput] reads it.
 func (c *InterruptedCall[In, Out, Res]) RestartWithInput(input In, resume Res) *Part {
-	return buildRestartPart(c.Part, resume, input)
+	return buildRestartPart(c.Part, resume, input, true)
 }
 
 // Respond returns the part that answers the call with output, without
@@ -864,26 +865,32 @@ func (c *InterruptedCall[In, Out, Res]) Respond(output Out) *Part {
 //		restart, err := part.ToToolRestart(map[string]any{"toolApproved": true})
 //	}
 func (p *Part) ToToolRestart(resume any) (*Part, error) {
-	return p.toToolRestart("ai.Part.ToToolRestart", resume, nil)
+	return p.toToolRestart("ai.Part.ToToolRestart", resume, nil, false)
 }
 
 // ToToolRestartWithInput is [Part.ToToolRestart] with the tool's input
-// replaced by input. The original input stays on [ToolRestart.OriginalInput].
+// replaced by input, which must be non-nil: with no type to say what the
+// tool expects, a nil input is taken for a mistake rather than sent as JSON
+// null. The original input stays on [ToolRestart.OriginalInput].
 func (p *Part) ToToolRestartWithInput(input, resume any) (*Part, error) {
-	return p.toToolRestart("ai.Part.ToToolRestartWithInput", resume, input)
+	const fnName = "ai.Part.ToToolRestartWithInput"
+	if base.IsNil(input) {
+		return nil, status.Errorf(status.ErrInvalidArgument, "%s: input is nil; use ToToolRestart to keep the tool's input", fnName)
+	}
+	return p.toToolRestart(fnName, resume, input, true)
 }
 
 // toToolRestart checks p and resume for the exported restart verbs, which
 // differ only in the name they report and in whether newInput replaces the
 // tool's input.
-func (p *Part) toToolRestart(fnName string, resume, newInput any) (*Part, error) {
+func (p *Part) toToolRestart(fnName string, resume, newInput any, replace bool) (*Part, error) {
 	if !p.IsInterrupt() {
 		return nil, status.Errorf(ErrInvalidPart, "%s: part is not an interrupted tool request", fnName)
 	}
 	if err := base.CheckObjectPayload(resume, "resume data"); err != nil {
 		return nil, status.Errorf(status.ErrInvalidArgument, "%s: %w", fnName, err)
 	}
-	return buildRestartPart(p, resume, newInput), nil
+	return buildRestartPart(p, resume, newInput, replace), nil
 }
 
 // ToToolResponse converts this interrupted tool request into the tool response
@@ -927,7 +934,8 @@ func (t *InterruptibleToolAction[In, Out, Res]) Restart(p *Part, opts *RestartOp
 	if opts == nil {
 		opts = &RestartOptions{}
 	}
-	return buildRestartPart(p, opts.ResumedMetadata, opts.ReplaceInput)
+	// ReplaceInput is optional, so a nil of any type means it was not set.
+	return buildRestartPart(p, opts.ResumedMetadata, opts.ReplaceInput, !base.IsNil(opts.ReplaceInput))
 }
 
 // RespondWith creates a part for [WithToolResponses] to provide a resolved response for an interrupted tool call.
@@ -963,7 +971,8 @@ func (t *InterruptibleToolAction[In, Out, Res]) RestartWith(toolReq *Part, opts 
 	if err := base.CheckObjectPayload(cfg.ResumedMetadata, "resume data"); err != nil {
 		return nil, status.Errorf(status.ErrInvalidArgument, "%s: %w", fnName, err)
 	}
-	return buildRestartPart(toolReq, cfg.ResumedMetadata, cfg.ReplaceInput), nil
+	// WithNewInput is optional, so a nil of any type means it was not given.
+	return buildRestartPart(toolReq, cfg.ResumedMetadata, cfg.ReplaceInput, !base.IsNil(cfg.ReplaceInput)), nil
 }
 
 // checkToolRequest is the guard the deprecated RespondWith and RestartWith
@@ -989,13 +998,15 @@ func (t *InterruptibleToolAction[In, Out, Res]) checkToolRequest(fnName string, 
 // interrupted call. The new part keeps the interrupted part's metadata, less
 // its interrupt state. resume is the payload delivered to the tool, already
 // validated to serialize as a JSON object, or nil for a bare restart; a nil
-// map or pointer is a bare restart too. A non-nil newInput replaces the input
-// the tool re-executes with, and the original is preserved on
-// [ToolRestart.OriginalInput].
-func buildRestartPart(interruptPart *Part, resume, newInput any) *Part {
+// map or pointer is a bare restart too. When replace is set, newInput
+// replaces the input the tool re-executes with, whatever its value, and the
+// original is preserved on [ToolRestart.OriginalInput]; the verbs decide
+// replacement, so that a nil newInput is never mistaken for "keep the input"
+// or the other way round.
+func buildRestartPart(interruptPart *Part, resume, newInput any, replace bool) *Part {
 	toolReq := interruptPart.ToolRequest
 	input, originalInput := toolReq.Input, any(nil)
-	if newInput != nil {
+	if replace {
 		input, originalInput = newInput, input
 	}
 

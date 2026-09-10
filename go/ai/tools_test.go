@@ -1983,3 +1983,62 @@ func TestInterruptVerbs_NilToolRequest(t *testing.T) {
 		})
 	}
 }
+
+// TestRestartWithInput_ReplacementIsExplicit pins that the verbs decide
+// whether the input is replaced, not the value: the typed verb replaces with
+// whatever it is given, a nil pointer included; the untyped part verb refuses
+// a nil input outright; and the deprecated option-driven verbs treat a nil of
+// any type as "not set", since replacing is optional there.
+func TestRestartWithInput_ReplacementIsExplicit(t *testing.T) {
+	type in struct {
+		Amount int `json:"amount"`
+	}
+	type confirmation struct {
+		Approved bool `json:"approved"`
+	}
+	original := map[string]any{"amount": float64(200)}
+	interrupted := func() *Part {
+		p := NewToolRequestPart(&ToolRequest{Name: "transfer", Input: original})
+		p.Interrupt = &ToolInterrupt{}
+		return p
+	}
+
+	t.Run("typed verb replaces with a nil pointer", func(t *testing.T) {
+		tl := NewInterruptibleTool("transfer", "d",
+			func(ctx context.Context, _ *in, _ *confirmation) (string, error) { return "", nil })
+		call, ok := tl.Interrupted(interrupted())
+		if !ok {
+			t.Fatal("Interrupted did not claim the part")
+		}
+		restart := call.RestartWithInput(nil, confirmation{Approved: true})
+		if got, ok := restart.ToolRequest.Input.(*in); !ok || got != nil {
+			t.Errorf("input = %#v, want the nil pointer the caller gave", restart.ToolRequest.Input)
+		}
+		if diff := cmp.Diff(original, restart.Restart.OriginalInput); diff != "" {
+			t.Errorf("OriginalInput mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("part verb refuses a nil input", func(t *testing.T) {
+		for name, input := range map[string]any{"untyped nil": nil, "typed nil": (*in)(nil)} {
+			if _, err := interrupted().ToToolRestartWithInput(input, nil); err == nil {
+				t.Errorf("ToToolRestartWithInput(%s) = nil error, want a rejection", name)
+			}
+		}
+	})
+
+	t.Run("deprecated verbs treat a nil replacement as not set", func(t *testing.T) {
+		tl := NewTool("transfer", "d", func(ctx *ToolContext, _ *in) (string, error) { return "", nil })
+		restart := tl.Restart(interrupted(), &RestartOptions{ReplaceInput: (*in)(nil)})
+		if diff := cmp.Diff(original, restart.ToolRequest.Input); diff != "" || restart.Restart.OriginalInput != nil {
+			t.Errorf("Restart replaced the input with a typed nil: input diff %s, original %v", diff, restart.Restart.OriginalInput)
+		}
+		restart, err := tl.RestartWith(interrupted(), WithNewInput[*in](nil))
+		if err != nil {
+			t.Fatalf("RestartWith: %v", err)
+		}
+		if diff := cmp.Diff(original, restart.ToolRequest.Input); diff != "" || restart.Restart.OriginalInput != nil {
+			t.Errorf("RestartWith replaced the input with a typed nil: input diff %s, original %v", diff, restart.Restart.OriginalInput)
+		}
+	})
+}
