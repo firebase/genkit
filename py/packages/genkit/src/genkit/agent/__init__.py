@@ -66,8 +66,7 @@ from genkit._ai._agents._types import (
     TurnContext,
     TurnResult,
 )
-from genkit._core._typing import (
-    AgentFinishReason,
+from genkit._core._model import (
     AgentInit,
     AgentInput,
     AgentOutput,
@@ -76,6 +75,9 @@ from genkit._core._typing import (
     Artifact,
     SessionSnapshot,
     SessionState,
+)
+from genkit._core._typing import (
+    AgentFinishReason,
     SnapshotStatus,
     TurnEnd,
 )

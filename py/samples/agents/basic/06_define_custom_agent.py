@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from genkit_google_genai import GoogleAI
 
-from genkit import ActionRunContext, FinishReason, Genkit, Message
+from genkit import ActionRunContext, FinishReason, Genkit
 from genkit.agent import (
     AgentFinishReason,
     AgentInput,
@@ -46,7 +46,7 @@ store = InMemorySessionStore()
 async def custom_coder_fn(sess: SessionRunner, ctx: ActionRunContext) -> AgentResult:
     async def handle_turn(inp: AgentInput, _: TurnContext) -> TurnResult | None:
         history = await sess.get_messages()
-        messages = [Message(m) for m in history] if history else None
+        messages = history or None
 
         stream_resp = ai.generate_stream(
             model=GoogleAI.gemini_model('gemini-flash-latest'),

@@ -32,7 +32,8 @@ from google.cloud import firestore
 from google.cloud.firestore_v1._helpers import ReadAfterWriteError
 
 from genkit._core._error import GenkitError
-from genkit._core._typing import SessionSnapshot, SessionState, SnapshotStatus
+from genkit._core._model import SessionSnapshot, SessionState
+from genkit._core._typing import SnapshotStatus
 
 
 def _doc(

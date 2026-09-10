@@ -35,7 +35,7 @@ from pathlib import Path
 
 from genkit_google_genai import GoogleAI
 
-from genkit import ActionRunContext, FinishReason, Genkit, Message
+from genkit import ActionRunContext, FinishReason, Genkit
 from genkit.agent import (
     AgentFinishReason,
     AgentInput,
@@ -60,12 +60,11 @@ async def workspace_agent_fn(sess: SessionRunner, _: ActionRunContext) -> AgentR
         note = work / 'turn.txt'
         prompt = ''
         if inp.message and inp.message.content:
-            root = inp.message.content[0].root
-            prompt = getattr(root, 'text', '') or ''
+            prompt = inp.message.content[0].text or ''
         note.write_text(f'parent={turn_ctx.parent_snapshot_id}\nprompt={prompt}\n', encoding='utf-8')
 
         history = await sess.get_messages()
-        messages = [Message(m) for m in history] if history else None
+        messages = history or None
         res = await ai.generate(
             model=GoogleAI.gemini_model('gemini-flash-latest'),
             system=(
