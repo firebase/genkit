@@ -21,19 +21,19 @@ import (
 	"slices"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai/tool"
 	"github.com/firebase/genkit/go/core/logger"
 )
 
 // ToolApproval is a middleware that interrupts tool execution unless the tool
 // is in [AllowedTools] or the call has been explicitly approved on resume.
 //
-// To approve on resume, attach a "toolApproved" flag to the restart metadata:
+// To approve on resume, attach a "toolApproved" flag to the resume data of the
+// restart part:
 //
-//	restart := tool.Restart(interruptPart, &ai.RestartOptions{
-//	    ResumedMetadata: map[string]any{"toolApproved": true},
-//	})
+//	restart, err := interruptPart.ToToolRestart(map[string]any{"toolApproved": true})
 //
-// The bare [ai.IsToolResumed] flag alone is NOT treated as approval; callers
+// A bare restart, resumed with no payload, is NOT treated as approval; callers
 // must opt in so that unrelated resume flows (e.g. respond-only turns) cannot
 // bypass approval.
 //
@@ -46,12 +46,18 @@ import (
 //	    ai.WithUse(&middleware.ToolApproval{AllowedTools: []string{"toolA"}}),
 //	)
 //	// toolA runs; toolB triggers an interrupt.
-//	// Resume with ai.WithToolRestarts carrying {"toolApproved": true} to re-execute.
+//	// Resume with ai.WithResume(restart), the restart carrying {"toolApproved": true}.
 type ToolApproval struct {
 	// AllowedTools is the list of tool names pre-approved to run without
 	// interruption. Tools not in this list trigger an interrupt. An empty
 	// list interrupts all tools.
 	AllowedTools []string `json:"allowedTools,omitempty" jsonschema_description:"Tool names pre-approved to run without interruption. Any tool not in this list triggers an interrupt. An empty list interrupts every tool."`
+}
+
+// toolApprovalResume is the resume payload the middleware reads on a restart:
+// the caller approves the held call by restarting it with toolApproved set.
+type toolApprovalResume struct {
+	ToolApproved bool `json:"toolApproved"`
 }
 
 // Name implements [ai.Middleware].
@@ -70,14 +76,14 @@ func (t *ToolApproval) wrapTool(ctx context.Context, params *ai.ToolParams, next
 		return next(ctx, params)
 	}
 
-	if approved, _ := ai.ResumedValue[bool](ctx, "toolApproved"); approved {
+	if resume, ok := tool.ResumeData[toolApprovalResume](ctx); ok && resume.ToolApproved {
 		return next(ctx, params)
 	}
 
 	// No span is emitted here: the generate engine attributes a hook that
 	// short-circuits the tool to the tool itself in traces.
 	logger.Debug(ctx, "tool held for approval", "tool", name)
-	return nil, ai.NewToolInterruptError(map[string]any{
+	return nil, tool.Interrupt(ctx, map[string]any{
 		"message": "Tool not in approved list: " + name,
 	})
 }

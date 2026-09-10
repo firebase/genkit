@@ -304,26 +304,46 @@ func TestToolApprovalResumedCallRuns(t *testing.T) {
 		t.Fatalf("got finish reason %q, want %q", resp.FinishReason, "interrupted")
 	}
 
-	// Build a restart part for each interrupt with explicit approval metadata.
-	var restarts []*ai.Part
-	for _, p := range resp.Interrupts() {
-		restart := ai.NewToolRequestPart(p.ToolRequest)
-		restart.Metadata = map[string]any{"resumed": map[string]any{"toolApproved": true}}
-		restarts = append(restarts, restart)
-	}
+	// Approval travels on the restart part's resume metadata. Both the form
+	// the ToolApproval docs show and a hand-built part with raw metadata, as
+	// a client that only speaks JSON would send, must be honored.
+	for _, tc := range []struct {
+		name    string
+		restart func(t *testing.T, p *ai.Part) *ai.Part
+	}{
+		{"Part.ToToolRestart", func(t *testing.T, p *ai.Part) *ai.Part {
+			restart, err := p.ToToolRestart(map[string]any{"toolApproved": true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			return restart
+		}},
+		{"raw resumed metadata", func(t *testing.T, p *ai.Part) *ai.Part {
+			restart := ai.NewToolRequestPart(p.ToolRequest)
+			restart.Metadata = map[string]any{"resumed": map[string]any{"toolApproved": true}}
+			return restart
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var restarts []*ai.Part
+			for _, p := range resp.Interrupts() {
+				restarts = append(restarts, tc.restart(t, p))
+			}
 
-	resp, err = ai.Generate(ctx, r,
-		ai.WithModel(m),
-		ai.WithMessages(resp.History()...),
-		ai.WithTools(needsApproval),
-		ai.WithToolRestarts(restarts...),
-		ai.WithUse(ta),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.Text() != "done" {
-		t.Errorf("got %q, want %q", resp.Text(), "done")
+			resumed, err := ai.Generate(ctx, r,
+				ai.WithModel(m),
+				ai.WithMessages(resp.History()...),
+				ai.WithTools(needsApproval),
+				ai.WithResume(restarts...),
+				ai.WithUse(ta),
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if resumed.Text() != "done" {
+				t.Errorf("got %q, want %q", resumed.Text(), "done")
+			}
+		})
 	}
 }
 
@@ -382,7 +402,7 @@ func TestToolApprovalResumedWithoutApprovalInterrupts(t *testing.T) {
 		ai.WithModel(m),
 		ai.WithMessages(resp.History()...),
 		ai.WithTools(needsApproval),
-		ai.WithToolRestarts(restarts...),
+		ai.WithResume(restarts...),
 		ai.WithUse(ta),
 	)
 	if err == nil {
