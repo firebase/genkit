@@ -20,13 +20,20 @@ from __future__ import annotations
 
 import json
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from genkit._core._model import Message, ModelRequest, ModelResponse, ModelResponseChunk
-from genkit._core._typing import FinishReason, Part, Role, TextPart
+from genkit._core._model import (
+    Message,
+    ModelRequest,
+    ModelResponse,
+    ModelResponseChunk,
+    Part,
+    as_part,
+)
+from genkit._core._typing import FinishReason, PartData, Role, TextPart
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, ModelHookParams
 
 from ._catalog import A2uiCatalog, render_catalog_instructions
@@ -171,10 +178,11 @@ class SurfaceIdReplay:
         return self.next()
 
 
-def part_text(*, part: Part) -> str | None:
+def part_text(*, part: Part | PartData) -> str | None:
     # Empty text is still a text part. Treating it as missing would flush an
     # open fence and drop the card.
-    root = part.root
+    p = as_part(part)
+    root = p.root
     if isinstance(root, TextPart):
         return root.text
     return None
@@ -190,9 +198,10 @@ def parts_from_segments(*, segments: list[Segment]) -> list[Part]:
     return out
 
 
-def rewrite_parts(*, parts: list[Part], parser: StreamParser, flush_nontext: bool) -> list[Part]:
+def rewrite_parts(*, parts: Sequence[Part | PartData], parser: StreamParser, flush_nontext: bool) -> list[Part]:
     out: list[Part] = []
-    for part in parts:
+    for raw_part in parts:
+        part = as_part(raw_part)
         text = part_text(part=part)
         if text is not None:
             segments = parser.push(text=text)
