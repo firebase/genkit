@@ -40,8 +40,8 @@ from genkit import (
     ModelResponse,
     Part,
     Role,
-    TextPart,
 )
+from genkit._core._typing import TextPart
 from genkit.model import Operation
 
 

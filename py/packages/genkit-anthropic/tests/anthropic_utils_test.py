@@ -38,11 +38,10 @@ from genkit_anthropic.utils import (
 
 from genkit import (
     Media,
-    MediaPart,
     Metadata,
     ModelUsage,
-    TextPart,
 )
+from genkit._core._typing import MediaPart, TextPart
 
 # ---------------------------------------------------------------------------
 # get_cache_control tests

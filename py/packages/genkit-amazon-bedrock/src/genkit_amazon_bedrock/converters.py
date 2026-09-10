@@ -34,13 +34,11 @@ from genkit import (
     ModelResponse,
     ModelUsage,
     Part,
-    ReasoningPart,
     Role,
-    TextPart,
     ToolDefinition,
     ToolRequest,
-    ToolRequestPart,
 )
+from genkit._core._typing import ReasoningPart, TextPart, ToolRequestPart
 from genkit.plugin_api import GenkitError
 from genkit_amazon_bedrock.config import BedrockConfig
 

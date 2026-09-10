@@ -40,16 +40,18 @@ from google.genai.interactions import Content, Interaction, Step, ThoughtStep, U
 from pydantic import BaseModel, TypeAdapter
 
 from genkit import (
-    CustomPart,
     GenkitError,
     Media,
-    MediaPart,
     Part,
+    ToolRequest,
+    ToolResponse,
+)
+from genkit._core._typing import (
+    CustomPart,
+    MediaPart,
     ReasoningPart,
     TextPart,
-    ToolRequest,
     ToolRequestPart,
-    ToolResponse,
     ToolResponsePart,
 )
 from genkit.model import Message, ToolDefinition

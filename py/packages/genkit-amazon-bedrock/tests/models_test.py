@@ -34,7 +34,8 @@ from botocore.exceptions import (
 )
 from genkit_amazon_bedrock.models import BedrockModel
 
-from genkit import FinishReason, Message, ModelRequest, Part, Role, TextPart
+from genkit import FinishReason, Message, ModelRequest, Part, Role
+from genkit._core._typing import TextPart
 from genkit.plugin_api import ActionRunContext, GenkitError
 
 

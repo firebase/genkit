@@ -42,10 +42,8 @@ from typing import Any, Literal, Protocol, TypeVar, cast
 import structlog
 from botocore.exceptions import BotoCoreError, ClientError
 
-from genkit import MediaPart, TextPart
-
 # DocumentData has no public re-export yet; the embedder protocol is built on it.
-from genkit._core._typing import DocumentData
+from genkit._core._typing import DocumentData, MediaPart, TextPart
 from genkit.embedder import (
     EmbedderInfo,
     EmbedderSupports,

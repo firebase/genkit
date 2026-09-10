@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import pytest
 
+from genkit import Part
 from genkit._ai._agents._base import define_custom_agent
 from genkit._ai._agents._client import AgentError
 from genkit._ai._agents._runtime import AgentInitError, SessionRunner
@@ -31,7 +32,6 @@ from genkit._core._typing import (
     AgentInput,
     AgentResult,
     MessageData,
-    Part,
     SessionSnapshot,
     SessionState,
     SnapshotStatus,

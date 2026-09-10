@@ -26,10 +26,10 @@ from genkit_middleware._artifacts import (
     extract_artifact_text,
 )
 
-from genkit import ModelResponse
+from genkit import ModelResponse, Part
 from genkit._ai._agents._session import Session, run_with_session
 from genkit._core._model import GenerateActionOptions
-from genkit._core._typing import Artifact, Part, Role, SessionState, TextPart
+from genkit._core._typing import Artifact, Role, SessionState, TextPart
 from genkit.middleware import GenerateHookParams, GenerateMiddlewareContext
 
 

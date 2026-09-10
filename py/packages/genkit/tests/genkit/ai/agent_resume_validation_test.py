@@ -26,11 +26,11 @@ from __future__ import annotations
 
 import pytest
 
+from genkit import Part
 from genkit._ai._agents._base import validate_resume_against_history
 from genkit._core._error import GenkitError
 from genkit._core._typing import (
     MessageData,
-    Part,
     Resume,
     Role,
     ToolRequest,

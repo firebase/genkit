@@ -34,8 +34,8 @@ from genkit_amazon_bedrock.rerank import (
 )
 from genkit_amazon_bedrock.transport import BedrockTransport
 
-from genkit import Document, DocumentPart, TextPart
-from genkit._core._typing import DocumentData
+from genkit import Document, Part
+from genkit._core._typing import DocumentData, TextPart
 from genkit.plugin_api import GenkitError
 
 COHERE_RERANK = 'cohere.rerank-v3-5:0'
@@ -70,7 +70,7 @@ class ForbiddenTransport:
 
 def text_doc(*texts: str, metadata: dict[str, Any] | None = None) -> DocumentData:
     return DocumentData(
-        content=[DocumentPart(root=TextPart(text=text)) for text in texts],
+        content=[Part(root=TextPart(text=text)) for text in texts],
         metadata=metadata,
     )
 

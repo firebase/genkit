@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from genkit import Genkit, Message, MiddlewareRef, ModelResponse
+from genkit import Genkit, Message, MiddlewareRef, ModelResponse, Part
 from genkit._ai._generate import generate_action
 from genkit._ai._testing import define_programmable_model
 from genkit._ai._tools import (
@@ -27,7 +27,6 @@ from genkit._core._typing import (
     FinishReason,
     Media,
     MediaPart,
-    Part,
     Resume,
 )
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, ToolHookParams
@@ -277,6 +276,70 @@ async def test_resume_respond_trp_gets_resolved_interrupt_and_tool_trp() -> None
             'content': [{'text': 'after resume'}],
         },
     ]
+
+
+async def _interrupted_generate() -> tuple[Genkit, ModelResponse]:
+    ai = Genkit()
+    pm, _ = define_programmable_model(ai)
+
+    @ai.tool(name='intr')
+    async def intr(_: dict) -> str:  # noqa: ARG001
+        raise Interrupt({'reason': 'x'})
+
+    pm.responses.append(
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message.model_validate({
+                'role': 'model',
+                'content': [
+                    {'text': 'call'},
+                    {'toolRequest': {'ref': 'r1', 'name': 'intr', 'input': {}}},
+                ],
+            }),
+        )
+    )
+    first = await generate_action(
+        ai.registry,
+        _gen_opts(ai, tools=['intr'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]),
+    )
+    assert first.finish_reason == FinishReason.INTERRUPTED
+    return ai, first
+
+
+@pytest.mark.asyncio
+async def test_resume_respond_text_part_raises() -> None:
+    ai, first = await _interrupted_generate()
+    with pytest.raises(ValueError, match='tool response'):
+        await ai.generate(
+            model='programmableModel',
+            messages=list(first.messages),
+            tools=['intr'],
+            resume_respond=Part.from_text('hi'),
+        )
+
+
+@pytest.mark.asyncio
+async def test_resume_respond_list_text_part_raises() -> None:
+    ai, first = await _interrupted_generate()
+    with pytest.raises(ValueError, match='tool response'):
+        await ai.generate(
+            model='programmableModel',
+            messages=list(first.messages),
+            tools=['intr'],
+            resume_respond=[Part.from_text('hi')],
+        )
+
+
+@pytest.mark.asyncio
+async def test_resume_restart_text_part_raises() -> None:
+    ai, first = await _interrupted_generate()
+    with pytest.raises(ValueError, match='tool request'):
+        await ai.generate(
+            model='programmableModel',
+            messages=list(first.messages),
+            tools=['intr'],
+            resume_restart=Part.from_text('hi'),
+        )
 
 
 @pytest.mark.asyncio
@@ -943,6 +1006,29 @@ async def test_resume_rejects_hollow_pending_content() -> None:
     assert ei.value.status == 'INVALID_ARGUMENT'
     assert 'screenshot' in ei.value.original_message
     assert 'pendingContent' in ei.value.original_message
+    assert 'exactly one' in ei.value.original_message
+
+
+@pytest.mark.asyncio
+async def test_resume_rejects_text_and_media_pending_content() -> None:
+    """A saved conversation whose pending screenshot is caption plus image on one part must fail on resume."""
+    ai, first = await _screenshot_confirm_interrupted()
+    with pytest.raises(GenkitError) as ei:
+        await generate_action(
+            ai.registry,
+            _gen_opts(
+                ai,
+                tools=['confirm', 'screenshot'],
+                messages=_with_shot_pending(
+                    first,
+                    pendingContent=[{'text': 'caption', 'media': {'url': 'https://x'}}],
+                ),
+                resume=Resume(respond=[respond_to_interrupt({'approved': True}, interrupt=first.interrupts[0])]),
+            ),
+        )
+    assert ei.value.status == 'INVALID_ARGUMENT'
+    assert 'pendingContent' in ei.value.original_message
+    assert 'exactly one' in ei.value.original_message
 
 
 @pytest.mark.asyncio

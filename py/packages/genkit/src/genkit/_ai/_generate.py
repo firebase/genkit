@@ -81,6 +81,8 @@ from genkit._core._model import (
     GenerateActionOptions,
     MultipartToolResponse,
     OutputConfig,
+    Part,
+    as_wrap_tool_part,
 )
 from genkit._core._protocols import RegistryLike, SessionLike
 from genkit._core._registry import Registry
@@ -91,7 +93,6 @@ from genkit._core._typing import (
     GenerateActionOutputConfig,
     MiddlewareRef,
     Operation,
-    Part,
     Role,
     TextPart,
     ToolDefinition,
@@ -1563,12 +1564,12 @@ async def resolve_tool_requests(
             )
         )
         raise_if_aborted(ctx.abort_signal)
-        params = ToolHookParams(tool_request_part=trp, tool=tool)
+        params = ToolHookParams(tool_request_part=as_wrap_tool_part(trp), tool=tool)
 
         async def next_fn(p: ToolHookParams, c: GenerateMiddlewareContext) -> MultipartToolResponse:
             return await _resolve_tool_request(
                 tool=p.tool,
-                tool_request_part=p.tool_request_part,
+                tool_request_part=cast(ToolRequestPart, p.tool_request_part.root),
                 ctx=c,
             )
 
@@ -1934,12 +1935,16 @@ async def _run_restart_through_middleware(
         )
 
     params = ToolHookParams(
-        tool_request_part=restart_trp,
+        tool_request_part=as_wrap_tool_part(restart_trp),
         tool=tool,
     )
 
     async def next_fn(p: ToolHookParams, ctx: GenerateMiddlewareContext) -> MultipartToolResponse:
-        executed = await run_tool_after_restart(tool=p.tool, restart_trp=p.tool_request_part, ctx=ctx)
+        executed = await run_tool_after_restart(
+            tool=p.tool,
+            restart_trp=cast(ToolRequestPart, p.tool_request_part.root),
+            ctx=ctx,
+        )
         raw_content = executed.tool_response.content or []
         return MultipartToolResponse(
             output=executed.tool_response.output,

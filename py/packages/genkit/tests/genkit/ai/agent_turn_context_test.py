@@ -22,6 +22,7 @@ from pathlib import Path
 
 import pytest
 
+from genkit import Part
 from genkit._ai._agents._base import define_custom_agent
 from genkit._ai._agents._runtime import SessionRunner
 from genkit._ai._agents._session import reserve_snapshot_id
@@ -32,7 +33,6 @@ from genkit._core._typing import (
     AgentInput,
     AgentResult,
     MessageData,
-    Part,
     TextPart,
 )
 from genkit.agent import AgentFinishReason, InMemorySessionStore

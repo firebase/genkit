@@ -22,11 +22,12 @@ from collections.abc import Awaitable, Callable
 
 from pydantic import BaseModel, Field
 
+from genkit import Part
 from genkit._ai._model import Message
 from genkit._ai._tools import tool
 from genkit._core._action import Action
 from genkit._core._model import GenerateActionOptions, ModelResponse
-from genkit._core._typing import Artifact, Part, Role, TextPart
+from genkit._core._typing import Artifact, Role, TextPart
 from genkit.middleware import BaseMiddleware, GenerateHookParams, GenerateMiddlewareContext
 
 ARTIFACTS_LISTING_MARKER = 'artifacts-middleware-listing'

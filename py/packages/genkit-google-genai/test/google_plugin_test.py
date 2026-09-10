@@ -50,8 +50,8 @@ from genkit import (
     ModelRequest,
     Part,
     Role,
-    TextPart,
 )
+from genkit._core._typing import TextPart
 from genkit.plugin_api import GENKIT_CLIENT_HEADER
 
 

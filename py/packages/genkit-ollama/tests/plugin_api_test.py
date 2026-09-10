@@ -35,13 +35,12 @@ from genkit import (
     Document,
     EmbedRequest,
     Media,
-    MediaPart,
     Message,
     ModelRequest,
     Part,
     Role,
-    TextPart,
 )
+from genkit._core._typing import MediaPart, TextPart
 from genkit.plugin_api import to_json_schema
 
 

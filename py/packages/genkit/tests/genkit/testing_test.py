@@ -57,7 +57,7 @@ Test Coverage
 
 import pytest
 
-from genkit import ActionRunContext, Genkit, Message, ModelRequest, ModelResponse, ModelResponseChunk
+from genkit import ActionRunContext, Genkit, Message, ModelRequest, ModelResponse, ModelResponseChunk, Part
 from genkit._ai._testing import (
     EchoModel,
     GablorkenInput,
@@ -71,7 +71,6 @@ from genkit._ai._testing import (
     test_models as run_model_tests,
 )
 from genkit._core._typing import (
-    Part,
     Role,
     TextPart,
 )

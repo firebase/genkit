@@ -54,7 +54,6 @@ from genkit import (
     Constrained,
     FinishReason,
     GenkitError,
-    MediaPart,
     Message,
     ModelInfo,
     ModelRequest,
@@ -62,9 +61,9 @@ from genkit import (
     Part,
     Role,
     Supports,
-    TextPart,
     ToolDefinition,
 )
+from genkit._core._typing import MediaPart, TextPart
 from genkit.plugin_api import to_json_schema
 
 ALL_VERSIONS = list(GoogleAIGeminiVersion) + list(VertexAIGeminiVersion)

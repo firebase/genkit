@@ -66,13 +66,20 @@ from genkit._core._channel import Channel
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
 from genkit._core._middleware import BaseMiddleware, middleware_class_index
-from genkit._core._model import Document, GenerateActionOptions, Message, OutputConfig
+from genkit._core._model import (
+    Document,
+    GenerateActionOptions,
+    Message,
+    OutputConfig,
+    Part,
+    as_resume_respond,
+    as_resume_restart,
+)
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
 from genkit._core._typing import (
     GenerateActionOutputConfig,
     MiddlewareRef,
-    Part,
     Resume,
     Role,
     TextPart,
@@ -102,25 +109,27 @@ class OutputOptions(TypedDict, total=False):
 
 
 def _normalize_resume_respond_parts(
-    value: ToolResponsePart | list[ToolResponsePart] | None,
+    value: Part | list[Part] | None,
 ) -> list[ToolResponsePart] | None:
     if value is None:
         return None
-    return list(value) if isinstance(value, list) else [value]
+    items = value if isinstance(value, list) else [value]
+    return [cast(ToolResponsePart, as_resume_respond(p).root) for p in items]
 
 
 def _normalize_resume_restart_parts(
-    value: ToolRequestPart | list[ToolRequestPart] | None,
+    value: Part | list[Part] | None,
 ) -> list[ToolRequestPart] | None:
     if value is None:
         return None
-    return list(value) if isinstance(value, list) else [value]
+    items = value if isinstance(value, list) else [value]
+    return [cast(ToolRequestPart, as_resume_restart(p).root) for p in items]
 
 
 def resume_options_to_resume(
     *,
-    resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
-    resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None,
+    resume_respond: Part | list[Part] | None = None,
+    resume_restart: Part | list[Part] | None = None,
     resume_metadata: dict[str, Any] | None = None,
 ) -> Resume | None:
     """Build wire Resume from flat keyword options (``generate`` / prompts)."""
@@ -142,8 +151,8 @@ class PromptGenerateOptions(TypedDict, total=False):
     resources: list[str] | None
     tool_choice: ToolChoice | None
     output: OutputOptions | None
-    resume_respond: ToolResponsePart | list[ToolResponsePart] | None
-    resume_restart: ToolRequestPart | list[ToolRequestPart] | None
+    resume_respond: Part | list[Part] | None
+    resume_restart: Part | list[Part] | None
     resume_metadata: dict[str, Any] | None
     return_tool_requests: bool | None
     max_turns: int | None
@@ -235,8 +244,8 @@ class PromptConfig(BaseModel):
     tool_choice: ToolChoice | None = None
     use: Sequence[BaseMiddleware | MiddlewareRef] | None = None
     docs: list[Document] | None = None
-    resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None
-    resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None
+    resume_respond: Part | list[Part] | None = None
+    resume_restart: Part | list[Part] | None = None
     resume_metadata: dict[str, Any] | None = None
     resources: list[str] | None = None
 

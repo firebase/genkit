@@ -32,14 +32,16 @@ from genkit import (
     ActionRunContext,
     GenkitError,
     Media,
-    MediaPart,
     Message,
     ModelRequest,
     ModelResponseChunk,
     ModelUsage,
     Part,
-    ReasoningPart,
     Role,
+)
+from genkit._core._typing import (
+    MediaPart,
+    ReasoningPart,
     TextPart,
     ToolRequestPart,
 )

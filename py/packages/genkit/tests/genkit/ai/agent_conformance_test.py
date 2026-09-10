@@ -39,6 +39,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 from pydantic.alias_generators import to_camel
 
+from genkit import Part
 from genkit._ai._agents._runtime import SessionRunner
 from genkit._ai._agents._session_stores._inmemory_store import InMemorySessionStore
 from genkit._ai._agents._types import TurnContext, TurnResult
@@ -57,7 +58,6 @@ from genkit._core._typing import (
     Artifact,
     GenkitRuntimeError,
     MessageData,
-    Part,
     Role,
     SessionSnapshot as SessionSnapshotSchema,
     TextPart,

@@ -38,13 +38,12 @@ from genkit_openai.models.audio import (
 from genkit import (
     GenkitError,
     Media,
-    MediaPart,
     Message,
     ModelRequest,
     Part,
     Role,
-    TextPart,
 )
+from genkit._core._typing import MediaPart, TextPart
 
 
 class TestExtractText:

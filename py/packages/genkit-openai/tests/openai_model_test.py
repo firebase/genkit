@@ -38,9 +38,9 @@ from genkit import (
     ModelResponseChunk,
     Part,
     Role,
-    TextPart,
 )
 from genkit._core._model import OutputConfig
+from genkit._core._typing import TextPart
 from genkit.plugin_api import ActionRunContext, ModelConfig
 
 

@@ -9,11 +9,11 @@ import pytest
 from genkit_openai import OpenAIConfig
 from pydantic import BaseModel
 
-from genkit import Document, Genkit
+from genkit import Document, Genkit, Part
 from genkit._core._action import ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._model import Message, ModelConfig, ModelRequest, ModelResponse
-from genkit._core._typing import Part, Role, TextPart
+from genkit._core._typing import Role, TextPart
 
 
 class ConformingCfg(BaseModel):

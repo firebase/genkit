@@ -21,6 +21,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
+from genkit import Part
 from genkit._ai._agents._client import (
     AgentChat,
     AgentError,
@@ -48,7 +49,6 @@ from genkit._core._typing import (
     JsonPatchOperation,
     MessageData,
     ModelResponseChunk,
-    Part,
     Role,
     SessionSnapshot,
     SessionState,

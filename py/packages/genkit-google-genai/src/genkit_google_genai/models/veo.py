@@ -38,7 +38,6 @@ from genkit import (
     FinishReason,
     GenkitError,
     Media,
-    MediaPart,
     Message,
     ModelInfo,
     ModelRequest,
@@ -47,6 +46,7 @@ from genkit import (
     Role,
     Supports,
 )
+from genkit._core._typing import MediaPart
 from genkit.model import Error, Operation
 from genkit.plugin_api import ActionRunContext, wrap_http_error
 from genkit_google_genai.constants import is_multi_regional_location, multi_regional_base_url

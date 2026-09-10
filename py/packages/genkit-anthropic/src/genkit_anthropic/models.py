@@ -33,21 +33,23 @@ from anthropic.types import Message as AnthropicMessage
 
 from genkit import (
     Constrained,
-    CustomPart,
     ErrorResponseMetadata,
     FinishReason,
     GenkitError,
-    MediaPart,
     Message,
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,
     ModelUsage,
     Part,
-    ReasoningPart,
     Role,
-    TextPart,
     ToolRequest,
+)
+from genkit._core._typing import (
+    CustomPart,
+    MediaPart,
+    ReasoningPart,
+    TextPart,
     ToolRequestPart,
     ToolResponsePart,
 )
