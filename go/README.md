@@ -744,7 +744,7 @@ transferMoney := genkit.DefineInterruptibleTool(g, "transferMoney",
     "Transfers money to another account.",
     func(ctx context.Context, input TransferInput, confirm *Confirmation) (string, error) {
         if confirm == nil && input.Amount > 1000 {
-            return "", tool.Interrupt(nil) // Pause; the input says what to approve.
+            return "", tool.Interrupt(ctx, nil) // Pause; the input says what to approve.
         }
         if confirm != nil && !confirm.Approved {
             return "Transfer cancelled.", nil
@@ -782,7 +782,7 @@ if len(parts) > 0 {
 
 `call.Respond(output)` answers the call outright instead of running the tool again, and `call.RestartWithInput(input, confirmation)` re-runs it with arguments the person revised. A tool that pauses with something to say, such as why it needs approval, passes a struct or a map to `tool.Interrupt`, and the flow reads it back with `ai.InterruptAs`.
 
-A tool can also be a pure question: its function only returns `tool.Interrupt(nil)`, the input is the question, and `call.Respond(answer)` supplies the answer as the tool's output.
+A tool can also be a pure question: its function only returns `tool.Interrupt(ctx, nil)`, the input is the question, and `call.Respond(answer)` supplies the answer as the tool's output.
 
 Without the tool value in scope (a handler that only holds the part, or an interrupt a middleware's tool raised), `part.ToToolRestart(resume)` and `part.ToToolResponse(output)` build the same parts, untyped. A `genkit.DefineTool` tool can interrupt too: return `tool.Interrupt` from it, read the answer back with `tool.ResumeData`, and restart it with a `map[string]any`.
 

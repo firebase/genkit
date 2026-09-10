@@ -854,7 +854,7 @@ func DefineTool[In, Out any](g *Genkit, name, description string, fn ai.ToolFunc
 //		"Transfers money to another account.",
 //		func(ctx context.Context, input TransferInput, confirm *Confirmation) (string, error) {
 //			if confirm == nil && input.Amount > 100 {
-//				return "", tool.Interrupt(nil) // Pause; the input says what to approve.
+//				return "", tool.Interrupt(ctx, nil) // Pause; the input says what to approve.
 //			}
 //			if confirm != nil && !confirm.Approved {
 //				return "Transfer cancelled.", nil

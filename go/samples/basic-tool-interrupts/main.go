@@ -167,7 +167,7 @@ func main() {
 			// resumed, which is what tells a fresh large transfer from an
 			// answered one.
 			if approval == nil && input.Amount > approvalLimit {
-				return nil, tool.Interrupt(TransferInterrupt{
+				return nil, tool.Interrupt(ctx, TransferInterrupt{
 					Reason:  "over_limit",
 					Balance: accountBalance,
 				})

@@ -77,7 +77,7 @@ func (t *ToolApproval) wrapTool(ctx context.Context, params *ai.ToolParams, next
 	// No span is emitted here: the generate engine attributes a hook that
 	// short-circuits the tool to the tool itself in traces.
 	logger.Debug(ctx, "tool held for approval", "tool", name)
-	return nil, tool.Interrupt(map[string]any{
+	return nil, tool.Interrupt(ctx, map[string]any{
 		"message": "Tool not in approved list: " + name,
 	})
 }

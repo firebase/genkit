@@ -30,7 +30,7 @@ func TestInterrupt_CarriesData(t *testing.T) {
 	type payload struct {
 		Reason string `json:"reason"`
 	}
-	err := Interrupt(payload{Reason: "large_amount"})
+	err := Interrupt(context.Background(), payload{Reason: "large_amount"})
 
 	var ie *base.ToolInterruptError
 	if !errors.As(err, &ie) {

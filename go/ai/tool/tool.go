@@ -46,17 +46,20 @@ import (
 //
 //	func(ctx context.Context, in TransferInput, resume *Confirmation) (*TransferOutput, error) {
 //		if resume == nil {
-//			return nil, tool.Interrupt(TransferInterrupt{Reason: "large_amount", Amount: in.Amount})
+//			return nil, tool.Interrupt(ctx, TransferInterrupt{Reason: "large_amount", Amount: in.Amount})
 //		}
 //		...
 //	}
+//
+// ctx is the tool's context, as for the other verbs of this package; nothing
+// is read from it today.
 //
 // data must serialize to a JSON object (a struct or a map): it lands on the
 // interrupted tool request as [ai.ToolInterrupt] data, which the wire protocol
 // encodes as a JSON object. A value that serializes to a JSON scalar or array
 // (e.g. a string, number, or slice) fails the tool call when generation
 // records the interrupt; wrap such values in a struct or map field instead.
-func Interrupt(data any) error {
+func Interrupt(ctx context.Context, data any) error {
 	return &base.ToolInterruptError{Data: data}
 }
 

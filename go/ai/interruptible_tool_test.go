@@ -321,7 +321,7 @@ func interruptOnce(t *testing.T, reg *registry.Registry) (
 	tl := defineTestInterruptibleTool(reg, "transfer", "transfers money",
 		func(ctx context.Context, in transferIn, res *confirmation) (transferOut, error) {
 			if res == nil {
-				return transferOut{}, tool.Interrupt(transferInterrupt{Reason: "large_amount", Amount: in.Amount})
+				return transferOut{}, tool.Interrupt(ctx, transferInterrupt{Reason: "large_amount", Amount: in.Amount})
 			}
 			gotResume, gotInput = res, in
 			if orig, ok := tool.OriginalInput[transferIn](ctx); ok {
@@ -523,7 +523,7 @@ type question struct {
 func newQuestionTool(reg api.Registry) *ai.InterruptibleToolAction[question, string, struct{}] {
 	return defineTestInterruptibleTool(reg, "askUser", "asks the user a question",
 		func(ctx context.Context, _ question, _ *struct{}) (string, error) {
-			return "", tool.Interrupt(nil)
+			return "", tool.Interrupt(ctx, nil)
 		})
 }
 
@@ -630,7 +630,7 @@ func TestToolContextTool_InterruptAndResumeData(t *testing.T) {
 		func(ctx context.Context, in transferIn) (string, error) {
 			res, ok := tool.ResumeData[confirmation](ctx)
 			if !ok {
-				return "", tool.Interrupt(transferInterrupt{Reason: "confirm", Amount: in.Amount})
+				return "", tool.Interrupt(ctx, transferInterrupt{Reason: "confirm", Amount: in.Amount})
 			}
 			gotResume, gotOK = res, ok
 			return "ok", nil
@@ -721,13 +721,13 @@ func TestInterrupt_NonObjectData_ReturnsClearError(t *testing.T) {
 		{"interruptible", func(reg *registry.Registry) ai.Tool {
 			return defineTestInterruptibleTool(reg, "bad", "interrupts with a scalar",
 				func(ctx context.Context, _ struct{}, _ *struct{}) (string, error) {
-					return "", tool.Interrupt("not an object")
+					return "", tool.Interrupt(ctx, "not an object")
 				})
 		}},
 		{"plain", func(reg *registry.Registry) ai.Tool {
 			return defineTestTool(reg, "bad", "interrupts with a scalar",
 				func(ctx context.Context, _ struct{}) (string, error) {
-					return "", tool.Interrupt("not an object")
+					return "", tool.Interrupt(ctx, "not an object")
 				})
 		}},
 	} {

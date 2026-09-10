@@ -119,7 +119,7 @@ func defineBankerAgent(g *genkit.Genkit) *aix.Agent[any] {
 					return &TransferOutput{Status: "rejected", Message: "Account balance is 0. Please add funds.", NewBalance: accountBalance}, nil
 				}
 				// Not enough money: pause and ask whether to send what's left.
-				return nil, tool.Interrupt(TransferInterrupt{
+				return nil, tool.Interrupt(ctx, TransferInterrupt{
 					Reason: "insufficient_balance", ToAccount: input.ToAccount,
 					Amount: input.Amount, Balance: accountBalance,
 				})
@@ -127,7 +127,7 @@ func defineBankerAgent(g *genkit.Genkit) *aix.Agent[any] {
 
 			if confirm == nil && input.Amount > 100 {
 				// Large transfer on the first pass: ask for explicit confirmation.
-				return nil, tool.Interrupt(TransferInterrupt{
+				return nil, tool.Interrupt(ctx, TransferInterrupt{
 					Reason: "confirm_large", ToAccount: input.ToAccount,
 					Amount: input.Amount, Balance: accountBalance,
 				})
