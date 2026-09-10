@@ -1875,8 +1875,6 @@ class Genkit:
             docs=docs,
         )
 
-        if not response.operation:
-            raise missing_operation_error(name=model_action.name)
         if response.error is not None:
             # This call is "give me the ticket." A start that already
             # failed is not that ticket — while-not-done would poll it
@@ -1886,4 +1884,6 @@ class Genkit:
                 message=response.error.message,
                 reason=response.error.reason,
             )
+        if not response.operation:
+            raise missing_operation_error(name=model_action.name)
         return response.operation

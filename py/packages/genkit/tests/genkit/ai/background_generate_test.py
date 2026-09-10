@@ -467,6 +467,43 @@ async def test_generate_operation_raises_when_start_returns_no_ticket(ai: Genkit
     assert exc_info.value.status == 'FAILED_PRECONDITION'
 
 
+class DenyStart(BaseMiddleware):
+    async def wrap_generate(
+        self,
+        params: GenerateHookParams,
+        ctx: GenerateMiddlewareContext,
+        next_fn: Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+    ) -> ModelResponse:
+        raise RuntimeError('nope')
+
+    async def wrap_model(
+        self,
+        params: ModelHookParams,
+        ctx: GenerateMiddlewareContext,
+        next_fn: Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+    ) -> ModelResponse:
+        return await next_fn(params, ctx)
+
+
+@pytest.mark.asyncio
+async def test_generate_operation_raises_the_boxed_error_when_start_never_ran(ai: Genkit) -> None:
+    """A boxed failure with no ticket is that failure, not 'did not return an operation'."""
+    register_bg_model(ai)
+
+    boxed = await ai.generate(model='bg-model', prompt='a cat', use=[DenyStart()])
+    assert boxed.error is not None
+    assert boxed.operation is None
+    assert boxed.finish_message is not None
+    assert 'nope' in boxed.finish_message
+
+    with pytest.raises(GenkitError) as ei:
+        await ai.generate_operation(model='bg-model', prompt='a cat', use=[DenyStart()])
+
+    assert ei.value.original_message == boxed.error.message
+    assert ei.value.status == boxed.error.status
+    assert 'did not return an operation' not in ei.value.original_message
+
+
 @pytest.mark.asyncio
 async def test_generate_chat_model_returning_operation_returns_closed_history(ai: Genkit) -> None:
     """A chat model that returns a bare Operation leaves the prompt and no model message."""

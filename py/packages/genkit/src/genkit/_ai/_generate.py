@@ -1144,9 +1144,9 @@ async def _generate_action_turn(
             interrupted_response,
             resumed_tool_message,
         ) = await _resolve_resume_options(
-            registry=registry,
             raw_request=turn_options,
             mw_pipeline=mw_pipeline,
+            tools=turn_tools,
         )
         if interrupted_response:
             # The restart paused again. Same leftover as the first
@@ -1340,9 +1340,10 @@ async def _generate_action_turn(
                 error=GenkitRuntimeError(status='CANCELLED', message='Generation aborted.'),
             )
 
-        known_tools = {t.name for t in turn_tools}
-        if turn_options.tools:
-            known_tools.update(turn_options.tools)
+        known_tools: set[str] = set()
+        for tool in turn_tools:
+            known_tools.add(tool.name)
+            known_tools.add(_tool_short_name_for_model(tool.name))
         missing_tool = next(
             (
                 p.root.tool_request.name
@@ -1370,6 +1371,7 @@ async def _generate_action_turn(
                 message=generated_msg,
                 mw_pipeline=mw_pipeline,
                 abort_signal=ctx.abort_signal,
+                tools=turn_tools,
             )
         except (Exception, asyncio.CancelledError) as exc:
             caller_stopped = ctx.abort_signal.is_set() or isinstance(exc, asyncio.CancelledError)
@@ -1677,6 +1679,17 @@ def _tool_short_name_for_model(name: str) -> str:
     return name[name.rfind('/') + 1 :]
 
 
+def tool_map_from_actions(tools: list[Action]) -> dict[str, Action]:
+    """Index door Actions by the name the model uses and the full action name."""
+    tool_dict: dict[str, Action] = {}
+    for tool_action in tools:
+        tool_dict[tool_action.name] = tool_action
+        short = _tool_short_name_for_model(tool_action.name)
+        if short not in tool_dict:
+            tool_dict[short] = tool_action
+    return tool_dict
+
+
 def assert_valid_tool_names(tools: list[Action]) -> None:
     """Reject overlapping model-facing tool names before the model is called.
 
@@ -1733,8 +1746,8 @@ async def resolve_parameters(
     """Resolve model, tools, and format from registry for a generation request."""
     model_action = await resolve_model_action(registry, request.model)
 
-    # Resolve tools after wrap_generate so a hook that added names is what we
-    # look up, and fail on a bad name before the model or a resume restart.
+    # Callers pick the model and tools before any hook runs. wrap_generate
+    # can wrap that call; it cannot add names we have not resolved.
     tools = await resolve_tools_from_options(registry, request.tools)
 
     format_def: FormatDef | None = None
@@ -1823,18 +1836,19 @@ async def resolve_tool_requests(
     message: Message,
     abort_signal: asyncio.Event,
     mw_pipeline: _GenerateMiddlewarePipeline | None = None,
+    tools: list[Action] | None = None,
 ) -> tuple[Message | None, Message | None]:
     """Execute tool requests in a message, returning responses or interrupt info."""
-    tool_dict: dict[str, Action] = {}
-    if request.tools:
-        for tool_name in request.tools:
-            tool_action = await resolve_tool(registry, tool_name)
-            tool_dict[tool_name] = tool_action
-            # Model tool calls use ToolDefinition.name (short). Selectors
-            # are already bound to /tool.v2/<name> on this registry.
-            short = tool_action.name
-            if short not in tool_dict:
-                tool_dict[short] = tool_action
+    # The door Actions are what run. wrap_generate can wrap them; it cannot
+    # swap the function behind a name they already passed.
+    resolved = tools
+    if resolved is None:
+        resolved = []
+        if request.tools:
+            for tool_name in request.tools:
+                resolved.append(await resolve_tool(registry, tool_name))
+
+    tool_dict = tool_map_from_actions(resolved)
 
     revised_model_message = message.model_copy(deep=True)
     mw_list = mw_pipeline.middleware if mw_pipeline else []
@@ -2062,9 +2076,9 @@ async def resolve_tool(registry: Registry, tool_ref: str | Tool) -> Action:
 
 async def _resolve_resume_options(
     *,
-    registry: Registry,
     raw_request: GenerateActionOptions,
     mw_pipeline: _GenerateMiddlewarePipeline | None = None,
+    tools: list[Action] | None = None,
 ) -> tuple[GenerateActionOptions, ModelResponse | None, Message | None]:
     """Handle resume options by resolving pending tool calls from a previous turn."""
     if not raw_request.resume:
@@ -2091,10 +2105,10 @@ async def _resolve_resume_options(
     ]
     resolved = await asyncio.gather(*[
         _resolve_resumed_tool_request(
-            registry=registry,
             raw_request=raw_request,
             tool_request_part=part,
             mw_pipeline=mw_pipeline,
+            tools=tools,
         )
         for _, part in indexed_requests
     ])
@@ -2154,10 +2168,10 @@ async def _resolve_resume_options(
 
 async def _resolve_resumed_tool_request(
     *,
-    registry: Registry,
     raw_request: GenerateActionOptions,
     tool_request_part: Part,
     mw_pipeline: _GenerateMiddlewarePipeline | None = None,
+    tools: list[Action] | None = None,
 ) -> tuple[ToolRequestPart, ToolResponsePart | None]:
     """Resolve a single tool request from pending output, resume.respond, or resume.restart."""
     # Type narrowing: ensure we're working with a ToolRequestPart
@@ -2238,7 +2252,13 @@ async def _resolve_resumed_tool_request(
         tool_req_root,
     )
     if restart_trp:
-        tool = await resolve_tool(registry, tool_req_root.tool_request.name)
+        tool = tool_map_from_actions(tools or []).get(tool_req_root.tool_request.name)
+        if tool is None:
+            raise GenkitError(
+                status='NOT_FOUND',
+                message=f'Tool {tool_req_root.tool_request.name} not found',
+                reason=RuntimeErrorReason.TOOL_NOT_FOUND,
+            )
         try:
             executed = await _run_restart_through_middleware(
                 tool=tool,
