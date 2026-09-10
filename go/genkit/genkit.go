@@ -818,7 +818,9 @@ func DefineTool[In, Out any](g *Genkit, name, description string, fn ai.ToolFunc
 // the function, return [tool.Interrupt] to pause, with typed data if there is
 // something to say about the pause. Res must be a struct or a map with string
 // keys, so that the payload serializes to a JSON object; any other type panics
-// here.
+// here. The schema inferred from Res is advertised on the tool's definition as
+// the "resumeSchema" metadata, and a restart's payload is validated against it
+// before the tool re-executes, as the model's input is against In.
 //
 // The caller claims the interrupted part with
 // [ai.InterruptibleToolAction.Interrupted], which decodes the input to In,

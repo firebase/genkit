@@ -434,7 +434,8 @@ func TestGenerate(t *testing.T) {
 					Name:         "gablorken",
 					OutputSchema: map[string]any{"type": string("number")},
 					Metadata: map[string]any{
-						"multipart": false,
+						"multipart":    false,
+						"resumeSchema": map[string]any{"type": string("object")},
 					},
 				},
 			},

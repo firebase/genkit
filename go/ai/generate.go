@@ -2312,6 +2312,16 @@ func restartedToolResponse(ctx context.Context, tool Tool, p, restartPart *Part,
 			// marker reads as a bare restart.
 			logger.Debug(ctx, "resume payload is not a JSON object; restarting with an empty payload", "tool", name, "type", fmt.Sprintf("%T", rs.Resume))
 		}
+		// The payload is checked against the schema the tool advertises
+		// for its resume type, as respondedToolResponse checks a supplied
+		// response against the output schema: a missing or mistyped field
+		// fails the resume here, before the tool runs. A tool that
+		// advertises none (one behind a foreign action) is not checked.
+		if schema, ok := tool.Definition().Metadata[toolResumeSchemaKey].(map[string]any); ok {
+			if err := base.ValidateValue(resume, schema); err != nil {
+				return nil, nil, status.Errorf(status.ErrInvalidArgument, "handleResumedToolRequest: tool %q resume data validation failed: %w", name, err)
+			}
+		}
 		resumedCtx = base.ToolResumeKey.NewContext(resumedCtx, resume)
 		if rs.OriginalInput != nil {
 			resumedCtx = base.ToolOriginalInputKey.NewContext(resumedCtx, rs.OriginalInput)

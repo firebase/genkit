@@ -88,7 +88,9 @@ type ToolRestart struct {
 	// Resume is the payload delivered to the tool function's resume parameter,
 	// e.g. the user's answer to the question the tool interrupted with. It must
 	// serialize to a JSON object (a struct or a map); nil means a bare restart,
-	// i.e. restarting is itself the approval.
+	// i.e. restarting is itself the approval. Generation validates it against
+	// the tool's resume schema (see [InterruptibleToolAction.Definition])
+	// before the tool re-executes.
 	Resume any
 	// OriginalInput preserves the tool's original input when the caller
 	// provided a new one for re-execution (via [InterruptedCall.RestartWithInput]

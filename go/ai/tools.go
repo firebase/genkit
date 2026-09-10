@@ -392,6 +392,13 @@ func OriginalInputAs[T any](tc *ToolContext) (T, bool) {
 // [ToolDefinition.Metadata]. Plugins consume this key directly.
 const toolStrictKey = "strict"
 
+// toolResumeSchemaKey is the metadata key under metadata["tool"] that carries
+// the JSON schema of the tool's resume type, Res, and the key under which
+// [ToolAction.Definition] surfaces it on [ToolDefinition.Metadata]. The
+// generate loop validates a restart's payload against it before the tool
+// re-executes.
+const toolResumeSchemaKey = "resumeSchema"
+
 // applyStrictMetadata sets metadata["tool"][toolStrictKey] = *strict when
 // strict is non-nil. A nil value leaves the metadata untouched.
 func applyStrictMetadata(metadata map[string]any, strict *bool) {
@@ -467,7 +474,7 @@ func NewMultipartTool[In any](name, description string, fn MultipartToolFunc[In]
 	// explicit schema. WithOutputSchema describes the envelope's output field
 	// and carries no such constraint.
 	toolOpts := applyToolOptions[In]("ai.NewMultipartTool", name, opts)
-	metadata := toolMetadata(name, description, true, toolOpts.OutputSchema)
+	metadata := toolMetadata(name, description, true, toolOpts.OutputSchema, base.SchemaMapFor[map[string]any]())
 	applyStrictMetadata(metadata, toolOpts.StrictSchema)
 	wrapped := func(ctx context.Context, input In) (*MultipartToolResponse, error) {
 		return runToolFunc(ctx, func(ctx context.Context) (*MultipartToolResponse, error) {
@@ -486,8 +493,13 @@ func NewMultipartTool[In any](name, description string, fn MultipartToolFunc[In]
 // parameter is nil on that first call and set to what the caller sent when
 // the tool re-executes. Res must be a struct or a map with string keys, so
 // that the payload serializes to a JSON object on the restart part; any other
-// type panics here, at definition. A payload that does not decode into Res
-// fails the resumed call rather than silently arriving as a zero value.
+// type panics here, at definition. The schema inferred from Res is advertised
+// by [InterruptibleToolAction.Definition] as the "resumeSchema" metadata, and
+// generation validates a restart's payload against it before the tool
+// re-executes, as it validates the model's input against In: a missing or
+// mistyped field fails the resume with a clear error rather than arriving as
+// a zero value. Res follows In's rules, so a field the caller may leave unset
+// needs an omitempty tag.
 func NewInterruptibleTool[In, Out, Res any](name, description string, fn InterruptibleToolFunc[In, Out, Res], opts ...ToolOption) *InterruptibleToolAction[In, Out, Res] {
 	const ctor = "ai.NewInterruptibleTool"
 	requireObjectTypeParam[Res](ctor, name, "the resume type Res")
@@ -524,7 +536,7 @@ func newTool[In, Out, Res any](ctor, name, description string, opts []ToolOption
 	if outputSchema == nil {
 		outputSchema = base.SchemaMapFor[Out]()
 	}
-	metadata := toolMetadata(name, description, false, outputSchema)
+	metadata := toolMetadata(name, description, false, outputSchema, base.SchemaMapFor[Res]())
 	applyStrictMetadata(metadata, toolOpts.StrictSchema)
 	wrapped := func(ctx context.Context, input In) (*MultipartToolResponse, error) {
 		return runToolFunc(ctx, func(ctx context.Context) (*MultipartToolResponse, error) {
@@ -556,13 +568,18 @@ func applyToolOptions[In any](ctor, name string, opts []ToolOption) *toolOptions
 // toolMetadata builds the action metadata every tool constructor records. The
 // action's own output schema is the multipart envelope, so the schema the tool
 // advertises to models rides in originalOutputSchema, where [ToolAction.Definition]
-// reads it; nil leaves it unset.
-func toolMetadata(name, description string, multipart bool, originalOutputSchema map[string]any) map[string]any {
+// reads it; nil leaves it unset. resumeSchema, the schema of the tool's resume
+// type, rides under the "tool" map with the per-tool flags.
+func toolMetadata(name, description string, multipart bool, originalOutputSchema, resumeSchema map[string]any) map[string]any {
+	toolMeta := map[string]any{"multipart": multipart}
+	if resumeSchema != nil {
+		toolMeta[toolResumeSchemaKey] = resumeSchema
+	}
 	metadata := map[string]any{
 		"type":        api.ActionTypeToolV2,
 		"name":        name,
 		"description": description,
-		"tool":        map[string]any{"multipart": multipart},
+		"tool":        toolMeta,
 		"dynamic":     true,
 	}
 	if originalOutputSchema != nil {
@@ -628,7 +645,11 @@ func (t *InterruptibleToolAction[In, Out, Res]) Name() string {
 	return t.action.Name()
 }
 
-// Definition returns [ToolDefinition] for for this tool.
+// Definition returns the [ToolDefinition] for this tool: the schemas a model
+// sees, plus, under Metadata, the multipart flag, the strict flag when set,
+// and "resumeSchema", the JSON schema of the payload a restart delivers to the
+// tool, inferred from Res. Generation validates a restart's payload against
+// it before the tool re-executes.
 func (t *InterruptibleToolAction[In, Out, Res]) Definition() *ToolDefinition {
 	desc := t.action.Desc()
 
@@ -664,6 +685,9 @@ func (t *InterruptibleToolAction[In, Out, Res]) Definition() *ToolDefinition {
 	}
 	if s, ok := toolMeta[toolStrictKey].(bool); ok {
 		metadata[toolStrictKey] = s
+	}
+	if s, ok := toolMeta[toolResumeSchemaKey].(map[string]any); ok {
+		metadata[toolResumeSchemaKey] = s
 	}
 
 	return &ToolDefinition{
@@ -841,7 +865,9 @@ func (t *InterruptibleToolAction[In, Out, Res]) Interrupted(part *Part) (*Interr
 // is itself the approval for a tool that keys on the presence of a resume. A
 // struct Res has no bare form: its zero value is sent as an object with zero
 // fields, which the tool reads the same way and a peer runtime sees as an
-// explicit answer.
+// explicit answer. The payload is validated against the schema inferred from
+// Res when generation resumes, as the output of [InterruptedCall.Respond] is
+// against the output schema.
 func (c *InterruptedCall[In, Out, Res]) Restart(resume Res) *Part {
 	return buildRestartPart(c.Part, resume, nil, false)
 }
@@ -871,8 +897,11 @@ func (c *InterruptedCall[In, Out, Res]) Respond(output Out) *Part {
 //
 // resume is delivered to the tool's resume parameter, or to
 // [ToolContext.Resumed]. It must serialize to a JSON object (a struct or a
-// map); nil is a bare restart, so restarting is itself the approval for a
-// tool that keys on the presence of a resume.
+// map), and generation validates it against the tool's resume schema (see
+// [InterruptibleToolAction.Definition]) before the tool re-executes. nil is a
+// bare restart, an empty object: restarting is itself the approval for a tool
+// that keys on the presence of a resume, while a tool whose resume type has
+// required fields needs them filled in.
 //
 //	for _, part := range resp.Interrupts() {
 //		restart, err := part.ToToolRestart(map[string]any{"toolApproved": true})

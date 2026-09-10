@@ -33,6 +33,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/ai/tool"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/status"
 	"github.com/firebase/genkit/go/internal/registry"
@@ -254,6 +255,35 @@ func TestInterruptibleTool_OutputSchemaSurvivesLookup(t *testing.T) {
 	}
 }
 
+// TestInterruptibleTool_ResumeSchemaAdvertised pins that a tool advertises the
+// schema of its resume type the way it advertises its input schema: inferred
+// from Res, surfaced as the definition's "resumeSchema" metadata, and intact
+// after a registry lookup. A tool without a resume type advertises the object
+// schema, since the loop delivers its resume payload as a map.
+func TestInterruptibleTool_ResumeSchemaAdvertised(t *testing.T) {
+	reg := newTransferTestRegistry(t)
+	transfer, _ := interruptOnce(t, reg)
+
+	want := core.InferSchemaMap(confirmation{})
+	for _, tc := range []struct {
+		name string
+		tool ai.Tool
+	}{
+		{"defined", transfer},
+		{"looked up", ai.LookupTool(reg, "transfer")},
+	} {
+		if diff := cmp.Diff(want, tc.tool.Definition().Metadata["resumeSchema"]); diff != "" {
+			t.Errorf("%s: resumeSchema mismatch (-want +got):\n%s", tc.name, diff)
+		}
+	}
+
+	plain := defineTestTool(reg, "plain", "no resume type",
+		func(ctx context.Context, _ struct{}) (string, error) { return "", nil })
+	if diff := cmp.Diff(map[string]any{"type": "object"}, plain.Definition().Metadata["resumeSchema"]); diff != "" {
+		t.Errorf("plain tool resumeSchema mismatch (-want +got):\n%s", diff)
+	}
+}
+
 // TestInterruptibleTool_OutputSchemaOptions pins that NewInterruptibleTool
 // runs the output schema check NewTool runs (tools_test.go covers the option
 // itself; both constructors share newTool): with a concrete Out the
@@ -368,6 +398,32 @@ func resumeWith(t *testing.T, reg *registry.Registry, resp *ai.ModelResponse, tl
 		t.Fatalf("resume Generate: %v", err)
 	}
 	return resp2.Text()
+}
+
+// bareConfirmation is confirmation with its field optional, so the resume
+// schema inferred from it admits the empty payload a bare restart delivers.
+type bareConfirmation struct {
+	Approved bool `json:"approved,omitempty"`
+}
+
+// interruptOnceBare is interruptOnce for a tool that accepts a bare restart:
+// its resume type has no required field, where interruptOnce's has one and
+// the loop rejects a bare restart of it (see TestRestart_ResumeDataValidated).
+func interruptOnceBare(t *testing.T, reg *registry.Registry) (
+	*ai.InterruptibleToolAction[transferIn, transferOut, bareConfirmation],
+	func() *bareConfirmation,
+) {
+	t.Helper()
+	var gotResume *bareConfirmation
+	tl := defineTestInterruptibleTool(reg, "transfer", "transfers money",
+		func(ctx context.Context, in transferIn, res *bareConfirmation) (transferOut, error) {
+			if res == nil {
+				return transferOut{}, tool.Interrupt(ctx, nil)
+			}
+			gotResume = res
+			return transferOut{Status: "completed"}, nil
+		})
+	return tl, func() *bareConfirmation { return gotResume }
 }
 
 func newTransferTestRegistry(t *testing.T) *registry.Registry {
@@ -752,28 +808,45 @@ func TestInterrupt_NonObjectData_ReturnsClearError(t *testing.T) {
 	}
 }
 
-// TestRestart_UndecodableResumeFailsTheCall pins that a resume payload the tool
-// can't read fails the call instead of silently arriving as a zero value.
-func TestRestart_UndecodableResumeFailsTheCall(t *testing.T) {
-	reg := newTransferTestRegistry(t)
-	transfer, _ := interruptOnce(t, reg)
-	resp, interrupt := generateUntilInterrupt(t, reg, transfer)
+// TestRestart_ResumeDataValidated pins that a restart's payload is validated
+// against the schema inferred from Res before the tool re-executes, as the
+// model's input is against In: a mistyped or missing field fails the resume
+// with an error naming the field, and the tool never runs. The untyped verb is
+// the path a payload from the wire takes; the typed Restart cannot build these
+// payloads.
+func TestRestart_ResumeDataValidated(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		resume any
+		want   string
+	}{
+		{"mistyped field", map[string]any{"approved": "yes"}, "approved"},
+		{"missing field on a bare restart", nil, "approved is required"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reg := newTransferTestRegistry(t)
+			transfer, recorded := interruptOnce(t, reg)
+			resp, interrupt := generateUntilInterrupt(t, reg, transfer)
 
-	// approved is a bool on confirmation; a string can't decode into it.
-	restart, err := interrupt.ToToolRestart(map[string]any{"approved": "yes"})
-	if err != nil {
-		t.Fatalf("ToToolRestart: %v", err)
-	}
-	_, err = ai.Generate(context.Background(), reg,
-		ai.WithModelName("test/model"),
-		ai.WithMessages(resp.History()...),
-		ai.WithTools(transfer),
-		ai.WithResume(restart))
-	if err == nil {
-		t.Fatal("expected the resumed call to fail on undecodable resume data")
-	}
-	if !strings.Contains(err.Error(), "resume data") {
-		t.Errorf("error = %q, want it to name the resume data", err)
+			restart, err := interrupt.ToToolRestart(tc.resume)
+			if err != nil {
+				t.Fatalf("ToToolRestart: %v", err)
+			}
+			_, err = ai.Generate(context.Background(), reg,
+				ai.WithModelName("test/model"),
+				ai.WithMessages(resp.History()...),
+				ai.WithTools(transfer),
+				ai.WithResume(restart))
+			if !errors.Is(err, status.ErrInvalidArgument) {
+				t.Fatalf("resume error = %v, want status.ErrInvalidArgument", err)
+			}
+			if !strings.Contains(err.Error(), "resume data") || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("error = %q, want it to name the resume data and %q", err, tc.want)
+			}
+			if gotResume, _, _ := recorded(); gotResume != nil {
+				t.Errorf("tool re-executed with %+v; a rejected payload must not reach it", *gotResume)
+			}
+		})
 	}
 }
 
@@ -940,7 +1013,8 @@ func TestResume_AcceptsJSRestartShape(t *testing.T) {
 // TestResume_NonObjectResumeMarkers pins how a resumed marker Go cannot
 // deliver as an object is read, matching the JS runtime's truthiness rule:
 // false is not a resumption and the tool re-executes afresh; any other
-// non-object value is a bare restart.
+// non-object value is a bare restart, delivered as an empty payload to a tool
+// whose resume type admits one.
 func TestResume_NonObjectResumeMarkers(t *testing.T) {
 	t.Run("false re-executes without a resume payload", func(t *testing.T) {
 		reg := newTransferTestRegistry(t)
@@ -968,13 +1042,13 @@ func TestResume_NonObjectResumeMarkers(t *testing.T) {
 	for _, marker := range []any{"approved", 1.0, []any{"a"}} {
 		t.Run(fmt.Sprintf("%T is a bare restart", marker), func(t *testing.T) {
 			reg := newTransferTestRegistry(t)
-			transfer, saw := interruptOnce(t, reg)
+			transfer, saw := interruptOnceBare(t, reg)
 			resp, interrupt := generateUntilInterrupt(t, reg, transfer)
 
 			if got := resumeWith(t, reg, resp, transfer, ai.WithResume(jsRestartOf(t, interrupt, marker))); got != "done" {
 				t.Errorf("Text() = %q, want done", got)
 			}
-			if res, _, _ := saw(); res == nil || res.Approved {
+			if res := saw(); res == nil || res.Approved {
 				t.Errorf("tool saw resume = %+v, want the zero value of a bare restart", res)
 			}
 		})
