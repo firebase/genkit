@@ -406,16 +406,6 @@ func applyStrictMetadata(metadata map[string]any, strict *bool) {
 	toolMeta[toolStrictKey] = *strict
 }
 
-// applyToolOutputSchema records a custom output schema as the tool's
-// advertised (original) output schema. The action's own output type stays the
-// multipart envelope; [ToolAction.Definition] surfaces the original schema to the
-// model and the Dev UI.
-func applyToolOutputSchema(metadata map[string]any, schema map[string]any) {
-	if schema != nil {
-		metadata["originalOutputSchema"] = schema
-	}
-}
-
 // requireAnyTypeParam panics unless the type parameter T is an interface type
 // (in practice 'any'). The tool constructors call it before honoring an
 // explicit schema option: the custom schema stands in for a type parameter of
@@ -477,8 +467,7 @@ func NewMultipartTool[In any](name, description string, fn MultipartToolFunc[In]
 	// explicit schema. WithOutputSchema describes the envelope's output field
 	// and carries no such constraint.
 	toolOpts := applyToolOptions[In]("ai.NewMultipartTool", name, opts)
-	metadata := toolMetadata(name, description, true, nil)
-	applyToolOutputSchema(metadata, toolOpts.OutputSchema)
+	metadata := toolMetadata(name, description, true, toolOpts.OutputSchema)
 	applyStrictMetadata(metadata, toolOpts.StrictSchema)
 	wrapped := func(ctx context.Context, input In) (*MultipartToolResponse, error) {
 		return runToolFunc(ctx, func(ctx context.Context) (*MultipartToolResponse, error) {
@@ -529,8 +518,13 @@ func newTool[In, Out, Res any](ctor, name, description string, opts []ToolOption
 		requireAnyTypeParam[Out](ctor, name, "WithOutputSchema and WithOutputSchemaName require Out")
 	}
 
-	metadata := toolMetadata(name, description, false, base.SchemaMapFor[Out]())
-	applyToolOutputSchema(metadata, toolOpts.OutputSchema)
+	// An explicit schema stands in for the output type, so it is the one
+	// advertised; otherwise the schema inferred from Out, none for any.
+	outputSchema := toolOpts.OutputSchema
+	if outputSchema == nil {
+		outputSchema = base.SchemaMapFor[Out]()
+	}
+	metadata := toolMetadata(name, description, false, outputSchema)
 	applyStrictMetadata(metadata, toolOpts.StrictSchema)
 	wrapped := func(ctx context.Context, input In) (*MultipartToolResponse, error) {
 		return runToolFunc(ctx, func(ctx context.Context) (*MultipartToolResponse, error) {
