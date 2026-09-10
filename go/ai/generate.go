@@ -1528,12 +1528,23 @@ func toolFailureError(ctx context.Context, name string, cause error) error {
 // raw [MultipartToolResponse]. Returned by [buildToolRunner].
 type toolRunnerFunc = func(ctx context.Context, tool Tool, req *ToolRequest) (*MultipartToolResponse, error)
 
-// interruptedPart clones a tool request part and marks it interrupted,
-// carrying the interrupt's data (nil for a bare interrupt) as typed state; the
-// wire marker is written when the part is marshaled.
+// interruptedPart returns the copy of tool request p that records the
+// interrupt raised for it, carrying the interrupt's data (nil for a bare
+// interrupt) as typed state; the wire marker is written when the part is
+// marshaled.
 func interruptedPart(p *Part, tie *base.ToolInterruptError) *Part {
-	newPart := clone(p)
+	newPart := p.typedClone()
 	newPart.Interrupt = &ToolInterrupt{Data: tie.Data}
+	return newPart
+}
+
+// resolvedPart returns the copy of tool request p that records its interrupt,
+// if any, as resolved, for the message history.
+func resolvedPart(p *Part) *Part {
+	newPart := p.typedClone()
+	if newPart.Interrupt != nil {
+		newPart.Interrupt.Resolved = true
+	}
 	return newPart
 }
 
@@ -2179,10 +2190,7 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 			if respondPart.ToolResponse != nil &&
 				respondPart.ToolResponse.Name == toolReq.Name &&
 				respondPart.ToolResponse.Ref == toolReq.Ref {
-				newToolReq := clone(p)
-				if newToolReq.Interrupt != nil {
-					newToolReq.Interrupt.Resolved = true
-				}
+				newToolReq := resolvedPart(p)
 
 				tool := LookupTool(r, toolReq.Name)
 				if tool == nil {
@@ -2230,10 +2238,10 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 				// call still reads as a resumption) and, when the caller
 				// replaced the input, the original one.
 				resumedCtx := ctx
-				if rs := restartStateOf(restartPart); rs != nil {
+				if rs := restartPart.restartState(); rs != nil {
 					resume, err := resumePayload(rs.Resume)
 					if err != nil {
-						return nil, core.NewError(core.INVALID_ARGUMENT, "handleResumedToolRequest: restart for tool %q: %v", restartPart.ToolRequest.Name, err)
+						return nil, status.Errorf(status.ErrInvalidArgument, "handleResumedToolRequest: restart for tool %q: %w", restartPart.ToolRequest.Name, err)
 					}
 					resumedCtx = base.ToolResumeKey.NewContext(resumedCtx, resume)
 					if rs.OriginalInput != nil {
@@ -2259,10 +2267,7 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 					return nil, toolFailureError(ctx, restartPart.ToolRequest.Name, err)
 				}
 
-				newToolReq := clone(p)
-				if newToolReq.Interrupt != nil {
-					newToolReq.Interrupt.Resolved = true
-				}
+				newToolReq := resolvedPart(p)
 
 				newToolResp := NewToolResponsePart(&ToolResponse{
 					Name:    restartPart.ToolRequest.Name,
@@ -2298,10 +2303,16 @@ func handleResumeOption(ctx context.Context, r api.Registry, genOpts *GenerateAc
 		if !part.IsToolResponse() {
 			return nil, status.Errorf(status.ErrInvalidArgument, "handleResumeOption: respond part is not a tool response")
 		}
+		if err := part.Validate(); err != nil {
+			return nil, status.Errorf(status.ErrInvalidArgument, "handleResumeOption: respond part: %w", err)
+		}
 	}
 	for _, part := range genOpts.Resume.Restart {
 		if !part.IsToolRequest() {
 			return nil, status.Errorf(ErrInvalidPart, "handleResumeOption: restart part is not a tool request")
+		}
+		if err := part.Validate(); err != nil {
+			return nil, status.Errorf(ErrInvalidPart, "handleResumeOption: restart part: %w", err)
 		}
 	}
 
@@ -2410,11 +2421,11 @@ func handleResumeOption(ctx context.Context, r api.Registry, genOpts *GenerateAc
 		Role:    RoleTool,
 		Content: toolResps,
 		Metadata: map[string]any{
-			base.ToolMetaResumed: true,
+			metaResumed: true,
 		},
 	}
 	if genOpts.Resume.Metadata != nil {
-		toolMessage.Metadata[base.ToolMetaResumed] = genOpts.Resume.Metadata
+		toolMessage.Metadata[metaResumed] = genOpts.Resume.Metadata
 	}
 	revisedMessages := append(slices.Clone(messages), toolMessage)
 

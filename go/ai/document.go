@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/core/status"
-	"github.com/firebase/genkit/go/internal/base"
 )
 
 // A Document is a piece of data that can be embedded, indexed, or retrieved.
@@ -311,13 +310,14 @@ func (p *Part) IsToolResponse() bool {
 // interrupt is awaiting resolution. Resolved interrupts are kept on the part
 // (see [ToolInterrupt.Resolved]) but no longer count.
 func (p *Part) IsInterrupt() bool {
-	return p != nil && p.IsToolRequest() && p.Interrupt != nil && !p.Interrupt.Resolved
+	it := p.interruptState()
+	return it != nil && !it.Resolved
 }
 
 // IsRestart reports whether the [Part] contains a tool request that restarts an
 // interrupted call.
 func (p *Part) IsRestart() bool {
-	return p != nil && p.IsToolRequest() && p.Restart != nil
+	return p.restartState() != nil
 }
 
 // IsPartial reports whether the [Part] contains a partial tool response
@@ -382,11 +382,12 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 
 	// This is not handled by the schema generator because
 	// Part is defined in TypeScript as a union.
+	meta := p.wireMetadata()
 	switch p.Kind {
 	case PartText:
 		v := textPart{
 			Text:     p.Text,
-			Metadata: p.wireMetadata(),
+			Metadata: meta,
 		}
 		return json.Marshal(v)
 	case PartMedia:
@@ -395,43 +396,43 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 				ContentType: p.ContentType,
 				Url:         p.Text,
 			},
-			Metadata: p.wireMetadata(),
+			Metadata: meta,
 		}
 		return json.Marshal(v)
 	case PartData:
 		v := dataPart{
 			Data:     p.Data,
-			Metadata: p.wireMetadata(),
+			Metadata: meta,
 		}
 		return json.Marshal(v)
 	case PartToolRequest:
 		v := toolRequestPart{
 			ToolRequest: p.ToolRequest,
-			Metadata:    p.wireMetadata(),
+			Metadata:    meta,
 		}
 		return json.Marshal(v)
 	case PartToolResponse:
 		v := toolResponsePart{
 			ToolResponse: p.ToolResponse,
-			Metadata:     p.wireMetadata(),
+			Metadata:     meta,
 		}
 		return json.Marshal(v)
 	case PartResource:
 		v := resourcePart{
 			Resource: p.Resource,
-			Metadata: p.wireMetadata(),
+			Metadata: meta,
 		}
 		return json.Marshal(v)
 	case PartCustom:
 		v := customPart{
 			Custom:   p.Custom,
-			Metadata: p.wireMetadata(),
+			Metadata: meta,
 		}
 		return json.Marshal(v)
 	case PartReasoning:
 		v := reasoningPart{
 			Reasoning: p.Text,
-			Metadata:  p.wireMetadata(),
+			Metadata:  meta,
 		}
 		return json.Marshal(v)
 	default:
@@ -439,9 +440,34 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 	}
 }
 
+// Metadata keys of the interrupt and resume wire contract, mirroring the JS
+// runtime so that messages cross runtimes intact. In memory this state lives
+// on the typed [Part] fields Interrupt and Restart: marshaling folds it into
+// these keys and unmarshaling lifts it back out, and a tool request part
+// hand-assembled with the keys instead of the fields reads as the same state
+// through [Part.interruptState] and [Part.restartState].
+const (
+	// metaInterrupt marks a tool request part as interrupted. Holds the
+	// interrupt data object, or true for a bare interrupt.
+	metaInterrupt = "interrupt"
+	// metaResolvedInterrupt preserves the original interrupt data on a tool
+	// request part once its interrupt has been resolved.
+	metaResolvedInterrupt = "resolvedInterrupt"
+	// metaResumed marks a tool request part as a restart of an interrupted
+	// call. Holds the resume data object, or true for a bare restart. Also
+	// used on tool message metadata to carry resume metadata.
+	metaResumed = "resumed"
+	// metaReplacedInput preserves the original input on a restart part when
+	// the caller replaced it.
+	metaReplacedInput = "replacedInput"
+	// metaInterruptResponse marks a caller-provided tool response part that
+	// resolves an interrupt in place of re-executing the tool.
+	metaInterruptResponse = "interruptResponse"
+)
+
 // wireMetadata returns the metadata map to serialize for the Part, folding the
-// typed Interrupt and Restart fields into the keys the wire protocol expects
-// (mirroring the JS runtime). The Part's own Metadata map is never mutated.
+// typed Interrupt and Restart fields into the wire keys. The Part's own
+// Metadata map is never mutated.
 func (p *Part) wireMetadata() map[string]any {
 	if p.Interrupt == nil && p.Restart == nil {
 		return p.Metadata
@@ -451,16 +477,16 @@ func (p *Part) wireMetadata() map[string]any {
 		m = make(map[string]any, 2)
 	}
 	if it := p.Interrupt; it != nil {
-		key := base.ToolMetaInterrupt
+		key := metaInterrupt
 		if it.Resolved {
-			key = base.ToolMetaResolvedInterrupt
+			key = metaResolvedInterrupt
 		}
 		m[key] = orTrue(it.Data)
 	}
 	if rs := p.Restart; rs != nil {
-		m[base.ToolMetaResumed] = orTrue(rs.Resume)
+		m[metaResumed] = orTrue(rs.Resume)
 		if rs.OriginalInput != nil {
-			m[base.ToolMetaReplacedInput] = rs.OriginalInput
+			m[metaReplacedInput] = rs.OriginalInput
 		}
 	}
 	return m
@@ -484,35 +510,74 @@ func payloadOf(v any) any {
 	return v
 }
 
-// liftWireMetadata populates the typed Interrupt and Restart fields from their
-// wire keys in the metadata map, removing the lifted keys so the map holds only
-// user and plugin metadata.
+// interruptState returns the interrupt state of a tool request part: the
+// typed field, or the state a part hand-assembled with the wire keys
+// describes. Every reader of interrupt state goes through it, so such a part
+// behaves like one built by the loop, without being copied or mutated. Nil
+// for any other part.
+func (p *Part) interruptState() *ToolInterrupt {
+	if !p.IsToolRequest() {
+		return nil
+	}
+	if p.Interrupt != nil {
+		return p.Interrupt
+	}
+	if v, ok := p.Metadata[metaInterrupt]; ok {
+		return &ToolInterrupt{Data: payloadOf(v)}
+	}
+	if v, ok := p.Metadata[metaResolvedInterrupt]; ok {
+		return &ToolInterrupt{Data: payloadOf(v), Resolved: true}
+	}
+	return nil
+}
+
+// restartState is [Part.interruptState] for the restart state.
+func (p *Part) restartState() *ToolRestart {
+	if !p.IsToolRequest() {
+		return nil
+	}
+	if p.Restart != nil {
+		return p.Restart
+	}
+	resume, resumed := p.Metadata[metaResumed]
+	original, replaced := p.Metadata[metaReplacedInput]
+	if !resumed && !replaced {
+		return nil
+	}
+	return &ToolRestart{Resume: payloadOf(resume), OriginalInput: original}
+}
+
+// liftWireMetadata moves the interrupt and restart state a tool request part
+// carries in its wire keys onto the typed fields, leaving the map to user and
+// plugin metadata. Typed state already present is kept.
 func (p *Part) liftWireMetadata() {
-	m := p.Metadata
-	if m == nil {
+	if !p.IsToolRequest() || p.Metadata == nil {
 		return
 	}
-	if v, ok := m[base.ToolMetaInterrupt]; ok {
-		p.Interrupt = &ToolInterrupt{Data: payloadOf(v)}
-		delete(m, base.ToolMetaInterrupt)
-	} else if v, ok := m[base.ToolMetaResolvedInterrupt]; ok {
-		p.Interrupt = &ToolInterrupt{Data: payloadOf(v), Resolved: true}
-		delete(m, base.ToolMetaResolvedInterrupt)
-	}
-	if v, ok := m[base.ToolMetaResumed]; ok {
-		p.Restart = &ToolRestart{Resume: payloadOf(v)}
-		delete(m, base.ToolMetaResumed)
-	}
-	if v, ok := m[base.ToolMetaReplacedInput]; ok {
-		if p.Restart == nil {
-			p.Restart = &ToolRestart{}
-		}
-		p.Restart.OriginalInput = v
-		delete(m, base.ToolMetaReplacedInput)
+	p.Interrupt = p.interruptState()
+	p.Restart = p.restartState()
+	p.Metadata = stripWireKeys(p.Metadata)
+}
+
+// stripWireKeys deletes the wire keys from m in place and returns m, or nil
+// when nothing is left.
+func stripWireKeys(m map[string]any) map[string]any {
+	for _, key := range [...]string{metaInterrupt, metaResolvedInterrupt, metaResumed, metaReplacedInput} {
+		delete(m, key)
 	}
 	if len(m) == 0 {
-		p.Metadata = nil
+		return nil
 	}
+	return m
+}
+
+// typedClone returns a copy of p with its wire-key state lifted onto the typed
+// fields, for the loop to mark interrupted or resolved without mutating the
+// caller's part.
+func (p *Part) typedClone() *Part {
+	cp := p.Clone()
+	cp.liftWireMetadata()
+	return cp
 }
 
 // Validate checks that the Part's fields are consistent with its Kind: that the
@@ -560,7 +625,7 @@ func (p *Part) Validate() error {
 	if r, ok := required[p.Kind]; ok && !r.set {
 		return status.Errorf(ErrInvalidPart, "field %s is required on a %s part", r.name, p.Kind)
 	}
-	if p.Interrupt != nil && !p.Interrupt.Resolved && p.Restart != nil {
+	if it, rs := p.interruptState(), p.restartState(); it != nil && !it.Resolved && rs != nil {
 		return status.Errorf(ErrInvalidPart, "part cannot both await an interrupt and be a restart; resolve the interrupt first")
 	}
 	return nil
