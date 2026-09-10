@@ -330,6 +330,9 @@ func (tc *ToolContext) IsResumed() bool {
 // IsToolResumed reports whether the current context is a resumed tool execution.
 // This is intended for use in middleware that needs to distinguish between
 // first-time and restarted tool calls.
+//
+// Deprecated: Use [tool.ResumeData], whose second result reports the same
+// from any context.
 func IsToolResumed(ctx context.Context) bool {
 	return base.ToolResumeKey.FromContext(ctx) != nil
 }
@@ -338,6 +341,9 @@ func IsToolResumed(ctx context.Context) bool {
 // Returns the zero value and false if the key doesn't exist or the type doesn't match.
 // Accepts either a plain [context.Context] (useful in middleware) or a [*ToolContext],
 // which embeds [context.Context].
+//
+// Deprecated: Use [tool.ResumeData] with a struct that names the fields you
+// read, which decodes the whole payload at once from any context.
 func ResumedValue[T any](ctx context.Context, key string) (T, bool) {
 	var zero T
 	m, ok := resumedMap(ctx)
@@ -370,6 +376,9 @@ func resumedMap(ctx context.Context) (map[string]any, bool) {
 
 // OriginalInputAs returns the original input typed appropriately.
 // Returns the zero value and false if not resumed or type doesn't match.
+//
+// Deprecated: Use [tool.OriginalInput], which reads the same value from any
+// context, a [ToolContext] included.
 func OriginalInputAs[T any](tc *ToolContext) (T, bool) {
 	var zero T
 	if tc.OriginalInput == nil {
