@@ -210,8 +210,8 @@ func newEntry[State any](a *aix.Agent[State], onInterrupt InterruptHandler) agen
 // ai.InterruptAs) and a Prompter for asking the user questions through
 // the CLI's input stream. It returns one of:
 //
-//   - a restart part (the tool's Restart) to re-run the tool with resume data,
-//   - a response part (the tool's Respond) to answer the tool directly, or
+//   - a restart part (InterruptedCall.Restart) to re-run the tool with resume data,
+//   - a response part (InterruptedCall.Respond) to answer the tool directly, or
 //   - nil to leave this interrupt unresolved.
 //
 // The CLI sorts the returned part into the right half of aix.ToolResume,

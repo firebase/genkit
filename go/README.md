@@ -726,17 +726,12 @@ analyzeTool := genkit.DefineTool(g, "analyzeStock",
 
 ### Tool Interrupts
 
-Interrupts are how Genkit does human in the loop (HITL). A tool pauses execution for a person's approval, and the flow resumes it with their answer, modified inputs, or a direct response. `genkit.DefineInterruptibleTool` takes a third type parameter for the answer: the parameter is `nil` on the first call and carries the caller's decision when the tool resumes, so the tool and the flow share one type instead of agreeing on metadata keys.
+Interrupts are how Genkit does human in the loop (HITL). A tool pauses generation for a person's approval or answer, and the flow resumes it with their decision. `genkit.DefineInterruptibleTool` takes a third type parameter for that decision: the parameter is `nil` on the first call and carries the answer when the tool resumes, so the tool and the flow share one type instead of agreeing on metadata keys.
 
 ```go
 type TransferInput struct {
     ToAccount string  `json:"toAccount"`
     Amount    float64 `json:"amount"`
-}
-
-type TransferInterrupt struct {
-    Reason string  `json:"reason"`
-    Amount float64 `json:"amount"`
 }
 
 type Confirmation struct {
@@ -745,12 +740,11 @@ type Confirmation struct {
 
 // The third parameter (*Confirmation) is the resume payload: nil on the first
 // call, populated when the caller resumes after an interrupt.
-transferTool := genkit.DefineInterruptibleTool(g, "transfer",
+transferMoney := genkit.DefineInterruptibleTool(g, "transferMoney",
     "Transfers money to another account.",
     func(ctx context.Context, input TransferInput, confirm *Confirmation) (string, error) {
         if confirm == nil && input.Amount > 1000 {
-            // Pause and hand typed data to the caller.
-            return "", tool.Interrupt(TransferInterrupt{Reason: "confirm_large", Amount: input.Amount})
+            return "", tool.Interrupt(nil) // Pause; the input says what to approve.
         }
         if confirm != nil && !confirm.Approved {
             return "Transfer cancelled.", nil
@@ -762,36 +756,35 @@ transferTool := genkit.DefineInterruptibleTool(g, "transfer",
 resp, _ := genkit.Generate(ctx, g,
     ai.WithModelName("googleai/gemini-flash-latest"),
     ai.WithPrompt("Transfer $5000 to account ABC123"),
-    ai.WithTools(transferTool),
+    ai.WithTools(transferMoney),
 )
 
-// Interrupts() yields nothing unless the tool paused for input.
-var restarts []*ai.Part
-for _, interrupt := range resp.Interrupts() {
-    meta, _ := ai.InterruptAs[TransferInterrupt](interrupt)
-
-    // Use meta to ask the user for a decision, then restart with their answer.
-    // WithResume is checked against the tool's own resume type; WithNewInput
-    // would revise the arguments too.
-    restart, _ := transferTool.Restart(interrupt,
-        transferTool.WithResume(Confirmation{Approved: true}))
-    restarts = append(restarts, restart)
+// Interrupts() yields nothing unless a tool paused. Interrupted claims a part
+// for this tool and decodes its input; nothing after the claim can fail.
+var parts []*ai.Part
+for _, part := range resp.Interrupts() {
+    if call, ok := transferMoney.Interrupted(part); ok {
+        approved := askHuman(call.Input.Amount, call.Input.ToAccount)
+        parts = append(parts, call.Restart(Confirmation{Approved: approved}))
+    }
 }
 
-// Collect every restart first, then resume once: generating inside the loop
+// Collect every answer first, then resume once: generating inside the loop
 // would resume later interrupts against a history that already moved on.
-if len(restarts) > 0 {
+if len(parts) > 0 {
     resp, _ = genkit.Generate(ctx, g,
         ai.WithMessages(resp.History()...),
-        ai.WithTools(transferTool),
-        ai.WithToolRestarts(restarts...),
+        ai.WithTools(transferMoney),
+        ai.WithResume(parts...),
     )
 }
 ```
 
-`transferTool.Respond(interrupt, output)` answers the call outright instead of running the tool again. Without the tool value in scope (a handler that only holds the part), `interrupt.ToToolRestart(ai.WithResume(...))` and `interrupt.ToToolResponse(output)` build the same parts.
+`call.Respond(output)` answers the call outright instead of running the tool again, and `call.RestartWithInput(input, confirmation)` re-runs it with arguments the person revised. A tool that pauses with something to say, such as why it needs approval, passes a struct or a map to `tool.Interrupt`, and the flow reads it back with `ai.InterruptAs`.
 
-A `genkit.DefineTool` tool can interrupt too: return `tool.Interrupt` from it, read the answer back with `tool.ResumeData`, and restart it with `interrupt.ToToolRestart(ai.WithResume(...))`.
+A tool can also be a pure question: its function only returns `tool.Interrupt(nil)`, the input is the question, and `call.Respond(answer)` supplies the answer as the tool's output.
+
+Without the tool value in scope (a handler that only holds the part, or an interrupt a middleware's tool raised), `part.ToToolRestart(resume)` and `part.ToToolResponse(output)` build the same parts, untyped. A `genkit.DefineTool` tool can interrupt too: return `tool.Interrupt` from it, read the answer back with `tool.ResumeData`, and restart it with a `map[string]any`.
 
 [See full example](samples/basic-tool-interrupts/main.go)
 
