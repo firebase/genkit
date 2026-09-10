@@ -84,9 +84,8 @@ func (t ToolName) Name() string {
 //		}
 //	}
 type InterruptibleToolAction[In, Out, Res any] struct {
-	action    api.Action   // The underlying action.
-	multipart bool         // Whether this is a multipart-only tool.
-	registry  api.Registry // Registry for schema resolution. Set when registered.
+	action   api.Action   // The underlying action.
+	registry api.Registry // Registry for schema resolution. Set when registered.
 }
 
 // ToolAction is the tool type [NewTool] and [LookupTool] return: an
@@ -465,18 +464,10 @@ func NewToolWithInputSchema[Out any](name, description string, inputSchema map[s
 // Deprecated: Use [NewTool] and attach content parts with [tool.AttachParts],
 // which keeps the output type (and therefore the advertised output schema).
 func NewMultipartTool[In any](name, description string, fn MultipartToolFunc[In], opts ...ToolOption) *ToolAction[In, *MultipartToolResponse] {
-	toolOpts := &toolOptions{}
-	for _, opt := range opts {
-		opt.applyTool(toolOpts)
-	}
-
 	// Out is fixed to the multipart envelope, so only In can disagree with an
 	// explicit schema. WithOutputSchema describes the envelope's output field
 	// and carries no such constraint.
-	if toolOpts.InputSchema != nil {
-		requireAnyTypeParam[In]("ai.NewMultipartTool", name, "WithInputSchema requires In")
-	}
-
+	toolOpts := applyToolOptions[In]("ai.NewMultipartTool", name, opts)
 	metadata := toolMetadata(name, description, true, nil)
 	applyToolOutputSchema(metadata, toolOpts.OutputSchema)
 	applyStrictMetadata(metadata, toolOpts.StrictSchema)
@@ -486,7 +477,7 @@ func NewMultipartTool[In any](name, description string, fn MultipartToolFunc[In]
 		})
 	}
 	action := core.NewActionOf(api.ActionTypeToolV2, name, &core.ActionOptions{Metadata: metadata, InputSchema: toolOpts.InputSchema}, wrapped)
-	return &ToolAction[In, *MultipartToolResponse]{action: action, multipart: true}
+	return &ToolAction[In, *MultipartToolResponse]{action: action}
 }
 
 // NewInterruptibleTool creates a new unregistered [InterruptibleToolAction].
@@ -522,19 +513,12 @@ func NewInterruptibleTool[In, Out, Res any](name, description string, fn Interru
 // advertises, and wraps run in the multipart envelope every tool speaks
 // internally. ctor names the constructor in panic messages.
 func newTool[In, Out, Res any](ctor, name, description string, opts []ToolOption, run func(ctx context.Context, input In) (Out, error)) *InterruptibleToolAction[In, Out, Res] {
-	toolOpts := &toolOptions{}
-	for _, opt := range opts {
-		opt.applyTool(toolOpts)
-	}
-
-	if toolOpts.InputSchema != nil {
-		requireAnyTypeParam[In](ctor, name, "WithInputSchema requires In")
-	}
+	toolOpts := applyToolOptions[In](ctor, name, opts)
 	if toolOpts.OutputSchema != nil {
 		requireAnyTypeParam[Out](ctor, name, "WithOutputSchema and WithOutputSchemaName require Out")
 	}
 
-	metadata := toolMetadata(name, description, false, inferOutputSchema[Out]())
+	metadata := toolMetadata(name, description, false, base.SchemaMapFor[Out]())
 	applyToolOutputSchema(metadata, toolOpts.OutputSchema)
 	applyStrictMetadata(metadata, toolOpts.StrictSchema)
 	wrapped := func(ctx context.Context, input In) (*MultipartToolResponse, error) {
@@ -548,6 +532,20 @@ func newTool[In, Out, Res any](ctor, name, description string, opts []ToolOption
 	}
 	action := core.NewActionOf(api.ActionTypeToolV2, name, &core.ActionOptions{Metadata: metadata, InputSchema: toolOpts.InputSchema}, wrapped)
 	return &InterruptibleToolAction[In, Out, Res]{action: action}
+}
+
+// applyToolOptions applies opts and checks that an explicit input schema comes
+// with an In of any, since the schema stands in for the type parameter. ctor
+// names the constructor in the panic message.
+func applyToolOptions[In any](ctor, name string, opts []ToolOption) *toolOptions {
+	toolOpts := &toolOptions{}
+	for _, opt := range opts {
+		opt.applyTool(toolOpts)
+	}
+	if toolOpts.InputSchema != nil {
+		requireAnyTypeParam[In](ctor, name, "WithInputSchema requires In")
+	}
+	return toolOpts
 }
 
 // toolMetadata builds the action metadata every tool constructor records. The
@@ -566,16 +564,6 @@ func toolMetadata(name, description string, multipart bool, originalOutputSchema
 		metadata["originalOutputSchema"] = originalOutputSchema
 	}
 	return metadata
-}
-
-// inferOutputSchema returns the JSON schema for the Out type parameter, or nil
-// when Out carries no schema (e.g. any).
-func inferOutputSchema[Out any]() map[string]any {
-	var zero Out
-	if reflect.TypeOf(zero) == nil {
-		return nil
-	}
-	return core.InferSchemaMap(zero)
 }
 
 // newToolContext builds the [ToolContext] a tool function written against it
@@ -660,13 +648,12 @@ func (t *InterruptibleToolAction[In, Out, Res]) Definition() *ToolDefinition {
 		}
 	}
 
+	toolMeta := toolMetaOf(desc)
 	metadata := map[string]any{
-		"multipart": t.multipart,
+		"multipart": toolMeta["multipart"] == true,
 	}
-	if toolMeta, ok := desc.Metadata["tool"].(map[string]any); ok {
-		if s, ok := toolMeta[toolStrictKey].(bool); ok {
-			metadata[toolStrictKey] = s
-		}
+	if s, ok := toolMeta[toolStrictKey].(bool); ok {
+		metadata[toolStrictKey] = s
 	}
 
 	return &ToolDefinition{
@@ -682,7 +669,7 @@ func (t *InterruptibleToolAction[In, Out, Res]) Definition() *ToolDefinition {
 func (t *InterruptibleToolAction[In, Out, Res]) Register(r api.Registry) {
 	t.registry = r
 	t.action.Register(r)
-	if !t.multipart {
+	if !t.IsMultipart() {
 		// Also register under the "tool" key for backward compatibility.
 		provider, id := api.ParseName(t.action.Name())
 		r.RegisterAction(api.NewKey(api.ActionTypeTool, provider, id), t.action)
@@ -694,7 +681,15 @@ func (t *InterruptibleToolAction[In, Out, Res]) Desc() api.ActionDesc { return t
 
 // IsMultipart returns true if the tool is a multipart tool (tool.v2 only).
 func (t *InterruptibleToolAction[In, Out, Res]) IsMultipart() bool {
-	return t.multipart
+	return toolMetaOf(t.action.Desc())["multipart"] == true
+}
+
+// toolMetaOf returns the "tool" map of an action's metadata, where
+// [toolMetadata] records the per-tool flags; nil when absent, so lookups on
+// it are safe.
+func toolMetaOf(desc api.ActionDesc) map[string]any {
+	m, _ := desc.Metadata["tool"].(map[string]any)
+	return m
 }
 
 // errNilTool is the error the run methods return when called on a nil tool
@@ -778,16 +773,7 @@ func LookupTool(r api.Registry, name string) Tool {
 	if action == nil {
 		return nil
 	}
-
-	desc := action.Desc()
-	multipart := false
-	if toolMeta, ok := desc.Metadata["tool"].(map[string]any); ok {
-		if mp, ok := toolMeta["multipart"].(bool); ok {
-			multipart = mp
-		}
-	}
-
-	return &ToolAction[any, any]{action: action, multipart: multipart, registry: r}
+	return &ToolAction[any, any]{action: action, registry: r}
 }
 
 // --- Resolving an interrupt ---
