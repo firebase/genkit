@@ -76,10 +76,10 @@ type Confirmation struct {
 // restart, which is fine for illustrating the interrupt flow.
 var accountBalance = 150.00
 
-// transferMoney is the tool handle, kept so handleTransferInterrupt can
-// restart the tool through it: the typed methods check the resume payload
-// against the tool's own resume type at compile time and verify that the
-// interrupted part actually belongs to this tool.
+// transferMoney is the tool handle, kept so handleTransferInterrupt can claim
+// the interrupted call through it: Interrupted verifies that the part belongs
+// to this tool and decodes its input, and Restart on the claimed call checks
+// the resume payload against the tool's own resume type at compile time.
 var transferMoney *ai.InterruptibleToolAction[TransferInput, *TransferOutput, Confirmation]
 
 // defineBankerAgent registers the transferMoney tool and a prompt-backed
@@ -152,11 +152,12 @@ func defineBankerAgent(g *genkit.Genkit) *aix.Agent[any] {
 // a restart part carrying their decision. Returning a part rather than
 // touching the connection keeps the handler out of the streaming loop.
 func handleTransferInterrupt(p *Prompter, part *ai.Part) (*ai.Part, error) {
-	meta, ok := ai.InterruptAs[TransferInterrupt](part)
+	call, ok := transferMoney.Interrupted(part)
 	if !ok {
-		// Not our interrupt type; let the CLI report it as unresolved.
+		// Not our tool's interrupt; let the CLI report it as unresolved.
 		return nil, nil
 	}
+	meta, _ := ai.InterruptAs[TransferInterrupt](part)
 
 	switch meta.Reason {
 	case "insufficient_balance":
@@ -166,18 +167,17 @@ func handleTransferInterrupt(p *Prompter, part *ai.Part) (*ai.Part, error) {
 			fmt.Sprintf("Transfer $%.2f instead", meta.Balance),
 			"Cancel the transfer") {
 		case 0:
-			return transferMoney.Restart(part,
-				transferMoney.WithResume(Confirmation{Approved: true, AdjustedAmount: &meta.Balance}))
+			return call.Restart(Confirmation{Approved: true, AdjustedAmount: &meta.Balance}), nil
 		default:
-			return transferMoney.Restart(part, transferMoney.WithResume(Confirmation{Approved: false}))
+			return call.Restart(Confirmation{Approved: false}), nil
 		}
 
 	case "confirm_large":
-		approved := p.Confirm(fmt.Sprintf("Confirm large transfer of $%.2f to %s?", meta.Amount, meta.ToAccount))
-		return transferMoney.Restart(part, transferMoney.WithResume(Confirmation{Approved: approved}))
+		approved := p.Confirm(fmt.Sprintf("Confirm large transfer of $%.2f to %s?", call.Input.Amount, call.Input.ToAccount))
+		return call.Restart(Confirmation{Approved: approved}), nil
 
 	default:
 		p.Printf("Unrecognized approval request (%q); cancelling the transfer.\n", meta.Reason)
-		return transferMoney.Restart(part, transferMoney.WithResume(Confirmation{Approved: false}))
+		return call.Restart(Confirmation{Approved: false}), nil
 	}
 }

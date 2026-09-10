@@ -31,7 +31,9 @@
 //     pulling metadata out by key.
 //   - tool.Interrupt pauses with a typed value the flow reads back with
 //     ai.InterruptAs.
-//   - The tool's Restart carries a typed Approval through WithResume.
+//   - The tool's Interrupted claims the paused call, with its input decoded,
+//     and Restart on that call carries a typed Approval back. Nothing on that
+//     path can fail, so there is no error to handle.
 //
 // The approve field stands in for the person: a real app would hand the pending
 // interrupt to a client and run the second turn when they answer.
@@ -113,11 +115,13 @@ type (
 		Approved bool `json:"approved"`
 	}
 
-	// TransferInterrupt is the typed metadata the tool attaches when it pauses,
-	// so whoever answers knows what they are approving.
+	// TransferInterrupt is what the tool adds when it pauses. The tool request
+	// already carries what the model asked for, and the flow reads that typed
+	// from the claimed call, so this holds only what the tool knew: why it
+	// paused and what the account holds.
 	TransferInterrupt struct {
-		ToAccount string  `json:"toAccount"`
-		Amount    float64 `json:"amount"`
+		Reason  string  `json:"reason"`
+		Balance float64 `json:"balance"`
 	}
 
 	// TransferRequest is what the flow takes.
@@ -164,8 +168,8 @@ func main() {
 			// answered one.
 			if approval == nil && input.Amount > approvalLimit {
 				return nil, tool.Interrupt(TransferInterrupt{
-					ToAccount: input.ToAccount,
-					Amount:    input.Amount,
+					Reason:  "over_limit",
+					Balance: accountBalance,
 				})
 			}
 			// Letting the tool decide, rather than the flow, is what keeps the
@@ -211,23 +215,23 @@ func main() {
 				return &Transfer{Reply: resp.Text(), Balance: accountBalance}, nil
 			}
 
-			// Answer every interrupt. Restart builds a part rather than
-			// calling the model, so the decision travels with the next request.
-			var restarts []*ai.Part
+			// Answer every interrupt. Interrupted claims the paused call for
+			// this tool, and Restart builds a part rather than calling the
+			// model, so the decision travels with the next request.
+			var parts []*ai.Part
 			for _, interrupt := range interrupts {
-				meta, ok := ai.InterruptAs[TransferInterrupt](interrupt)
+				call, ok := transferMoney.Interrupted(interrupt)
 				if !ok {
 					return nil, status.Errorf(status.ErrInternal, "unexpected interrupt: %s", interrupt.ToolRequest.Name)
 				}
+				// The input says what the model asked for; the interrupt data
+				// adds what only the tool knew when it paused.
+				meta, _ := ai.InterruptAs[TransferInterrupt](interrupt)
 				logger.Info(ctx, "transfer needs approval",
-					"amount", meta.Amount, "toAccount", meta.ToAccount, "approve", input.Approve)
+					"amount", call.Input.Amount, "toAccount", call.Input.ToAccount,
+					"reason", meta.Reason, "balance", meta.Balance, "approve", input.Approve)
 
-				part, err := transferMoney.Restart(interrupt,
-					transferMoney.WithResume(Approval{Approved: input.Approve}))
-				if err != nil {
-					return nil, fmt.Errorf("could not answer the approval: %w", err)
-				}
-				restarts = append(restarts, part)
+				parts = append(parts, call.Restart(Approval{Approved: input.Approve}))
 			}
 
 			// Turn two: the same conversation, plus the answers. History
@@ -236,7 +240,7 @@ func main() {
 				ai.WithModel(model),
 				ai.WithMessages(resp.History()...),
 				ai.WithTools(transferMoney),
-				ai.WithToolRestarts(restarts...),
+				ai.WithResume(parts...),
 				forward,
 			)
 			if err != nil {

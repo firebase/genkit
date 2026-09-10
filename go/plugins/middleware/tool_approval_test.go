@@ -311,8 +311,8 @@ func TestToolApprovalResumedCallRuns(t *testing.T) {
 		name    string
 		restart func(t *testing.T, p *ai.Part) *ai.Part
 	}{
-		{"Part.ToToolRestart with WithResume", func(t *testing.T, p *ai.Part) *ai.Part {
-			restart, err := p.ToToolRestart(ai.WithResume(map[string]any{"toolApproved": true}))
+		{"Part.ToToolRestart", func(t *testing.T, p *ai.Part) *ai.Part {
+			restart, err := p.ToToolRestart(map[string]any{"toolApproved": true})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -334,7 +334,7 @@ func TestToolApprovalResumedCallRuns(t *testing.T) {
 				ai.WithModel(m),
 				ai.WithMessages(resp.History()...),
 				ai.WithTools(needsApproval),
-				ai.WithToolRestarts(restarts...),
+				ai.WithResume(restarts...),
 				ai.WithUse(ta),
 			)
 			if err != nil {
@@ -402,7 +402,7 @@ func TestToolApprovalResumedWithoutApprovalInterrupts(t *testing.T) {
 		ai.WithModel(m),
 		ai.WithMessages(resp.History()...),
 		ai.WithTools(needsApproval),
-		ai.WithToolRestarts(restarts...),
+		ai.WithResume(restarts...),
 		ai.WithUse(ta),
 	)
 	if err == nil {

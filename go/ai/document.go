@@ -53,8 +53,9 @@ type Part struct {
 
 // ToolInterrupt is the interrupt state of a tool request [Part]. A non-nil
 // Interrupt on a tool request part means the tool paused execution and returned
-// control to the caller; the caller resolves it with [Part.ToToolRestart] or
-// [Part.ToToolResponse].
+// control to the caller; the caller resolves it through the tool, with
+// [InterruptibleToolAction.Interrupted], or on the part, with
+// [Part.ToToolRestart] and [Part.ToToolResponse].
 //
 // On the wire it is carried in the part's metadata map (under "interrupt", or
 // "resolvedInterrupt" once resolved) for compatibility with the JS runtime;
@@ -83,7 +84,8 @@ type ToolRestart struct {
 	// i.e. restarting is itself the approval.
 	Resume any
 	// OriginalInput preserves the tool's original input when the caller
-	// provided a new one for re-execution (via [WithNewInput]). On the wire it
+	// provided a new one for re-execution (via [InterruptedCall.RestartWithInput]
+	// or [Part.ToToolRestartWithInput]). On the wire it
 	// is carried under the metadata key "replacedInput" for compatibility with
 	// the JS runtime.
 	OriginalInput any
@@ -91,12 +93,14 @@ type ToolRestart struct {
 
 // Clone returns a shallow copy of the Part with its own Metadata and Custom
 // maps and its own Interrupt and Restart state. Callers can add or remove map
-// keys or flip interrupt state without mutating the original. When Data holds
-// a map[string]any or []any (the common cases for data parts, e.g. A2UI
-// envelopes), the top-level container is cloned too so callers can mutate its
-// keys/elements without disturbing the original; nested values are still
-// shared by reference. Cloning both shapes (rather than only maps) keeps the
-// isolation guarantee independent of whether a payload is an object or an array.
+// keys or flip interrupt state without mutating the original. When Data, or a
+// payload of the interrupt or restart state, holds a map[string]any or []any
+// (the common cases for data parts, e.g. A2UI envelopes, and for every payload
+// that crossed the wire), the top-level container is cloned too so callers can
+// mutate its keys/elements without disturbing the original; nested values are
+// still shared by reference. Cloning both shapes (rather than only maps) keeps
+// the isolation guarantee independent of whether a payload is an object or an
+// array.
 func (p *Part) Clone() *Part {
 	if p == nil {
 		return nil
@@ -104,21 +108,32 @@ func (p *Part) Clone() *Part {
 	cp := *p
 	cp.Custom = maps.Clone(p.Custom)
 	cp.Metadata = maps.Clone(p.Metadata)
-	switch d := p.Data.(type) {
-	case map[string]any:
-		cp.Data = maps.Clone(d)
-	case []any:
-		cp.Data = slices.Clone(d)
-	}
+	cp.Data = cloneContainer(p.Data)
 	if p.Interrupt != nil {
 		i := *p.Interrupt
+		i.Data = cloneContainer(i.Data)
 		cp.Interrupt = &i
 	}
 	if p.Restart != nil {
 		r := *p.Restart
+		r.Resume = cloneContainer(r.Resume)
+		r.OriginalInput = cloneContainer(r.OriginalInput)
 		cp.Restart = &r
 	}
 	return &cp
+}
+
+// cloneContainer returns a copy of v's top-level container when v is a
+// map[string]any or a []any, and v itself otherwise (a struct, a scalar, or
+// nil). It is what [Part.Clone] applies to every payload it owns.
+func cloneContainer(v any) any {
+	switch d := v.(type) {
+	case map[string]any:
+		return maps.Clone(d)
+	case []any:
+		return slices.Clone(d)
+	}
+	return v
 }
 
 // Clone returns a shallow copy of the Message with its own Content slice

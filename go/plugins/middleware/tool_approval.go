@@ -28,10 +28,10 @@ import (
 // ToolApproval is a middleware that interrupts tool execution unless the tool
 // is in [AllowedTools] or the call has been explicitly approved on resume.
 //
-// To approve on resume, attach a "toolApproved" flag to the restart metadata:
+// To approve on resume, attach a "toolApproved" flag to the resume data of the
+// restart part:
 //
-//	restart, err := interruptPart.ToToolRestart(
-//	    ai.WithResume(map[string]any{"toolApproved": true}))
+//	restart, err := interruptPart.ToToolRestart(map[string]any{"toolApproved": true})
 //
 // The bare [ai.IsToolResumed] flag alone is NOT treated as approval; callers
 // must opt in so that unrelated resume flows (e.g. respond-only turns) cannot
@@ -46,7 +46,7 @@ import (
 //	    ai.WithUse(&middleware.ToolApproval{AllowedTools: []string{"toolA"}}),
 //	)
 //	// toolA runs; toolB triggers an interrupt.
-//	// Resume with ai.WithToolRestarts carrying {"toolApproved": true} to re-execute.
+//	// Resume with ai.WithResume(restart), the restart carrying {"toolApproved": true}.
 type ToolApproval struct {
 	// AllowedTools is the list of tool names pre-approved to run without
 	// interruption. Tools not in this list trigger an interrupt. An empty

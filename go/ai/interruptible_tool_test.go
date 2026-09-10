@@ -23,6 +23,7 @@ package ai_test
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"strings"
 	"sync"
@@ -31,6 +32,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/ai/tool"
 	"github.com/firebase/genkit/go/core/api"
+	"github.com/firebase/genkit/go/core/status"
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
@@ -107,7 +109,9 @@ func TestTool_AttachParts(t *testing.T) {
 	reg := newToolTestRegistry(t)
 	shot := defineTestTool(reg, "screenshot", "takes a screenshot",
 		func(ctx context.Context, _ struct{}) (string, error) {
-			tool.AttachParts(ctx, ai.NewMediaPart("image/png", "pngbytes"))
+			// A nil part is ignored, so a failed constructor result can be
+			// passed without a check.
+			tool.AttachParts(ctx, nil, ai.NewMediaPart("image/png", "pngbytes"))
 			return "captured", nil
 		})
 
@@ -141,6 +145,21 @@ func TestMultipartTool_AttachParts(t *testing.T) {
 	}
 	if len(resp.Content) != 2 || resp.Content[0].Text != "chart" || resp.Content[1].Text != "annotation" {
 		t.Fatalf("content = %+v, want the returned part followed by the attached one", resp.Content)
+	}
+
+	// A multipart function may return no response at all; the attached parts
+	// still need somewhere to land.
+	silent := ai.NewMultipartTool("silent", "attaches, returns nothing",
+		func(tc *ai.ToolContext, _ struct{}) (*ai.MultipartToolResponse, error) {
+			tool.AttachParts(tc, ai.NewMediaPart("image/png", "only"))
+			return nil, nil
+		})
+	resp, err = silent.RunRawMultipart(context.Background(), struct{}{})
+	if err != nil {
+		t.Fatalf("RunRawMultipart: %v", err)
+	}
+	if len(resp.Content) != 1 || resp.Content[0].Text != "only" {
+		t.Fatalf("content = %+v, want the attached part on an empty response", resp.Content)
 	}
 }
 
@@ -377,16 +396,35 @@ func newTransferTestRegistry(t *testing.T) *registry.Registry {
 	return reg
 }
 
+// claim is Interrupted with a failed claim fatal, for the tests that assert
+// what follows the claim.
+func claim[In, Out, Res any](t *testing.T, tl *ai.InterruptibleToolAction[In, Out, Res], part *ai.Part) *ai.InterruptedCall[In, Out, Res] {
+	t.Helper()
+	call, ok := tl.Interrupted(part)
+	if !ok {
+		t.Fatalf("%s.Interrupted did not claim the tool's own interrupt", tl.Name())
+	}
+	return call
+}
+
 // TestInterruptibleTool_TypedRestart pins the core interrupt/resume contract:
-// the tool interrupts with typed data on the first pass, the caller reads it
-// with ai.InterruptAs, restarts with typed data via the tool's own WithResume,
-// and the resume value reaches the function's *Res parameter on re-execution.
+// the tool interrupts with typed data on the first pass, the caller claims the
+// part with Interrupted and reads the input typed, reads the interrupt data
+// with ai.InterruptAs, restarts with a typed value, and the value reaches the
+// function's *Res parameter on re-execution.
 func TestInterruptibleTool_TypedRestart(t *testing.T) {
 	reg := newTransferTestRegistry(t)
 	transfer, recorded := interruptOnce(t, reg)
 	resp, interrupt := generateUntilInterrupt(t, reg, transfer)
 
-	meta, ok := ai.InterruptAs[transferInterrupt](interrupt)
+	call := claim(t, transfer, interrupt)
+	if call.Input.Amount != 200 {
+		t.Errorf("call.Input = %+v, want the input decoded from the wire {200}", call.Input)
+	}
+	if call.Part == nil || !call.Part.IsInterrupt() {
+		t.Errorf("call.Part = %+v, want the interrupted part", call.Part)
+	}
+	meta, ok := ai.InterruptAs[transferInterrupt](call.Part)
 	if !ok {
 		t.Fatal("InterruptAs failed to decode the typed interrupt data")
 	}
@@ -394,12 +432,8 @@ func TestInterruptibleTool_TypedRestart(t *testing.T) {
 		t.Errorf("interrupt data = %+v, want {large_amount 200}", meta)
 	}
 
-	restart, err := transfer.Restart(interrupt, transfer.WithResume(confirmation{Approved: true}))
-	if err != nil {
-		t.Fatalf("Restart: %v", err)
-	}
-
-	if got := resumeWith(t, reg, resp, transfer, ai.WithToolRestarts(restart)); got != "done" {
+	restart := call.Restart(confirmation{Approved: true})
+	if got := resumeWith(t, reg, resp, transfer, ai.WithResume(restart)); got != "done" {
 		t.Errorf("final text after restart = %q, want %q", got, "done")
 	}
 	gotResume, _, _ := recorded()
@@ -408,20 +442,17 @@ func TestInterruptibleTool_TypedRestart(t *testing.T) {
 	}
 }
 
-// TestInterruptibleTool_BareRestart documents what a restart with no options
-// delivers: the tool re-executes with a non-nil, zero-valued resume parameter,
-// which is what makes a bare restart read as approval for tools that key on the
-// presence of a resume.
+// TestInterruptibleTool_BareRestart documents what a restart with the zero
+// value delivers: the tool re-executes with a non-nil, zero-valued resume
+// parameter, which is what makes a bare restart read as approval for tools
+// that key on the presence of a resume.
 func TestInterruptibleTool_BareRestart(t *testing.T) {
 	reg := newTransferTestRegistry(t)
 	transfer, recorded := interruptOnce(t, reg)
 	resp, interrupt := generateUntilInterrupt(t, reg, transfer)
 
-	restart, err := transfer.Restart(interrupt)
-	if err != nil {
-		t.Fatalf("Restart: %v", err)
-	}
-	if got := resumeWith(t, reg, resp, transfer, ai.WithToolRestarts(restart)); got != "done" {
+	restart := claim(t, transfer, interrupt).Restart(confirmation{})
+	if got := resumeWith(t, reg, resp, transfer, ai.WithResume(restart)); got != "done" {
 		t.Errorf("final text after bare restart = %q, want %q", got, "done")
 	}
 
@@ -434,21 +465,16 @@ func TestInterruptibleTool_BareRestart(t *testing.T) {
 	}
 }
 
-// TestInterruptibleTool_RestartWithNewInput covers the caller revising the
+// TestInterruptibleTool_RestartWithInput covers the caller revising the
 // arguments before approving: the tool re-executes with the new input and can
 // still read what it was originally called with.
-func TestInterruptibleTool_RestartWithNewInput(t *testing.T) {
+func TestInterruptibleTool_RestartWithInput(t *testing.T) {
 	reg := newTransferTestRegistry(t)
 	transfer, recorded := interruptOnce(t, reg)
 	resp, interrupt := generateUntilInterrupt(t, reg, transfer)
 
-	restart, err := transfer.Restart(interrupt,
-		transfer.WithResume(confirmation{Approved: true}),
-		transfer.WithNewInput(transferIn{Amount: 50}))
-	if err != nil {
-		t.Fatalf("Restart: %v", err)
-	}
-	if got := resumeWith(t, reg, resp, transfer, ai.WithToolRestarts(restart)); got != "done" {
+	restart := claim(t, transfer, interrupt).RestartWithInput(transferIn{Amount: 50}, confirmation{Approved: true})
+	if got := resumeWith(t, reg, resp, transfer, ai.WithResume(restart)); got != "done" {
 		t.Errorf("final text = %q, want %q", got, "done")
 	}
 
@@ -462,20 +488,17 @@ func TestInterruptibleTool_RestartWithNewInput(t *testing.T) {
 	}
 }
 
-// TestInterruptibleTool_RespondWith resolves an interrupt with a pre-computed
+// TestInterruptibleTool_Respond resolves an interrupt with a pre-computed
 // result instead of re-executing the tool. The output is validated against the
 // tool's advertised output schema on the way through, so this also covers the
 // schema surviving the registry lookup.
-func TestInterruptibleTool_RespondWith(t *testing.T) {
+func TestInterruptibleTool_Respond(t *testing.T) {
 	reg := newTransferTestRegistry(t)
 	transfer, recorded := interruptOnce(t, reg)
 	resp, interrupt := generateUntilInterrupt(t, reg, transfer)
 
-	response, err := transfer.Respond(interrupt, transferOut{Status: "manually approved"})
-	if err != nil {
-		t.Fatalf("Respond: %v", err)
-	}
-	if got := resumeWith(t, reg, resp, transfer, ai.WithToolResponses(response)); got != "done" {
+	response := claim(t, transfer, interrupt).Respond(transferOut{Status: "manually approved"})
+	if got := resumeWith(t, reg, resp, transfer, ai.WithResume(response)); got != "done" {
 		t.Errorf("final text after respond = %q, want %q", got, "done")
 	}
 	if gotResume, _, _ := recorded(); gotResume != nil {
@@ -490,15 +513,113 @@ func TestPartToRestart_Flow(t *testing.T) {
 	transfer, recorded := interruptOnce(t, reg)
 	resp, interrupt := generateUntilInterrupt(t, reg, transfer)
 
-	restart, err := interrupt.ToToolRestart(ai.WithResume(confirmation{Approved: true}))
+	restart, err := interrupt.ToToolRestart(confirmation{Approved: true})
 	if err != nil {
 		t.Fatalf("ToToolRestart: %v", err)
 	}
-	if got := resumeWith(t, reg, resp, transfer, ai.WithToolRestarts(restart)); got != "done" {
+	if got := resumeWith(t, reg, resp, transfer, ai.WithResume(restart)); got != "done" {
 		t.Errorf("final text = %q, want %q", got, "done")
 	}
 	if gotResume, _, _ := recorded(); gotResume == nil || !gotResume.Approved {
 		t.Errorf("resumed tool saw %+v, want Approved=true", gotResume)
+	}
+}
+
+type question struct {
+	Text string `json:"text"`
+}
+
+// newQuestionTool builds and registers the pure-question tool: it always
+// pauses, without data, and the answer is its output.
+func newQuestionTool(reg api.Registry) *ai.InterruptibleToolAction[question, string, struct{}] {
+	return defineTestInterruptibleTool(reg, "askUser", "asks the user a question",
+		func(ctx context.Context, _ question, _ *struct{}) (string, error) {
+			return "", tool.Interrupt(nil)
+		})
+}
+
+// TestInterruptibleTool_QuestionPattern covers a tool whose whole job is to
+// ask: the model's input is the question, the interrupt carries no data of
+// its own, and Respond on the claimed call is the answer the model then sees.
+// A restart re-asks, which the loop reports rather than repeating silently.
+func TestInterruptibleTool_QuestionPattern(t *testing.T) {
+	reg := newToolTestRegistry(t)
+	defineToolThenFinishModel(reg, ai.NewToolRequestPart(&ai.ToolRequest{
+		Name: "askUser", Input: map[string]any{"text": "proceed?"},
+	}))
+	askUser := newQuestionTool(reg)
+
+	resp, interrupt := generateUntilInterrupt(t, reg, askUser)
+	call := claim(t, askUser, interrupt)
+	if call.Input.Text != "proceed?" {
+		t.Errorf("call.Input = %+v, want the question the model asked", call.Input)
+	}
+	if _, ok := ai.InterruptAs[map[string]any](interrupt); ok {
+		t.Error("a question tool's interrupt must carry no data of its own")
+	}
+
+	if got := resumeWith(t, reg, resp, askUser, ai.WithResume(call.Respond("yes"))); got != "done" {
+		t.Errorf("final text after respond = %q, want %q", got, "done")
+	}
+
+	_, err := ai.Generate(context.Background(), reg,
+		ai.WithModelName("test/model"),
+		ai.WithMessages(resp.History()...),
+		ai.WithTools(askUser),
+		ai.WithResume(call.Restart(struct{}{})))
+	if !errors.Is(err, status.ErrFailedPrecondition) {
+		t.Errorf("restarting a question tool: err = %v, want FAILED_PRECONDITION for the repeated interrupt", err)
+	}
+}
+
+// TestWithResume_MixedKinds resumes two interrupts from one turn with a
+// single WithResume: one restarted, one answered.
+func TestWithResume_MixedKinds(t *testing.T) {
+	reg := newToolTestRegistry(t)
+	defineToolThenFinishModel(reg,
+		ai.NewToolRequestPart(&ai.ToolRequest{Name: "transfer", Ref: "a", Input: map[string]any{"amount": 200}}),
+		ai.NewToolRequestPart(&ai.ToolRequest{Name: "askUser", Ref: "b", Input: map[string]any{"text": "sure?"}}))
+	transfer, recorded := interruptOnce(t, reg)
+	askUser := newQuestionTool(reg)
+
+	resp, err := ai.Generate(context.Background(), reg,
+		ai.WithModelName("test/model"),
+		ai.WithPrompt("go"),
+		ai.WithTools(transfer, askUser))
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	interrupts := resp.Interrupts()
+	if len(interrupts) != 2 {
+		t.Fatalf("got %d interrupts, want 2", len(interrupts))
+	}
+
+	var parts []*ai.Part
+	for _, part := range interrupts {
+		if call, ok := transfer.Interrupted(part); ok {
+			parts = append(parts, call.Restart(confirmation{Approved: true}))
+		}
+		if call, ok := askUser.Interrupted(part); ok {
+			parts = append(parts, call.Respond("yes"))
+		}
+	}
+	if len(parts) != 2 {
+		t.Fatalf("claimed %d parts, want each interrupt claimed by exactly one tool", len(parts))
+	}
+
+	resumed, err := ai.Generate(context.Background(), reg,
+		ai.WithModelName("test/model"),
+		ai.WithMessages(resp.History()...),
+		ai.WithTools(transfer, askUser),
+		ai.WithResume(parts...))
+	if err != nil {
+		t.Fatalf("resume Generate: %v", err)
+	}
+	if resumed.Text() != "done" {
+		t.Errorf("final text = %q, want %q", resumed.Text(), "done")
+	}
+	if gotResume, _, _ := recorded(); gotResume == nil || !gotResume.Approved {
+		t.Errorf("restarted tool saw %+v, want Approved=true", gotResume)
 	}
 }
 
@@ -531,11 +652,13 @@ func TestToolContextTool_InterruptAndResumeData(t *testing.T) {
 	if !ok || meta.Reason != "confirm" {
 		t.Fatalf("InterruptAs = %+v, %v; want the typed interrupt data", meta, ok)
 	}
-	restart, err := interrupt.ToToolRestart(ai.WithResume(confirmation{Approved: true}))
-	if err != nil {
-		t.Fatalf("ToToolRestart: %v", err)
+	// A ToolContext tool is a ToolAction, whose resume type is a map.
+	call := claim(t, gate, interrupt)
+	if call.Input.Amount != 200 {
+		t.Errorf("call.Input = %+v, want {200}", call.Input)
 	}
-	if got := resumeWith(t, reg, resp, gate, ai.WithToolRestarts(restart)); got != "done" {
+	restart := call.Restart(map[string]any{"approved": true})
+	if got := resumeWith(t, reg, resp, gate, ai.WithResume(restart)); got != "done" {
 		t.Errorf("final text = %q, want %q", got, "done")
 	}
 	if !gotOK || !gotResume.Approved {
@@ -543,40 +666,59 @@ func TestToolContextTool_InterruptAndResumeData(t *testing.T) {
 	}
 }
 
-// TestInterruptibleTool_ValidatesOwnership checks the typed Restart and
-// Respond reject an interrupt part that belongs to a different tool.
-func TestInterruptibleTool_ValidatesOwnership(t *testing.T) {
+// TestInterrupted_ClaimsOnlyOwnUnresolvedInterrupts checks that Interrupted
+// reports false for everything that is not an unresolved interrupt of the
+// tool, and on a nil tool.
+func TestInterrupted_ClaimsOnlyOwnUnresolvedInterrupts(t *testing.T) {
 	mine := ai.NewInterruptibleTool("mine", "d",
 		func(ctx context.Context, _ struct{}, _ *confirmation) (string, error) { return "", nil })
 
 	foreign := ai.NewToolRequestPart(&ai.ToolRequest{Name: "other"})
 	foreign.Interrupt = &ai.ToolInterrupt{}
+	resolved := ai.NewToolRequestPart(&ai.ToolRequest{Name: "mine"})
+	resolved.Interrupt = &ai.ToolInterrupt{Resolved: true}
+	plain := ai.NewToolRequestPart(&ai.ToolRequest{Name: "mine"})
 
-	if _, err := mine.Restart(foreign, mine.WithResume(confirmation{Approved: true})); err == nil {
-		t.Error("Restart must reject a part for a different tool")
+	for name, part := range map[string]*ai.Part{
+		"another tool's interrupt": foreign,
+		"a resolved interrupt":     resolved,
+		"a plain tool request":     plain,
+		"a text part":              ai.NewTextPart("hi"),
+		"a nil part":               nil,
+	} {
+		if _, ok := mine.Interrupted(part); ok {
+			t.Errorf("Interrupted claimed %s", name)
+		}
 	}
-	if _, err := mine.Respond(foreign, "out"); err == nil {
-		t.Error("Respond must reject a part for a different tool")
+
+	own := ai.NewToolRequestPart(&ai.ToolRequest{Name: "mine"})
+	own.Interrupt = &ai.ToolInterrupt{}
+	if _, ok := mine.Interrupted(own); !ok {
+		t.Error("Interrupted did not claim the tool's own interrupt")
+	}
+	var nilTool *ai.InterruptibleToolAction[struct{}, string, confirmation]
+	if _, ok := nilTool.Interrupted(own); ok {
+		t.Error("a nil tool claimed a part")
 	}
 }
 
-// TestRestart_NonObjectData_ReturnsClearError covers the documented constraint:
-// resume data must serialize to a JSON object. A tool whose resume type is a
-// scalar can only fail at restart time, and it must say why.
-func TestRestart_NonObjectData_ReturnsClearError(t *testing.T) {
-	scalarResume := ai.NewInterruptibleTool("scalar", "d",
+// TestNewInterruptibleTool_RejectsNonObjectResumeType covers the documented
+// constraint: resume data must serialize to a JSON object. A resume type that
+// cannot is rejected at definition, which is what lets Restart on a claimed
+// call return the part without an error.
+func TestNewInterruptibleTool_RejectsNonObjectResumeType(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected a panic defining a tool whose resume type is a string")
+		}
+		err, ok := r.(error)
+		if !ok || !strings.Contains(err.Error(), "ai.NewInterruptibleTool") || !strings.Contains(err.Error(), "JSON object") {
+			t.Errorf("panic = %v, want it to name ai.NewInterruptibleTool and the JSON object constraint", r)
+		}
+	}()
+	ai.NewInterruptibleTool("scalar", "d",
 		func(ctx context.Context, _ struct{}, _ *string) (string, error) { return "", nil })
-
-	part := ai.NewToolRequestPart(&ai.ToolRequest{Name: "scalar"})
-	part.Interrupt = &ai.ToolInterrupt{}
-
-	_, err := scalarResume.Restart(part, scalarResume.WithResume("just a string"))
-	if err == nil {
-		t.Fatal("expected an error restarting with non-object resume data")
-	}
-	if !strings.Contains(err.Error(), "JSON object") {
-		t.Errorf("error = %q, want it to mention the JSON object constraint", err)
-	}
 }
 
 // TestInterrupt_NonObjectData_ReturnsClearError covers the same constraint on
@@ -612,7 +754,7 @@ func TestRestart_UndecodableResumeFailsTheCall(t *testing.T) {
 	resp, interrupt := generateUntilInterrupt(t, reg, transfer)
 
 	// approved is a bool on confirmation; a string can't decode into it.
-	restart, err := interrupt.ToToolRestart(ai.WithResume(map[string]any{"approved": "yes"}))
+	restart, err := interrupt.ToToolRestart(map[string]any{"approved": "yes"})
 	if err != nil {
 		t.Fatalf("ToToolRestart: %v", err)
 	}
@@ -620,7 +762,7 @@ func TestRestart_UndecodableResumeFailsTheCall(t *testing.T) {
 		ai.WithModelName("test/model"),
 		ai.WithMessages(resp.History()...),
 		ai.WithTools(transfer),
-		ai.WithToolRestarts(restart))
+		ai.WithResume(restart))
 	if err == nil {
 		t.Fatal("expected the resumed call to fail on undecodable resume data")
 	}

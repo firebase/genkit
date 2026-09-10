@@ -1170,14 +1170,17 @@ func TestMiddlewareHookOrderOnToolRestart(t *testing.T) {
 		}, nil
 	})
 
-	restartPart, err := tool.RestartWith(interruptedPart, WithNewInput[restartInput](restartInput{Interrupt: false}))
-	assertNoError(t, err)
+	call, ok := tool.Interrupted(interruptedPart)
+	if !ok {
+		t.Fatal("Interrupted did not claim the tool's own interrupt")
+	}
+	restartPart := call.RestartWithInput(restartInput{Interrupt: false}, nil)
 
 	resumed, err := Generate(testCtx, r,
 		WithModel(model),
 		WithMessages(first.History()...),
 		WithTools(tool),
-		WithToolRestarts(restartPart),
+		WithResume(restartPart),
 		WithUse(tracker),
 	)
 	assertNoError(t, err)
@@ -1418,12 +1421,12 @@ func TestMiddlewareContributesInterruptibleTool(t *testing.T) {
 		t.Fatalf("got %d interrupts, want 1 (finish=%s)", len(interrupts), resp.FinishReason)
 	}
 
-	restart, err := interrupts[0].ToToolRestart(WithResume(answer{Text: "yes"}))
+	restart, err := interrupts[0].ToToolRestart(answer{Text: "yes"})
 	assertNoError(t, err)
 	resp, err = Generate(testCtx, r,
 		WithModelName("test/askModel"),
 		WithMessages(resp.History()...),
-		WithToolRestarts(restart),
+		WithResume(restart),
 		WithUse(inject),
 	)
 	assertNoError(t, err)

@@ -22,10 +22,11 @@
 //
 // Everything for building and wiring a tool (constructors and types) lives in
 // package [ai], and everything that acts on a value you already hold lives on
-// that value: to resolve an interrupted tool request, use [ai.Part.ToToolRestart]
-// and [ai.Part.ToToolResponse], or [ai.InterruptibleToolAction.Restart] and
-// [ai.InterruptibleToolAction.Respond] on the tool. Read the interrupt data
-// itself with [ai.InterruptAs].
+// that value: to resolve an interrupted tool request, claim it with
+// [ai.InterruptibleToolAction.Interrupted] and use the verbs of the
+// [ai.InterruptedCall], or, holding only the part, use [ai.Part.ToToolRestart]
+// and [ai.Part.ToToolResponse]. Read the interrupt data itself with
+// [ai.InterruptAs].
 package tool
 
 import (
@@ -37,11 +38,18 @@ import (
 
 // Interrupt returns the error a tool function returns to pause generation and
 // send data to the caller. The interrupted tool request surfaces in
-// [ai.ModelResponse.Interrupts]; the caller reads the data with
-// [ai.InterruptAs] and restarts the tool with
-// [ai.InterruptibleToolAction.Restart] or [ai.Part.ToToolRestart], or answers it
-// with [ai.Part.ToToolResponse]. Middleware
-// returns it from a WrapTool hook to hold a tool call without executing it.
+// [ai.ModelResponse.Interrupts]; the caller claims it with
+// [ai.InterruptibleToolAction.Interrupted], reads the data with
+// [ai.InterruptAs], and restarts the tool with [ai.InterruptedCall.Restart] or
+// answers it with [ai.InterruptedCall.Respond]. Middleware returns it from a
+// WrapTool hook to hold a tool call without executing it.
+//
+//	func(ctx context.Context, in TransferInput, resume *Confirmation) (*TransferOutput, error) {
+//		if resume == nil {
+//			return nil, tool.Interrupt(TransferInterrupt{Reason: "large_amount", Amount: in.Amount})
+//		}
+//		...
+//	}
 //
 // data must serialize to a JSON object (a struct or a map): it lands on the
 // interrupted tool request as [ai.ToolInterrupt] data, which the wire protocol
@@ -88,7 +96,8 @@ func SendChunk(ctx context.Context, chunk *ai.ModelResponseChunk) {
 
 // AttachParts attaches additional content parts (e.g., media) to the tool's
 // response. This can be called from any tool to produce a multipart response
-// without changing the function signature.
+// without changing the function signature. A nil part is ignored, so a
+// constructor's failed result can be passed without a check.
 //
 // Safe for concurrent use from goroutines the tool function spawns; parts are
 // appended in call order per goroutine, with no ordering guarantee across
@@ -99,12 +108,15 @@ func AttachParts(ctx context.Context, parts ...*ai.Part) {
 		return
 	}
 	for _, p := range parts {
-		sink(p)
+		if p != nil {
+			sink(p)
+		}
 	}
 }
 
 // OriginalInput extracts the typed original input if the caller provided a new
-// one when restarting the call (via [ai.WithNewInput]). Returns the zero value
+// one when restarting the call (via [ai.InterruptedCall.RestartWithInput] or
+// [ai.Part.ToToolRestartWithInput]). Returns the zero value
 // and false if no new input was provided, the tool is not being resumed, or the
 // type doesn't match.
 func OriginalInput[In any](ctx context.Context) (In, bool) {
@@ -116,9 +128,10 @@ func OriginalInput[In any](ctx context.Context) (In, bool) {
 	return base.ConvertTo[In](v)
 }
 
-// ResumeData extracts typed resume data (sent via [ai.WithResume]) from the
-// context of a restarted tool call. Returns the zero value and false if the
-// call is not a resumption or the type doesn't match.
+// ResumeData extracts typed resume data (sent via [ai.InterruptedCall.Restart]
+// or [ai.Part.ToToolRestart]) from the context of a restarted tool call.
+// Returns the zero value and false if the call is not a resumption or the
+// type doesn't match.
 //
 // Tool functions created with [ai.NewInterruptibleTool] receive the resume
 // data as a parameter and don't need this; it is primarily for middleware

@@ -1564,7 +1564,7 @@ func TestPartToRestart_PreservesIdentity(t *testing.T) {
 	type confirmation struct {
 		Approved bool `json:"approved"`
 	}
-	got, err := part.ToToolRestart(WithResume(confirmation{Approved: true}))
+	got, err := part.ToToolRestart(confirmation{Approved: true})
 	if err != nil {
 		t.Fatalf("ToToolRestart: %v", err)
 	}
@@ -1604,7 +1604,7 @@ func TestPartToRestart_PreservesIdentity(t *testing.T) {
 	}
 
 	// A bare restart marks the call as resumed without carrying data.
-	bare, err := part.ToToolRestart()
+	bare, err := part.ToToolRestart(nil)
 	if err != nil {
 		t.Fatalf("bare ToToolRestart: %v", err)
 	}
@@ -1631,8 +1631,11 @@ func TestPartToRestartToResponse_RejectNonInterrupt(t *testing.T) {
 		{"already resolved interrupt", resolved},
 		{"text part", NewTextPart("hi")},
 	} {
-		if _, err := tc.part.ToToolRestart(); err == nil {
+		if _, err := tc.part.ToToolRestart(nil); err == nil {
 			t.Errorf("ToToolRestart(%s) must error", tc.name)
+		}
+		if _, err := tc.part.ToToolRestartWithInput(map[string]any{}, nil); err == nil {
+			t.Errorf("ToToolRestartWithInput(%s) must error", tc.name)
 		}
 		if _, err := tc.part.ToToolResponse("out"); err == nil {
 			t.Errorf("ToToolResponse(%s) must error", tc.name)
@@ -1647,7 +1650,7 @@ func TestPartToRestart_NonObjectResume(t *testing.T) {
 	part := NewToolRequestPart(&ToolRequest{Name: "x"})
 	part.Interrupt = &ToolInterrupt{}
 
-	_, err := part.ToToolRestart(WithResume("just a string"))
+	_, err := part.ToToolRestart("just a string")
 	if err == nil {
 		t.Fatal("expected an error restarting with non-object resume data")
 	}
@@ -1745,7 +1748,7 @@ func TestPartToRestart_LiftsRawInterruptMetadata(t *testing.T) {
 	part := NewToolRequestPart(&ToolRequest{Name: "transfer", Input: map[string]any{"amount": float64(200)}})
 	part.Metadata = raw
 
-	restart, err := part.ToToolRestart(WithResume(map[string]any{"approved": true}))
+	restart, err := part.ToToolRestart(map[string]any{"approved": true})
 	if err != nil {
 		t.Fatalf("ToToolRestart: %v", err)
 	}
@@ -1779,14 +1782,16 @@ func TestPartToRestart_LiftsRawInterruptMetadata(t *testing.T) {
 
 	resolved := NewToolRequestPart(&ToolRequest{Name: "transfer"})
 	resolved.Metadata = map[string]any{"resolvedInterrupt": true}
-	if _, err := resolved.ToToolRestart(); err == nil {
+	if _, err := resolved.ToToolRestart(nil); err == nil {
 		t.Error("a raw resolvedInterrupt part must not restart")
 	}
 }
 
-// TestInterruptibleTool_RestartLiftsRawInterruptMetadata is the same leniency
-// on the typed verbs.
-func TestInterruptibleTool_RestartLiftsRawInterruptMetadata(t *testing.T) {
+// TestInterrupted_LiftsRawInterruptMetadata is the same leniency on the claim:
+// a part hand-assembled with the JS "interrupt" metadata key is claimed on a
+// copy, so the parts built from it carry typed state and the source part is
+// untouched.
+func TestInterrupted_LiftsRawInterruptMetadata(t *testing.T) {
 	type approval struct {
 		Approved bool `json:"approved"`
 	}
@@ -1796,17 +1801,119 @@ func TestInterruptibleTool_RestartLiftsRawInterruptMetadata(t *testing.T) {
 	part := NewToolRequestPart(&ToolRequest{Name: "transfer"})
 	part.Metadata = map[string]any{"interrupt": true}
 
-	restart, err := transfer.Restart(part, transfer.WithResume(approval{Approved: true}))
-	if err != nil {
-		t.Fatalf("Restart: %v", err)
+	call, ok := transfer.Interrupted(part)
+	if !ok {
+		t.Fatal("Interrupted must lift raw interrupt metadata and claim the part")
 	}
+	restart := call.Restart(approval{Approved: true})
 	if !restart.IsRestart() || restart.Metadata != nil {
 		t.Errorf("restart = %+v (metadata %v), want typed restart state and no leftover metadata", restart, restart.Metadata)
 	}
-	if _, err := transfer.Respond(part, "declined"); err != nil {
-		t.Errorf("Respond: %v", err)
+	if resp := call.Respond("declined"); !resp.IsToolResponse() {
+		t.Errorf("Respond = %+v, want a tool response part", resp)
 	}
-	if part.Interrupt != nil {
-		t.Error("the typed verbs must not mutate the source part")
+	if part.Interrupt != nil || part.Metadata["interrupt"] != true {
+		t.Error("the claim must not mutate the source part")
+	}
+}
+
+// TestInterruptedCall_Verbs pins the parts each verb of a claimed call builds,
+// on a ToolAction, whose resume type is a map.
+func TestInterruptedCall_Verbs(t *testing.T) {
+	type in struct {
+		Value int `json:"value"`
+	}
+	tl := NewTool("restarter", "d", func(ctx *ToolContext, input in) (int, error) { return input.Value, nil })
+	part := NewToolRequestPart(&ToolRequest{Name: "restarter", Ref: "r1", Input: map[string]any{"value": 10}})
+	part.Interrupt = &ToolInterrupt{}
+	call, ok := tl.Interrupted(part)
+	if !ok {
+		t.Fatal("Interrupted did not claim the tool's own interrupt")
+	}
+	if call.Input.Value != 10 {
+		t.Errorf("call.Input = %+v, want the input decoded to the tool's In type", call.Input)
+	}
+
+	t.Run("nil map is a bare restart", func(t *testing.T) {
+		restart := call.Restart(nil)
+		if !restart.IsRestart() || restart.Restart.Resume != nil {
+			t.Errorf("Restart = %+v, want a bare restart", restart.Restart)
+		}
+		if wireMetadataOf(t, restart)["resumed"] != true {
+			t.Error("a bare restart must be marked resumed on the wire")
+		}
+		if restart.ToolRequest.Name != "restarter" || restart.ToolRequest.Ref != "r1" {
+			t.Errorf("identity = %q/%q, want restarter/r1", restart.ToolRequest.Name, restart.ToolRequest.Ref)
+		}
+	})
+
+	t.Run("map resume rides on the part", func(t *testing.T) {
+		restart := call.Restart(map[string]any{"approved": true})
+		resumed, _ := restart.Restart.Resume.(map[string]any)
+		if resumed["approved"] != true {
+			t.Errorf("Resume = %v, want the map", restart.Restart.Resume)
+		}
+	})
+
+	t.Run("RestartWithInput preserves the original", func(t *testing.T) {
+		restart := call.RestartWithInput(in{Value: 20}, nil)
+		if got, _ := restart.ToolRequest.Input.(in); got.Value != 20 {
+			t.Errorf("input = %+v, want the new input {20}", restart.ToolRequest.Input)
+		}
+		orig, _ := restart.Restart.OriginalInput.(map[string]any)
+		if orig["value"] != 10 {
+			t.Errorf("OriginalInput = %v, want the original {10}", restart.Restart.OriginalInput)
+		}
+		if wireMetadataOf(t, restart)["replacedInput"] == nil {
+			t.Error("replacedInput not set on the wire")
+		}
+	})
+
+	t.Run("Respond marks the interrupt response", func(t *testing.T) {
+		resp := call.Respond(7)
+		if !resp.IsToolResponse() || resp.ToolResponse.Output != 7 {
+			t.Errorf("Respond = %+v, want a tool response carrying 7", resp)
+		}
+		if resp.ToolResponse.Name != "restarter" || resp.ToolResponse.Ref != "r1" {
+			t.Errorf("identity = %q/%q, want restarter/r1", resp.ToolResponse.Name, resp.ToolResponse.Ref)
+		}
+		if resp.Metadata["interruptResponse"] != true {
+			t.Errorf("interruptResponse = %v, want true", resp.Metadata["interruptResponse"])
+		}
+	})
+}
+
+// TestPartClone_IsolatesInterruptPayloads pins that Clone copies the top-level
+// container of every payload the interrupt and restart state carry, the way it
+// does for Data, so mutating the clone's payload maps leaves the original
+// untouched.
+func TestPartClone_IsolatesInterruptPayloads(t *testing.T) {
+	part := NewToolRequestPart(&ToolRequest{Name: "transfer", Input: map[string]any{"amount": 200}})
+	part.Interrupt = &ToolInterrupt{Data: map[string]any{"reason": "confirm"}}
+	part.Restart = &ToolRestart{
+		Resume:        map[string]any{"approved": true},
+		OriginalInput: []any{"original"},
+	}
+
+	cp := part.Clone()
+	cp.Interrupt.Data.(map[string]any)["reason"] = "changed"
+	cp.Restart.Resume.(map[string]any)["approved"] = false
+	cp.Restart.OriginalInput.([]any)[0] = "changed"
+
+	if got := part.Interrupt.Data.(map[string]any)["reason"]; got != "confirm" {
+		t.Errorf("original Interrupt.Data[reason] = %v, want confirm", got)
+	}
+	if got := part.Restart.Resume.(map[string]any)["approved"]; got != true {
+		t.Errorf("original Restart.Resume[approved] = %v, want true", got)
+	}
+	if got := part.Restart.OriginalInput.([]any)[0]; got != "original" {
+		t.Errorf("original Restart.OriginalInput[0] = %v, want original", got)
+	}
+
+	// A struct payload is shared as is: there is no container to copy.
+	type reason struct{ Why string }
+	part.Interrupt.Data = reason{Why: "struct"}
+	if got := part.Clone().Interrupt.Data; got != (reason{Why: "struct"}) {
+		t.Errorf("cloned struct payload = %v, want the value copied through", got)
 	}
 }

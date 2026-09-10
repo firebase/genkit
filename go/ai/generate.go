@@ -2050,9 +2050,9 @@ func (m *Message) MediaParts() []*Part {
 // NewResume constructs a [GenerateActionResume] from Part slices.
 // This is useful when building [GenerateActionOptions] directly (e.g., from a
 // rendered prompt) and need to set the Resume field from [*Part] values
-// produced by [InterruptibleToolAction.Restart] and
-// [InterruptibleToolAction.Respond], or [Part.ToToolRestart] and
-// [Part.ToToolResponse].
+// produced by [InterruptedCall.Restart] and [InterruptedCall.Respond], or
+// [Part.ToToolRestart] and [Part.ToToolResponse]. [WithResume] is the
+// same for [Generate].
 func NewResume(restarts, responds []*Part) *GenerateActionResume {
 	return &GenerateActionResume{
 		Restart: restarts,

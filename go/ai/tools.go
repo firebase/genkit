@@ -39,6 +39,14 @@ type ToolFunc[In, Out any] = func(ctx *ToolContext, input In) (Out, error)
 // can return both an output value and additional content parts (like media).
 type MultipartToolFunc[In any] = func(ctx *ToolContext, input In) (*MultipartToolResponse, error)
 
+// InterruptibleToolFunc is the function type for tools created with
+// [NewInterruptibleTool]. It receives a plain [context.Context]: the resume
+// parameter carries everything [ToolContext] exists for. It is nil on the
+// first call and non-nil when the tool is being re-executed after an
+// interrupt, holding the data the caller passed when restarting (the zero
+// value of Res for a bare restart).
+type InterruptibleToolFunc[In, Out, Res any] = func(ctx context.Context, input In, resume *Res) (Out, error)
+
 // ToolRef is a reference to a tool.
 type ToolRef interface {
 	Name() string
@@ -53,39 +61,46 @@ func (t ToolName) Name() string {
 	return (string)(t)
 }
 
-// ToolAction is a tool backed by a registry action. It is the concrete type
-// returned by [NewTool] and [NewMultipartTool].
-// Internally, all tools use the v2 format (returning MultipartToolResponse).
-// For regular tools, RunRaw unwraps the Output field for backward compatibility.
+// InterruptibleToolAction is a tool backed by a registry action, the concrete
+// type behind every tool constructor. In is the input the model fills in, Out
+// is what the tool returns, and Res is what the tool is restarted with after
+// it interrupts. [ToolAction] is the same type with Res fixed to a map, for
+// tools that do not declare a resume type.
 //
-// It implements [Tool] and [api.Action], so it can be passed anywhere either
-// is accepted, including the action slice a plugin returns from Init. Unlike
-// the other primitives it holds its action in a named field rather than
-// embedding it, so its documented methods are its whole surface.
+// It implements [Tool] and [api.Action], so it goes wherever either is
+// accepted: [WithTools], [Hooks.Tools], or the action slice a plugin returns
+// from Init. Unlike the other primitives it holds its action in a named field
+// rather than embedding it, so its documented methods are its whole surface.
 //
-// Interrupts are resolved on [InterruptibleToolAction], the tool type made for
-// them, or on the part itself with [Part.ToToolRestart] and
-// [Part.ToToolResponse]; the Respond, Restart, RespondWith, and RestartWith
-// methods here are deprecated.
-type ToolAction[In, Out any] struct {
-	toolCore
-}
-
-// toolCore is the state and behavior shared by [ToolAction] and
-// [InterruptibleToolAction]: the underlying action, how it is registered and
-// run, and the definition advertised to models. The verbs that resolve an
-// interrupt live on the outer types, which differ there.
-type toolCore struct {
+// An interrupt the tool raises comes back as a part in
+// [ModelResponse.Interrupts]. [InterruptibleToolAction.Interrupted] claims
+// the part for this tool and returns an [InterruptedCall], whose typed verbs
+// build the part that resumes generation through [WithResume]:
+//
+//	for _, part := range resp.Interrupts() {
+//		if call, ok := transferMoney.Interrupted(part); ok {
+//			approved := askHuman(call.Input.Amount, call.Input.ToAccount)
+//			parts = append(parts, call.Restart(Confirmation{Approved: approved}))
+//		}
+//	}
+type InterruptibleToolAction[In, Out, Res any] struct {
 	action    api.Action   // The underlying action.
 	multipart bool         // Whether this is a multipart-only tool.
 	registry  api.Registry // Registry for schema resolution. Set when registered.
 }
 
+// ToolAction is the tool type [NewTool] and [LookupTool] return: an
+// [InterruptibleToolAction] whose resume payload is an untyped map,
+// the map a tool written against [ToolContext] reads from
+// [ToolContext.Resumed]. Every method of [InterruptibleToolAction] is
+// available on it, with [InterruptedCall.Restart] taking a map[string]any.
+type ToolAction[In, Out any] = InterruptibleToolAction[In, Out, map[string]any]
+
 // Pinned here so that breaking either interface fails the build at the type
 // rather than at a call site.
 var (
-	_ Tool       = (*ToolAction[any, any])(nil)
-	_ api.Action = (*ToolAction[any, any])(nil)
+	_ Tool       = (*InterruptibleToolAction[any, any, any])(nil)
+	_ api.Action = (*InterruptibleToolAction[any, any, any])(nil)
 )
 
 // ToolDef is the previous name for [ToolAction]. It was renamed because it
@@ -97,15 +112,13 @@ type ToolDef[In, Out any] = ToolAction[In, Out]
 
 // Tool is the type-erased view of a tool: what a model can call, what
 // [Generate] accepts through [WithTools] and [Hooks.Tools], and what
-// [LookupTool] finds by name. The result of every constructor satisfies it:
-// [ToolAction] from [NewTool] and [NewMultipartTool], [InterruptibleToolAction]
-// from [NewInterruptibleTool], and their [genkit.DefineTool],
-// [genkit.DefineMultipartTool], and [genkit.DefineInterruptibleTool]
-// counterparts.
+// [LookupTool] finds by name. The result of every constructor satisfies it.
 //
-// A Tool runs; it does not resolve interrupts. Resolve them on the part with
-// [Part.ToToolRestart] and [Part.ToToolResponse], which is all a type-erased
-// handle could do, or with the typed verbs of an [InterruptibleToolAction].
+// A Tool runs. An interrupt it raised is resolved on the part, with
+// [Part.ToToolRestart] and [Part.ToToolResponse], or with the typed verbs of
+// the tool value when it is in scope (see
+// [InterruptibleToolAction.Interrupted]). The Respond and Restart methods here
+// are deprecated.
 type Tool interface {
 	// Name returns the name of the tool.
 	Name() string
@@ -115,6 +128,14 @@ type Tool interface {
 	RunRaw(ctx context.Context, input any) (any, error)
 	// RunRawMultipart runs this tool and returns the full [MultipartToolResponse].
 	RunRawMultipart(ctx context.Context, input any) (*MultipartToolResponse, error)
+	// Respond creates a part that answers an interrupted tool request.
+	//
+	// Deprecated: Use [Part.ToToolResponse].
+	Respond(toolReq *Part, outputData any, opts *RespondOptions) *Part
+	// Restart creates a part that re-executes an interrupted tool request.
+	//
+	// Deprecated: Use [Part.ToToolRestart].
+	Restart(toolReq *Part, opts *RestartOptions) *Part
 	// Register registers the tool with the given registry.
 	Register(r api.Registry)
 }
@@ -170,6 +191,13 @@ type InterruptOptions struct {
 }
 
 // RestartOptions provides configuration options for restarting a tool.
+//
+// Deprecated: RestartOptions is the argument of the deprecated
+// [ToolAction.Restart] and the value behind the deprecated [RestartWithOption]
+// constructors. Use [InterruptedCall.Restart] and
+// [InterruptedCall.RestartWithInput], or [Part.ToToolRestart] and
+// [Part.ToToolRestartWithInput], which take the resume data and the new input
+// directly.
 type RestartOptions struct {
 	// ReplaceInput allows replacing the existing input arguments to the tool with different ones,
 	// for example if the user revised an action before confirming. When input is replaced,
@@ -181,6 +209,11 @@ type RestartOptions struct {
 }
 
 // RespondOptions provides configuration options for responding to a tool request.
+//
+// Deprecated: RespondOptions is the argument of the deprecated
+// [ToolAction.Respond] and the value behind the deprecated
+// [WithResponseMetadata]. Set [Part.Metadata] on the part that
+// [InterruptedCall.Respond] or [Part.ToToolResponse] returns instead.
 type RespondOptions struct {
 	// Metadata is additional metadata to include in the response.
 	Metadata map[string]any
@@ -189,7 +222,7 @@ type RespondOptions struct {
 // RespondWithOption is a functional option for [ToolAction.RespondWith].
 //
 // Deprecated: RespondWithOption is the option type of the deprecated
-// [ToolAction.RespondWith]; [InterruptibleToolAction.Respond] and
+// [ToolAction.RespondWith]; [InterruptedCall.Respond] and
 // [Part.ToToolResponse] take none.
 type RespondWithOption[Out any] interface {
 	applyRespondWith(*RespondOptions)
@@ -208,25 +241,40 @@ func (o *RespondOptions) applyRespondWith(opts *RespondOptions) {
 //
 // Deprecated: WithResponseMetadata only applies to the deprecated
 // [ToolAction.RespondWith]. Set [Part.Metadata] on the part that
-// [InterruptibleToolAction.Respond] or [Part.ToToolResponse] returns instead.
+// [InterruptedCall.Respond] or [Part.ToToolResponse] returns instead.
 func WithResponseMetadata[Out any](meta map[string]any) RespondWithOption[Out] {
 	return &RespondOptions{Metadata: meta}
 }
 
-// RestartWithOption is a restart option for [Part.ToToolRestart] and
-// [InterruptibleToolAction.Restart]. It is
-// the same option as [RestartOption], carrying the tool's input type in its
-// signature so [WithNewInput] reads as typed at the call site; every
-// RestartOption ([WithResume] included) is accepted where one is expected,
-// and vice versa.
+// RestartWithOption is a functional option for [ToolAction.RestartWith].
+//
+// Deprecated: RestartWithOption is the option type of the deprecated
+// [ToolAction.RestartWith]. [InterruptedCall.Restart] and
+// [InterruptedCall.RestartWithInput] take the resume data and the new input
+// directly.
 type RestartWithOption[In any] interface {
-	RestartOption
+	applyRestartWith(*RestartOptions)
+}
+
+// applyRestartWith applies the option to the restart options. The replacement
+// input and the resumed metadata are independent single-value slots, so the
+// last option to set each one wins.
+func (o *RestartOptions) applyRestartWith(opts *RestartOptions) {
+	if o.ReplaceInput != nil {
+		opts.ReplaceInput = o.ReplaceInput
+	}
+	if o.ResumedMetadata != nil {
+		opts.ResumedMetadata = o.ResumedMetadata
+	}
 }
 
 // WithNewInput sets a new input value to replace the original tool request input.
-// Repeating this option takes the last input set. On an
-// [InterruptibleToolAction], the method of the same name checks the input
-// against the tool's In type.
+// Repeating this option takes the last input set.
+//
+// Deprecated: WithNewInput only applies to the deprecated
+// [ToolAction.RestartWith]. Use [InterruptedCall.RestartWithInput], which
+// checks the input against the tool's In type, or
+// [Part.ToToolRestartWithInput].
 func WithNewInput[In any](input In) RestartWithOption[In] {
 	return &RestartOptions{ReplaceInput: input}
 }
@@ -234,7 +282,10 @@ func WithNewInput[In any](input In) RestartWithOption[In] {
 // WithResumedMetadata sets metadata to pass to the resumed tool execution.
 // The metadata will be available in the tool's [ToolContext.Resumed] field.
 // Repeating this option replaces the metadata rather than merging it.
-// [WithResume] is the same option for a typed value.
+//
+// Deprecated: WithResumedMetadata only applies to the deprecated
+// [ToolAction.RestartWith]. Use [InterruptedCall.Restart], which checks the
+// data against the tool's Res type, or [Part.ToToolRestart].
 func WithResumedMetadata[In any](meta map[string]any) RestartWithOption[In] {
 	return &RestartOptions{ResumedMetadata: meta}
 }
@@ -242,10 +293,13 @@ func WithResumedMetadata[In any](meta map[string]any) RestartWithOption[In] {
 // ToolContext provides context and utility functions for tool execution.
 type ToolContext struct {
 	context.Context
-	// Resumed is optional metadata that can be used to resume the tool execution.
-	// Map is not nil only if the tool was interrupted.
+	// Resumed is the resume payload of a restarted call, as a map, and nil on
+	// a first call. A tool created with [NewInterruptibleTool] receives the
+	// payload typed, as its resume parameter, instead.
 	Resumed map[string]any
-	// OriginalInput is the original input to the tool if the tool was interrupted, otherwise nil.
+	// OriginalInput is the input the tool was first called with when the
+	// caller restarted it with a new one (see
+	// [InterruptedCall.RestartWithInput]), otherwise nil.
 	OriginalInput any
 }
 
@@ -276,16 +330,15 @@ func InterruptWith[T any](tc *ToolContext, meta T) error {
 	return &base.ToolInterruptError{Data: interruptData(m)}
 }
 
-// InterruptAs returns an interrupted tool request's interrupt data as a typed
-// value, typically to decide between [Part.ToToolRestart] and
-// [Part.ToToolResponse].
+// InterruptAs returns the data an interrupted tool request carries, decoded
+// into T. A tool sends that data with [tool.Interrupt]; it is what the tool
+// chose to say about the pause, e.g. why it needs approval. The input the
+// model provided is on [InterruptedCall.Input] instead, typed by the tool.
 // Returns the zero value and false if the part is not an interrupt, the
-// interrupt carries no data, or the type doesn't match.
-//
-// This reads the Data field of the part's [ToolInterrupt] state.
+// interrupt carries no data, or the data does not decode into T.
 //
 //	for _, part := range resp.Interrupts() {
-//		req, ok := ai.InterruptAs[TransferInterrupt](part)
+//		reason, ok := ai.InterruptAs[TransferInterrupt](part)
 //	}
 func InterruptAs[T any](p *Part) (T, bool) {
 	var zero T
@@ -375,16 +428,33 @@ func requireAnyTypeParam[T any](ctor, name, requirement string) {
 	}
 }
 
+// requireObjectTypeParam panics unless the type parameter T is a struct or a
+// map with string keys, the Go types that serialize to a JSON object.
+// [NewInterruptibleTool] calls it for Res: the resume payload rides on the
+// restart part as a JSON object, and checking the type once at definition is
+// what lets [InterruptedCall.Restart] build that part without an error to
+// return. what names the type parameter in the panic message.
+func requireObjectTypeParam[T any](ctor, name, what string) {
+	typ := reflect.TypeFor[T]()
+	if typ.Kind() == reflect.Struct || (typ.Kind() == reflect.Map && typ.Key().Kind() == reflect.String) {
+		return
+	}
+	panic(fmt.Errorf("%s %q: %s must be a struct or a map with string keys, so that it serializes to a JSON object, but got %v", ctor, name, what, typ))
+}
+
 // NewTool creates a new [ToolAction]. It can be passed directly to [Generate].
 // Use [WithInputSchema] or [WithOutputSchema] to provide custom JSON schemas
 // instead of inferring them from the type parameters. Inside the function,
 // [tool.AttachParts] adds content parts (e.g. media) to the response and
 // [tool.SendPartial] streams progress, neither of which changes the signature.
+//
+// The tool can pause with [tool.Interrupt]; it then reads what the caller sent
+// on restart from [ToolContext.Resumed], untyped. A tool that expects a typed
+// answer is better made with [NewInterruptibleTool].
 func NewTool[In, Out any](name, description string, fn ToolFunc[In, Out], opts ...ToolOption) *ToolAction[In, Out] {
-	c := newToolCore("ai.NewTool", name, description, opts, func(ctx context.Context, input In) (Out, error) {
+	return newTool[In, Out, map[string]any]("ai.NewTool", name, description, opts, func(ctx context.Context, input In) (Out, error) {
 		return fn(newToolContext(ctx), input)
 	})
-	return &ToolAction[In, Out]{toolCore: c}
 }
 
 // NewToolWithInputSchema creates a new [ToolAction] with a custom input schema. It can be passed directly to [Generate].
@@ -425,14 +495,42 @@ func NewMultipartTool[In any](name, description string, fn MultipartToolFunc[In]
 		})
 	}
 	action := core.NewActionOf(api.ActionTypeToolV2, name, &core.ActionOptions{Metadata: metadata, InputSchema: toolOpts.InputSchema}, wrapped)
-	return &ToolAction[In, *MultipartToolResponse]{toolCore: toolCore{action: action, multipart: true}}
+	return &ToolAction[In, *MultipartToolResponse]{action: action, multipart: true}
 }
 
-// newToolCore builds the action behind a tool whose function returns Out:
-// it applies the options, records Out's schema as the output the tool
+// NewInterruptibleTool creates a new unregistered [InterruptibleToolAction].
+// It can be passed directly to [Generate], which registers it for the duration
+// of the call. Use [WithInputSchema] or [WithOutputSchema] to provide custom
+// JSON schemas instead of inferring them from the type parameters.
+//
+// Inside the function, [tool.Interrupt] pauses generation; the resume
+// parameter is nil on that first call and set to what the caller sent when
+// the tool re-executes. Res must be a struct or a map with string keys, so
+// that the payload serializes to a JSON object on the restart part; any other
+// type panics here, at definition. A payload that does not decode into Res
+// fails the resumed call rather than silently arriving as a zero value.
+func NewInterruptibleTool[In, Out, Res any](name, description string, fn InterruptibleToolFunc[In, Out, Res], opts ...ToolOption) *InterruptibleToolAction[In, Out, Res] {
+	const ctor = "ai.NewInterruptibleTool"
+	requireObjectTypeParam[Res](ctor, name, "the resume type Res")
+	return newTool[In, Out, Res](ctor, name, description, opts, func(ctx context.Context, input In) (Out, error) {
+		var resume *Res
+		if v := base.ToolResumeKey.FromContext(ctx); v != nil {
+			r, err := base.MapToStruct[Res](v)
+			if err != nil {
+				var zero Out
+				return zero, fmt.Errorf("tool %q: failed to convert resume data: %w", name, err)
+			}
+			resume = &r
+		}
+		return fn(ctx, input, resume)
+	})
+}
+
+// newTool builds the action behind a tool whose function returns Out: it
+// applies the options, records Out's schema as the output the tool
 // advertises, and wraps run in the multipart envelope every tool speaks
 // internally. ctor names the constructor in panic messages.
-func newToolCore[In, Out any](ctor, name, description string, opts []ToolOption, run func(ctx context.Context, input In) (Out, error)) toolCore {
+func newTool[In, Out, Res any](ctor, name, description string, opts []ToolOption, run func(ctx context.Context, input In) (Out, error)) *InterruptibleToolAction[In, Out, Res] {
 	toolOpts := &toolOptions{}
 	for _, opt := range opts {
 		opt.applyTool(toolOpts)
@@ -458,7 +556,7 @@ func newToolCore[In, Out any](ctor, name, description string, opts []ToolOption,
 		})
 	}
 	action := core.NewActionOf(api.ActionTypeToolV2, name, &core.ActionOptions{Metadata: metadata, InputSchema: toolOpts.InputSchema}, wrapped)
-	return toolCore{action: action}
+	return &InterruptibleToolAction[In, Out, Res]{action: action}
 }
 
 // toolMetadata builds the action metadata every tool constructor records. The
@@ -528,6 +626,13 @@ func runToolFunc(ctx context.Context, name string, run func(ctx context.Context)
 		return nil, err
 	}
 
+	// A multipart function may return a nil response with no error, which
+	// the envelope treats as an empty one, so attached parts still have a
+	// response to land on.
+	if resp == nil {
+		resp = &MultipartToolResponse{}
+	}
+
 	partsMu.Lock()
 	defer partsMu.Unlock()
 	if len(parts) > 0 {
@@ -537,12 +642,12 @@ func runToolFunc(ctx context.Context, name string, run func(ctx context.Context)
 }
 
 // Name returns the name of the tool.
-func (t *toolCore) Name() string {
+func (t *InterruptibleToolAction[In, Out, Res]) Name() string {
 	return t.action.Name()
 }
 
 // Definition returns [ToolDefinition] for for this tool.
-func (t *toolCore) Definition() *ToolDefinition {
+func (t *InterruptibleToolAction[In, Out, Res]) Definition() *ToolDefinition {
 	desc := t.action.Desc()
 
 	// Resolve the input schema if it contains a $ref.
@@ -590,7 +695,7 @@ func (t *toolCore) Definition() *ToolDefinition {
 }
 
 // Register registers the tool with the given registry.
-func (t *toolCore) Register(r api.Registry) {
+func (t *InterruptibleToolAction[In, Out, Res]) Register(r api.Registry) {
 	t.registry = r
 	t.action.Register(r)
 	if !t.multipart {
@@ -601,13 +706,54 @@ func (t *toolCore) Register(r api.Registry) {
 }
 
 // Desc returns the tool's action descriptor: its name, schemas, and metadata.
-func (t *toolCore) Desc() api.ActionDesc { return t.action.Desc() }
+func (t *InterruptibleToolAction[In, Out, Res]) Desc() api.ActionDesc { return t.action.Desc() }
 
-// runRawMultipart runs the tool on raw input (JSON parsed as map[string]any)
-// and returns the full multipart response. The exported run methods live on
-// the outer types, so that a nil tool value, typically a package-level
-// variable used before it was defined, gets an error instead of a panic.
-func (t *toolCore) runRawMultipart(ctx context.Context, input any) (*MultipartToolResponse, error) {
+// IsMultipart returns true if the tool is a multipart tool (tool.v2 only).
+func (t *InterruptibleToolAction[In, Out, Res]) IsMultipart() bool {
+	return t.multipart
+}
+
+// errNilTool is the error the run methods return when called on a nil tool
+// value, typically a package-level tool variable used before it was defined.
+func errNilTool(method string) error {
+	return status.Errorf(status.ErrInvalidArgument, "ai.Tool.%s: tool called on a nil tool; check that all tools are defined", method)
+}
+
+// RunJSON runs the tool on JSON-encoded input and returns the JSON-encoded
+// multipart response envelope, which is what the registry serves for this
+// tool. Prefer [InterruptibleToolAction.RunRaw], which unwraps the envelope's
+// output for a regular tool.
+func (t *InterruptibleToolAction[In, Out, Res]) RunJSON(ctx context.Context, input json.RawMessage, cb core.StreamCallback[json.RawMessage]) (json.RawMessage, error) {
+	if t == nil {
+		return nil, errNilTool("RunJSON")
+	}
+	return t.action.RunJSON(ctx, input, cb)
+}
+
+// RunJSONWithTelemetry is [InterruptibleToolAction.RunJSON] with the run's
+// telemetry returned alongside the output.
+func (t *InterruptibleToolAction[In, Out, Res]) RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb core.StreamCallback[json.RawMessage]) (*api.ActionRunResult[json.RawMessage], error) {
+	if t == nil {
+		return nil, errNilTool("RunJSONWithTelemetry")
+	}
+	return t.action.RunJSONWithTelemetry(ctx, input, cb)
+}
+
+// RunRaw runs this tool using the provided raw map format data (JSON parsed as map[string]any).
+func (t *InterruptibleToolAction[In, Out, Res]) RunRaw(ctx context.Context, input any) (any, error) {
+	resp, err := t.RunRawMultipart(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Output, nil
+}
+
+// RunRawMultipart runs this tool using the provided raw map format data (JSON parsed as map[string]any).
+// It returns the full multipart response.
+func (t *InterruptibleToolAction[In, Out, Res]) RunRawMultipart(ctx context.Context, input any) (*MultipartToolResponse, error) {
+	if t == nil {
+		return nil, errNilTool("RunRawMultipart")
+	}
 	mi, err := json.Marshal(input)
 	if err != nil {
 		return nil, status.Errorf(status.ErrInvalidInput, "marshalling input for tool %q: %w", t.Name(), err)
@@ -624,54 +770,10 @@ func (t *toolCore) runRawMultipart(ctx context.Context, input any) (*MultipartTo
 	return &resp, nil
 }
 
-// errNilTool is the error the run methods return when called on a nil tool
-// value, typically a package-level tool variable used before it was defined.
-func errNilTool(method string) error {
-	return status.Errorf(status.ErrInvalidArgument, "ai.Tool.%s: tool called on a nil tool; check that all tools are defined", method)
-}
-
-// RunJSON runs the tool on JSON-encoded input and returns the JSON-encoded
-// multipart response envelope, which is what the registry serves for this
-// tool. Prefer [ToolAction.RunRaw], which unwraps the envelope's output for a
-// regular tool.
-func (t *ToolAction[In, Out]) RunJSON(ctx context.Context, input json.RawMessage, cb core.StreamCallback[json.RawMessage]) (json.RawMessage, error) {
-	if t == nil {
-		return nil, errNilTool("RunJSON")
-	}
-	return t.action.RunJSON(ctx, input, cb)
-}
-
-// RunJSONWithTelemetry is [ToolAction.RunJSON] with the run's telemetry
-// returned alongside the output.
-func (t *ToolAction[In, Out]) RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb core.StreamCallback[json.RawMessage]) (*api.ActionRunResult[json.RawMessage], error) {
-	if t == nil {
-		return nil, errNilTool("RunJSONWithTelemetry")
-	}
-	return t.action.RunJSONWithTelemetry(ctx, input, cb)
-}
-
-// RunRaw runs this tool using the provided raw map format data (JSON parsed as map[string]any).
-func (t *ToolAction[In, Out]) RunRaw(ctx context.Context, input any) (any, error) {
-	resp, err := t.RunRawMultipart(ctx, input)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Output, nil
-}
-
-// RunRawMultipart runs this tool using the provided raw map format data (JSON parsed as map[string]any).
-// It returns the full multipart response.
-func (t *ToolAction[In, Out]) RunRawMultipart(ctx context.Context, input any) (*MultipartToolResponse, error) {
-	if t == nil {
-		return nil, errNilTool("RunRawMultipart")
-	}
-	return t.runRawMultipart(ctx, input)
-}
-
 // LookupTool looks up the tool in the registry by provided name and returns it.
 // It checks for "tool.v2" first, then falls back to "tool" for legacy compatibility.
 // Since the types are not known at lookup time, it returns a type-erased tool;
-// interrupts it raises are resolved on the part, with [Part.ToToolRestart] and
+// an interrupt it raised is resolved on the part, with [Part.ToToolRestart] and
 // [Part.ToToolResponse].
 func LookupTool(r api.Registry, name string) Tool {
 	if name == "" {
@@ -701,28 +803,148 @@ func LookupTool(r api.Registry, name string) Tool {
 		}
 	}
 
-	return &ToolAction[any, any]{toolCore: toolCore{action: action, multipart: multipart, registry: r}}
+	return &ToolAction[any, any]{action: action, multipart: multipart, registry: r}
 }
 
-// IsMultipart returns true if the tool is a multipart tool (tool.v2 only).
-func (t *toolCore) IsMultipart() bool {
-	return t.multipart
+// --- Resolving an interrupt ---
+
+// InterruptedCall is a typed view of an interrupted call to one tool: the part
+// as received, the input decoded to the tool's In type, and the verbs that
+// resolve the interrupt. [InterruptibleToolAction.Interrupted] returns one
+// only for a part that is an unresolved interrupt of that tool, and Res is
+// checked at definition to serialize as a JSON object, so nothing here can
+// fail: each verb returns the part that resumes generation through
+// [WithResume].
+//
+// Read the data the tool sent when it paused, if any, with [InterruptAs] on
+// Part.
+type InterruptedCall[In, Out, Res any] struct {
+	// Part is the interrupted tool request, with its interrupt state in typed
+	// form. It is a copy when the part received carried that state in raw
+	// wire metadata, so the part received is never mutated.
+	Part *Part
+	// Input is the tool's input, as the model provided it.
+	Input In
+}
+
+// Interrupted claims part for this tool: it reports whether part is an
+// unresolved interrupt of this tool and, when it is, returns the call with
+// its input decoded. A nil part, a part of another kind, an interrupt already
+// resolved, an interrupt of another tool, or an input that no longer decodes
+// as In all report false. Iterate [ModelResponse.Interrupts] and claim each
+// part with the tools that could have raised it:
+//
+//	for _, part := range resp.Interrupts() {
+//		if call, ok := transferMoney.Interrupted(part); ok {
+//			parts = append(parts, call.Respond(&TransferOutput{Status: "declined"}))
+//		}
+//	}
+func (t *InterruptibleToolAction[In, Out, Res]) Interrupted(part *Part) (*InterruptedCall[In, Out, Res], bool) {
+	if t == nil {
+		return nil, false
+	}
+	p, ok := interruptPartOf(part)
+	if !ok || p.ToolRequest.Name != t.Name() {
+		return nil, false
+	}
+	input, err := base.ConvertToExact[In](p.ToolRequest.Input)
+	if err != nil {
+		return nil, false
+	}
+	return &InterruptedCall[In, Out, Res]{Part: p, Input: input}, true
+}
+
+// Restart returns the part that re-executes the tool with resume delivered to
+// its resume parameter (or to [ToolContext.Resumed], for a tool written
+// against [ToolContext]). Pass the zero value, or nil for a map, for a bare
+// restart: the tool then re-executes with an empty payload, so restarting is
+// itself the approval for a tool that keys on the presence of a resume.
+func (c *InterruptedCall[In, Out, Res]) Restart(resume Res) *Part {
+	return buildRestartPart(c.Part, resume, nil, false)
+}
+
+// RestartWithInput is [InterruptedCall.Restart] with the tool's input replaced
+// by input, for a person who revised the request before approving it. The
+// tool re-executes with the new input and the original stays on
+// [ToolRestart.OriginalInput], where [tool.OriginalInput] reads it.
+func (c *InterruptedCall[In, Out, Res]) RestartWithInput(input In, resume Res) *Part {
+	return buildRestartPart(c.Part, resume, input, true)
+}
+
+// Respond returns the part that answers the call with output, without
+// re-executing the tool: the model sees output as the tool's result. The
+// output is validated against the tool's output schema when generation
+// resumes.
+func (c *InterruptedCall[In, Out, Res]) Respond(output Out) *Part {
+	return newResponsePart(c.Part, output, nil)
+}
+
+// ToToolRestart converts this interrupted tool request into the restart [Part]
+// that re-executes the tool, for [WithResume]. It is the verb for code
+// that holds only the part, such as a handler resolving an interrupt raised by
+// a middleware's tool; with the tool value in scope,
+// [InterruptibleToolAction.Interrupted] gives the same verb typed.
+//
+// resume is delivered to the tool's resume parameter, or to
+// [ToolContext.Resumed]. It must serialize to a JSON object (a struct or a
+// map); nil is a bare restart, so restarting is itself the approval for a
+// tool that keys on the presence of a resume.
+//
+//	for _, part := range resp.Interrupts() {
+//		restart, err := part.ToToolRestart(map[string]any{"toolApproved": true})
+//	}
+func (p *Part) ToToolRestart(resume any) (*Part, error) {
+	const fnName = "ai.Part.ToToolRestart"
+	p, ok := interruptPartOf(p)
+	if !ok {
+		return nil, status.Errorf(ErrInvalidPart, "%s: part is not an interrupted tool request", fnName)
+	}
+	if err := validateInterruptPayload(resume, "resume data"); err != nil {
+		return nil, status.Errorf(status.ErrInvalidArgument, "%s: %w", fnName, err)
+	}
+	return buildRestartPart(p, resume, nil, false), nil
+}
+
+// ToToolRestartWithInput is [Part.ToToolRestart] with the tool's input
+// replaced by input. The original input stays on [ToolRestart.OriginalInput].
+func (p *Part) ToToolRestartWithInput(input, resume any) (*Part, error) {
+	const fnName = "ai.Part.ToToolRestartWithInput"
+	p, ok := interruptPartOf(p)
+	if !ok {
+		return nil, status.Errorf(ErrInvalidPart, "%s: part is not an interrupted tool request", fnName)
+	}
+	if err := validateInterruptPayload(resume, "resume data"); err != nil {
+		return nil, status.Errorf(status.ErrInvalidArgument, "%s: %w", fnName, err)
+	}
+	return buildRestartPart(p, resume, input, true), nil
+}
+
+// ToToolResponse converts this interrupted tool request into the tool response
+// [Part] that answers it with output, for [WithResume], without
+// re-executing the tool. The output is validated against the tool's output
+// schema when generation resumes. With the tool value in scope,
+// [InterruptibleToolAction.Interrupted] gives the same verb typed.
+func (p *Part) ToToolResponse(output any) (*Part, error) {
+	p, ok := interruptPartOf(p)
+	if !ok {
+		return nil, status.Errorf(ErrInvalidPart, "ai.Part.ToToolResponse: part is not an interrupted tool request")
+	}
+	return newResponsePart(p, output, nil), nil
 }
 
 // Respond creates a part for [WithToolResponses] to provide a resolved response for an interrupted tool call.
 // Returns nil if the part is not a tool request.
 //
-// Deprecated: Use [Part.ToToolResponse], or define the tool with
-// [genkit.DefineInterruptibleTool] and use [InterruptibleToolAction.Respond].
-func (t *ToolAction[In, Out]) Respond(toolReq *Part, output any, opts *RespondOptions) *Part {
+// Deprecated: Use [Part.ToToolResponse], or claim the part with
+// [InterruptibleToolAction.Interrupted] and use [InterruptedCall.Respond].
+func (t *InterruptibleToolAction[In, Out, Res]) Respond(toolReq *Part, output any, opts *RespondOptions) *Part {
 	if toolReq == nil || !toolReq.IsToolRequest() {
 		return nil
 	}
-
 	if opts == nil {
 		opts = &RespondOptions{}
 	}
-
+	toolReq, _ = interruptPartOf(toolReq)
 	return newResponsePart(toolReq, output, opts.Metadata)
 }
 
@@ -730,34 +952,28 @@ func (t *ToolAction[In, Out]) Respond(toolReq *Part, output any, opts *RespondOp
 // Returns nil if the part is not a tool request or the resume data does not
 // serialize to a JSON object.
 //
-// Deprecated: Use [Part.ToToolRestart], or define the tool with
-// [genkit.DefineInterruptibleTool] and use [InterruptibleToolAction.Restart].
-func (t *ToolAction[In, Out]) Restart(p *Part, opts *RestartOptions) *Part {
+// Deprecated: Use [Part.ToToolRestart], or claim the part with
+// [InterruptibleToolAction.Interrupted] and use [InterruptedCall.Restart].
+func (t *InterruptibleToolAction[In, Out, Res]) Restart(p *Part, opts *RestartOptions) *Part {
 	if p == nil || !p.IsToolRequest() {
 		return nil
 	}
-
 	if opts == nil {
 		opts = &RestartOptions{}
 	}
-
-	restart, err := newRestartPart("ai.Restart", p, []RestartOption{opts})
-	if err != nil {
+	if err := validateInterruptPayload(opts.ResumedMetadata, "resume data"); err != nil {
 		return nil
 	}
-	return restart
+	p, _ = interruptPartOf(p)
+	return buildRestartPart(p, opts.ResumedMetadata, opts.ReplaceInput, opts.ReplaceInput != nil)
 }
 
 // RespondWith creates a part for [WithToolResponses] to provide a resolved response for an interrupted tool call.
 //
-// Example:
-//
-//	part, err := myTool.RespondWith(toolReq, output, WithResponseMetadata[MyOutput](meta))
-//
-// Deprecated: Define the tool with [genkit.DefineInterruptibleTool] and use
-// [InterruptibleToolAction.Respond], or answer the part directly with
+// Deprecated: Claim the part with [InterruptibleToolAction.Interrupted] and
+// use [InterruptedCall.Respond], or answer the part directly with
 // [Part.ToToolResponse].
-func (t *ToolAction[In, Out]) RespondWith(toolReq *Part, output Out, opts ...RespondWithOption[Out]) (*Part, error) {
+func (t *InterruptibleToolAction[In, Out, Res]) RespondWith(toolReq *Part, output Out, opts ...RespondWithOption[Out]) (*Part, error) {
 	if toolReq == nil {
 		return nil, status.Errorf(status.ErrInvalidArgument, "ai.RespondWith: toolReq is nil")
 	}
@@ -772,263 +988,36 @@ func (t *ToolAction[In, Out]) RespondWith(toolReq *Part, output Out, opts ...Res
 	for _, opt := range opts {
 		opt.applyRespondWith(cfg)
 	}
-
+	toolReq, _ = interruptPartOf(toolReq)
 	return newResponsePart(toolReq, output, cfg.Metadata), nil
 }
 
 // RestartWith creates a part for [WithToolRestarts] to re-execute an interrupted tool call with additional context.
 //
-// Example:
-//
-//	part, err := myTool.RestartWith(toolReq, WithNewInput(newInput), WithResumedMetadata[MyInput](meta))
-//
-// Deprecated: Define the tool with [genkit.DefineInterruptibleTool] and use
-// [InterruptibleToolAction.Restart], or restart the part directly with
-// [Part.ToToolRestart].
-func (t *ToolAction[In, Out]) RestartWith(toolReq *Part, opts ...RestartWithOption[In]) (*Part, error) {
+// Deprecated: Claim the part with [InterruptibleToolAction.Interrupted] and
+// use [InterruptedCall.Restart] or [InterruptedCall.RestartWithInput], or
+// restart the part directly with [Part.ToToolRestart].
+func (t *InterruptibleToolAction[In, Out, Res]) RestartWith(toolReq *Part, opts ...RestartWithOption[In]) (*Part, error) {
+	const fnName = "ai.RestartWith"
 	if toolReq == nil {
-		return nil, status.Errorf(status.ErrInvalidArgument, "ai.RestartWith: toolReq is nil")
+		return nil, status.Errorf(status.ErrInvalidArgument, "%s: toolReq is nil", fnName)
 	}
 	if !toolReq.IsToolRequest() {
-		return nil, status.Errorf(ErrInvalidPart, "ai.RestartWith: part is not a tool request")
+		return nil, status.Errorf(ErrInvalidPart, "%s: part is not a tool request", fnName)
 	}
 	if toolReq.ToolRequest.Name != t.Name() {
-		return nil, status.Errorf(status.ErrInvalidArgument, "ai.RestartWith: tool request is for %q, not %q", toolReq.ToolRequest.Name, t.Name())
+		return nil, status.Errorf(status.ErrInvalidArgument, "%s: tool request is for %q, not %q", fnName, toolReq.ToolRequest.Name, t.Name())
 	}
 
-	restartOpts := make([]RestartOption, len(opts))
-	for i, opt := range opts {
-		restartOpts[i] = opt
+	cfg := &RestartOptions{}
+	for _, opt := range opts {
+		opt.applyRestartWith(cfg)
 	}
-	return newRestartPart("ai.RestartWith", toolReq, restartOpts)
-}
-
-// --- Interruptible tools ---
-
-// InterruptibleToolFunc is the function type for tools created with
-// [NewInterruptibleTool]. It receives a plain [context.Context]: the resume
-// parameter carries everything [ToolContext] exists for. It is nil on the
-// first call and non-nil when the tool is being re-executed after an
-// interrupt, holding the data the caller passed when restarting (the zero
-// value of Res for a bare restart).
-type InterruptibleToolFunc[In, Out, Res any] = func(ctx context.Context, input In, resume *Res) (Out, error)
-
-// InterruptibleToolAction is a tool that supports typed interrupt/resume. The
-// Res type parameter is the type of data the caller sends back when resuming
-// the tool after an interrupt. Create one with [NewInterruptibleTool] or
-// [genkit.DefineInterruptibleTool].
-//
-// Inside the function, [tool.Interrupt] pauses execution with typed data that
-// the caller reads with [InterruptAs]. The caller then re-executes the tool
-// with [InterruptibleToolAction.Restart], passing
-// [InterruptibleToolAction.WithResume] to deliver a Res (and
-// [InterruptibleToolAction.WithNewInput] to revise the input), or answers the
-// call outright with [InterruptibleToolAction.Respond]. Both check that the
-// interrupted part belongs to this tool.
-//
-// It is a [Tool] and an [api.Action], so it goes wherever either is accepted:
-// [WithTools], [Hooks.Tools], or a plugin's action list. Callers that hold
-// only the part, such as an application resolving an interrupt raised by a
-// middleware's tool, use [Part.ToToolRestart] and [Part.ToToolResponse].
-type InterruptibleToolAction[In, Out, Res any] struct {
-	toolCore
-}
-
-// Pinned here so that breaking either interface fails the build at the type
-// rather than at a call site.
-var (
-	_ Tool       = (*InterruptibleToolAction[any, any, any])(nil)
-	_ api.Action = (*InterruptibleToolAction[any, any, any])(nil)
-)
-
-// NewInterruptibleTool creates a new unregistered [InterruptibleToolAction].
-// It can be passed directly to [Generate], which registers it for the duration
-// of the call. Use [WithInputSchema] or [WithOutputSchema] to provide custom
-// JSON schemas instead of inferring them from the type parameters.
-//
-// The resume payload must serialize to a JSON object (a struct or a map), since
-// it is carried on the restart part; a payload that does not decode into Res
-// fails the resumed call rather than silently arriving as a zero value.
-func NewInterruptibleTool[In, Out, Res any](name, description string, fn InterruptibleToolFunc[In, Out, Res], opts ...ToolOption) *InterruptibleToolAction[In, Out, Res] {
-	c := newToolCore("ai.NewInterruptibleTool", name, description, opts, func(ctx context.Context, input In) (Out, error) {
-		var resume *Res
-		if v := base.ToolResumeKey.FromContext(ctx); v != nil {
-			r, err := base.MapToStruct[Res](v)
-			if err != nil {
-				var zero Out
-				return zero, fmt.Errorf("tool %q: failed to convert resume data: %w", name, err)
-			}
-			resume = &r
-		}
-		return fn(ctx, input, resume)
-	})
-	return &InterruptibleToolAction[In, Out, Res]{toolCore: c}
-}
-
-// RunJSON runs the tool on JSON-encoded input and returns the JSON-encoded
-// multipart response envelope, which is what the registry serves for this
-// tool. Prefer [InterruptibleToolAction.RunRaw], which unwraps the envelope's
-// output.
-func (t *InterruptibleToolAction[In, Out, Res]) RunJSON(ctx context.Context, input json.RawMessage, cb core.StreamCallback[json.RawMessage]) (json.RawMessage, error) {
-	if t == nil {
-		return nil, errNilTool("RunJSON")
+	if err := validateInterruptPayload(cfg.ResumedMetadata, "resume data"); err != nil {
+		return nil, status.Errorf(status.ErrInvalidArgument, "%s: %w", fnName, err)
 	}
-	return t.action.RunJSON(ctx, input, cb)
-}
-
-// RunJSONWithTelemetry is [InterruptibleToolAction.RunJSON] with the run's
-// telemetry returned alongside the output.
-func (t *InterruptibleToolAction[In, Out, Res]) RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb core.StreamCallback[json.RawMessage]) (*api.ActionRunResult[json.RawMessage], error) {
-	if t == nil {
-		return nil, errNilTool("RunJSONWithTelemetry")
-	}
-	return t.action.RunJSONWithTelemetry(ctx, input, cb)
-}
-
-// RunRaw runs this tool using the provided raw map format data (JSON parsed as
-// map[string]any) and returns just the output.
-func (t *InterruptibleToolAction[In, Out, Res]) RunRaw(ctx context.Context, input any) (any, error) {
-	resp, err := t.RunRawMultipart(ctx, input)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Output, nil
-}
-
-// RunRawMultipart runs this tool using the provided raw map format data (JSON
-// parsed as map[string]any) and returns the full multipart response.
-func (t *InterruptibleToolAction[In, Out, Res]) RunRawMultipart(ctx context.Context, input any) (*MultipartToolResponse, error) {
-	if t == nil {
-		return nil, errNilTool("RunRawMultipart")
-	}
-	return t.runRawMultipart(ctx, input)
-}
-
-// Restart creates a part for [WithToolRestarts] that re-executes this tool's
-// interrupted call. Pass [InterruptibleToolAction.WithResume] to deliver the
-// answer to the tool's resume parameter and
-// [InterruptibleToolAction.WithNewInput] to revise the input. The part must be
-// an unresolved interrupt for this tool; [Part.ToToolRestart] is the same verb
-// for a part whose tool is not in scope.
-func (t *InterruptibleToolAction[In, Out, Res]) Restart(interruptPart *Part, opts ...RestartOption) (*Part, error) {
-	const fnName = "ai.InterruptibleToolAction.Restart"
-	part, err := t.ownedInterrupt(fnName, interruptPart)
-	if err != nil {
-		return nil, err
-	}
-	return newRestartPart(fnName, part, opts)
-}
-
-// Respond creates a part for [WithToolResponses] that answers this tool's
-// interrupted call with output, without re-executing the tool. The output is
-// validated against the tool's output schema when generation resumes. The part
-// must be an unresolved interrupt for this tool; [Part.ToToolResponse] is the
-// same verb for a part whose tool is not in scope.
-func (t *InterruptibleToolAction[In, Out, Res]) Respond(interruptPart *Part, output Out) (*Part, error) {
-	part, err := t.ownedInterrupt("ai.InterruptibleToolAction.Respond", interruptPart)
-	if err != nil {
-		return nil, err
-	}
-	return newResponsePart(part, output, nil), nil
-}
-
-// WithResume returns a restart option carrying data to this tool's resume
-// parameter, checked against the tool's Res type at the call site. See
-// [WithResume] for the semantics.
-func (t *InterruptibleToolAction[In, Out, Res]) WithResume(resume Res) RestartOption {
-	return WithResume(resume)
-}
-
-// WithNewInput returns a restart option providing a new input for this tool
-// when it re-executes, checked against the tool's In type at the call site.
-// See [WithNewInput] for the semantics.
-func (t *InterruptibleToolAction[In, Out, Res]) WithNewInput(input In) RestartOption {
-	return WithNewInput(input)
-}
-
-// ownedInterrupt checks that p is an unresolved interrupt addressed to this
-// tool and returns it with its interrupt state in typed form (see
-// interruptPartOf), for the verbs that resolve an interrupt on the tool value.
-func (t *toolCore) ownedInterrupt(fnName string, p *Part) (*Part, error) {
-	if p == nil {
-		return nil, status.Errorf(status.ErrInvalidArgument, "%s: part is nil", fnName)
-	}
-	p, ok := interruptPartOf(p)
-	if !ok {
-		return nil, status.Errorf(ErrInvalidPart, "%s: part is not an interrupted tool request", fnName)
-	}
-	if p.ToolRequest.Name != t.Name() {
-		return nil, status.Errorf(status.ErrInvalidArgument, "%s: tool request is for %q, not %q", fnName, p.ToolRequest.Name, t.Name())
-	}
-	return p, nil
-}
-
-// --- Resolving an interrupt ---
-
-// RestartOption configures the restart part built by [Part.ToToolRestart].
-// [WithResume], [WithNewInput], and [WithResumedMetadata] are the options.
-type RestartOption interface {
-	applyRestart(*restartOptions)
-}
-
-// restartOptions holds the resolved configuration for a restart part.
-type restartOptions struct {
-	resume   any
-	newInput any
-}
-
-// applyRestart applies the option to the restart options. The last value set
-// for a field wins.
-func (o *RestartOptions) applyRestart(opts *restartOptions) {
-	if o.ResumedMetadata != nil {
-		opts.resume = o.ResumedMetadata
-	}
-	if o.ReplaceInput != nil {
-		opts.newInput = o.ReplaceInput
-	}
-}
-
-// WithResume delivers data to the restarted tool when it re-executes: the
-// resume parameter of an interruptible tool, or [ToolContext.Resumed] and
-// [ResumedValue] for a tool written against [ToolContext]. Without it, the tool
-// re-executes with an empty resume payload, so restarting is itself the
-// approval for tools that key on the presence of a resume.
-//
-// The data must serialize to a JSON object (a struct or a map): it lands on the
-// restart part as [ToolRestart] data, which the wire protocol encodes as a JSON
-// object in the part's metadata.
-func WithResume(resume any) RestartOption {
-	return &RestartOptions{ResumedMetadata: resume}
-}
-
-// ToToolRestart converts this interrupted tool request into a restart [Part]
-// that re-executes the tool, for use with [WithToolRestarts]. The receiver
-// must be an interrupted tool request, as received via
-// [ModelResponse.Interrupts]. Use [WithResume] to deliver data to the
-// restarted tool, and [WithNewInput] to provide a new input.
-//
-//	for _, part := range resp.Interrupts() {
-//		restart, err := part.ToToolRestart(ai.WithResume(Confirmation{Approved: true}))
-//	}
-func (p *Part) ToToolRestart(opts ...RestartOption) (*Part, error) {
-	p, ok := interruptPartOf(p)
-	if !ok {
-		return nil, status.Errorf(ErrInvalidPart, "ai.Part.ToToolRestart: part is not an interrupted tool request")
-	}
-	return newRestartPart("ai.Part.ToToolRestart", p, opts)
-}
-
-// ToToolResponse converts this interrupted tool request into a tool response
-// [Part], for use with [WithToolResponses]. Instead of re-executing the tool
-// (as [Part.ToToolRestart] does), this provides a pre-computed result directly.
-// The output is validated against the tool's output schema when generation
-// resumes.
-func (p *Part) ToToolResponse(output any) (*Part, error) {
-	p, ok := interruptPartOf(p)
-	if !ok {
-		return nil, status.Errorf(ErrInvalidPart, "ai.Part.ToToolResponse: part is not an interrupted tool request")
-	}
-	return newResponsePart(p, output, nil), nil
+	toolReq, _ = interruptPartOf(toolReq)
+	return buildRestartPart(toolReq, cfg.ResumedMetadata, cfg.ReplaceInput, cfg.ReplaceInput != nil), nil
 }
 
 // interruptPartOf returns p with its interrupt state in typed form and reports
@@ -1036,8 +1025,7 @@ func (p *Part) ToToolResponse(output any) (*Part, error) {
 // the wire carry the typed state already and are returned as is. A part a
 // caller hand-assembled with the JS "interrupt" metadata key is lifted on a
 // copy, so the caller's map is untouched and the key does not ride along onto
-// the part built from it. This keeps the part verbs as lenient as the
-// type-erased tool verbs they replace.
+// the part built from it.
 func interruptPartOf(p *Part) (*Part, bool) {
 	if p == nil {
 		return nil, false
@@ -1052,26 +1040,20 @@ func interruptPartOf(p *Part) (*Part, bool) {
 	return p, p.IsInterrupt()
 }
 
-// newRestartPart builds the tool request [Part] that re-executes an interrupted
-// call, applying the given restart options. fnName is woven into error
-// messages. The new part keeps the interrupted part's metadata but not its
-// interrupt state; when a new input is provided, the original is preserved on
+// buildRestartPart builds the tool request [Part] that re-executes an
+// interrupted call. The new part keeps the interrupted part's metadata but not
+// its interrupt state. resume is the payload delivered to the tool, already
+// validated to serialize as a JSON object, or nil for a bare restart; a nil
+// map or pointer is a bare restart too. When replaceInput is set the tool
+// re-executes with newInput and the original is preserved on
 // [ToolRestart.OriginalInput].
-func newRestartPart(fnName string, interruptPart *Part, opts []RestartOption) (*Part, error) {
-	cfg := &restartOptions{}
-	for _, opt := range opts {
-		opt.applyRestart(cfg)
-	}
-	if err := validateInterruptPayload(cfg.resume, "resume data"); err != nil {
-		return nil, status.Errorf(status.ErrInvalidArgument, "%s: %w", fnName, err)
-	}
-
+func buildRestartPart(interruptPart *Part, resume any, newInput any, replaceInput bool) *Part {
 	toolReq := interruptPart.ToolRequest
 	input := toolReq.Input
 	var originalInput any
-	if cfg.newInput != nil {
+	if replaceInput {
 		originalInput = input
-		input = cfg.newInput
+		input = newInput
 	}
 
 	restartPart := NewToolRequestPart(&ToolRequest{
@@ -1080,8 +1062,25 @@ func newRestartPart(fnName string, interruptPart *Part, opts []RestartOption) (*
 		Input: input,
 	})
 	restartPart.Metadata = maps.Clone(interruptPart.Metadata)
-	restartPart.Restart = &ToolRestart{Resume: cfg.resume, OriginalInput: originalInput}
-	return restartPart, nil
+	restartPart.Restart = &ToolRestart{Resume: bareIfNil(resume), OriginalInput: originalInput}
+	return restartPart
+}
+
+// bareIfNil normalizes a resume payload: an untyped nil, a nil map, or a nil
+// pointer all mean a bare restart, so they become an untyped nil rather than
+// a typed nil inside the interface, which would serialize as JSON null
+// instead of the bare-restart marker.
+func bareIfNil(v any) any {
+	if v == nil {
+		return nil
+	}
+	switch rv := reflect.ValueOf(v); rv.Kind() {
+	case reflect.Map, reflect.Pointer, reflect.Slice, reflect.Interface:
+		if rv.IsNil() {
+			return nil
+		}
+	}
+	return v
 }
 
 // newResponsePart builds the tool response [Part] that resolves an interrupted
