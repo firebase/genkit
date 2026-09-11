@@ -29,6 +29,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/base"
 	"go.opentelemetry.io/otel"
@@ -425,6 +426,10 @@ type spanMetadata struct {
 // inline base64 media data in the exported trace. The media URI header and a
 // redaction marker are retained, while remote media URLs pass through intact.
 func telemetryJSONString(value any) string {
+	if api.CurrentEnvironment() == api.EnvironmentDev {
+		return base.JSONString(value)
+	}
+
 	raw, err := json.Marshal(value)
 	if err != nil {
 		return base.JSONString(value)

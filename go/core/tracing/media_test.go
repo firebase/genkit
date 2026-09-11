@@ -41,14 +41,43 @@ func (e *spanExporter) Shutdown(context.Context) error {
 }
 
 func TestMediaDataIsRedactedFromSpanAttributes(t *testing.T) {
+	inputAttribute := runMediaInputSpan(t, "prod")
+	if strings.Contains(inputAttribute, "secret-image-bytes") {
+		t.Fatalf("genkit:input contains inline media data: %s", inputAttribute)
+	}
+	if !strings.Contains(inputAttribute, `"url":"data:image/png;base64,[redacted]"`) {
+		t.Errorf("genkit:input lost the redacted media URI: %s", inputAttribute)
+	}
+	if !strings.Contains(inputAttribute, `"url":"https://example.com/image.jpg"`) {
+		t.Errorf("genkit:input lost the remote media URL: %s", inputAttribute)
+	}
+}
+
+func TestMediaDataIsPreservedInDevEnvironment(t *testing.T) {
+	inputAttribute := runMediaInputSpan(t, "dev")
+	if !strings.Contains(inputAttribute, "secret-image-bytes") {
+		t.Fatalf("genkit:input lost inline media data in dev: %s", inputAttribute)
+	}
+	if !strings.Contains(inputAttribute, `"url":"data:image/png;base64,secret-image-bytes"`) {
+		t.Errorf("genkit:input lost the original media URI in dev: %s", inputAttribute)
+	}
+	if !strings.Contains(inputAttribute, `"url":"https://example.com/image.jpg"`) {
+		t.Errorf("genkit:input lost the remote media URL in dev: %s", inputAttribute)
+	}
+}
+
+func runMediaInputSpan(t *testing.T, environment string) string {
+	t.Helper()
+	t.Setenv("GENKIT_ENV", environment)
+
 	previousProvider := otel.GetTracerProvider()
 	exporter := &spanExporter{}
 	provider := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
 	otel.SetTracerProvider(provider)
-	defer func() {
+	t.Cleanup(func() {
 		_ = provider.Shutdown(context.Background())
 		otel.SetTracerProvider(previousProvider)
-	}()
+	})
 
 	input := &ai.ModelRequest{
 		Messages: []*ai.Message{
@@ -78,18 +107,12 @@ func TestMediaDataIsRedactedFromSpanAttributes(t *testing.T) {
 			break
 		}
 	}
-	if strings.Contains(inputAttribute, "secret-image-bytes") {
-		t.Fatalf("genkit:input contains inline media data: %s", inputAttribute)
-	}
-	if !strings.Contains(inputAttribute, `"url":"data:image/png;base64,[redacted]"`) {
-		t.Errorf("genkit:input lost the redacted media URI: %s", inputAttribute)
-	}
-	if !strings.Contains(inputAttribute, `"url":"https://example.com/image.jpg"`) {
-		t.Errorf("genkit:input lost the remote media URL: %s", inputAttribute)
-	}
+	return inputAttribute
 }
 
 func TestMediaLikeTextIsNotTreatedAsInlineMedia(t *testing.T) {
+	t.Setenv("GENKIT_ENV", "prod")
+
 	previousProvider := otel.GetTracerProvider()
 	exporter := &spanExporter{}
 	provider := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
