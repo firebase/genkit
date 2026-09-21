@@ -1,8 +1,9 @@
 # Genkit MCP
 
 Serves a Genkit app's own tools to [Model Context Protocol](https://modelcontextprotocol.io) clients
-over stdio. A client half, which connects Genkit to an MCP server over stdio and exposes that
-server's tools as Genkit `tool.v2` actions through a dynamic action provider, is under development.
+over stdio or streamable HTTP. A client half, which connects Genkit to an MCP server over stdio and
+exposes that server's tools as Genkit `tool.v2` actions through a dynamic action provider, is under
+development.
 
 Under development: the package is not published yet. The client entry point below is the target
 shape, landing with the client implementation.
@@ -105,6 +106,61 @@ alone, and a logger built before `start()` keeps the descriptor it captured. Pas
 
 `await server.serve(read_stream, write_stream)` serves on any SDK stream pair instead, and touches
 nothing.
+
+### Streamable HTTP
+
+`server.asgi_app()` returns a Starlette app answering on `/mcp`, which uvicorn or any ASGI server
+can serve as it is:
+
+```python
+app = server.asgi_app()  # uvicorn myserver:app
+```
+
+Pass `stateless=True` for a fresh transport per request with no session id, `json_response=True` for
+one JSON body instead of an SSE stream, and `event_store=` to let a reconnecting client replay what
+it missed. Nothing here touches stdout: only stdio makes stdout the wire.
+
+The endpoint has no authentication. Anyone who can reach it can list and call every tool the app
+defines, so bind it to localhost, which uvicorn does by default, or put authentication in front of
+it before you bind it to a public interface. Mounting it in an app that already authenticates
+requests is one way to do that.
+
+A request whose `Host` header is not allowed gets a 421, and one from a browser whose `Origin` is not
+allowed gets a 403. By default only localhost, `127.0.0.1` and `[::1]` on any port are allowed, so a
+web page cannot reach a local server by rebinding its own name to `127.0.0.1`. Behind a proxy or on
+a public name, list what clients will send:
+
+```python
+app = server.asgi_app(
+    allowed_hosts=['tools.example.com'],
+    allowed_origins=['https://app.example.com'],
+)
+```
+
+In the default stateful mode, each session stays open until its client sends `DELETE` or the process
+ends, and the MCP SDK reads a whole request body before it parses it. Neither has a limit here.
+`stateless=True` keeps no sessions. Limit body size and request rate at a reverse proxy.
+
+Starlette does not run a mounted app's lifespan, and the session manager inside needs one, so
+mounting into an existing app means chaining it:
+
+```python
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+
+mcp_app = server.asgi_app()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with mcp_app.router.lifespan_context(app):
+        yield
+
+
+app = FastAPI(lifespan=lifespan)
+app.mount('/api', mcp_app)  # the endpoint is then /api/mcp
+```
 
 ## Known gaps
 
