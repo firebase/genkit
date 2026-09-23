@@ -26,6 +26,7 @@ from genkit_google_genai._models._virtual_try_on import (
     VirtualTryOnConfig,
     VirtualTryOnModel,
     VirtualTryOnOutputOptions,
+    virtual_try_on_model_info,
 )
 from google.auth.credentials import AnonymousCredentials
 from google.genai import models as genai_models, types as genai_types
@@ -42,7 +43,7 @@ from genkit import (
     Part,
     Role,
 )
-from genkit.model import ModelRequest
+from genkit.model import Constrained, ModelRequest
 
 PNG_BYTES = b'\x89PNG\r\n\x1a\n-person'
 PNG_B64 = base64.b64encode(PNG_BYTES).decode('ascii')
@@ -663,3 +664,11 @@ class TestFailureModes:
         with pytest.raises(GenkitError) as exc_info:
             await _generate(model, _request())
         assert exc_info.value.status == status
+
+
+def test_model_info_does_not_claim_text_inputs() -> None:
+    """The driver reads only tagged images, so system prompts and constrained output are not advertised."""
+    supports = virtual_try_on_model_info('virtual-try-on-001').supports
+    assert supports is not None
+    assert supports.system_role is False
+    assert supports.constrained == Constrained.NONE

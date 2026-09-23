@@ -51,7 +51,7 @@ from google.genai.errors import APIError
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from genkit import ActionRunContext, FinishReason, GenkitError, Message, ModelResponse, Part, Role
-from genkit.model import ModelInfo, ModelRequest, Supports, get_basic_usage_stats
+from genkit.model import Constrained, ModelInfo, ModelRequest, Supports, get_basic_usage_stats
 from genkit.plugin_api import StrEnum
 
 
@@ -137,7 +137,8 @@ DEFAULT_VIRTUAL_TRY_ON_SUPPORT = Supports(
     media=True,
     multiturn=False,
     tools=False,
-    system_role=True,
+    system_role=False,
+    constrained=Constrained.NONE,
     output=['media'],
 )
 
