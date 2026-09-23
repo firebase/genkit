@@ -450,21 +450,15 @@ export interface AgentTransport<Opts extends object = never> {
   ): Promise<SessionSnapshot['status'] | undefined>;
 }
 
-const TERMINAL_STATUSES = new Set([
-  'completed',
-  'failed',
-  'aborted',
-  'expired',
-]);
-
 /**
  * Whether a snapshot has settled into a state the client can act on. An
  * `aborting` row is not settled: its finalize has yet to stamp the state
  * the run committed, which is what makes the settled `aborted` row a resume
- * point.
+ * point. An absent status is the documented `completed` default, so it is
+ * settled.
  */
 function isSettled(snap: SessionSnapshot<unknown>): boolean {
-  return !!snap.status && TERMINAL_STATUSES.has(snap.status);
+  return snap.status !== 'pending' && snap.status !== 'aborting';
 }
 
 /**
