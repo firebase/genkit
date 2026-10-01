@@ -38,8 +38,7 @@ from genkit_google_genai._interactions._options import ClientOptions
 from google.genai.interactions import Interaction
 
 from genkit import GenkitError
-from genkit._core._error import get_callable_json, get_http_status
-from genkit.plugin_api import GENKIT_CLIENT_HEADER
+from genkit.plugin_api import GENKIT_CLIENT_HEADER, get_callable_json, get_http_status
 
 
 def test_google_ai_url_defaults() -> None:

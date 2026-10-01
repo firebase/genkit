@@ -41,6 +41,7 @@ from genkit._ai._agents._client import (
     AgentTransport,
     AgentTurn,
     DetachedTask,
+    error_from_http,
 )
 from genkit._ai._agents._runtime import AgentFn, AgentInitError, SessionRunner
 from genkit._ai._agents._session import (
@@ -98,6 +99,7 @@ __all__ = [
     'AgentInterrupt',
     'AgentResponse',
     'DetachedTask',
+    'error_from_http',
     'AgentTransport',
     'HttpAgentTransport',
     'remote_agent',

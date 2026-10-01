@@ -18,19 +18,20 @@ if not hasattr(_genkit_agent, 'InMemorySessionStore'):
     pytest.skip('agents API not available', allow_module_level=True)
 InMemorySessionStore = _genkit_agent.InMemorySessionStore
 AgentInit = _genkit_agent.AgentInit
+error_from_http = _genkit_agent.error_from_http
 
 from genkit_fastapi import handle_genkit_request  # noqa: E402
 from genkit_fastapi.exp import serve_agent  # noqa: E402
 
-from genkit._ai._agents._client import error_from_http  # noqa: E402
-from genkit._core._error import RuntimeErrorReason  # noqa: E402
-from genkit._core._model import (  # noqa: E402
+from genkit import (  # noqa: E402
+    FinishReason,
     Message,
     ModelResponse,
     ModelResponseChunk as ModelResponseChunkModel,
     Part,
+    Role,
+    RuntimeErrorReason,
 )
-from genkit._core._typing import FinishReason, Role  # noqa: E402
 from genkit.exp import Genkit  # noqa: E402
 from genkit.testing import define_scripted_model  # noqa: E402
 

@@ -57,16 +57,15 @@ from genkit import (
     Part,
     Role,
 )
-from genkit._ai._tools import run_tool_after_restart
-from genkit._core._action import Action
 from genkit.model import ModelRequest, ModelUsage
-from genkit.plugin_api import ActionKind
+from genkit.plugin_api import Action, ActionKind
 from genkit.telemetry import (
     DirectHttpInstrumentation,
     configure_instrumentation,
     is_instrumented_by,
     reset_instrumentation,
 )
+from genkit.testing import run_tool_after_restart
 
 
 def _hex_id(value: str, length: int) -> bool:

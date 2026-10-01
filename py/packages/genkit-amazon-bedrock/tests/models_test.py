@@ -47,8 +47,8 @@ from botocore.exceptions import (
 from genkit_amazon_bedrock._models import BedrockModel
 
 from genkit import ActionRunContext, FinishReason, GenkitError, Message, Part, Role
-from genkit._core._error import get_callable_json, get_http_status
 from genkit.model import ModelRequest
+from genkit.plugin_api import get_callable_json, get_http_status
 
 
 class FakeTransport:
