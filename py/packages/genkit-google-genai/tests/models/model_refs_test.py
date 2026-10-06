@@ -151,7 +151,7 @@ class TestClosedRejectSet:
     @pytest.mark.parametrize(
         'bad_id',
         [
-            'veo-3.0-generate-001',  # wrong family: has its own constructor
+            'veo-3.1-generate-preview',  # wrong family: has its own constructor
             'lyria-002',  # no constructor in this plugin
             'googleai/lyria-002',  # prefix must not defeat the gate
             'deep-research-pro-preview',  # Interactions API family
@@ -181,7 +181,7 @@ class TestClosedRejectSet:
         with pytest.raises(GenkitError, match=r'embedding'):
             GoogleAI.gemini_model('gemini-embedding-001')
         with pytest.raises(GenkitError, match=r'veo_model'):
-            GoogleAI.gemini_model('veo-3.0-generate-001')
+            GoogleAI.gemini_model('veo-3.1-generate-preview')
         with pytest.raises(GenkitError, match=r'lyria_model'):
             GoogleAI.gemini_model('lyria-002')
         with pytest.raises(GenkitError, match=r'deep_research_model'):
@@ -287,6 +287,17 @@ class TestKnownIdLiterals:
     def test_gemma_4_autocompletes_on_gemma_model(self) -> None:
         """The gemma-4 ids are offered by ``gemma_model``."""
         assert {'gemma-4-26b-a4b-it', 'gemma-4-31b-it'} <= set(get_args(KnownGemma))
+
+    def test_veo_catalog_is_the_3_1_family(self) -> None:
+        """Google AI serves Veo 3.1 as -preview ids; Vertex AI serves it as -001 ids."""
+        assert set(get_args(KnownVeo)) == {
+            'veo-3.1-generate-preview',
+            'veo-3.1-fast-generate-preview',
+            'veo-3.1-lite-generate-preview',
+            'veo-3.1-generate-001',
+            'veo-3.1-fast-generate-001',
+            'veo-3.1-lite-generate-001',
+        }
 
 
 class TestNoImagenSurface:
