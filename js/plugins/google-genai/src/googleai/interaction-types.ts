@@ -515,6 +515,20 @@ export declare interface ImageConfig {
 }
 
 /**
+ * The configuration for video generation (e.g. gemini-omni-1.1-flash).
+ */
+export declare interface VideoConfig {
+  /** The kind of generation. Inferred from the prompt if not set. */
+  task?:
+    | 'text_to_video'
+    | 'image_to_video'
+    | 'reference_to_video'
+    | 'edit'
+    | 'extend'
+    | (string & {});
+}
+
+/**
  * Configuration parameters for model interactions.
  */
 export declare interface ModelGenerationConfig {
@@ -541,6 +555,8 @@ export declare interface ModelGenerationConfig {
   speech_config?: SpeechConfig[] | { speakers: SpeechConfig[] };
   /** Configuration for image interaction. */
   image_config?: ImageConfig;
+  /** Configuration for video generation. */
+  video_config?: VideoConfig;
 }
 
 /**
@@ -564,6 +580,15 @@ export declare interface DeepResearchAgentConfig {
 }
 
 /**
+ * Configuration for the Antigravity agent.
+ */
+export declare interface AntigravityAgentConfig {
+  type: 'antigravity';
+  /** The Gemini model the agent runs on (defaults to the agent's default). */
+  model?: string;
+}
+
+/**
  * Service Tier
  */
 export declare type ServiceTier =
@@ -577,7 +602,8 @@ export declare type ServiceTier =
  */
 export type InteractionsAgentConfig =
   | DynamicAgentConfig
-  | DeepResearchAgentConfig;
+  | DeepResearchAgentConfig
+  | AntigravityAgentConfig;
 
 /**
  * Indicates the model should return text, images, or audio.

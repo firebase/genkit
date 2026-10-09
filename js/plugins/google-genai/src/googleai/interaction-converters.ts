@@ -61,10 +61,12 @@ import {
   VideoContent,
 } from './interaction-types.js';
 import {
+  appendToWavData,
   camelToSnakeCase,
   cleanSchema,
   convertObjectKeysToSnakeCase,
   isObject,
+  stripLeadingId3Tags,
   toSnakeCaseObj,
 } from './utils.js';
 
@@ -460,6 +462,10 @@ export function toInteractionGenerationConfig(
     thinking_config,
     contextCache,
     context_cache,
+    // Sent as `response_format` (see toInteractionAudioResponseFormat and
+    // toInteractionVideoResponseFormat).
+    audioFormat: _audioFormat,
+    videoFormat: _videoFormat,
     ...rest
   } = config;
   const result = convertObjectKeysToSnakeCase(rest);
@@ -489,6 +495,40 @@ export function toInteractionGenerationConfig(
   }
 
   return result;
+}
+
+/**
+ * Converts the `audioFormat` config (`{ mimeType, sampleRate }`) into an
+ * Interactions audio `response_format`. Returns `undefined` if it isn't set,
+ * so the server defaults apply.
+ */
+export function toInteractionAudioResponseFormat(
+  audioFormat: unknown
+): Record<string, unknown> | undefined {
+  if (!isObject(audioFormat)) {
+    return undefined;
+  }
+  const { mimeType, sampleRate, ...rest } = audioFormat;
+  return {
+    type: 'audio',
+    ...toSnakeCaseObj(rest),
+    ...(typeof mimeType === 'string' ? { mime_type: mimeType } : {}),
+    ...(typeof sampleRate === 'number' ? { sample_rate: sampleRate } : {}),
+  };
+}
+
+/**
+ * Converts the `videoFormat` config (`{ aspectRatio, resolution }`) into an
+ * Interactions video `response_format`. Returns `undefined` if it isn't set,
+ * so the server defaults apply (16:9, 720p).
+ */
+export function toInteractionVideoResponseFormat(
+  videoFormat: unknown
+): Record<string, unknown> | undefined {
+  if (!isObject(videoFormat)) {
+    return undefined;
+  }
+  return { type: 'video', ...toSnakeCaseObj(videoFormat) };
 }
 
 /**
@@ -1318,6 +1358,9 @@ function fromInteractionUsage(usage: Usage): GenerationUsage {
       case 'audio':
         result.inputAudioFiles = modalityToken.tokens;
         break;
+      case 'video':
+        result.inputVideos = modalityToken.tokens;
+        break;
     }
   }
   for (const modalityToken of usage.output_tokens_by_modality ?? []) {
@@ -1330,6 +1373,9 @@ function fromInteractionUsage(usage: Usage): GenerationUsage {
         break;
       case 'audio':
         result.outputAudioFiles = modalityToken.tokens;
+        break;
+      case 'video':
+        result.outputVideos = modalityToken.tokens;
         break;
     }
   }
@@ -1460,6 +1506,127 @@ export function fromInteractionSync(
       .filter((p) => p && Object.keys(p).length > 0);
   }
   return response;
+}
+
+/** Audio types without a container header, so chunks can be joined end to end. */
+const HEADERLESS_AUDIO_TYPES = ['audio/l16', 'audio/mulaw', 'audio/alaw'];
+
+function isHeaderlessAudio(part: Part): boolean {
+  const contentType = part.media?.contentType?.toLowerCase();
+  return (
+    !!part.media?.url.startsWith('data:') &&
+    !!contentType &&
+    HEADERLESS_AUDIO_TYPES.some((type) => contentType.startsWith(type))
+  );
+}
+
+function isWavAudio(part: Part): boolean {
+  return (
+    !!part.media?.url.startsWith('data:') &&
+    !!part.media.contentType?.toLowerCase().startsWith('audio/wav')
+  );
+}
+
+function mediaBytes(part: Part): Buffer {
+  const url = part.media?.url ?? '';
+  return Buffer.from(url.substring(url.indexOf(',') + 1), 'base64');
+}
+
+function mediaPart(contentType: string, bytes: Buffer): Part {
+  return {
+    media: {
+      url: `data:${contentType};base64,${bytes.toString('base64')}`,
+      contentType,
+    },
+  };
+}
+
+/**
+ * Removes ID3 tags from the start of a headerless audio part.
+ *
+ * The server sometimes sends a C2PA manifest, in an ID3 tag, at the start of a
+ * streamed `audio/l16` chunk (seen with gemini-3.8-flash-lite-tts and two
+ * speakers). The tag isn't audio: played or joined as raw audio it is noise,
+ * and its odd size shifts every sample after it by one byte. This has been
+ * reported to the Gemini API team; until it's fixed, the tag is removed so
+ * the audio plays correctly. That manifest is dropped.
+ */
+export function removeId3FromAudio(part: Part): Part {
+  if (!part.media || !isHeaderlessAudio(part)) {
+    return part;
+  }
+  const bytes = mediaBytes(part);
+  const audio = stripLeadingId3Tags(bytes);
+  if (audio === bytes) {
+    return part;
+  }
+  const contentType = part.media.contentType ?? 'audio/l16';
+  return {
+    ...part,
+    media: {
+      ...part.media,
+      url: `data:${contentType};base64,${audio.toString('base64')}`,
+    },
+  };
+}
+
+/**
+ * Joins streamed audio chunks in the final response into one part, in the
+ * format the server returned:
+ *  - consecutive headerless chunks (`audio/l16`, `audio/mulaw`, `audio/alaw`)
+ *    of the same type are joined end to end;
+ *  - a streamed `audio/wav` request starts with a small complete WAV file and
+ *    continues with `audio/l16` chunks (seen live). Those chunks go into the
+ *    WAV's `data` chunk, giving one WAV like a non-streamed response.
+ * Other parts are kept as they are.
+ */
+export function mergeStreamedAudio(parts: Part[]): Part[] {
+  const merged: Part[] = [];
+  let i = 0;
+  while (i < parts.length) {
+    const part = parts[i];
+    if (isWavAudio(part)) {
+      let j = i + 1;
+      while (j < parts.length && isHeaderlessAudio(parts[j])) j++;
+      const audio = Buffer.concat(parts.slice(i + 1, j).map(mediaBytes));
+      const wav =
+        audio.length > 0 ? appendToWavData(mediaBytes(part), audio) : undefined;
+      if (wav && part.media) {
+        merged.push(mediaPart(part.media.contentType ?? 'audio/wav', wav));
+        i = j;
+        continue;
+      }
+      merged.push(part);
+      i++;
+      continue;
+    }
+    if (isHeaderlessAudio(part)) {
+      const contentType = part.media?.contentType;
+      let j = i + 1;
+      while (
+        j < parts.length &&
+        isHeaderlessAudio(parts[j]) &&
+        parts[j].media?.contentType === contentType
+      ) {
+        j++;
+      }
+      if (j - i > 1 && contentType) {
+        merged.push(
+          mediaPart(
+            contentType,
+            Buffer.concat(parts.slice(i, j).map(mediaBytes))
+          )
+        );
+      } else {
+        merged.push(...parts.slice(i, j));
+      }
+      i = j;
+      continue;
+    }
+    merged.push(part);
+    i++;
+  }
+  return merged;
 }
 
 export function fromInteraction(
