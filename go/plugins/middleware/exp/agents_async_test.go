@@ -602,7 +602,7 @@ func TestAgentsRemoteDetachRefusalRefundsSlot(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("expected 2 delegation responses, got %d", len(got))
 	}
-	if !strings.Contains(got[0].Response, "cannot run in the background") {
+	if !strings.Contains(got[0].Response, "lacks a session store that supports background work") {
 		t.Errorf("background launch response = %q, want the detach refusal", got[0].Response)
 	}
 	if got[1].Response != "helped" {
