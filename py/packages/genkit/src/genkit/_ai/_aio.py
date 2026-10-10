@@ -47,8 +47,6 @@ from genkit._ai._formats._types import FormatDef
 from genkit._ai._generate import (
     define_generate_action,
     generate_action,
-    lookup_model,
-    lookup_tool,
     register_middleware,
     register_tools,
 )
@@ -75,7 +73,7 @@ from genkit._ai._prompt import (
     register_prompt_actions,
     to_generate_options,
 )
-from genkit._ai._tools import define_interrupt, define_tool
+from genkit._ai._tools import ORIGINAL_OUTPUT_SCHEMA_KEY, define_interrupt, define_tool
 from genkit._core._action import Action, ActionKind, get_current_context
 from genkit._core._background import (
     BackgroundAction,
@@ -618,7 +616,8 @@ class Genkit:
         generate call. Background models aren't included; they run through
         ``generate_operation``.
         """
-        return await lookup_model(self._registry, name)
+        action = await self._registry.resolve_action(ActionKind.MODEL, name)
+        return cast(Action[ModelRequest, ModelResponse, ModelResponseChunk], action) if action is not None else None
 
     async def lookup_tool(self, name: str) -> Tool | None:
         """Return the tool registered under ``name``, or None.
@@ -641,7 +640,13 @@ class Genkit:
             # => The ramen is $14.50.
             ```
         """
-        return await lookup_tool(self._registry, name)
+        action = await self._registry.resolve_action(ActionKind.TOOL, name)
+        if action is None:
+            return None
+        schema = action.metadata.get(ORIGINAL_OUTPUT_SCHEMA_KEY)
+        return Tool(
+            action, original_output_schema=cast(dict[str, object], schema) if isinstance(schema, dict) else None
+        )
 
     def lookup_value(self, *, kind: str, name: str) -> object | None:
         """Return the value defined under ``kind`` and ``name``, or None."""

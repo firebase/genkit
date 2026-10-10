@@ -81,7 +81,8 @@ class Surfaces(BaseMiddleware[SurfacesConfig]):
         ctx: GenerateMiddlewareContext,
         next_fn: Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        catalog = resolve_catalog(ai=ctx.ai, catalog=self.config.catalog)
+        # Reaches into the call's registry until ctx.ai has a value lookup.
+        catalog = resolve_catalog(registry=ctx.ai._registry, catalog=self.config.catalog)  # noqa: SLF001
         version = self.config.version or DEFAULT_VERSION
         validate = self.config.validation
         # Chunks are rewritten as fences close. The finished message is parsed

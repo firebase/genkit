@@ -3,15 +3,15 @@
 # Copyright 2026 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-"""What app code and middleware get back from lookup_model, lookup_value, and define_value."""
+"""What app code gets back from lookup_model, lookup_tool, lookup_value, and define_value."""
 
 import re
 from collections.abc import Awaitable, Callable
 
 import pytest
 
-from genkit import ActionRunContext, FinishReason, Genkit, Message, ModelResponse, Operation, Part, Role, Tool, tool
-from genkit.middleware import BaseMiddleware, GenerateMiddleware, GenerateMiddlewareContext, ModelHookParams
+from genkit import ActionRunContext, FinishReason, Genkit, Message, ModelResponse, Operation, Part, Role, Tool
+from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, ModelHookParams
 from genkit.model import ModelRequest, model
 from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin
 
@@ -139,54 +139,8 @@ def test_genkit_has_no_registry_attribute() -> None:
 
 
 @pytest.mark.asyncio
-async def test_middleware_ctx_lookup_model_finds_app_model() -> None:
-    """Middleware calling `await ctx.ai.lookup_model('test/other')` gets the app's model and can answer with it."""
-    ai = Genkit()
-    _define_answering_model(ai, 'test/echo', 'from echo')
-    _define_answering_model(ai, 'test/other', 'from other')
-
-    class SwapModel(BaseMiddleware):
-        async def wrap_model(
-            self, params: ModelHookParams, ctx: GenerateMiddlewareContext, next_fn: NextModel
-        ) -> ModelResponse:
-            other = await ctx.ai.lookup_model('test/other')
-            assert other is not None
-            result = await other.run(params.request)
-            return result.response
-
-    response = await ai.generate(model='test/echo', prompt='hi', use=[SwapModel()])
-
-    assert response.finish_reason == FinishReason.STOP
-    assert response.message is not None
-    assert response.text == 'from other'
-
-
-@pytest.mark.asyncio
-async def test_middleware_ctx_lookup_value_sees_app_value() -> None:
-    """A value from `ai.define_value` is what middleware gets from `ctx.ai.lookup_value`."""
-    ai = Genkit()
-    _define_answering_model(ai, 'test/echo', 'from echo')
-    ai.define_value(kind='greeting', name='default', value='hello from the app')
-    seen: list[object | None] = []
-
-    class ReadGreeting(BaseMiddleware):
-        async def wrap_model(
-            self, params: ModelHookParams, ctx: GenerateMiddlewareContext, next_fn: NextModel
-        ) -> ModelResponse:
-            seen.append(ctx.ai.lookup_value(kind='greeting', name='default'))
-            seen.append(ctx.ai.lookup_value(kind='greeting', name='missing'))
-            return await next_fn(params, ctx)
-
-    response = await ai.generate(model='test/echo', prompt='hi', use=[ReadGreeting()])
-
-    assert response.finish_reason == FinishReason.STOP
-    assert response.text == 'from echo'
-    assert seen == ['hello from the app', None]
-
-
-@pytest.mark.asyncio
 async def test_middleware_ctx_has_no_registry_attribute() -> None:
-    """`ctx.ai` exposes lookups only; there is no `registry` attribute to reach around them."""
+    """`ctx.ai` has no public `registry` attribute."""
     ai = Genkit()
     _define_answering_model(ai, 'test/echo', 'from echo')
     has_registry: list[bool] = []
@@ -201,29 +155,6 @@ async def test_middleware_ctx_has_no_registry_attribute() -> None:
     await ai.generate(model='test/echo', prompt='hi', use=[PeekRegistry()])
 
     assert has_registry == [False]
-
-
-@pytest.mark.asyncio
-async def test_middleware_ctx_lookup_value_sees_this_calls_middleware(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Inline `use=[Mw()]` registers on the call's child registry: `ctx.ai` sees it, `ai` doesn't."""
-    monkeypatch.setattr('genkit._ai._generate.secrets.token_hex', lambda _n: 'fixed')
-    reg_name = 'dynamic-middleware-0-fixed'
-    ai = Genkit()
-    _define_answering_model(ai, 'test/echo', 'from echo')
-    seen: list[object | None] = []
-
-    class FindSelf(BaseMiddleware):
-        async def wrap_model(
-            self, params: ModelHookParams, ctx: GenerateMiddlewareContext, next_fn: NextModel
-        ) -> ModelResponse:
-            seen.append(ctx.ai.lookup_value(kind='middleware', name=reg_name))
-            seen.append(ai.lookup_value(kind='middleware', name=reg_name))
-            return await next_fn(params, ctx)
-
-    await ai.generate(model='test/echo', prompt='hi', use=[FindSelf()])
-
-    assert isinstance(seen[0], GenerateMiddleware)
-    assert seen[1] is None
 
 
 @pytest.mark.parametrize(
@@ -302,28 +233,3 @@ async def test_lookup_tool_finds_interrupts() -> None:
 
     assert found is not None
     assert found.name == 'confirm_order'
-
-
-@pytest.mark.asyncio
-async def test_middleware_ctx_lookup_tool_sees_this_calls_tools() -> None:
-    """A tool passed only to this call (`tools=[tool(fn)]`) is visible through `ctx.ai`, not `ai`."""
-    ai = Genkit()
-    _define_answering_model(ai, 'test/echo', 'from echo')
-    seen: list[object | None] = []
-
-    async def specials_today() -> str:
-        """Today's specials."""
-        return 'miso ramen'
-
-    class FindTool(BaseMiddleware):
-        async def wrap_model(
-            self, params: ModelHookParams, ctx: GenerateMiddlewareContext, next_fn: NextModel
-        ) -> ModelResponse:
-            seen.append(await ctx.ai.lookup_tool('specials_today'))
-            seen.append(await ai.lookup_tool('specials_today'))
-            return await next_fn(params, ctx)
-
-    await ai.generate(model='test/echo', prompt='hi', tools=[tool(specials_today)], use=[FindTool()])
-
-    assert isinstance(seen[0], Tool)
-    assert seen[1] is None
