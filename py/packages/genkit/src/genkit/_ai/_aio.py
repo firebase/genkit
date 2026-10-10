@@ -45,9 +45,10 @@ from genkit._ai._evaluator import (
 from genkit._ai._formats._builtin import built_in_formats
 from genkit._ai._formats._types import FormatDef
 from genkit._ai._generate import (
-    ScopedGenkitView,
     define_generate_action,
     generate_action,
+    lookup_model,
+    lookup_tool,
     register_middleware,
     register_tools,
 )
@@ -617,7 +618,7 @@ class Genkit:
         generate call. Background models aren't included; they run through
         ``generate_operation``.
         """
-        return await ScopedGenkitView(self._registry).lookup_model(name)
+        return await lookup_model(self._registry, name)
 
     async def lookup_tool(self, name: str) -> Tool | None:
         """Return the tool registered under ``name``, or None.
@@ -640,11 +641,11 @@ class Genkit:
             # => The ramen is $14.50.
             ```
         """
-        return await ScopedGenkitView(self._registry).lookup_tool(name)
+        return await lookup_tool(self._registry, name)
 
     def lookup_value(self, *, kind: str, name: str) -> object | None:
         """Return the value defined under ``kind`` and ``name``, or None."""
-        return ScopedGenkitView(self._registry).lookup_value(kind=kind, name=name)
+        return self._registry.lookup_value(kind, name)
 
     def define_value(self, *, kind: str, name: str, value: object) -> None:
         """Store ``value`` under ``kind`` and ``name`` for later ``lookup_value``.
