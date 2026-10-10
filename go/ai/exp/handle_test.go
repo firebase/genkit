@@ -151,6 +151,13 @@ func TestLookupAgent(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("a transport's nil output is refused", func(t *testing.T) {
+		h := NewAgentHandle("a", nil, &scriptedRunTransport{outs: []*AgentOutput[json.RawMessage]{nil}})
+		if _, err := h.RunText(context.Background(), "hi"); status.Of(err) != status.Internal {
+			t.Errorf("RunText = %v, want INTERNAL", err)
+		}
+	})
 }
 
 // fakeDescAction is an api.Action stub carrying only a descriptor, for
