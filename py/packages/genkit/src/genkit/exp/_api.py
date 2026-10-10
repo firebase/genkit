@@ -184,8 +184,7 @@ class Genkit(StableGenkit):
             res = await chat.send('Weather in Paris?')
         """
         return define_agent(
-            registry=self._registry,
-            ai=self,
+            self,
             name=name,
             model=model,
             system=system,

@@ -22,6 +22,7 @@ from genkit import Document, Genkit, Message, ModelResponse, ModelResponseChunk,
 from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
 from genkit._ai._generate import (
     DEFAULT_MAX_TURNS,
+    CallScope,
     ChunkAccumulator,
     augment_with_context,
     generate_action,
@@ -113,7 +114,7 @@ async def test_simple_text_generate_request(
     )
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[
@@ -123,7 +124,6 @@ async def test_simple_text_generate_request(
                 ),
             ],
         ),
-        ai=ai,
     )
 
     assert response.text == 'bye'
@@ -358,7 +358,7 @@ async def test_simulates_doc_grounding(
     )
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[
@@ -369,7 +369,6 @@ async def test_simulates_doc_grounding(
             ],
             docs=[Document(content=[Part.from_text('doc content 1')])],
         ),
-        ai=ai,
     )
 
     grounded_msg = Message(
@@ -923,7 +922,7 @@ async def test_generate_applies_middleware() -> None:
     define_echo_model(ai)
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='echoModel',
             messages=[
@@ -934,7 +933,6 @@ async def test_generate_applies_middleware() -> None:
             ],
             use=[MiddlewareRef(name='pre_mw'), MiddlewareRef(name='post_mw')],
         ),
-        ai=ai,
     )
 
     assert response.text == '[ECHO] user: "PRE hi" POST'
@@ -947,7 +945,7 @@ async def test_generate_middleware_next_fn_args_optional() -> None:
     define_echo_model(ai)
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='echoModel',
             messages=[
@@ -958,7 +956,6 @@ async def test_generate_middleware_next_fn_args_optional() -> None:
             ],
             use=[MiddlewareRef(name='post_mw')],
         ),
-        ai=ai,
     )
 
     assert response.text == '[ECHO] user: "hi" POST'
@@ -1099,7 +1096,7 @@ async def test_generate_middleware_can_modify_context() -> None:
     define_echo_model(ai)
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='echoModel',
             messages=[
@@ -1111,7 +1108,6 @@ async def test_generate_middleware_can_modify_context() -> None:
             use=[MiddlewareRef(name='add_ctx'), MiddlewareRef(name='inject_ctx')],
         ),
         context={'foo': 'bar'},
-        ai=ai,
     )
 
     assert response.text == '''[ECHO] user: "hi {'foo': 'bar', 'banana': True}"'''
@@ -1183,7 +1179,7 @@ async def test_generate_middleware_can_modify_stream() -> None:
         got_chunks.append(text_from_content(c.content))
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[
@@ -1195,7 +1191,6 @@ async def test_generate_middleware_can_modify_stream() -> None:
             use=[MiddlewareRef(name='mod_stream_mw')],
         ),
         on_chunk=collect_chunks,
-        ai=ai,
     )
 
     assert response.text == 'bye'
@@ -1303,7 +1298,7 @@ async def test_stream_interception_chains_across_model_and_generate_hooks() -> N
         final_chunks.append(text_from_content(c.content))
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[
@@ -1312,7 +1307,6 @@ async def test_stream_interception_chains_across_model_and_generate_hooks() -> N
             use=[MiddlewareRef(name='chain_stream_mw')],
         ),
         on_chunk=collect,
-        ai=ai,
     )
 
     # Both wrap_model AND wrap_generate chunk handlers are called in order.
@@ -1388,13 +1382,12 @@ async def test_wrap_generate_called_per_turn() -> None:
         )
     )
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
             use=[MiddlewareRef(name='track_gen')],
         ),
-        ai=ai,
     )
     assert response.text == 'done'
     assert iters_a == [0]
@@ -1415,14 +1408,13 @@ async def test_wrap_generate_called_per_turn() -> None:
         )
     )
     response2 = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
             tools=['testTool'],
             use=[MiddlewareRef(name='track_gen2')],
         ),
-        ai=ai,
     )
     assert response2.text == 'final'
     assert iters_b == [0, 1]
@@ -1474,14 +1466,13 @@ async def test_wrap_tool_called_on_tool_execution() -> None:
     )
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
             tools=['myTool'],
             use=[MiddlewareRef(name='track_tool')],
         ),
-        ai=ai,
     )
     assert response.text == 'done'
     assert tool_names == ['myTool']
@@ -1540,14 +1531,13 @@ async def test_generate_context_reaches_tool_run() -> None:
     )
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
             tools=['ctxTool'],
         ),
         context={'user_id': 'u-123'},
-        ai=ai,
     )
 
     assert response.text == 'done'
@@ -1638,7 +1628,7 @@ async def test_generate_resume_context_reaches_tool_run() -> None:
     )
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[
@@ -1649,7 +1639,6 @@ async def test_generate_resume_context_reaches_tool_run() -> None:
             resume=Resume(restart=[restart_trp]),
         ),
         context={'session_token': 's-999'},
-        ai=ai,
     )
 
     assert response.text == 'all done'
@@ -1697,7 +1686,7 @@ async def test_wrap_tool_middleware_custom_context_reaches_tool_run() -> None:
     )
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
@@ -1705,7 +1694,6 @@ async def test_wrap_tool_middleware_custom_context_reaches_tool_run() -> None:
             use=[MiddlewareRef(name='enrich_tool_ctx')],
         ),
         context={'user_id': 'u-123'},
-        ai=ai,
     )
 
     assert response.text == 'done'
@@ -1772,7 +1760,7 @@ async def test_wrap_tool_custom_context_visible_to_generate_and_model_on_next_tu
 
     caller_ctx = {'user_id': 'u-123'}
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
@@ -1780,7 +1768,6 @@ async def test_wrap_tool_custom_context_visible_to_generate_and_model_on_next_tu
             use=[MiddlewareRef(name='enrich_and_track')],
         ),
         context=caller_ctx,
-        ai=ai,
     )
 
     assert response.text == 'done'
@@ -1833,14 +1820,13 @@ async def test_middleware_wrap_tool_interrupt_handled_as_interrupt_not_crash() -
     )
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('do it')])],
             tools=['blockedTool'],
             use=[MiddlewareRef(name='interrupt_all')],
         ),
-        ai=ai,
     )
     assert response.finish_reason == FinishReason.INTERRUPTED
     assert response.finish_message == 'One or more tool calls resulted in interrupts.'
@@ -1898,13 +1884,12 @@ async def test_middleware_contributed_tools_available_to_model() -> None:
     )
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
             use=[MiddlewareRef(name='tool_provider_mw')],
         ),
-        ai=ai,
     )
     assert _tool_output(response.messages[2]) == 'from_middleware_tool'
     assert response.text == 'done'
@@ -1988,13 +1973,12 @@ async def test_middleware_contributed_tools_do_not_outlive_the_call() -> None:
     )
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
             use=[MiddlewareRef(name='provider_mw')],
         ),
-        ai=ai,
     )
 
     assert response.text == 'ok'
@@ -2080,7 +2064,7 @@ async def test_queue_drain_streams_each_message_at_one_index() -> None:
 
     streamed: list[ModelResponseChunk] = []
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('go')])],
@@ -2088,7 +2072,6 @@ async def test_queue_drain_streams_each_message_at_one_index() -> None:
             use=[MiddlewareRef(name='enqueuing_mw')],
         ),
         on_chunk=streamed.append,
-        ai=ai,
     )
     assert response.text == 'final'
 
@@ -2139,7 +2122,7 @@ async def test_restart_path_routes_through_wrap_tool_middleware() -> None:
     interrupt_part = Part.from_tool_request(name='approveMe', input={}, ref='r1', metadata={'interrupt': True})
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[
@@ -2162,7 +2145,6 @@ async def test_restart_path_routes_through_wrap_tool_middleware() -> None:
                 ],
             ),
         ),
-        ai=ai,
     )
     assert response.text == 'final'
     assert invocations == ['approveMe'], f'expected wrap_tool to fire once on restart, saw: {invocations}'
@@ -2313,7 +2295,7 @@ async def test_parallel_tool_requests_all_complete() -> None:
     )
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[
@@ -2321,7 +2303,6 @@ async def test_parallel_tool_requests_all_complete() -> None:
             ],
             tools=['tool_a', 'tool_b', 'tool_c'],
         ),
-        ai=ai,
     )
 
     assert response.finish_reason == FinishReason.STOP
@@ -2423,7 +2404,7 @@ async def test_parallel_tool_requests_one_interrupt_keeps_pending_output_for_oth
     )
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[
@@ -2431,7 +2412,6 @@ async def test_parallel_tool_requests_one_interrupt_keeps_pending_output_for_oth
             ],
             tools=['tool_a', 'tool_b', 'tool_c'],
         ),
-        ai=ai,
     )
 
     assert response.finish_reason == FinishReason.INTERRUPTED
@@ -2502,13 +2482,12 @@ async def test_generate_and_model_middleware_execution_order() -> None:
 
     pm.response_cb = model_side_effect
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
             use=[MiddlewareRef(name='order_mw')],
         ),
-        ai=ai,
     )
 
     assert response.text == 'response'
@@ -2600,14 +2579,13 @@ async def test_generate_model_tool_middleware_ordering_across_turns() -> None:
             return resp
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
             tools=['orderTool'],
             use=[MiddlewareRef(name='full_order_mw')],
         ),
-        ai=ai,
     )
 
     assert response.text == 'final response'
@@ -2662,7 +2640,7 @@ async def test_middleware_contributed_tool_resolvable_during_restart() -> None:
     interrupt_part = Part.from_tool_request(name='injectedTool', input={}, ref='r1', metadata={'interrupt': True})
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[
@@ -2679,7 +2657,6 @@ async def test_middleware_contributed_tool_resolvable_during_restart() -> None:
                 ],
             ),
         ),
-        ai=ai,
     )
     assert response.text == 'done after restart'
 
@@ -2872,7 +2849,7 @@ async def test_generate_with_empty_messages_lets_the_model_speak_first(
         )
     )
 
-    response = await generate_action(ai._registry, GenerateActionOptions(model='scriptedModel', messages=[]), ai=ai)
+    response = await generate_action(CallScope(ai), GenerateActionOptions(model='scriptedModel', messages=[]))
     assert response.finish_reason == FinishReason.STOP
     assert response.text == 'hello'
     assert response.error is None
@@ -4661,13 +4638,12 @@ async def test_generate_on_chunk_failure_returns_closed_history() -> None:
         raise RuntimeError('model sink closed')
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
         ),
         on_chunk=on_chunk,
-        ai=ai,
     )
 
     assert response.finish_reason == FinishReason.FAILED
@@ -4704,7 +4680,7 @@ async def test_generate_on_chunk_failure_echoes_full_request() -> None:
         raise RuntimeError('model sink closed')
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
@@ -4715,7 +4691,6 @@ async def test_generate_on_chunk_failure_echoes_full_request() -> None:
             output=GenerateActionOutputConfig(format='json'),
         ),
         on_chunk=on_chunk,
-        ai=ai,
     )
 
     assert response.finish_reason == FinishReason.FAILED
@@ -4750,13 +4725,12 @@ async def test_generate_on_chunk_genkit_error_is_internal_not_the_sink_reason() 
         )
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
         ),
         on_chunk=on_chunk,
-        ai=ai,
     )
 
     assert response.finish_reason == FinishReason.FAILED
@@ -6231,14 +6205,13 @@ async def test_abort_after_tool_turn_keeps_closed_rounds() -> None:
     ]
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('keep going')])],
             tools=['lookup'],
         ),
         abort_signal=abort_signal,
-        ai=ai,
     )
     assert response.finish_reason == FinishReason.ABORTED
     assert response.finish_message == 'Generation aborted.'
@@ -6270,14 +6243,13 @@ async def test_abort_during_first_tool_drops_unfinished_round() -> None:
 
     async def run() -> ModelResponse:
         return await generate_action(
-            ai._registry,
+            CallScope(ai),
             GenerateActionOptions(
                 model='scriptedModel',
                 messages=[Message(role=Role.USER, content=[Part.from_text('keep going')])],
                 tools=['lookup'],
             ),
             abort_signal=abort_signal,
-            ai=ai,
         )
 
     task = asyncio.create_task(run())
@@ -6305,13 +6277,12 @@ async def test_already_cancelled_generate_returns_prompt() -> None:
     abort_signal.set()
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('keep going')])],
         ),
         abort_signal=abort_signal,
-        ai=ai,
     )
     assert response.finish_reason == FinishReason.ABORTED
     assert response.finish_message == 'Generation aborted.'
@@ -6350,7 +6321,7 @@ async def test_already_cancelled_generate_returns_prior_messages() -> None:
     abort_signal.set()
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[
@@ -6360,7 +6331,6 @@ async def test_already_cancelled_generate_returns_prior_messages() -> None:
             ],
         ),
         abort_signal=abort_signal,
-        ai=ai,
     )
     assert response.finish_reason == FinishReason.ABORTED
     assert response.finish_message == 'Generation aborted.'
@@ -6385,13 +6355,12 @@ async def test_already_cancelled_unknown_model_returns() -> None:
     abort_signal.set()
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='nope/ghost',
             messages=[Message(role=Role.USER, content=[Part.from_text('keep going')])],
         ),
         abort_signal=abort_signal,
-        ai=ai,
     )
     assert response.finish_reason == FinishReason.ABORTED
     assert response.finish_message == 'Generation aborted.'
@@ -6421,13 +6390,12 @@ async def test_abort_during_first_model_call_returns_prompt() -> None:
 
     async def run() -> ModelResponse:
         return await generate_action(
-            ai._registry,
+            CallScope(ai),
             GenerateActionOptions(
                 model='hangingModel',
                 messages=[Message(role=Role.USER, content=[Part.from_text('keep going')])],
             ),
             abort_signal=abort_signal,
-            ai=ai,
         )
 
     task = asyncio.create_task(run())
@@ -6470,14 +6438,13 @@ async def test_abort_during_later_model_call_keeps_closed_round() -> None:
 
     async def run() -> ModelResponse:
         return await generate_action(
-            ai._registry,
+            CallScope(ai),
             GenerateActionOptions(
                 model='hangAfterToolModel',
                 messages=[Message(role=Role.USER, content=[Part.from_text('keep going')])],
                 tools=['lookup'],
             ),
             abort_signal=abort_signal,
-            ai=ai,
         )
 
     task = asyncio.create_task(run())
@@ -7836,13 +7803,12 @@ async def test_generate_on_chunk_validation_error_returns_closed_history() -> No
         Recipe.model_validate({'nope': 1})
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
         ),
         on_chunk=on_chunk,
-        ai=ai,
     )
 
     assert response.finish_reason == FinishReason.FAILED
@@ -8639,13 +8605,12 @@ async def test_generate_with_failing_streaming_callback_returns_callback_message
         raise RuntimeError('model sink closed')
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
         ),
         on_chunk=on_chunk,
-        ai=ai,
     )
 
     assert response.finish_reason == FinishReason.FAILED

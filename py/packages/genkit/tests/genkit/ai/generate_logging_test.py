@@ -10,7 +10,7 @@ import structlog
 from structlog.testing import capture_logs
 
 from genkit import Genkit, Message, ModelResponse, ModelResponseChunk, Part
-from genkit._ai._generate import generate_action
+from genkit._ai._generate import CallScope, generate_action
 from genkit._ai._model import resolve_model_arg
 from genkit._ai._tools import Interrupt
 from genkit._core._environment import GENKIT_ENV
@@ -194,13 +194,12 @@ async def test_abnormal_finish_skips_output_parsing(monkeypatch: pytest.MonkeyPa
 
     with capture_logs() as entries:
         response = await generate_action(
-            ai._registry,
+            CallScope(ai),
             GenerateActionOptions(
                 model='scriptedModel',
                 messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
                 output=GenerateActionOutputConfig(format='json'),
             ),
-            ai=ai,
         )
     assert response.finish_reason == FinishReason.BLOCKED
 
@@ -233,7 +232,7 @@ async def test_other_finish_skips_parsing_even_when_text_is_valid(monkeypatch: p
 
     with capture_logs() as entries:
         response = await generate_action(
-            ai._registry,
+            CallScope(ai),
             GenerateActionOptions(
                 model='scriptedModel',
                 messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
@@ -246,7 +245,6 @@ async def test_other_finish_skips_parsing_even_when_text_is_valid(monkeypatch: p
                     },
                 ),
             ),
-            ai=ai,
         )
 
     warned = [e for e in entries if e['event'] == 'model finished abnormally, skipping output parsing']
@@ -277,13 +275,12 @@ async def test_schema_mismatch_logs_when_debug_enabled(monkeypatch: pytest.Monke
 
     with capture_logs() as entries:
         response = await generate_action(
-            ai._registry,
+            CallScope(ai),
             GenerateActionOptions(
                 model='scriptedModel',
                 messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
                 output=GenerateActionOutputConfig(format='json'),
             ),
-            ai=ai,
         )
 
     assert response.message is not None
@@ -316,13 +313,12 @@ async def test_tool_interrupt_logs(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with capture_logs() as entries:
         response = await generate_action(
-            ai._registry,
+            CallScope(ai),
             GenerateActionOptions(
                 model='scriptedModel',
                 messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
                 tools=['hold'],
             ),
-            ai=ai,
         )
     assert response.finish_reason == FinishReason.INTERRUPTED
 
@@ -357,25 +353,23 @@ async def test_restarted_tool_interrupt_logs(monkeypatch: pytest.MonkeyPatch) ->
         )
     ]
     first = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
             tools=['hold'],
         ),
-        ai=ai,
     )
 
     with capture_logs() as entries:
         response = await generate_action(
-            ai._registry,
+            CallScope(ai),
             GenerateActionOptions(
                 model='scriptedModel',
                 messages=list(first.messages),
                 tools=['hold'],
                 resume=Resume(restart=[first.interrupts[0].restart()]),
             ),
-            ai=ai,
         )
 
     assert response.finish_reason == FinishReason.INTERRUPTED
@@ -415,14 +409,13 @@ async def test_tool_stream_callback_failure_fails_generate(monkeypatch: pytest.M
             raise RuntimeError('sink closed')
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
             tools=['echo'],
         ),
         on_chunk=on_chunk,
-        ai=ai,
     )
     assert response.finish_reason == FinishReason.FAILED
     assert response.finish_message == 'sink closed'
@@ -451,13 +444,12 @@ async def test_model_stream_callback_failure_returns_closed_history() -> None:
         raise RuntimeError('model sink closed')
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
         ),
         on_chunk=on_chunk,
-        ai=ai,
     )
     assert response.finish_reason == FinishReason.FAILED
     assert response.finish_message == 'model sink closed'
@@ -493,13 +485,12 @@ async def test_resumed_tool_stream_callback_failure_returns_closed_history() -> 
         ),
     ]
     first = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
             tools=['hold'],
         ),
-        ai=ai,
     )
 
     def on_chunk(chunk: object) -> None:
@@ -508,7 +499,7 @@ async def test_resumed_tool_stream_callback_failure_returns_closed_history() -> 
 
     reply = first.interrupts[0].respond({'approved': True})
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=list(first.messages),
@@ -516,7 +507,6 @@ async def test_resumed_tool_stream_callback_failure_returns_closed_history() -> 
             resume=Resume(respond=[reply]),
         ),
         on_chunk=on_chunk,
-        ai=ai,
     )
     assert response.finish_reason == FinishReason.FAILED
     assert response.finish_message == 'resume sink closed'

@@ -25,6 +25,7 @@ from typing import Any, Generic
 from pydantic import BaseModel
 
 # Internal imports from sibling modules
+from genkit._ai import _aio
 from genkit._ai._agents._client import AgentClient
 from genkit._ai._agents._preamble import (
     apply_preamble_tags,
@@ -82,7 +83,6 @@ from genkit._core._model import (
     Resume,
     SessionSnapshot,
 )
-from genkit._core._protocols import GenkitLike
 from genkit._core._registry import Registry
 from genkit._core._telemetry._instrumentation import set_custom_metadata_attributes
 from genkit._core._tool import Tool
@@ -340,10 +340,9 @@ def register_snapshot_actions(*, registry: Registry, name: str, agent: Agent) ->
 
 
 def define_agent(
-    registry: Registry,
+    ai: _aio.Genkit,
     name: str,
     *,
-    ai: GenkitLike,
     model: ModelRef[ModelRefConfigT] | Action | str | None = None,
     system: str | list[Part] | None = None,
     tools: Sequence[str | Tool] | None = None,
@@ -368,9 +367,9 @@ def define_agent(
     read and write via the session — the chat's ``state``, ``response.state``,
     and streamed ``chunk.custom`` come back as that model instead of a dict.
     """
+    registry = ai._registry
     executable_prompt = Prompt(
-        registry,
-        ai=ai,
+        ai,
         name=name,
         model=model,
         config=config,
@@ -443,8 +442,7 @@ def define_prompt_agent(
             return await generate_prompt_agent_turn(
                 session_runner=session_runner,
                 ctx=ctx,
-                ai=prepared.ai,
-                registry=prepared.registry,
+                scope=prepared.scope,
                 options=options,
                 history=history,
             )

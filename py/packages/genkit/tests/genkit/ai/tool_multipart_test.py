@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, TypeAdapter
 from pydantic.alias_generators import to_camel
 
 from genkit import Genkit, Message, ModelResponse, Part
-from genkit._ai._generate import generate_action, to_tool_definition
+from genkit._ai._generate import CallScope, generate_action, to_tool_definition
 from genkit._ai._tools import (
     ORIGINAL_OUTPUT_SCHEMA_KEY,
     MultipartToolResponse,
@@ -256,13 +256,12 @@ async def _tools_sent_to_model(ai: Genkit, tool_name: str, *, tool_input: dict |
         )
     )
     await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'go'}]})],
             tools=[tool_name],
         ),
-        ai=ai,
     )
     assert pm.last_request is not None
     assert pm.last_request.tools
@@ -320,13 +319,12 @@ async def test_unserializable_tool_output_is_invalid_argument() -> None:
     )
 
     response = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'snap'}]})],
             tools=['screenshot'],
         ),
-        ai=ai,
     )
     assert ran
     assert response.finish_reason == FinishReason.FAILED
@@ -396,14 +394,13 @@ async def test_wrap_tool_can_substitute_a_response() -> None:
     )
 
     res = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'wx'}]})],
             tools=['weather'],
             use=[MiddlewareRef(name='deny_mw')],
         ),
-        ai=ai,
     )
     tool_msg = next(m for m in res.messages if m.role == 'tool')
     denied = tool_msg.content[0].tool_response
@@ -450,14 +447,13 @@ async def test_wrap_tool_receives_the_model_tool_request_part() -> None:
     )
 
     res = await generate_action(
-        ai._registry,
+        CallScope(ai),
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'wx'}]})],
             tools=['weather'],
             use=[MiddlewareRef(name='capture_mw')],
         ),
-        ai=ai,
     )
     assert len(seen) == 1
     assert type(seen[0]) is Part

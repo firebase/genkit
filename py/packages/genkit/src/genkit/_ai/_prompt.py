@@ -17,6 +17,8 @@
 
 """Prompt management and templating."""
 
+from __future__ import annotations
+
 import asyncio
 import os
 import weakref
@@ -34,7 +36,9 @@ from dotpromptz import (
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 from typing_extensions import Never, Self
 
+from genkit._ai import _aio
 from genkit._ai._generate import (
+    CallScope,
     generate_action,
     register_middleware,
     register_tools,
@@ -78,7 +82,6 @@ from genkit._core._model import (
     ToolChoice,
     resume_options_to_resume,
 )
-from genkit._core._protocols import GenkitLike
 from genkit._core._registry import Registry
 from genkit._core._schema import InvalidOutputSchemaError, check_output_schema, parse_schema, to_json_schema
 from genkit._core._tool import Tool
@@ -273,7 +276,7 @@ class Prompt(Generic[InputT, OutputT]):
 
     def __init__(
         self,
-        registry: Registry,
+        ai: _aio.Genkit,
         variant: str | None = None,
         model: ModelArg | Action | None = None,
         config: Mapping[str, Any] | BaseModel | None = None,
@@ -297,12 +300,8 @@ class Prompt(Generic[InputT, OutputT]):
         docs: list[Document] | None = None,
         name: str | None = None,
         ns: str | None = None,
-        *,
-        ai: GenkitLike,
     ) -> None:
         """Initialize prompt with configuration, templates, and schema options."""
-        self._registry = registry
-        # The app's Genkit; generate hands it to middleware as ctx.ai.
         self._ai = ai
         # Keys the caller leaves out take these values before the template runs.
         self._input_default = dict(input_default) if input_default else None
@@ -341,7 +340,7 @@ class Prompt(Generic[InputT, OutputT]):
         # Compiled system/messages/prompt templates, filled on first render and reused.
         self._compiled_templates: PromptCache = PromptCache()
         self._prompt_action: Action | None = None
-        define_name, define_schema = config_schema_at_define(model=model, registry=registry)
+        define_name, define_schema = config_schema_at_define(model=model, registry=ai._registry)
         # Hop identity is what we knew at define time, not today's defaultModel.
         # Not a GenerateCall field, so _ensure_resolved copies it explicitly.
         self._defined_model_name = define_name
@@ -359,7 +358,7 @@ class Prompt(Generic[InputT, OutputT]):
         if self._prompt_action or not self._name:
             return
 
-        resolved = await lookup_prompt(self._registry, self._name, self._variant)
+        resolved = await lookup_prompt(self._ai._registry, self._name, self._variant)
         # Keep a Pydantic output type the caller passed: it wins over the file's
         # dict schema or registered name, and the type is what gives typed output.
         keep: dict[str, Any] = {}
@@ -395,7 +394,7 @@ class Prompt(Generic[InputT, OutputT]):
             override = normalize_config(config=override_config)
             # `maxOutputTokens` in the prompt and `max_output_tokens` in the
             # call are one setting: fold both to field names so the call wins.
-            schema = (await resolve_for_generate(model=model, registry=self._registry)).config_schema
+            schema = (await resolve_for_generate(model=model, registry=self._ai._registry)).config_schema
             if schema is not None:
                 base = fold_config_aliases(config=base, schema=schema)
                 override = fold_config_aliases(config=override, schema=schema)
@@ -406,7 +405,7 @@ class Prompt(Generic[InputT, OutputT]):
         resolved = await resolve_for_generate(
             model=model,
             config=merged_config,
-            registry=self._registry,
+            registry=self._ai._registry,
         )
         check_call_config(
             config=override_config,
@@ -475,9 +474,8 @@ class Prompt(Generic[InputT, OutputT]):
         )
         prepared = await prepare_prompt(prompt=self, input=input, opts=opts)
         result = await generate_action(
-            prepared.registry,
+            prepared.scope,
             prepared.options,
-            ai=prepared.ai,
             on_chunk=on_chunk,
             # Same context the template already rendered, so {{@auth}} and tools agree.
             context=prepared.context,
@@ -571,8 +569,7 @@ class Prompt(Generic[InputT, OutputT]):
 
 
 class PreparedPrompt(NamedTuple):
-    ai: GenkitLike
-    registry: Registry
+    scope: CallScope
     options: GenerateActionOptions
     context: dict[str, Any] | None
 
@@ -600,7 +597,8 @@ async def prepare_prompt(
     call = prompt._def.with_overrides(call_opts)
     # Tools and middleware passed inline (e.g. use=[Foo()]) are registered on a
     # child registry so they exist for this call only.
-    registry = prompt._registry.new_child()
+    scope = CallScope(prompt._ai)
+    registry = scope.registry
     await register_tools(registry, call.tools)
     if call.use is not None:
         call = call.model_copy(update={'use': register_middleware(registry, call.use)})
@@ -618,7 +616,7 @@ async def prepare_prompt(
     )
 
     options = await to_generate_options(registry=registry, call=call)
-    return PreparedPrompt(ai=prompt._ai, registry=registry, options=options, context=context)
+    return PreparedPrompt(scope=scope, options=options, context=context)
 
 
 def prompt_config_after_clears(
@@ -667,7 +665,7 @@ def _register_prompt_action_pair(
     async def prompt_action_fn(input: Any = None) -> ModelRequest:  # noqa: ANN401
         ep = await ep_factory()
         prepared = await prepare_prompt(prompt=ep, input=input)
-        return await to_prompt_model_request(registry=prepared.registry, options=prepared.options)
+        return await to_prompt_model_request(registry=prepared.scope.registry, options=prepared.options)
 
     async def executable_prompt_action_fn(input: Any = None) -> GenerateActionOptions:  # noqa: ANN401
         ep = await ep_factory()
@@ -1518,10 +1516,9 @@ def _transform_prompt_metadata(
     }
 
 
-def load_prompt(
-    registry: Registry, path: Path, filename: str, prefix: str = '', ns: str = '', *, ai: GenkitLike
-) -> None:
+def load_prompt(ai: _aio.Genkit, path: Path, filename: str, prefix: str = '', ns: str = '') -> None:
     """Load a .prompt file and register it as a lazy-loaded prompt."""
+    registry = ai._registry
     if not filename.endswith('.prompt'):
         raise ValueError(f"Invalid prompt filename: {filename}. Must end with '.prompt'")
 
@@ -1567,7 +1564,7 @@ def load_prompt(
         )
 
         executable_prompt = Prompt(
-            registry=registry,
+            ai,
             variant=metadata.get('variant'),
             model=metadata.get('model'),
             config=metadata.get('config'),
@@ -1587,7 +1584,6 @@ def load_prompt(
             use=metadata.get('use'),
             name=name,
             ns=ns,
-            ai=ai,
         )
 
         # Wire up action references
@@ -1634,17 +1630,14 @@ def load_prompt(
     logger.debug(f'Registered prompt "{registry_key}" from "{file_path}"')
 
 
-def load_prompt_folder_recursively(
-    registry: Registry, dir_path: Path, ns: str, sub_dir: str = '', *, ai: GenkitLike
-) -> None:
+def load_prompt_folder_recursively(ai: _aio.Genkit, dir_path: Path, ns: str, sub_dir: str = '') -> None:
     """Recursively load all prompt files from a directory.
 
     Args:
-        registry: The registry to register prompts in.
+        ai: The app whose registry the prompts are registered in.
         dir_path: Base path to the prompts directory.
         ns: Namespace for prompts.
         sub_dir: Current subdirectory being processed (for recursion).
-        ai: The app's Genkit, which loaded prompts hand to middleware as ``ctx.ai``.
     """
     full_path = dir_path / sub_dir if sub_dir else dir_path
 
@@ -1667,33 +1660,32 @@ def load_prompt_folder_recursively(
                         if end_frontmatter != -1:
                             source = source[end_frontmatter + 3 :].strip()
 
-                    define_partial(registry, partial_name, source)
+                    define_partial(ai._registry, partial_name, source)
                     logger.debug(f'Registered Dotprompt partial "{partial_name}" from "{entry.path}"')
                 else:
                     # This is a regular prompt
                     prefix_with_slash = f'{sub_dir}/' if sub_dir else ''
-                    load_prompt(registry, dir_path, entry.name, prefix_with_slash, ns, ai=ai)
+                    load_prompt(ai, dir_path, entry.name, prefix_with_slash, ns)
             elif entry.is_dir():
                 # Recursively process subdirectories
                 new_sub_dir = os.path.join(sub_dir, entry.name) if sub_dir else entry.name
-                load_prompt_folder_recursively(registry, dir_path, ns, new_sub_dir, ai=ai)
+                load_prompt_folder_recursively(ai, dir_path, ns, new_sub_dir)
     except PermissionError:
         logger.warning(f'Permission denied accessing directory: {full_path}')
     except Exception as e:
         logger.exception(f'Error loading prompts from {full_path}', exc_info=e)
 
 
-def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', ns: str = '', *, ai: GenkitLike) -> None:
+def load_prompt_folder(ai: _aio.Genkit, dir_path: str | Path = './prompts', ns: str = '') -> None:
     """Load all prompt files from a directory.
 
     This is the main entry point for loading prompts from a directory.
     It recursively processes all `.prompt` files and registers them.
 
     Args:
-        registry: The registry to register prompts in.
+        ai: The app whose registry the prompts are registered in.
         dir_path: Path to the prompts directory. Defaults to './prompts'.
         ns: Namespace for prompts. Defaults to 'dotprompt'.
-        ai: The app's Genkit, which loaded prompts hand to middleware as ``ctx.ai``.
     """
     path = Path(dir_path).resolve()
 
@@ -1705,7 +1697,7 @@ def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', n
         logger.warning(f'Prompt path is not a directory: {path}')
         return
 
-    load_prompt_folder_recursively(registry, path, ns, '', ai=ai)
+    load_prompt_folder_recursively(ai, path, ns, '')
     logger.info(f'Loaded prompts from directory: {path}')
 
 

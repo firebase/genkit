@@ -16,6 +16,8 @@
 
 """Generate action."""
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import copy
@@ -27,6 +29,7 @@ from typing import Any, TypeVar, cast
 
 from pydantic import BaseModel, ValidationError
 
+from genkit._ai import _aio
 from genkit._ai._formats._types import FormatDef, Formatter
 from genkit._ai._messages import inject_instructions
 from genkit._ai._model import (
@@ -91,7 +94,6 @@ from genkit._core._model import (
     reject_config_api_key,
     reject_unanswered_interrupts,
 )
-from genkit._core._protocols import GenkitLike
 from genkit._core._registry import Registry
 from genkit._core._schema import check_output_schema
 from genkit._core._telemetry._instrumentation import SpanContext, run_in_new_span, set_span_state
@@ -260,6 +262,20 @@ async def run_logged_hook(
                 extra=attrs,
             ),
         )
+
+
+class CallScope:
+    """One generate call: the app's Genkit and a child registry for this call only.
+
+    Inline ``tools=[...]``, inline ``use=[...]`` middleware, and tools middleware
+    contributes are registered on ``registry`` so they resolve by name for this
+    call and are gone after it. The child is built from ``ai``'s registry here,
+    so the two always belong together.
+    """
+
+    def __init__(self, ai: _aio.Genkit) -> None:
+        self.ai = ai
+        self.registry: Registry = ai._registry.new_child()
 
 
 def register_middleware(
@@ -670,7 +686,7 @@ def raise_if_aborted(abort_signal: asyncio.Event) -> None:
         raise GenkitError(status='ABORTED', message='Generation aborted.')
 
 
-def define_generate_action(registry: Registry, *, ai: GenkitLike) -> None:
+def define_generate_action(ai: _aio.Genkit) -> None:
     """Register the generation action triggered by the Dev UI."""
 
     async def generate_action_fn(
@@ -679,8 +695,7 @@ def define_generate_action(registry: Registry, *, ai: GenkitLike) -> None:
     ) -> ModelResponse:
         on_chunk = cast(Callable[[ModelResponseChunk], None], ctx.streaming_callback) if ctx.is_streaming else None
         response = await run_generate(
-            ai=ai,
-            registry=registry,
+            scope=CallScope(ai),
             options=input,
             abort_signal=ctx.abort_signal,
             on_chunk=on_chunk,
@@ -690,7 +705,7 @@ def define_generate_action(registry: Registry, *, ai: GenkitLike) -> None:
             set_span_state('error')
         return response
 
-    _ = registry.register_action(
+    _ = ai._registry.register_action(
         kind=ActionKind.UTIL,
         name='generate',
         fn=generate_action_fn,
@@ -698,15 +713,13 @@ def define_generate_action(registry: Registry, *, ai: GenkitLike) -> None:
 
 
 async def generate_action(
-    registry: Registry,
+    scope: CallScope,
     options: GenerateActionOptions,
     on_chunk: Callable[[ModelResponseChunk], None] | None = None,
     message_index: int = 0,
     current_turn: int = 0,
     context: dict[str, Any] | None = None,
     abort_signal: asyncio.Event | None = None,
-    *,
-    ai: GenkitLike,
 ) -> ModelResponse:
     """Open the user-facing ``generate`` span and delegate to the engine.
 
@@ -723,8 +736,7 @@ async def generate_action(
 
     async def body(_span: SpanContext) -> ModelResponse:
         result = await run_generate(
-            ai=ai,
-            registry=registry,
+            scope=scope,
             options=options,
             abort_signal=abort_signal,
             on_chunk=on_chunk,
@@ -741,8 +753,7 @@ async def generate_action(
 
 async def run_generate(
     *,
-    ai: GenkitLike,
-    registry: Registry,
+    scope: CallScope,
     options: GenerateActionOptions,
     on_chunk: Callable[[ModelResponseChunk], None] | None = None,
     message_index: int = 0,
@@ -771,7 +782,7 @@ async def run_generate(
     # The veneer already checked ahead of its span. /util/generate (Dev UI,
     # reflection) starts here, so it fails before middleware or the model runs.
     reject_config_api_key(options.config)
-    registry = registry if registry.is_child else registry.new_child()
+    registry = scope.registry
 
     if options.tools:
         options.tools = await expand_wildcard_tools(registry, options.tools)
@@ -788,7 +799,7 @@ async def run_generate(
             raise StreamingCallbackError(exc) from exc
 
     ctx = GenerateMiddlewareContext(
-        ai=ai,
+        ai=scope.ai,
         custom_context=dict(context or {}),
         on_chunk=send_caller_chunk if caller_on_chunk is not None else None,
         abort_signal=abort_signal if abort_signal is not None else asyncio.Event(),
