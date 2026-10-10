@@ -20,20 +20,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Protocol
 
 from genkit import Genkit, GenkitError, RuntimeErrorReason, get_logger
+from genkit.middleware import GenerateMiddlewareContext
 
 from ._catalog import BASIC_CATALOG, A2uiCatalog
 from ._types import A2UI_CATALOG_VALUE_TYPE, BASIC_CATALOG_ID, DEFAULT_CATALOG_ID
 
 logger = get_logger(__name__)
-
-
-class ValueLookup(Protocol):
-    """Anything catalogs can be read from: the app, or ``ctx.ai`` inside middleware."""
-
-    def lookup_value(self, *, kind: str, name: str) -> object | None: ...
 
 
 class A2uiCatalogError(GenkitError):
@@ -97,9 +91,9 @@ def read_catalog_file(*, path: str) -> A2uiCatalog:
     return catalog
 
 
-def resolve_catalog(*, ai: ValueLookup, catalog: str | None) -> A2uiCatalog:
+def resolve_catalog(*, ctx: GenerateMiddlewareContext, catalog: str | None) -> A2uiCatalog:
     lookup = catalog or DEFAULT_CATALOG_ID
-    found = ai.lookup_value(kind=A2UI_CATALOG_VALUE_TYPE, name=lookup)
+    found = ctx.ai.lookup_value(kind=A2UI_CATALOG_VALUE_TYPE, name=lookup)
     if found is not None:
         resolved = A2uiCatalog.from_value(found)
         if resolved is None:

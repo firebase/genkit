@@ -81,7 +81,7 @@ class Surfaces(BaseMiddleware[SurfacesConfig]):
         ctx: GenerateMiddlewareContext,
         next_fn: Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        catalog = resolve_catalog(ai=ctx.ai, catalog=self.config.catalog)
+        catalog = resolve_catalog(ctx=ctx, catalog=self.config.catalog)
         version = self.config.version or DEFAULT_VERSION
         validate = self.config.validation
         # Chunks are rewritten as fences close. The finished message is parsed
