@@ -105,6 +105,7 @@ async def test_normal_two_arg_tools_see_no_resume_context() -> None:
         _gen_opts(
             ai, tools=['u1', 'u2'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]
         ),
+        ai=ai,
     )
     assert seen == [(False, None, None), (False, None, None)]
     assert _wire(r.messages) == [
@@ -162,6 +163,7 @@ async def test_interrupt_wires_trp_metadata_interrupt_and_stops() -> None:
     r = await generate_action(
         ai._registry,
         _gen_opts(ai, tools=['intr'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]),
+        ai=ai,
     )
     assert r.finish_reason == FinishReason.INTERRUPTED
     assert _wire(r.messages) == [
@@ -217,6 +219,7 @@ async def test_resume_respond_trp_gets_resolved_interrupt_and_tool_trp() -> None
     first = await generate_action(
         ai._registry,
         _gen_opts(ai, tools=['intr'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]),
+        ai=ai,
     )
     assert first.finish_reason == FinishReason.INTERRUPTED
     assert _wire(first.messages) == [
@@ -241,6 +244,7 @@ async def test_resume_respond_trp_gets_resolved_interrupt_and_tool_trp() -> None
     second = await generate_action(
         ai._registry,
         _gen_opts(ai, tools=['intr'], messages=list(first.messages), resume=Resume(respond=[reply])),
+        ai=ai,
     )
 
     assert second.finish_reason == FinishReason.STOP
@@ -299,6 +303,7 @@ async def _interrupted_generate() -> tuple[Genkit, ModelResponse]:
     first = await generate_action(
         ai._registry,
         _gen_opts(ai, tools=['intr'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]),
+        ai=ai,
     )
     assert first.finish_reason == FinishReason.INTERRUPTED
     return ai, first
@@ -385,6 +390,7 @@ async def test_tool_either_interrupts_or_returns() -> None:
             tools=['bank_transfer'],
             messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})],
         ),
+        ai=ai,
     )
     assert r_fail.finish_reason == FinishReason.INTERRUPTED
     assert _wire(r_fail.messages) == [
@@ -439,6 +445,7 @@ async def test_tool_either_interrupts_or_returns() -> None:
             tools=['bank_transfer'],
             messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})],
         ),
+        ai=ai,
     )
     assert r_ok.finish_reason == FinishReason.STOP
     assert _wire(r_ok.messages) == [
@@ -512,6 +519,7 @@ async def test_resume_restart_runs_tool_second_time_and_resolved_interrupt_on_mo
     first = await generate_action(
         ai._registry,
         _gen_opts(ai, tools=['pay'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]),
+        ai=ai,
     )
     assert first.finish_reason == FinishReason.INTERRUPTED
     assert _wire(first.messages) == [
@@ -536,6 +544,7 @@ async def test_resume_restart_runs_tool_second_time_and_resolved_interrupt_on_mo
     second = await generate_action(
         ai._registry,
         _gen_opts(ai, tools=['pay'], messages=list(first.messages), resume=Resume(restart=[restart_trp])),
+        ai=ai,
     )
 
     assert second.finish_reason == FinishReason.STOP
@@ -603,6 +612,7 @@ async def test_resume_top_level_metadata_lands_on_tool_message() -> None:
     first = await generate_action(
         ai._registry,
         _gen_opts(ai, tools=['pay'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]),
+        ai=ai,
     )
     restart_trp = first.interrupts[0].restart(replace_input={'ok': True})
 
@@ -614,6 +624,7 @@ async def test_resume_top_level_metadata_lands_on_tool_message() -> None:
             messages=list(first.messages),
             resume=Resume(restart=[restart_trp], metadata={'approved_by': 'test'}),
         ),
+        ai=ai,
     )
 
     tool_msg = next(m for m in second.messages if m.role == 'tool')
@@ -664,6 +675,7 @@ async def test_mixed_resume_one_respond_one_restart() -> None:
         _gen_opts(
             ai, tools=['a', 'b'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]
         ),
+        ai=ai,
     )
     assert first.finish_reason == FinishReason.INTERRUPTED
     assert _wire(first.messages) == [
@@ -701,6 +713,7 @@ async def test_mixed_resume_one_respond_one_restart() -> None:
                 restart=[ib.restart(replace_input={'ok': True})],
             ),
         ),
+        ai=ai,
     )
 
     assert second.finish_reason == FinishReason.STOP
@@ -789,6 +802,7 @@ async def test_mixed_one_interrupts_one_succeeds_pending_output_in_wire() -> Non
         _gen_opts(
             ai, tools=['a', 'b'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]
         ),
+        ai=ai,
     )
     assert first.finish_reason == FinishReason.INTERRUPTED
     # b's output is stashed in pendingOutput on its TRP; no tool message yet.
@@ -818,6 +832,7 @@ async def test_mixed_one_interrupts_one_succeeds_pending_output_in_wire() -> Non
             messages=list(first.messages),
             resume=Resume(respond=[ia.respond({'approved': True})]),
         ),
+        ai=ai,
     )
 
     assert second.finish_reason == FinishReason.STOP
@@ -912,7 +927,7 @@ async def test_pending_multipart_response_survives_wire_round_trip() -> None:
         use=[MiddlewareRef(name='multipart_media')],
     )
 
-    first = await generate_action(ai._registry, options)
+    first = await generate_action(ai._registry, options, ai=ai)
 
     assert first.finish_reason == FinishReason.INTERRUPTED
     assert first.message is not None
@@ -940,6 +955,7 @@ async def test_pending_multipart_response_survives_wire_round_trip() -> None:
                 'resume': Resume(respond=[interrupt.respond('approved')]),
             }
         ),
+        ai=ai,
     )
 
     assert second.finish_reason == FinishReason.STOP
@@ -1009,6 +1025,7 @@ async def test_restarted_tools_run_concurrently_and_keep_request_order() -> None
             tools=['alpha', 'beta'],
             messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'start'}]})],
         ),
+        ai=ai,
     )
     interrupts = {p.tool_request.name: p for p in first.interrupts if p.tool_request is not None}
 
@@ -1026,6 +1043,7 @@ async def test_restarted_tools_run_concurrently_and_keep_request_order() -> None
                     ]
                 ),
             ),
+            ai=ai,
         ),
         timeout=2,
     )
@@ -1067,6 +1085,7 @@ async def test_resume_without_matching_replies_is_still_resendable() -> None:
             messages=messages,
             resume=Resume(),
         ),
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.FAILED
     assert response.finish_message is not None
@@ -1096,6 +1115,7 @@ async def test_resume_on_empty_messages_is_still_resendable() -> None:
             messages=[],
             resume=Resume(),
         ),
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.FAILED
     assert response.finish_message is not None
@@ -1119,6 +1139,7 @@ async def test_resume_on_user_turn_is_still_resendable() -> None:
             messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'only user'}]})],
             resume=Resume(),
         ),
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.FAILED
     assert response.finish_message is not None
@@ -1148,6 +1169,7 @@ async def test_resume_on_text_only_model_turn_is_still_resendable() -> None:
             ],
             resume=Resume(),
         ),
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.FAILED
     assert response.finish_message is not None
@@ -1185,6 +1207,7 @@ async def test_resume_on_tool_turn_is_still_resendable() -> None:
             ],
             resume=Resume(),
         ),
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.FAILED
     assert response.finish_message is not None
@@ -1227,6 +1250,7 @@ async def test_restarted_tool_that_interrupts_again_returns_interrupted() -> Non
             messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})],
             tools=['hold'],
         ),
+        ai=ai,
     )
 
     response = await generate_action(
@@ -1237,6 +1261,7 @@ async def test_restarted_tool_that_interrupts_again_returns_interrupted() -> Non
             tools=['hold'],
             resume=Resume(restart=[first.interrupts[0].restart()]),
         ),
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.INTERRUPTED
     assert response.finish_message == 'One or more tool calls resulted in interrupts.'
@@ -1289,6 +1314,7 @@ async def _screenshot_confirm_interrupted() -> tuple[Genkit, Any]:
             tools=['confirm', 'screenshot'],
             messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'post the lab'}]})],
         ),
+        ai=ai,
     )
     assert first.finish_reason == FinishReason.INTERRUPTED
     return ai, first
@@ -1322,6 +1348,7 @@ async def test_mixed_interrupt_preserves_sibling_media_on_resume() -> None:
             messages=list(first.messages),
             resume=Resume(respond=[first.interrupts[0].respond({'approved': True})]),
         ),
+        ai=ai,
     )
     assert second.finish_reason == FinishReason.STOP
     tool_msg = next(m for m in second.messages if m.role == 'tool')
@@ -1344,6 +1371,7 @@ async def test_resume_rejects_hollow_pending_content() -> None:
             messages=_with_shot_pending(first, pendingContent=[{}]),
             resume=Resume(respond=[first.interrupts[0].respond({'approved': True})]),
         ),
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.FAILED
     assert response.error is not None
@@ -1371,6 +1399,7 @@ async def test_resume_rejects_text_and_media_pending_content() -> None:
             ),
             resume=Resume(respond=[first.interrupts[0].respond({'approved': True})]),
         ),
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.FAILED
     assert response.error is not None
@@ -1395,6 +1424,7 @@ async def test_resume_rejects_non_dict_pending_metadata() -> None:
             messages=_with_shot_pending(first, pendingMetadata='cam'),
             resume=Resume(respond=[first.interrupts[0].respond({'approved': True})]),
         ),
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.FAILED
     assert response.error is not None
@@ -1456,6 +1486,7 @@ async def _restart_screenshot(*, with_passthrough: bool = False) -> tuple[Any, A
             messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'snap'}]})],
             use=use,
         ),
+        ai=ai,
     )
     assert first.finish_reason == FinishReason.INTERRUPTED
 
@@ -1468,6 +1499,7 @@ async def _restart_screenshot(*, with_passthrough: bool = False) -> tuple[Any, A
             resume=Resume(restart=[first.interrupts[0].restart(replace_input={'ok': True})]),
             use=use,
         ),
+        ai=ai,
     )
     tool_msg = next(m for m in second.messages if m.role == 'tool')
     return tool_msg.content[0].tool_response, tool_msg.content[0].metadata
@@ -1558,6 +1590,7 @@ async def test_generate_action_resume_rejects_paused_part() -> None:
             messages=list(first.messages),
             resume=Resume(restart=[first.interrupts[0]]),
         ),
+        ai=ai,
     )
     assert again.finish_reason == FinishReason.FAILED
     assert again.finish_message is not None

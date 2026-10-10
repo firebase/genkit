@@ -185,6 +185,7 @@ class Genkit(StableGenkit):
         """
         return define_agent(
             registry=self._registry,
+            ai=self,
             name=name,
             model=model,
             system=system,

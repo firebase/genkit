@@ -78,6 +78,7 @@ from genkit._core._model import (
     ToolChoice,
     resume_options_to_resume,
 )
+from genkit._core._protocols import GenkitLike
 from genkit._core._registry import Registry
 from genkit._core._schema import InvalidOutputSchemaError, check_output_schema, parse_schema, to_json_schema
 from genkit._core._tool import Tool
@@ -296,9 +297,13 @@ class Prompt(Generic[InputT, OutputT]):
         docs: list[Document] | None = None,
         name: str | None = None,
         ns: str | None = None,
+        *,
+        ai: GenkitLike,
     ) -> None:
         """Initialize prompt with configuration, templates, and schema options."""
         self._registry = registry
+        # The app's Genkit; generate hands it to middleware as ctx.ai.
+        self._ai = ai
         # Keys the caller leaves out take these values before the template runs.
         self._input_default = dict(input_default) if input_default else None
         # Set when a lookup also passed input_schema=; the file's schema still
@@ -472,6 +477,7 @@ class Prompt(Generic[InputT, OutputT]):
         result = await generate_action(
             prepared.registry,
             prepared.options,
+            ai=prepared.ai,
             on_chunk=on_chunk,
             # Same context the template already rendered, so {{@auth}} and tools agree.
             context=prepared.context,
@@ -565,6 +571,7 @@ class Prompt(Generic[InputT, OutputT]):
 
 
 class PreparedPrompt(NamedTuple):
+    ai: GenkitLike
     registry: Registry
     options: GenerateActionOptions
     context: dict[str, Any] | None
@@ -611,7 +618,7 @@ async def prepare_prompt(
     )
 
     options = await to_generate_options(registry=registry, call=call)
-    return PreparedPrompt(registry=registry, options=options, context=context)
+    return PreparedPrompt(ai=prompt._ai, registry=registry, options=options, context=context)
 
 
 def prompt_config_after_clears(
@@ -1511,7 +1518,9 @@ def _transform_prompt_metadata(
     }
 
 
-def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '', ns: str = '') -> None:
+def load_prompt(
+    registry: Registry, path: Path, filename: str, prefix: str = '', ns: str = '', *, ai: GenkitLike
+) -> None:
     """Load a .prompt file and register it as a lazy-loaded prompt."""
     if not filename.endswith('.prompt'):
         raise ValueError(f"Invalid prompt filename: {filename}. Must end with '.prompt'")
@@ -1578,6 +1587,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
             use=metadata.get('use'),
             name=name,
             ns=ns,
+            ai=ai,
         )
 
         # Wire up action references
@@ -1624,7 +1634,9 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
     logger.debug(f'Registered prompt "{registry_key}" from "{file_path}"')
 
 
-def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, sub_dir: str = '') -> None:
+def load_prompt_folder_recursively(
+    registry: Registry, dir_path: Path, ns: str, sub_dir: str = '', *, ai: GenkitLike
+) -> None:
     """Recursively load all prompt files from a directory.
 
     Args:
@@ -1632,6 +1644,7 @@ def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, 
         dir_path: Base path to the prompts directory.
         ns: Namespace for prompts.
         sub_dir: Current subdirectory being processed (for recursion).
+        ai: The app's Genkit, which loaded prompts hand to middleware as ``ctx.ai``.
     """
     full_path = dir_path / sub_dir if sub_dir else dir_path
 
@@ -1659,18 +1672,18 @@ def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, 
                 else:
                     # This is a regular prompt
                     prefix_with_slash = f'{sub_dir}/' if sub_dir else ''
-                    load_prompt(registry, dir_path, entry.name, prefix_with_slash, ns)
+                    load_prompt(registry, dir_path, entry.name, prefix_with_slash, ns, ai=ai)
             elif entry.is_dir():
                 # Recursively process subdirectories
                 new_sub_dir = os.path.join(sub_dir, entry.name) if sub_dir else entry.name
-                load_prompt_folder_recursively(registry, dir_path, ns, new_sub_dir)
+                load_prompt_folder_recursively(registry, dir_path, ns, new_sub_dir, ai=ai)
     except PermissionError:
         logger.warning(f'Permission denied accessing directory: {full_path}')
     except Exception as e:
         logger.exception(f'Error loading prompts from {full_path}', exc_info=e)
 
 
-def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', ns: str = '') -> None:
+def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', ns: str = '', *, ai: GenkitLike) -> None:
     """Load all prompt files from a directory.
 
     This is the main entry point for loading prompts from a directory.
@@ -1680,6 +1693,7 @@ def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', n
         registry: The registry to register prompts in.
         dir_path: Path to the prompts directory. Defaults to './prompts'.
         ns: Namespace for prompts. Defaults to 'dotprompt'.
+        ai: The app's Genkit, which loaded prompts hand to middleware as ``ctx.ai``.
     """
     path = Path(dir_path).resolve()
 
@@ -1691,7 +1705,7 @@ def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', n
         logger.warning(f'Prompt path is not a directory: {path}')
         return
 
-    load_prompt_folder_recursively(registry, path, ns, '')
+    load_prompt_folder_recursively(registry, path, ns, '', ai=ai)
     logger.info(f'Loaded prompts from directory: {path}')
 
 

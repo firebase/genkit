@@ -3,7 +3,7 @@
 # Copyright 2026 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-"""What app code gets back from lookup_model, lookup_tool, lookup_value, and define_value."""
+"""What app code and middleware get back from lookup_model, lookup_tool, lookup_value, and define_value."""
 
 import re
 from collections.abc import Awaitable, Callable
@@ -11,8 +11,8 @@ from collections.abc import Awaitable, Callable
 import pytest
 
 from genkit import ActionRunContext, FinishReason, Genkit, Message, ModelResponse, Operation, Part, Role, Tool
-from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, ModelHookParams
-from genkit.model import ModelRequest, model
+from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, MiddlewareRef, ModelHookParams
+from genkit.model import GenerateActionOptions, ModelRequest, model
 from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin
 
 NextModel = Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]]
@@ -139,22 +139,83 @@ def test_genkit_has_no_registry_attribute() -> None:
 
 
 @pytest.mark.asyncio
-async def test_middleware_ctx_has_no_registry_attribute() -> None:
-    """`ctx.ai` has no public `registry` attribute."""
+async def test_middleware_ctx_ai_is_the_app_on_every_generate_path() -> None:
+    """`ctx.ai` is the app's Genkit for `ai.generate`, a prompt call, and Dev UI's `/util/generate`."""
     ai = Genkit()
     _define_answering_model(ai, 'test/echo', 'from echo')
-    has_registry: list[bool] = []
+    seen: list[object] = []
 
-    class PeekRegistry(BaseMiddleware):
+    class PeekAi(BaseMiddleware):
         async def wrap_model(
             self, params: ModelHookParams, ctx: GenerateMiddlewareContext, next_fn: NextModel
         ) -> ModelResponse:
-            has_registry.append(hasattr(ctx.ai, 'registry'))
+            seen.append(ctx.ai)
             return await next_fn(params, ctx)
 
-    await ai.generate(model='test/echo', prompt='hi', use=[PeekRegistry()])
+    ai.define_middleware(PeekAi, name='peek_ai')
 
-    assert has_registry == [False]
+    # 1. Veneer
+    await ai.generate(model='test/echo', prompt='hi', use=[PeekAi()])
+
+    # 2. Prompt
+    prompt = ai.define_prompt(model='test/echo', prompt='hi', use=[PeekAi()])
+    await prompt()
+
+    # 3. Dev UI / reflection
+    util = await ai._registry.resolve_action(ActionKind.UTIL, 'generate')  # pyright: ignore[reportPrivateUsage]
+    assert util is not None
+    await util.run(
+        GenerateActionOptions(
+            model='test/echo',
+            messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
+            use=[MiddlewareRef(name='peek_ai')],
+        )
+    )
+
+    assert len(seen) == 3
+    assert all(s is ai for s in seen)
+
+
+@pytest.mark.asyncio
+async def test_middleware_ctx_ai_lookup_model_finds_app_model() -> None:
+    """Middleware calling `await ctx.ai.lookup_model('test/other')` gets the app's model and can answer with it."""
+    ai = Genkit()
+    _define_answering_model(ai, 'test/echo', 'from echo')
+    _define_answering_model(ai, 'test/other', 'from other')
+
+    class SwapModel(BaseMiddleware):
+        async def wrap_model(
+            self, params: ModelHookParams, ctx: GenerateMiddlewareContext, next_fn: NextModel
+        ) -> ModelResponse:
+            other = await ctx.ai.lookup_model('test/other')
+            assert other is not None
+            result = await other.run(params.request)
+            return result.response
+
+    response = await ai.generate(model='test/echo', prompt='hi', use=[SwapModel()])
+
+    assert response.text == 'from other'
+
+
+@pytest.mark.asyncio
+async def test_middleware_ctx_ai_lookup_value_sees_app_value() -> None:
+    """A value from `ai.define_value` is what middleware gets from `ctx.ai.lookup_value`."""
+    ai = Genkit()
+    _define_answering_model(ai, 'test/echo', 'from echo')
+    ai.define_value(kind='greeting', name='default', value='hello')
+    seen: list[object | None] = []
+
+    class ReadValue(BaseMiddleware):
+        async def wrap_model(
+            self, params: ModelHookParams, ctx: GenerateMiddlewareContext, next_fn: NextModel
+        ) -> ModelResponse:
+            seen.append(ctx.ai.lookup_value(kind='greeting', name='default'))
+            seen.append(ctx.ai.lookup_value(kind='greeting', name='missing'))
+            return await next_fn(params, ctx)
+
+    await ai.generate(model='test/echo', prompt='hi', use=[ReadValue()])
+
+    assert seen == ['hello', None]
 
 
 @pytest.mark.parametrize(

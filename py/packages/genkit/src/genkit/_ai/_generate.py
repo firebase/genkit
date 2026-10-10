@@ -91,7 +91,7 @@ from genkit._core._model import (
     reject_config_api_key,
     reject_unanswered_interrupts,
 )
-from genkit._core._protocols import RegistryLike
+from genkit._core._protocols import GenkitLike
 from genkit._core._registry import Registry
 from genkit._core._schema import check_output_schema
 from genkit._core._telemetry._instrumentation import SpanContext, run_in_new_span, set_span_state
@@ -260,13 +260,6 @@ async def run_logged_hook(
                 extra=attrs,
             ),
         )
-
-
-@dataclass(frozen=True)
-class ScopedGenkitView:
-    """``ctx.ai`` for one generate call. Holds the call's child registry."""
-
-    _registry: RegistryLike
 
 
 def register_middleware(
@@ -677,7 +670,7 @@ def raise_if_aborted(abort_signal: asyncio.Event) -> None:
         raise GenkitError(status='ABORTED', message='Generation aborted.')
 
 
-def define_generate_action(registry: Registry) -> None:
+def define_generate_action(registry: Registry, *, ai: GenkitLike) -> None:
     """Register the generation action triggered by the Dev UI."""
 
     async def generate_action_fn(
@@ -686,6 +679,7 @@ def define_generate_action(registry: Registry) -> None:
     ) -> ModelResponse:
         on_chunk = cast(Callable[[ModelResponseChunk], None], ctx.streaming_callback) if ctx.is_streaming else None
         response = await run_generate(
+            ai=ai,
             registry=registry,
             options=input,
             abort_signal=ctx.abort_signal,
@@ -711,6 +705,8 @@ async def generate_action(
     current_turn: int = 0,
     context: dict[str, Any] | None = None,
     abort_signal: asyncio.Event | None = None,
+    *,
+    ai: GenkitLike,
 ) -> ModelResponse:
     """Open the user-facing ``generate`` span and delegate to the engine.
 
@@ -727,6 +723,7 @@ async def generate_action(
 
     async def body(_span: SpanContext) -> ModelResponse:
         result = await run_generate(
+            ai=ai,
             registry=registry,
             options=options,
             abort_signal=abort_signal,
@@ -744,6 +741,7 @@ async def generate_action(
 
 async def run_generate(
     *,
+    ai: GenkitLike,
     registry: Registry,
     options: GenerateActionOptions,
     on_chunk: Callable[[ModelResponseChunk], None] | None = None,
@@ -790,7 +788,7 @@ async def run_generate(
             raise StreamingCallbackError(exc) from exc
 
     ctx = GenerateMiddlewareContext(
-        ai=ScopedGenkitView(registry),
+        ai=ai,
         custom_context=dict(context or {}),
         on_chunk=send_caller_chunk if caller_on_chunk is not None else None,
         abort_signal=abort_signal if abort_signal is not None else asyncio.Event(),
@@ -2087,7 +2085,7 @@ async def resolve_tool_requests(
     registry: Registry,
     message: Message,
     abort_signal: asyncio.Event,
-    mw_pipeline: MiddlewarePipeline | None = None,
+    mw_pipeline: MiddlewarePipeline,
     tools: list[Action],
 ) -> tuple[Message | None, Message | None]:
     """Execute tool requests in a message, returning responses or interrupt info."""
@@ -2126,14 +2124,7 @@ async def resolve_tool_requests(
     async def run_one_tool(tool: Action, trp: Part) -> tuple[MultipartToolResponse | None, Part | None]:
         if trp.tool_request is None:
             raise GenkitError(status='INTERNAL', message='Expected a tool request part')
-        ctx = (
-            mw_pipeline.ctx
-            if mw_pipeline is not None
-            else GenerateMiddlewareContext(
-                ai=ScopedGenkitView(registry),
-                abort_signal=abort_signal,
-            )
-        )
+        ctx = mw_pipeline.ctx
         raise_if_aborted(ctx.abort_signal)
         params = ToolHookParams(tool_request_part=trp, tool=tool)
 

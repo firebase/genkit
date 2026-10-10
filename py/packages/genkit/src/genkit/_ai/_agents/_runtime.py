@@ -60,6 +60,7 @@ from genkit._core._model import (
     SessionSnapshot,
     SessionState,
 )
+from genkit._core._protocols import GenkitLike
 from genkit._core._registry import Registry
 from genkit._core._telemetry._instrumentation import SpanContext, run_in_new_span
 from genkit._core._typing import (
@@ -1043,6 +1044,7 @@ async def generate_prompt_agent_turn(
     *,
     session_runner: SessionRunner,
     ctx: ActionRunContext,
+    ai: GenkitLike,
     registry: Registry,
     options: GenerateActionOptions,
     history: list[Message],
@@ -1055,6 +1057,7 @@ async def generate_prompt_agent_turn(
     response = await generate_action(
         registry,
         options,
+        ai=ai,
         on_chunk=on_chunk,
         abort_signal=ctx.abort_signal,
         context=ctx.context,

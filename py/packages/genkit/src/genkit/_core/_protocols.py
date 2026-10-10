@@ -36,7 +36,8 @@ from collections.abc import Callable
 from typing import Any, Protocol, runtime_checkable
 
 from genkit._core._action import Action, ActionKind
-from genkit._core._model import Artifact, Message
+from genkit._core._model import Artifact, Message, ModelRequest, ModelResponse, ModelResponseChunk
+from genkit._core._tool import Tool
 
 
 @runtime_checkable
@@ -104,14 +105,20 @@ class SessionLike(Protocol):
 
 
 class GenkitLike(Protocol):
-    """Structural interface for the Genkit-like view exposed on middleware context.
+    """The ``Genkit`` instance as middleware sees it on ``ctx.ai``.
 
-    ``_registry`` is this generate call's child registry: the app's actions and
-    values plus tools and middleware registered for this call. It's private;
-    only first-party middleware reads it.
+    At runtime ``ctx.ai`` is the app's ``Genkit``. This protocol lists the
+    methods middleware is meant to call; ``_core`` can't import ``Genkit``.
     """
 
-    @property
-    def _registry(self) -> RegistryLike:
-        """This generate call's child registry."""
+    async def lookup_model(self, name: str) -> Action[ModelRequest, ModelResponse, ModelResponseChunk] | None:
+        """Return the model action registered under ``name``, or None."""
+        ...
+
+    async def lookup_tool(self, name: str) -> Tool | None:
+        """Return the tool registered under ``name``, or None."""
+        ...
+
+    def lookup_value(self, *, kind: str, name: str) -> object | None:
+        """Return the value defined under ``kind`` and ``name``, or None."""
         ...

@@ -141,8 +141,9 @@ class ToolHookParams(BaseModel):
 class GenerateMiddlewareContext:
     """Per-``generate()`` runtime services shared by every middleware in ``use=[...]``.
 
-    ``ai`` is a Genkit-like view for this one invocation. It has no public
-    lookups yet.
+    ``ai`` is the app's ``Genkit`` instance: ``await ctx.ai.lookup_model(name)``,
+    ``await ctx.ai.lookup_tool(name)`` and ``ctx.ai.lookup_value(kind=..., name=...)``
+    find what the app defined.
     Inside an agent, read the session with ``genkit.exp.current_session()``. Also carries
     caller-provided metadata (``custom_context``), streaming hooks, and the abort
     signal for the whole generate invocation.

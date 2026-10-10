@@ -200,6 +200,7 @@ async def test_abnormal_finish_skips_output_parsing(monkeypatch: pytest.MonkeyPa
                 messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
                 output=GenerateActionOutputConfig(format='json'),
             ),
+            ai=ai,
         )
     assert response.finish_reason == FinishReason.BLOCKED
 
@@ -245,6 +246,7 @@ async def test_other_finish_skips_parsing_even_when_text_is_valid(monkeypatch: p
                     },
                 ),
             ),
+            ai=ai,
         )
 
     warned = [e for e in entries if e['event'] == 'model finished abnormally, skipping output parsing']
@@ -281,6 +283,7 @@ async def test_schema_mismatch_logs_when_debug_enabled(monkeypatch: pytest.Monke
                 messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
                 output=GenerateActionOutputConfig(format='json'),
             ),
+            ai=ai,
         )
 
     assert response.message is not None
@@ -319,6 +322,7 @@ async def test_tool_interrupt_logs(monkeypatch: pytest.MonkeyPatch) -> None:
                 messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
                 tools=['hold'],
             ),
+            ai=ai,
         )
     assert response.finish_reason == FinishReason.INTERRUPTED
 
@@ -359,6 +363,7 @@ async def test_restarted_tool_interrupt_logs(monkeypatch: pytest.MonkeyPatch) ->
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
             tools=['hold'],
         ),
+        ai=ai,
     )
 
     with capture_logs() as entries:
@@ -370,6 +375,7 @@ async def test_restarted_tool_interrupt_logs(monkeypatch: pytest.MonkeyPatch) ->
                 tools=['hold'],
                 resume=Resume(restart=[first.interrupts[0].restart()]),
             ),
+            ai=ai,
         )
 
     assert response.finish_reason == FinishReason.INTERRUPTED
@@ -416,6 +422,7 @@ async def test_tool_stream_callback_failure_fails_generate(monkeypatch: pytest.M
             tools=['echo'],
         ),
         on_chunk=on_chunk,
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.FAILED
     assert response.finish_message == 'sink closed'
@@ -450,6 +457,7 @@ async def test_model_stream_callback_failure_returns_closed_history() -> None:
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
         ),
         on_chunk=on_chunk,
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.FAILED
     assert response.finish_message == 'model sink closed'
@@ -491,6 +499,7 @@ async def test_resumed_tool_stream_callback_failure_returns_closed_history() -> 
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
             tools=['hold'],
         ),
+        ai=ai,
     )
 
     def on_chunk(chunk: object) -> None:
@@ -507,6 +516,7 @@ async def test_resumed_tool_stream_callback_failure_returns_closed_history() -> 
             resume=Resume(respond=[reply]),
         ),
         on_chunk=on_chunk,
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.FAILED
     assert response.finish_message == 'resume sink closed'

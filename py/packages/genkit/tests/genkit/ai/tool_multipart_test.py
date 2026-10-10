@@ -262,6 +262,7 @@ async def _tools_sent_to_model(ai: Genkit, tool_name: str, *, tool_input: dict |
             messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'go'}]})],
             tools=[tool_name],
         ),
+        ai=ai,
     )
     assert pm.last_request is not None
     assert pm.last_request.tools
@@ -325,6 +326,7 @@ async def test_unserializable_tool_output_is_invalid_argument() -> None:
             messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'snap'}]})],
             tools=['screenshot'],
         ),
+        ai=ai,
     )
     assert ran
     assert response.finish_reason == FinishReason.FAILED
@@ -401,6 +403,7 @@ async def test_wrap_tool_can_substitute_a_response() -> None:
             tools=['weather'],
             use=[MiddlewareRef(name='deny_mw')],
         ),
+        ai=ai,
     )
     tool_msg = next(m for m in res.messages if m.role == 'tool')
     denied = tool_msg.content[0].tool_response
@@ -454,6 +457,7 @@ async def test_wrap_tool_receives_the_model_tool_request_part() -> None:
             tools=['weather'],
             use=[MiddlewareRef(name='capture_mw')],
         ),
+        ai=ai,
     )
     assert len(seen) == 1
     assert type(seen[0]) is Part

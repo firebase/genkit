@@ -242,7 +242,7 @@ class Genkit:
             self._reflection_bound_addr = None
             self._initialize_registry(model, plugins)
             # Ensure the default generate action is registered for async usage.
-            define_generate_action(self._registry)
+            define_generate_action(self._registry, ai=self)
             self._register_plugin_middleware(plugins)
             maybe_inject_dev_instrumentation()
             # When reflection is on, start the server immediately in a background
@@ -264,7 +264,7 @@ class Genkit:
                     load_path = default_prompts_path
 
             if load_path:
-                load_prompt_folder(self._registry, dir_path=load_path)
+                load_prompt_folder(self._registry, dir_path=load_path, ai=self)
 
         # help(Genkit) should show the keyword-only constructor, not a phantom *args.
         __init__.__signature__ = inspect.signature(__init__).replace(
@@ -920,6 +920,7 @@ class Genkit:
         """
         executable_prompt = Prompt(
             self._registry,
+            ai=self,
             variant=variant,
             model=model,
             config=config,
@@ -1001,6 +1002,7 @@ class Genkit:
         """Look up a prompt by name and optional variant."""
         return Prompt(
             registry=self._registry,
+            ai=self,
             name=name,
             variant=variant,
             input_schema=input_schema,
@@ -1779,6 +1781,7 @@ class Genkit:
         return await generate_action(
             registry,
             options,
+            ai=self,
             on_chunk=on_chunk,
             context=context,
         )

@@ -23,7 +23,6 @@ from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
 from genkit._ai._generate import (
     DEFAULT_MAX_TURNS,
     ChunkAccumulator,
-    ScopedGenkitView,
     augment_with_context,
     generate_action,
 )
@@ -58,9 +57,9 @@ from genkit.testing import (
 )
 
 
-def _call_registry(ctx: GenerateMiddlewareContext) -> RegistryLike:
-    """The per-call registry behind ``ctx.ai``, for tests that check what a call can see or leak."""
-    return cast(ScopedGenkitView, ctx.ai)._registry
+def _app_registry(ctx: GenerateMiddlewareContext) -> RegistryLike:
+    """The app registry behind ``ctx.ai``, for tests that write to it mid-call."""
+    return cast(Genkit, ctx.ai)._registry  # pyright: ignore[reportPrivateUsage]
 
 
 def _to_dict(obj: object) -> object:
@@ -124,6 +123,7 @@ async def test_simple_text_generate_request(
                 ),
             ],
         ),
+        ai=ai,
     )
 
     assert response.text == 'bye'
@@ -369,6 +369,7 @@ async def test_simulates_doc_grounding(
             ],
             docs=[Document(content=[Part.from_text('doc content 1')])],
         ),
+        ai=ai,
     )
 
     grounded_msg = Message(
@@ -933,6 +934,7 @@ async def test_generate_applies_middleware() -> None:
             ],
             use=[MiddlewareRef(name='pre_mw'), MiddlewareRef(name='post_mw')],
         ),
+        ai=ai,
     )
 
     assert response.text == '[ECHO] user: "PRE hi" POST'
@@ -956,6 +958,7 @@ async def test_generate_middleware_next_fn_args_optional() -> None:
             ],
             use=[MiddlewareRef(name='post_mw')],
         ),
+        ai=ai,
     )
 
     assert response.text == '[ECHO] user: "hi" POST'
@@ -1108,6 +1111,7 @@ async def test_generate_middleware_can_modify_context() -> None:
             use=[MiddlewareRef(name='add_ctx'), MiddlewareRef(name='inject_ctx')],
         ),
         context={'foo': 'bar'},
+        ai=ai,
     )
 
     assert response.text == '''[ECHO] user: "hi {'foo': 'bar', 'banana': True}"'''
@@ -1191,6 +1195,7 @@ async def test_generate_middleware_can_modify_stream() -> None:
             use=[MiddlewareRef(name='mod_stream_mw')],
         ),
         on_chunk=collect_chunks,
+        ai=ai,
     )
 
     assert response.text == 'bye'
@@ -1307,6 +1312,7 @@ async def test_stream_interception_chains_across_model_and_generate_hooks() -> N
             use=[MiddlewareRef(name='chain_stream_mw')],
         ),
         on_chunk=collect,
+        ai=ai,
     )
 
     # Both wrap_model AND wrap_generate chunk handlers are called in order.
@@ -1388,6 +1394,7 @@ async def test_wrap_generate_called_per_turn() -> None:
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
             use=[MiddlewareRef(name='track_gen')],
         ),
+        ai=ai,
     )
     assert response.text == 'done'
     assert iters_a == [0]
@@ -1415,6 +1422,7 @@ async def test_wrap_generate_called_per_turn() -> None:
             tools=['testTool'],
             use=[MiddlewareRef(name='track_gen2')],
         ),
+        ai=ai,
     )
     assert response2.text == 'final'
     assert iters_b == [0, 1]
@@ -1473,6 +1481,7 @@ async def test_wrap_tool_called_on_tool_execution() -> None:
             tools=['myTool'],
             use=[MiddlewareRef(name='track_tool')],
         ),
+        ai=ai,
     )
     assert response.text == 'done'
     assert tool_names == ['myTool']
@@ -1538,6 +1547,7 @@ async def test_generate_context_reaches_tool_run() -> None:
             tools=['ctxTool'],
         ),
         context={'user_id': 'u-123'},
+        ai=ai,
     )
 
     assert response.text == 'done'
@@ -1639,6 +1649,7 @@ async def test_generate_resume_context_reaches_tool_run() -> None:
             resume=Resume(restart=[restart_trp]),
         ),
         context={'session_token': 's-999'},
+        ai=ai,
     )
 
     assert response.text == 'all done'
@@ -1694,6 +1705,7 @@ async def test_wrap_tool_middleware_custom_context_reaches_tool_run() -> None:
             use=[MiddlewareRef(name='enrich_tool_ctx')],
         ),
         context={'user_id': 'u-123'},
+        ai=ai,
     )
 
     assert response.text == 'done'
@@ -1768,6 +1780,7 @@ async def test_wrap_tool_custom_context_visible_to_generate_and_model_on_next_tu
             use=[MiddlewareRef(name='enrich_and_track')],
         ),
         context=caller_ctx,
+        ai=ai,
     )
 
     assert response.text == 'done'
@@ -1827,6 +1840,7 @@ async def test_middleware_wrap_tool_interrupt_handled_as_interrupt_not_crash() -
             tools=['blockedTool'],
             use=[MiddlewareRef(name='interrupt_all')],
         ),
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.INTERRUPTED
     assert response.finish_message == 'One or more tool calls resulted in interrupts.'
@@ -1890,6 +1904,7 @@ async def test_middleware_contributed_tools_available_to_model() -> None:
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
             use=[MiddlewareRef(name='tool_provider_mw')],
         ),
+        ai=ai,
     )
     assert _tool_output(response.messages[2]) == 'from_middleware_tool'
     assert response.text == 'done'
@@ -1947,55 +1962,22 @@ async def test_two_middleware_contributing_the_same_tool_raises() -> None:
 
 
 @pytest.mark.asyncio
-async def test_middleware_in_one_call_share_an_isolated_registry() -> None:
-    """Middleware in the same generate() call share an isolated registry.
+async def test_middleware_contributed_tools_do_not_outlive_the_call() -> None:
+    """A tool middleware contributes through ``tools()`` exists for that call only.
 
-    This verifies:
-
-    - **Cooperation:** Middleware A contributes a tool via ``tools()`` and
-      middleware B resolves it through ``ctx.ai._registry`` in the same call
-      (proves both middleware see the same per-call child registry, so they
-      can pass tools and other actions to one another).
-    - **Isolation:** Anything middleware writes via ``ctx.ai._registry`` does NOT
-      survive the call (proves writes are auto-cleaned and cannot leak into the
-      root registry or across concurrent generate() calls).
+    It's registered on the call's child registry, so the app registry never
+    sees it after the call ends.
     """
-    seen_by_b: list[str] = []
     ai = Genkit()
 
     @ai.middleware(name='provider_mw')
     class ProviderMW(BaseMiddleware):
         def tools(self, ctx: GenerateMiddlewareContext) -> list[Tool]:
             async def shared_tool() -> str:
-                """Shared by all middleware in the call."""
+                """Contributed for this call."""
                 return 'shared_ok'
 
             return [tool(shared_tool)]
-
-    @ai.middleware(name='looker_mw')
-    class LookerMW(BaseMiddleware):
-        async def wrap_generate(
-            self,
-            params: GenerateHookParams,
-            ctx: GenerateMiddlewareContext,
-            next_fn: Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
-        ) -> ModelResponse:
-            # Resolve the tool ProviderMW just contributed — only works if
-            # both middleware share the same per-call registry scope.
-            tool = await _call_registry(ctx).resolve_action(ActionKind.TOOL, 'shared_tool')
-            if tool is not None:
-                seen_by_b.append(tool.name)
-            # Also exercise the write path: anything we register through
-            # ctx.ai._registry must not survive the call.
-            scratch = Registry()
-
-            async def leaky_tool() -> str:
-                """Should not survive the call."""
-                return 'nope'
-
-            leak = define_tool(scratch, leaky_tool, name='leaky_tool').action()
-            _call_registry(ctx).register_action_from_instance(leak)
-            return await next_fn(params, ctx)
 
     pm, _ = define_scripted_model(ai)
     pm.responses.append(
@@ -2010,17 +1992,15 @@ async def test_middleware_in_one_call_share_an_isolated_registry() -> None:
         GenerateActionOptions(
             model='scriptedModel',
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
-            use=[
-                MiddlewareRef(name='provider_mw'),
-                MiddlewareRef(name='looker_mw'),
-            ],
+            use=[MiddlewareRef(name='provider_mw')],
         ),
+        ai=ai,
     )
+
     assert response.text == 'ok'
-    assert seen_by_b == ['shared_tool'], f'looker middleware should have resolved shared_tool, saw: {seen_by_b}'
-    # Neither tool may leak into the root registry after the call ends.
+    assert pm.last_request is not None
+    assert [t.name for t in pm.last_request.tools or []] == ['shared_tool']
     assert await ai._registry.resolve_action(ActionKind.TOOL, 'shared_tool') is None
-    assert await ai._registry.resolve_action(ActionKind.TOOL, 'leaky_tool') is None
 
 
 @pytest.mark.asyncio
@@ -2108,6 +2088,7 @@ async def test_queue_drain_streams_each_message_at_one_index() -> None:
             use=[MiddlewareRef(name='enqueuing_mw')],
         ),
         on_chunk=streamed.append,
+        ai=ai,
     )
     assert response.text == 'final'
 
@@ -2181,6 +2162,7 @@ async def test_restart_path_routes_through_wrap_tool_middleware() -> None:
                 ],
             ),
         ),
+        ai=ai,
     )
     assert response.text == 'final'
     assert invocations == ['approveMe'], f'expected wrap_tool to fire once on restart, saw: {invocations}'
@@ -2339,6 +2321,7 @@ async def test_parallel_tool_requests_all_complete() -> None:
             ],
             tools=['tool_a', 'tool_b', 'tool_c'],
         ),
+        ai=ai,
     )
 
     assert response.finish_reason == FinishReason.STOP
@@ -2448,6 +2431,7 @@ async def test_parallel_tool_requests_one_interrupt_keeps_pending_output_for_oth
             ],
             tools=['tool_a', 'tool_b', 'tool_c'],
         ),
+        ai=ai,
     )
 
     assert response.finish_reason == FinishReason.INTERRUPTED
@@ -2524,6 +2508,7 @@ async def test_generate_and_model_middleware_execution_order() -> None:
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
             use=[MiddlewareRef(name='order_mw')],
         ),
+        ai=ai,
     )
 
     assert response.text == 'response'
@@ -2622,6 +2607,7 @@ async def test_generate_model_tool_middleware_ordering_across_turns() -> None:
             tools=['orderTool'],
             use=[MiddlewareRef(name='full_order_mw')],
         ),
+        ai=ai,
     )
 
     assert response.text == 'final response'
@@ -2693,6 +2679,7 @@ async def test_middleware_contributed_tool_resolvable_during_restart() -> None:
                 ],
             ),
         ),
+        ai=ai,
     )
     assert response.text == 'done after restart'
 
@@ -2885,10 +2872,7 @@ async def test_generate_with_empty_messages_lets_the_model_speak_first(
         )
     )
 
-    response = await generate_action(
-        ai._registry,
-        GenerateActionOptions(model='scriptedModel', messages=[]),
-    )
+    response = await generate_action(ai._registry, GenerateActionOptions(model='scriptedModel', messages=[]), ai=ai)
     assert response.finish_reason == FinishReason.STOP
     assert response.text == 'hello'
     assert response.error is None
@@ -3826,7 +3810,7 @@ async def test_wrap_generate_cannot_replace_the_named_tool_action() -> None:
             ctx: GenerateMiddlewareContext,
             next_fn: Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
         ) -> ModelResponse:
-            _call_registry(ctx).register_action_from_instance(leak)
+            _app_registry(ctx).register_action_from_instance(leak)
             return await next_fn(params, ctx)
 
         async def wrap_model(
@@ -3875,7 +3859,7 @@ async def test_wrap_generate_cannot_replace_the_named_tool_after_a_closed_round(
             ctx: GenerateMiddlewareContext,
             next_fn: Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
         ) -> ModelResponse:
-            _call_registry(ctx).register_action_from_instance(leak)
+            _app_registry(ctx).register_action_from_instance(leak)
             return await next_fn(params, ctx)
 
         async def wrap_model(
@@ -3938,7 +3922,7 @@ async def test_resume_restart_cannot_replace_the_named_tool_action() -> None:
             ctx: GenerateMiddlewareContext,
             next_fn: Callable[[GenerateHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
         ) -> ModelResponse:
-            _call_registry(ctx).register_action_from_instance(leak)
+            _app_registry(ctx).register_action_from_instance(leak)
             return await next_fn(params, ctx)
 
         async def wrap_model(
@@ -4683,6 +4667,7 @@ async def test_generate_on_chunk_failure_returns_closed_history() -> None:
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
         ),
         on_chunk=on_chunk,
+        ai=ai,
     )
 
     assert response.finish_reason == FinishReason.FAILED
@@ -4730,6 +4715,7 @@ async def test_generate_on_chunk_failure_echoes_full_request() -> None:
             output=GenerateActionOutputConfig(format='json'),
         ),
         on_chunk=on_chunk,
+        ai=ai,
     )
 
     assert response.finish_reason == FinishReason.FAILED
@@ -4770,6 +4756,7 @@ async def test_generate_on_chunk_genkit_error_is_internal_not_the_sink_reason() 
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
         ),
         on_chunk=on_chunk,
+        ai=ai,
     )
 
     assert response.finish_reason == FinishReason.FAILED
@@ -6251,6 +6238,7 @@ async def test_abort_after_tool_turn_keeps_closed_rounds() -> None:
             tools=['lookup'],
         ),
         abort_signal=abort_signal,
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.ABORTED
     assert response.finish_message == 'Generation aborted.'
@@ -6289,6 +6277,7 @@ async def test_abort_during_first_tool_drops_unfinished_round() -> None:
                 tools=['lookup'],
             ),
             abort_signal=abort_signal,
+            ai=ai,
         )
 
     task = asyncio.create_task(run())
@@ -6322,6 +6311,7 @@ async def test_already_cancelled_generate_returns_prompt() -> None:
             messages=[Message(role=Role.USER, content=[Part.from_text('keep going')])],
         ),
         abort_signal=abort_signal,
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.ABORTED
     assert response.finish_message == 'Generation aborted.'
@@ -6370,6 +6360,7 @@ async def test_already_cancelled_generate_returns_prior_messages() -> None:
             ],
         ),
         abort_signal=abort_signal,
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.ABORTED
     assert response.finish_message == 'Generation aborted.'
@@ -6400,6 +6391,7 @@ async def test_already_cancelled_unknown_model_returns() -> None:
             messages=[Message(role=Role.USER, content=[Part.from_text('keep going')])],
         ),
         abort_signal=abort_signal,
+        ai=ai,
     )
     assert response.finish_reason == FinishReason.ABORTED
     assert response.finish_message == 'Generation aborted.'
@@ -6435,6 +6427,7 @@ async def test_abort_during_first_model_call_returns_prompt() -> None:
                 messages=[Message(role=Role.USER, content=[Part.from_text('keep going')])],
             ),
             abort_signal=abort_signal,
+            ai=ai,
         )
 
     task = asyncio.create_task(run())
@@ -6484,6 +6477,7 @@ async def test_abort_during_later_model_call_keeps_closed_round() -> None:
                 tools=['lookup'],
             ),
             abort_signal=abort_signal,
+            ai=ai,
         )
 
     task = asyncio.create_task(run())
@@ -7848,6 +7842,7 @@ async def test_generate_on_chunk_validation_error_returns_closed_history() -> No
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
         ),
         on_chunk=on_chunk,
+        ai=ai,
     )
 
     assert response.finish_reason == FinishReason.FAILED
@@ -8650,6 +8645,7 @@ async def test_generate_with_failing_streaming_callback_returns_callback_message
             messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
         ),
         on_chunk=on_chunk,
+        ai=ai,
     )
 
     assert response.finish_reason == FinishReason.FAILED

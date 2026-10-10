@@ -82,6 +82,7 @@ from genkit._core._model import (
     Resume,
     SessionSnapshot,
 )
+from genkit._core._protocols import GenkitLike
 from genkit._core._registry import Registry
 from genkit._core._telemetry._instrumentation import set_custom_metadata_attributes
 from genkit._core._tool import Tool
@@ -342,6 +343,7 @@ def define_agent(
     registry: Registry,
     name: str,
     *,
+    ai: GenkitLike,
     model: ModelRef[ModelRefConfigT] | Action | str | None = None,
     system: str | list[Part] | None = None,
     tools: Sequence[str | Tool] | None = None,
@@ -368,6 +370,7 @@ def define_agent(
     """
     executable_prompt = Prompt(
         registry,
+        ai=ai,
         name=name,
         model=model,
         config=config,
@@ -440,6 +443,7 @@ def define_prompt_agent(
             return await generate_prompt_agent_turn(
                 session_runner=session_runner,
                 ctx=ctx,
+                ai=prepared.ai,
                 registry=prepared.registry,
                 options=options,
                 history=history,

@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field, field_validator
 from genkit import GenkitError, ModelResponse, ModelResponseChunk
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, ModelHookParams
 from genkit.model import ModelRef, ModelRequest
-from genkit.plugin_api import Action, ActionKind
+from genkit.plugin_api import Action
 from genkit_middleware._errors import caused_by_caller_callback
 from genkit_middleware._statuses import TRANSIENT_STATUSES
 
@@ -95,14 +95,13 @@ class Fallback(BaseMiddleware[FallbackConfig]):
         model_name: str,
     ) -> Action[ModelRequest, ModelResponse, ModelResponseChunk]:
         """Look up a fallback model on the per-call registry."""
-        # Reaches into the call's registry until ctx.ai has a model lookup.
-        action = await ctx.ai._registry.resolve_action(ActionKind.MODEL, model_name)  # noqa: SLF001
+        action = await ctx.ai.lookup_model(model_name)
         if action is None:
             raise GenkitError(
                 status='NOT_FOUND',
                 message=f'No model named "{model_name}" is registered on this app.',
             )
-        return cast(Action[ModelRequest, ModelResponse, ModelResponseChunk], action)
+        return action
 
     async def wrap_model(
         self,

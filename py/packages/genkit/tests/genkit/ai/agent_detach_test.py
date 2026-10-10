@@ -358,6 +358,7 @@ async def test_generate_tool_respects_abort_signal() -> None:
                 tools=['slowWork'],
             ),
             abort_signal=abort_signal,
+            ai=ai,
         )
         assert response.finish_reason == FinishReason.ABORTED
         assert response.message is None
