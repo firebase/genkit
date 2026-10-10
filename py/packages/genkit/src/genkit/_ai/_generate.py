@@ -1526,7 +1526,6 @@ async def generate_turn(
         tool_requests=tool_requests_on(generated_msg),
         options=options,
         resolved=resolved,
-        registry=registry,
         ctx=ctx,
         mw_pipeline=mw_pipeline,
         current_turn=current_turn,
@@ -1697,7 +1696,6 @@ async def run_tools_or_stop(
     tool_requests: list[Part],
     options: GenerateActionOptions,
     resolved: ResolvedTurn,
-    registry: Registry,
     ctx: GenerateMiddlewareContext,
     mw_pipeline: MiddlewarePipeline,
     current_turn: int,
@@ -1767,10 +1765,8 @@ async def run_tools_or_stop(
 
     try:
         revised_model_msg, tool_msg = await resolve_tool_requests(
-            registry=registry,
             message=generated_msg,
             mw_pipeline=mw_pipeline,
-            abort_signal=ctx.abort_signal,
             tools=resolved.tools,
         )
     except (Exception, asyncio.CancelledError) as exc:
@@ -2082,9 +2078,7 @@ def to_tool_definition(tool: Action) -> ToolDefinition:
 
 async def resolve_tool_requests(
     *,
-    registry: Registry,
     message: Message,
-    abort_signal: asyncio.Event,
     mw_pipeline: MiddlewarePipeline,
     tools: list[Action],
 ) -> tuple[Message | None, Message | None]:

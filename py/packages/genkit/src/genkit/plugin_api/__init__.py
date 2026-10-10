@@ -18,8 +18,6 @@
 
 # Base class and framework primitives
 from genkit._core._action import Action, ActionKind
-
-# StrEnum that works the same on 3.10 through 3.14
 from genkit._core._compat import StrEnum
 from genkit._core._constants import GENKIT_CLIENT_HEADER
 from genkit._core._environment import is_dev_environment
@@ -37,6 +35,7 @@ __all__ = [
     'ActionMetadata',
     'ActionKind',
     'StatusName',
+    # String enum that behaves the same on Python 3.10 through 3.14
     'StrEnum',
     # Provider failures
     'provider_error',

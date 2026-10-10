@@ -94,7 +94,7 @@ class Fallback(BaseMiddleware[FallbackConfig]):
         ctx: GenerateMiddlewareContext,
         model_name: str,
     ) -> Action[ModelRequest, ModelResponse, ModelResponseChunk]:
-        """Look up a fallback model on the per-call registry."""
+        """Look up a fallback model among the app's models."""
         action = await ctx.ai.lookup_model(model_name)
         if action is None:
             raise GenkitError(

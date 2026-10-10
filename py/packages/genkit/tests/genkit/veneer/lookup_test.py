@@ -89,6 +89,59 @@ async def test_lookup_model_resolves_plugin_model_not_yet_loaded() -> None:
     assert result.response.text == 'from lazy fast'
 
 
+@pytest.mark.asyncio
+async def test_lookup_model_does_not_return_background_models() -> None:
+    """A background model runs through `generate_operation`, so `lookup_model` returns None for it."""
+    ai = Genkit()
+
+    async def start(request: ModelRequest, ctx: ActionRunContext) -> Operation:
+        return Operation(id='op-1')
+
+    async def check(operation: Operation, ctx: ActionRunContext) -> Operation:
+        return operation
+
+    ai.define_background_model('veo', start=start, check=check)
+
+    assert await ai.lookup_model('veo') is None
+
+
+@pytest.mark.asyncio
+async def test_lookup_tool_returns_a_callable_tool_with_the_same_definition() -> None:
+    """`ai.lookup_tool('menu_price')` gives back a Tool that runs and describes itself like the decorated one."""
+    ai = Genkit()
+
+    @ai.tool()
+    async def menu_price(dish: str) -> float:
+        """Price of a dish in dollars."""
+        return 14.5
+
+    found = await ai.lookup_tool('menu_price')
+
+    assert isinstance(found, Tool)
+    assert found.definition() == menu_price.definition()
+    assert (await found('ramen')).output == 14.5
+
+
+@pytest.mark.asyncio
+async def test_lookup_tool_unknown_name_returns_none() -> None:
+    """A name nothing answers to returns None."""
+    ai = Genkit()
+
+    assert await ai.lookup_tool('missing') is None
+
+
+@pytest.mark.asyncio
+async def test_lookup_tool_finds_interrupts() -> None:
+    """An interrupt is a tool, so `lookup_tool` finds it."""
+    ai = Genkit()
+    ai.define_interrupt('confirm_order', description='Ask the diner to confirm.')
+
+    found = await ai.lookup_tool('confirm_order')
+
+    assert found is not None
+    assert found.name == 'confirm_order'
+
+
 def test_define_value_then_lookup_value_returns_it() -> None:
     """A value stored with `ai.define_value(...)` comes back from `ai.lookup_value(...)` for the same kind and name."""
     ai = Genkit()
@@ -128,6 +181,31 @@ def test_define_value_requires_keywords() -> None:
 
     assert ai.lookup_value(kind='catalog', name='banner') is None
     assert ai.lookup_value(kind='banner', name='catalog') is None
+
+
+@pytest.mark.parametrize(
+    ('kind', 'api'),
+    [('middleware', 'define_middleware'), ('format', 'define_format'), ('defaultModel', 'Genkit(model=...)')],
+)
+def test_define_value_rejects_kinds_genkit_owns(kind: str, api: str) -> None:
+    """`define_value` on a kind core reads with a fixed type raises and names the API to use."""
+    ai = Genkit()
+
+    with pytest.raises(ValueError, match=f'reserved; use {re.escape(api)}'):
+        ai.define_value(kind=kind, name='audit', value={'not': 'the right type'})
+
+    assert ai.lookup_value(kind=kind, name='audit') is None
+
+
+def test_define_value_rejects_none() -> None:
+    """`define_value(value=None)` raises, so None from `lookup_value` always means "not defined"."""
+    ai = Genkit()
+
+    with pytest.raises(ValueError, match='must not be None'):
+        ai.define_value(kind='catalog', name='banner', value=None)
+
+    ai.define_value(kind='catalog', name='banner', value='later')
+    assert ai.lookup_value(kind='catalog', name='banner') == 'later'
 
 
 def test_genkit_has_no_registry_attribute() -> None:
@@ -216,81 +294,3 @@ async def test_middleware_ctx_ai_lookup_value_sees_app_value() -> None:
     await ai.generate(model='test/echo', prompt='hi', use=[ReadValue()])
 
     assert seen == ['hello', None]
-
-
-@pytest.mark.parametrize(
-    ('kind', 'api'),
-    [('middleware', 'define_middleware'), ('format', 'define_format'), ('defaultModel', 'Genkit(model=...)')],
-)
-def test_define_value_rejects_kinds_genkit_owns(kind: str, api: str) -> None:
-    """`define_value` on a kind core reads with a fixed type raises and names the API to use."""
-    ai = Genkit()
-
-    with pytest.raises(ValueError, match=f'reserved; use {re.escape(api)}'):
-        ai.define_value(kind=kind, name='audit', value={'not': 'the right type'})
-
-    assert ai.lookup_value(kind=kind, name='audit') is None
-
-
-def test_define_value_rejects_none() -> None:
-    """`define_value(value=None)` raises, so None from `lookup_value` always means "not defined"."""
-    ai = Genkit()
-
-    with pytest.raises(ValueError, match='must not be None'):
-        ai.define_value(kind='catalog', name='banner', value=None)
-
-    ai.define_value(kind='catalog', name='banner', value='later')
-    assert ai.lookup_value(kind='catalog', name='banner') == 'later'
-
-
-@pytest.mark.asyncio
-async def test_lookup_model_does_not_return_background_models() -> None:
-    """A background model runs through `generate_operation`, so `lookup_model` returns None for it."""
-    ai = Genkit()
-
-    async def start(request: ModelRequest, ctx: ActionRunContext) -> Operation:
-        return Operation(id='op-1')
-
-    async def check(operation: Operation, ctx: ActionRunContext) -> Operation:
-        return operation
-
-    ai.define_background_model('veo', start=start, check=check)
-
-    assert await ai.lookup_model('veo') is None
-
-
-@pytest.mark.asyncio
-async def test_lookup_tool_returns_a_callable_tool_with_the_same_definition() -> None:
-    """`ai.lookup_tool('menu_price')` gives back a Tool that runs and describes itself like the decorated one."""
-    ai = Genkit()
-
-    @ai.tool()
-    async def menu_price(dish: str) -> float:
-        """Price of a dish in dollars."""
-        return 14.5
-
-    found = await ai.lookup_tool('menu_price')
-
-    assert isinstance(found, Tool)
-    assert found.definition() == menu_price.definition()
-    assert (await found('ramen')).output == 14.5
-
-
-@pytest.mark.asyncio
-async def test_lookup_tool_unknown_name_returns_none() -> None:
-    """A name nothing answers to returns None."""
-    ai = Genkit()
-
-    assert await ai.lookup_tool('missing') is None
-
-
-@pytest.mark.asyncio
-async def test_lookup_tool_finds_interrupts() -> None:
-    """An interrupt is a tool, so `lookup_tool` finds it."""
-    ai = Genkit()
-    ai.define_interrupt('confirm_order', description='Ask the diner to confirm.')
-
-    found = await ai.lookup_tool('confirm_order')
-
-    assert found is not None
-    assert found.name == 'confirm_order'
