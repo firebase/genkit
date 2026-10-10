@@ -92,7 +92,7 @@ class Genkit(StableGenkit):
         back as that model instead of a dict.
         """
         return define_custom_agent(
-            registry=self._registry,
+            self,
             name=name,
             fn=fn,
             store=store,
@@ -217,7 +217,7 @@ class Genkit(StableGenkit):
         is defined via ai.define_prompt() or loaded from a .prompt file.
         """
         return define_prompt_agent(
-            registry=self._registry,
+            self,
             name=name,
             store=store,
             state_transform=state_transform,
