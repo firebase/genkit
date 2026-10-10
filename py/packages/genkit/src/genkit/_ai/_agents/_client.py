@@ -23,7 +23,6 @@ import json
 import re
 from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Generator, Sequence
 from dataclasses import dataclass, field
-from functools import cached_property
 from typing import Any, Generic, Protocol, TypeVar, cast
 
 from pydantic import BaseModel, ValidationError, field_validator
@@ -82,6 +81,10 @@ StateT_co = TypeVar('StateT_co', bound=BaseModel, covariant=True)
 # keeps resuming from the last completed snapshot, and the response shows no
 # message. Every check for "did this turn answer?" reads this one set.
 _NO_REPLY = frozenset({AgentFinishReason.FAILED, AgentFinishReason.ABORTED})
+
+# A custom agent can return TurnResult(finish_reason=FAILED) without raising.
+# Same fallback JS uses when it raises AgentError for that turn.
+_UNEXPLAINED_FAILURE = GenkitRuntimeError(status='UNKNOWN', message='Agent turn failed.')
 
 
 class SessionState(SessionStateVeneer, Generic[StateT]):
@@ -230,24 +233,22 @@ class AgentResponse(Generic[StateT]):
     @property
     def text(self) -> str:
         """Full text content of the response message."""
-        if self.raw.finish_reason in _NO_REPLY:
-            return ''
-        return text_of(self.raw.message.content) if self.raw.message else ''
+        return text_of(self.message.content) if self.message else ''
 
     @property
     def reasoning(self) -> str:
         """Concatenated reasoning the model exposed for this turn."""
-        return reasoning_of(self.raw.message.content) if self.raw.message else ''
+        return reasoning_of(self.message.content) if self.message else ''
 
     @property
     def media(self) -> Media | None:
         """First media part of the response message, if any."""
-        return first_media_of(self.raw.message.content) if self.raw.message else None
+        return first_media_of(self.message.content) if self.message else None
 
     @property
     def data(self) -> Any:  # noqa: ANN401
         """Structured-output value of the response message, if the model returned one."""
-        return first_data_of(self.raw.message.content) if self.raw.message else None
+        return first_data_of(self.message.content) if self.message else None
 
     @property
     def finish_reason(self) -> AgentFinishReason | None:
@@ -274,26 +275,29 @@ class AgentResponse(Generic[StateT]):
         """Artifacts emitted during this turn."""
         return self.raw.artifacts or []
 
-    @cached_property
+    @property
     def error(self) -> GenkitRuntimeError | None:
         """Why this turn failed, or None when it didn't.
 
         Same fields generate puts on ``response.error`` (status, message,
-        details, and reason), so one check reads both.
+        details, and reason), so one check reads both. A failed turn that
+        carried no error still gets one, so ``if res.error:`` never reads a
+        failure as success.
         """
-        wire = self.raw.error
-        if wire is None:
-            return None
-        if isinstance(wire, GenkitRuntimeError):
-            return wire
-        return GenkitRuntimeError(status=wire.status, message=wire.message, details=wire.details)
+        if self.raw.error is not None:
+            return self.raw.error
+        if self.raw.finish_reason == AgentFinishReason.FAILED:
+            return _UNEXPLAINED_FAILURE
+        return None
 
     @property
     def message(self) -> Message | None:
         """The response message.
 
         A failed or aborted turn's wire message is the previous reply.
-        Showing it would look like this turn answered.
+        Showing it would look like this turn answered, so this is None and
+        every accessor that reads the reply (text, data, interrupts, ...)
+        comes back empty.
         """
         if self.raw.finish_reason in _NO_REPLY:
             return None
@@ -302,12 +306,12 @@ class AgentResponse(Generic[StateT]):
     @property
     def tool_requests(self) -> list[Part]:
         """Tool requests in the response message."""
-        return tool_requests_of(self.raw.message.content) if self.raw.message else []
+        return tool_requests_of(self.message.content) if self.message else []
 
     @property
     def interrupts(self) -> list[AgentInterrupt[Any, Any]]:
         """Tool requests that paused this turn."""
-        return agent_interrupts_from_message(self.raw.message)
+        return agent_interrupts_from_message(self.message)
 
 
 class AgentError(Exception):
@@ -1180,6 +1184,9 @@ class AgentChat(Generic[StateT]):
         # can roll it back. This length-based rollback assumes turns are single-flight
         # — overlapping sends on one session would race on this list and corrupt it.
         message_count_before = len(self.messages)
+        # Streamed custom patches land on _custom as they arrive. Keep the
+        # pre-turn value so a turn that lands no reply can undo them.
+        custom_before = copy.deepcopy(self._custom)
         if inp.message:
             self.messages.append(inp.message)
 
@@ -1188,7 +1195,9 @@ class AgentChat(Generic[StateT]):
             inp=inp,
             init=init,
             run_turn=self._transport.run_turn,
-            commit_output=lambda raw: self._commit_output(raw=raw, message_count_before=message_count_before),
+            commit_output=lambda raw: self._commit_output(
+                raw=raw, message_count_before=message_count_before, custom_before=custom_before
+            ),
             commit_custom_patch=self._commit_custom_patch,
             accumulate_chunk=self._turn_accumulator.add,
             on_turn_error=self._on_turn_error,
@@ -1243,6 +1252,7 @@ class AgentChat(Generic[StateT]):
         # Optimistically append the user message so the local history reflects the
         # detached turn; the reply is retrieved later by polling the snapshot.
         message_count_before = len(self.messages)
+        custom_before = copy.deepcopy(self._custom)
         if inp.message:
             self.messages.append(inp.message)
 
@@ -1261,7 +1271,7 @@ class AgentChat(Generic[StateT]):
         # that snapshot. Abort stops the server turn but keeps the prompt —
         # it was still asked. Use chat(session_id=...) to resume from the last
         # completed turn.
-        self._update_from_output(raw=raw_output, message_count_before=message_count_before)
+        self._update_from_output(raw=raw_output, message_count_before=message_count_before, custom_before=custom_before)
 
         if not raw_output.snapshot_id:
             raise ValueError('detach did not return a snapshot_id.')
@@ -1355,13 +1365,19 @@ class AgentChat(Generic[StateT]):
         patch_list = patch.root if hasattr(patch, 'root') else patch
         self._custom = apply_json_patch(doc=self._custom, patch=patch_list)
 
-    def _commit_output(self, *, raw: AgentOutput, message_count_before: int) -> AgentResponse[StateT]:
+    def _commit_output(
+        self,
+        *,
+        raw: AgentOutput,
+        message_count_before: int,
+        custom_before: Any,  # noqa: ANN401
+    ) -> AgentResponse[StateT]:
         """Folds a turn's final output into the session and builds the turn result.
 
         A failed turn returns with the last good snapshot or state. The
         caller reads why on ``.error`` and sends again from there.
         """
-        self._update_from_output(raw=raw, message_count_before=message_count_before)
+        self._update_from_output(raw=raw, message_count_before=message_count_before, custom_before=custom_before)
         raw = self._with_resume_snapshot(raw)
         return AgentResponse(raw=raw, messages=list(self.messages), state=self._response_state(raw))
 
@@ -1372,8 +1388,8 @@ class AgentChat(Generic[StateT]):
         The chat is still on the previous completed one, and that is the
         id the caller resumes from.
         """
-        if raw.finish_reason in _NO_REPLY and raw.snapshot_id is None and self._snapshot_id is not None:
-            return raw.model_copy(update={'snapshot_id': self._snapshot_id})
+        if raw.finish_reason in _NO_REPLY and raw.snapshot_id is None and self._resume_snapshot_id is not None:
+            return raw.model_copy(update={'snapshot_id': self._resume_snapshot_id})
         return raw
 
     def _response_state(self, raw: AgentOutput) -> StateT | None:
@@ -1422,10 +1438,17 @@ class AgentChat(Generic[StateT]):
             else:
                 self.artifacts.append(art)
 
-    def _update_from_output(self, *, raw: AgentOutput, message_count_before: int) -> None:
-        # message_count_before is the history length captured before this turn's
-        # optimistic user-message push, so a turn that lands no reply can roll
-        # that push back (see send()).
+    def _update_from_output(
+        self,
+        *,
+        raw: AgentOutput,
+        message_count_before: int,
+        custom_before: Any,  # noqa: ANN401
+    ) -> None:
+        # message_count_before and custom_before are the history length and
+        # custom state from before this turn, so a turn that lands no reply
+        # can roll back the optimistic user message and any streamed custom
+        # patches (see send()).
         if raw.snapshot_id is not None:
             self._snapshot_id = raw.snapshot_id
             # A failed/aborted row is inspectable, not a place the next
@@ -1438,8 +1461,11 @@ class AgentChat(Generic[StateT]):
         if raw.finish_reason in _NO_REPLY:
             # No reply landed this turn, so drop the optimistic user message
             # rather than strand it unanswered; the next turn resumes from before
-            # it. The durable snapshot still holds the truth.
+            # it. The durable snapshot still holds the truth. Its custom state
+            # is the pre-turn one too; a client-managed output that carries
+            # state overwrites this below.
             self._rollback_optimistic(message_count_before)
+            self._custom = custom_before
         else:
             self._append_turn_messages(raw)
 

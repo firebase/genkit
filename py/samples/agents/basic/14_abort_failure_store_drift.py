@@ -38,9 +38,9 @@ store, which is the source of truth:
   3. a real server error (e.g. the model is exhausted) — the chat returns
      the turn with res.error set, the optimistic prompt is rolled back, and
      the resume handle stays pinned to the last good turn, so the next send
-     picks up from there. AgentError is still raised if a call never produces
-     a turn result (e.g. dropped connection or invalid init), so calls still
-     wrap send in try/except AgentError.
+     picks up from there. A call that never produces a turn result (e.g. a
+     dropped connection or an invalid init) raises AgentError, so wrap send
+     in try/except AgentError for those.
 
 And a fourth, related point: a detached turn that *succeeds* still never streams
 its reply back to your in-memory chat, so before continuing you reload from the

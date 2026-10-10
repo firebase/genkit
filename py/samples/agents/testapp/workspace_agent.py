@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from _ai import ai
+from _ai import ai, reply_text
 from pydantic import BaseModel
 
 from genkit import ActionRunContext, Part
@@ -71,7 +71,7 @@ async def test_workspace_agent(text: str, ctx: ActionRunContext) -> dict[str, An
         if chunk.text:
             ctx.send_chunk(chunk.text)
     res = await turn
-    return {'text': res.text, 'artifacts': [a.name for a in chat.artifacts]}
+    return {'text': reply_text(res), 'artifacts': [a.name for a in chat.artifacts]}
 
 
 if __name__ == '__main__':
