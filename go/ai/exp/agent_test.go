@@ -3652,7 +3652,7 @@ func TestAgent_Detach_RequiresStore(t *testing.T) {
 	if out.FinishReason != AgentFinishReasonFailed {
 		t.Errorf("expected finish reason %q, got %q", AgentFinishReasonFailed, out.FinishReason)
 	}
-	if out.Error == nil || !strings.Contains(out.Error.Message, "detach requires a session store") {
+	if out.Error == nil || !strings.Contains(out.Error.Message, "cannot run in the background") {
 		t.Errorf("unexpected output error: %+v", out.Error)
 	}
 	if out.Error != nil && out.Error.Status != core.FAILED_PRECONDITION {

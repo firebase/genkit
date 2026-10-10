@@ -1645,20 +1645,22 @@ func disconnectErr(clientCtx context.Context, cause error) error {
 // SaveSnapshot writes) and a [SnapshotSubscriber] (so the runtime can observe
 // the abort flip and promptly cancel the background work without polling).
 //
-// The refusal is public, so its message reaches a client unredacted, and it
-// carries [ReasonDetachUnsupported] so a caller can tell it from the agent's
-// own failures.
-func (rt *agentRuntime[State]) checkDetachCapabilities() error {
-	var e *status.Error
-	if rt.cfg.store == nil {
-		e = status.PublicErrorf(ErrSessionStoreNotConfigured,
-			"agent %q: detach requires a session store", rt.name)
-	} else if _, ok := rt.cfg.store.(SnapshotSubscriber); !ok {
-		e = status.PublicErrorf(status.ErrFailedPrecondition,
-			"agent %q: detach requires a session store implementing SnapshotSubscriber", rt.name)
-	} else {
+// The refusal is public, so it reaches a client unredacted, and it carries
+// [ReasonDetachUnsupported] so a caller can tell it from the agent's own
+// failures. Its message names no part of the agent's setup; the cause is
+// logged at debug level.
+func (rt *agentRuntime[State]) checkDetachCapabilities(ctx context.Context) error {
+	sentinel := status.ErrFailedPrecondition
+	switch _, subscribes := rt.cfg.store.(SnapshotSubscriber); {
+	case rt.cfg.store == nil:
+		sentinel = ErrSessionStoreNotConfigured
+		logger.Debug(ctx, "agent: detach refused: no session store", "agent", rt.name)
+	case !subscribes:
+		logger.Debug(ctx, "agent: detach refused: the session store does not implement SnapshotSubscriber", "agent", rt.name)
+	default:
 		return nil
 	}
+	e := status.PublicErrorf(sentinel, "agent %q cannot run in the background", rt.name)
 	e.Details = map[string]any{"reason": ReasonDetachUnsupported}
 	return e
 }
@@ -1967,7 +1969,7 @@ func (rt *agentRuntime[State]) handleDetach(
 	cancelWork context.CancelFunc,
 	markDetached func(),
 ) (*AgentOutput[State], error) {
-	if err := rt.checkDetachCapabilities(); err != nil {
+	if err := rt.checkDetachCapabilities(clientCtx); err != nil {
 		rt.drainAndWait(cancelWork)
 		return rt.failedOutput(clientCtx, terminalReason(clientCtx.Err(), err), err), nil
 	}
