@@ -167,6 +167,24 @@ describe('jsonlFormat', () => {
       ],
     },
     {
+      desc: 'emits a valid object after an invalid object line in the same chunk',
+      chunks: [
+        {
+          text: '{"id": }\n{"id": 1}\n',
+          want: [{ id: 1 }],
+        },
+      ],
+    },
+    {
+      desc: 'emits a valid object after an incomplete object line in the same chunk',
+      chunks: [
+        {
+          text: '{"id":\n{"id": 1}\n',
+          want: [{ id: 1 }],
+        },
+      ],
+    },
+    {
       desc: 'ignores non-object lines',
       chunks: [
         {

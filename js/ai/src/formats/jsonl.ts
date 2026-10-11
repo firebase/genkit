@@ -181,16 +181,13 @@ ${JSON.stringify(schema.items)}
         const processText = (text: string): unknown[] => {
           const results: unknown[] = [];
           const segments = text.split('\n');
-          let emitResults = true;
 
           for (let index = 0; index < segments.length; index++) {
             scanSegment(segments[index]);
-            if (emitResults) results.push(...parseLine());
+            results.push(...parseLine());
 
             if (index < segments.length - 1) {
-              if (lineType === 'object' && !lineEmitted) {
-                emitResults = false;
-              }
+              // A newline permanently terminates the line, complete or not.
               resetLine();
             }
           }
