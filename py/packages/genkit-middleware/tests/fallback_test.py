@@ -16,10 +16,11 @@
 
 """Tests for Fallback middleware."""
 
-from typing import NoReturn
+from typing import Any, NoReturn
 
 import pytest
 from genkit_middleware import Fallback
+from pydantic import Field, ValidationError
 
 from genkit import (
     ActionRunContext,
@@ -33,7 +34,8 @@ from genkit import (
     Role,
 )
 from genkit.middleware import GenerateMiddlewareContext, ModelHookParams
-from genkit.model import ModelRequest
+from genkit.model import ModelConfig, ModelRequest, model_ref
+from genkit.plugin_api import provider_error
 from genkit.testing import define_scripted_model
 
 
@@ -93,13 +95,157 @@ async def test_fallback_non_genkit_error_raises_without_trying_next_model(ctx) -
         await fallback.wrap_model(_make_params(), ctx, next_fn)
 
 
+def _config_value(config: Any, key: str) -> Any:  # noqa: ANN401
+    if config is None:
+        return None
+    if isinstance(config, dict):
+        return config.get(key)
+    return getattr(config, key, None)
+
+
+class ThinkingConfig(ModelConfig):
+    """A Gemini-shaped class so the failed call can carry thinkingConfig."""
+
+    thinking_config: dict[str, Any] | None = Field(default=None, alias='thinkingConfig')
+
+
 @pytest.mark.asyncio
-async def test_generate_with_unavailable_model_and_fallback_tries_next_model() -> None:
-    """With `Fallback(models=['backup'])`, a model raising UNAVAILABLE falls back to `backup`."""
+async def test_fallback_to_other_model_sends_only_the_entry_config() -> None:
+    """When the primary fails, a string backup runs with that model's defaults — no thinkingConfig."""
+    ai = Genkit()
+    seen: list[object] = []
+
+    async def primary(_request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
+        raise GenkitError(status='UNAVAILABLE', message='down')
+
+    async def backup(request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
+        seen.append(request.config)
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('ok')]))
+
+    ai.define_model(name='gem', fn=primary, config_schema=ThinkingConfig)
+    ai.define_model(name='oai', fn=backup, config_schema=ModelConfig)
+
+    response = await ai.generate(
+        model='gem',
+        prompt='hi',
+        config={
+            'temperature': 0.2,
+            'thinkingConfig': {'thinkingBudget': 0},
+            'version': 'gemini-2.5-flash-001',
+            'extra': {'labels': {'team': 'search'}},
+        },
+        use=[Fallback(models=['oai'])],
+    )
+
+    assert response.text == 'ok'
+    assert len(seen) == 1
+    assert _config_value(seen[0], 'thinkingConfig') is None
+    assert _config_value(seen[0], 'thinking_config') is None
+    assert _config_value(seen[0], 'temperature') is None
+    assert _config_value(seen[0], 'version') is None
+    assert _config_value(seen[0], 'extra') is None
+
+
+@pytest.mark.asyncio
+async def test_fallback_to_other_provider_does_not_pass_thinking_config() -> None:
+    """Fallback to another provider does not pass the failed Gemini call's thinkingConfig."""
+    ai = Genkit()
+    seen: list[object] = []
+
+    async def primary(_request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
+        raise GenkitError(status='UNAVAILABLE', message='down')
+
+    async def backup(request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
+        seen.append(request.config)
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('ok')]))
+
+    ai.define_model(name='gem', fn=primary, config_schema=ThinkingConfig)
+    ai.define_model(name='oai', fn=backup, config_schema=ModelConfig)
+
+    await ai.generate(
+        model='gem',
+        prompt='hi',
+        config={'thinkingConfig': {'thinkingBudget': 0}},
+        use=[Fallback(models=['oai'])],
+    )
+
+    assert _config_value(seen[0], 'thinkingConfig') is None
+    assert _config_value(seen[0], 'thinking_config') is None
+
+
+@pytest.mark.asyncio
+async def test_fallback_ref_entry_config_reaches_fallback_model() -> None:
+    """A ModelRef backup entry sends only that ref's config to the fallback model."""
+    ai = Genkit()
+    seen: list[object] = []
+
+    async def primary(_request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
+        raise GenkitError(status='UNAVAILABLE', message='down')
+
+    async def backup(request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
+        seen.append(request.config)
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('ok')]))
+
+    ai.define_model(name='gem', fn=primary, config_schema=ThinkingConfig)
+    ai.define_model(name='oai', fn=backup, config_schema=ModelConfig)
+    ref = model_ref('oai', config_schema=ModelConfig, config=ModelConfig(temperature=0.2))
+
+    response = await ai.generate(
+        model='gem',
+        prompt='hi',
+        config={'temperature': 0.9, 'thinkingConfig': {'thinkingBudget': 0}},
+        use=[Fallback(models=[ref])],
+    )
+
+    assert response.text == 'ok'
+    assert _config_value(seen[0], 'temperature') == 0.2
+    assert _config_value(seen[0], 'thinkingConfig') is None
+    assert _config_value(seen[0], 'thinking_config') is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ('entry', 'temperature'),
+    [
+        (model_ref('backup', config_schema=ThinkingConfig, config=ThinkingConfig(temperature=0.2)), 0.2),
+        ('backup', None),
+    ],
+    ids=['ref_entry', 'string_entry'],
+)
+async def test_fallback_backup_with_same_config_class_gets_that_class(entry: object, temperature: float | None) -> None:
+    """A backup that shares the primary's config class gets a ThinkingConfig, not a dict or None."""
+    ai = Genkit()
+    seen: list[object] = []
+
+    async def primary(_request: ModelRequest[ThinkingConfig], _ctx: ActionRunContext) -> ModelResponse:
+        raise GenkitError(status='UNAVAILABLE', message='down')
+
+    async def backup(request: ModelRequest[ThinkingConfig], _ctx: ActionRunContext) -> ModelResponse:
+        seen.append(request.config)
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('ok')]))
+
+    ai.define_model(name='primary', fn=primary, config_schema=ThinkingConfig)
+    ai.define_model(name='backup', fn=backup, config_schema=ThinkingConfig)
+
+    response = await ai.generate(
+        model='primary',
+        prompt='hi',
+        config={'temperature': 0.9},
+        use=[Fallback(models=[entry])],  # type: ignore[list-item]
+    )
+
+    assert response.text == 'ok'
+    assert isinstance(seen[0], ThinkingConfig)
+    assert seen[0].temperature == temperature
+
+
+@pytest.mark.asyncio
+async def test_fallback_switches_model_when_primary_is_unreachable() -> None:
+    """With `Fallback(models=['backup'])`, an UNAVAILABLE provider_error on a dead connection gets backup's answer."""
     ai = Genkit()
 
     async def down(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
-        raise GenkitError(status='UNAVAILABLE', message='provider is down')
+        raise provider_error(ConnectionError('connection refused'), status='UNAVAILABLE')
 
     async def backup(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         return ModelResponse(
@@ -115,6 +261,25 @@ async def test_generate_with_unavailable_model_and_fallback_tries_next_model() -
     assert response.finish_reason == FinishReason.STOP
     assert response.text == 'from backup'
     assert response.error is None
+
+
+@pytest.mark.asyncio
+async def test_fallback_unknown_backup_model_is_not_found() -> None:
+    """A backup name nothing on the app answers to fails the call with NOT_FOUND naming that model."""
+    ai = Genkit()
+
+    async def down(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        raise GenkitError(status='UNAVAILABLE', message='provider is down')
+
+    ai.define_model(name='primary', fn=down)
+
+    response = await ai.generate(model='primary', prompt='hi', use=[Fallback(models=['nope'])])
+
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.finish_message == 'No model named "nope" is registered on this app.'
+    assert response.error is not None
+    assert response.error.status == 'NOT_FOUND'
+    assert response.message is None
 
 
 @pytest.mark.asyncio
@@ -271,3 +436,52 @@ async def test_fallback_streams_chunks_from_the_fallback_model() -> None:
 
     assert 'from-backup' in ''.join(texts)
     assert final.text == 'done'
+
+
+def test_fallback_given_a_model_action_names_the_string_to_pass() -> None:
+    """Fallback config is JSON, so a define_model action is refused with its name in the message."""
+
+    async def backup(_request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('ok')]))
+
+    backup_model = Genkit().define_model(name='backup', fn=backup)
+
+    with pytest.raises(ValidationError, match="pass 'backup', not the action"):
+        Fallback(models=[backup_model])
+
+
+@pytest.mark.asyncio
+async def test_fallback_does_not_switch_when_model_wraps_the_callers_on_chunk_failure() -> None:
+    """A model that re-raises the caller's on_chunk failure as UNAVAILABLE doesn't send the call to backup."""
+    ai = Genkit()
+    backup_calls = 0
+
+    async def wraps_stream_errors(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        try:
+            ctx.send_chunk(ModelResponseChunk(role=Role.MODEL, content=[Part.from_text('partial')]))
+        except Exception as e:
+            raise GenkitError(status='UNAVAILABLE', message='stream broke') from e
+        return ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part.from_text('done')]),
+        )
+
+    async def backup(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        nonlocal backup_calls
+        backup_calls += 1
+        return ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part.from_text('from backup')]),
+        )
+
+    ai.define_model(name='wraps', fn=wraps_stream_errors)
+    ai.define_model(name='backup', fn=backup)
+
+    def on_chunk(_: object) -> None:
+        raise RuntimeError('model sink closed')
+
+    prompt = ai.define_prompt(model='wraps', prompt='hi')
+    response = await prompt(on_chunk=on_chunk, use=[Fallback(models=['backup'])])
+
+    assert backup_calls == 0
+    assert response.finish_reason == FinishReason.FAILED

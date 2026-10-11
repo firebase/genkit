@@ -50,7 +50,7 @@ dependencies = [
   "typing_extensions>=4.2",
   "strenum>=0.4.15; python_version < '3.11'",
 
-  "dotpromptz>=0.1.5",
+  "dotpromptz>=0.2.0,<0.3.0",
   "uvicorn>=0.34.0",
   "uvloop>=0.21.0; sys_platform != 'win32'",
   "anyio>=4.9.0",
@@ -87,7 +87,7 @@ middleware            = ["genkit-middleware"]
 otel                  = ["genkit-otel"]
 ollama                = ["genkit-ollama"]
 openai                = ["genkit-openai"]
-vertex-ai             = ["genkit-vertexai"]
+vertex-ai             = ["genkit-vertexai[anthropic,openai]"]
 
 [project.urls]
 "Bug Tracker"   = "https://github.com/genkit-ai/genkit/issues"
@@ -120,6 +120,7 @@ DEP002 = [
 ]
 # Standard library on Python 3.14+; imported behind a version check.
 DEP001 = ["annotationlib"]
+DEP003 = ["pydantic_core"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/genkit"]

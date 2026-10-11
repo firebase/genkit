@@ -39,6 +39,7 @@ from google import genai
 from google.auth.credentials import Credentials
 from google.auth.exceptions import DefaultCredentialsError
 from google.genai.types import HttpOptions
+from pydantic import ValidationError
 
 from genkit import Document, Genkit, GenkitError, Message, Part, Role
 from genkit.embedder import EmbedRequest
@@ -863,17 +864,44 @@ async def test_vertexai_resolve_evaluator(vertexai_plugin_instance: VertexAI) ->
     assert action.name == vertexai_name('fluency')
 
 
-def test_config_schema_extra_fields() -> None:
-    """Test that config schema accepts extra fields (dynamic config)."""
-    # Validation should succeed with unknown field by using model_validate for dynamic fields
-    # to avoid static type checker errors on constructor
-    config_data = {'temperature': 0.5, 'new_experimental_param': 'test'}
-    config = GeminiConfig.model_validate(config_data)
+@pytest.mark.asyncio
+async def test_vertexai_listed_evaluator_metadata_matches_resolved(vertexai_plugin_instance: VertexAI) -> None:
+    """The Dev UI shows the same evaluator name and definition before and after resolve."""
+    plugin = vertexai_plugin_instance
+    mock_client = MagicMock()
+    _set_async_model_list(mock_client, [])
+    plugin._runtime_client = lambda: mock_client
+
+    listed = {a.name: a for a in await plugin.list_actions() if a.action_type == ActionKind.EVALUATOR}
+
+    assert len(listed) == 8
+    for name, meta in listed.items():
+        action = await plugin.resolve(action_type=ActionKind.EVALUATOR, name=name.removeprefix('vertexai/'))
+        assert action is not None
+        assert meta.metadata is not None
+        assert meta.metadata['evaluator'] == action.metadata['evaluator']
+    assert listed[vertexai_name('fluency')].metadata == {
+        'evaluator': {
+            'evaluatorDefinition': 'Assesses the language mastery of an output',
+            'evaluatorDisplayName': 'Fluency',
+            'evaluatorIsBilled': True,
+            'label': vertexai_name('fluency'),
+        }
+    }
+
+
+def test_config_schema_rejects_unknown_fields() -> None:
+    """An undeclared top-level key raises; it has to go in `extra`."""
+    with pytest.raises(ValidationError, match='new_experimental_param'):
+        GeminiConfig.model_validate({'temperature': 0.5, 'new_experimental_param': 'test'})
+
+
+def test_config_schema_extra_holds_undeclared_fields() -> None:
+    """`extra` holds provider fields the schema doesn't declare, unchecked."""
+    config = GeminiConfig.model_validate({'temperature': 0.5, 'extra': {'new_experimental_param': 'test'}})
 
     assert config.temperature == 0.5
-    # Access dynamic fields via getattr or __dict__ to make type checker happy
-    assert config.new_experimental_param == 'test'  # type: ignore
-    assert config.model_dump()['new_experimental_param'] == 'test'
+    assert config.extra == {'new_experimental_param': 'test'}
 
 
 @pytest.mark.asyncio

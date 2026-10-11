@@ -18,10 +18,12 @@
 """Tests for the Gemini model implementation."""
 
 import base64
-from typing import Any, get_args
+from typing import Any, cast, get_args
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
+from genkit_google_genai._models import _gemini
 from genkit_google_genai._models._gemini import (
     DEFAULT_SUPPORTS_MODEL,
     GeminiConfig,
@@ -33,7 +35,7 @@ from genkit_google_genai._models._gemini import (
     KnownGeminiImage,
     KnownGeminiTts,
     KnownGemma,
-    SpeechConfigSchema,
+    SpeechConfig,
     _to_finish_reason,
     get_model_config_schema,
     google_model_info,
@@ -45,7 +47,7 @@ from google import genai
 from google.auth.exceptions import DefaultCredentialsError, RefreshError, TransportError
 from google.genai import types as genai_types
 from google.genai.errors import APIError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from pytest_mock import MockerFixture
 
 from genkit import ActionRunContext, FinishReason, GenkitError, Message, ModelResponse, Part, Role
@@ -1200,13 +1202,13 @@ def test_gemini_model__normalize_config_dumps_gemma_instance() -> None:
 
 
 @pytest.mark.asyncio
-async def test_gemini_model__unknown_extra_rides_on_extra_body(
+async def test_gemini_model__config_extra_rides_on_extra_body(
     gemini_model_instance: GeminiModel,
 ) -> None:
-    """Leftover keys ride on extra_body so a newly supported field still reaches the API."""
+    """`extra` rides on extra_body under its wire path so a newly supported field still reaches the API."""
     request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
-        config=GeminiConfig.model_validate({'temperature': 0.5, 'fooBar': 1}),
+        config=GeminiConfig.model_validate({'temperature': 0.5, 'extra': {'generationConfig': {'fooBar': 1}}}),
     )
 
     cfg = await gemini_model_instance._genkit_to_googleai_cfg(request)
@@ -1397,9 +1399,9 @@ def tts_model_instance() -> GeminiModel:
     )
 
 
-def test_speech_config_schema_declares_sdk_fields() -> None:
+def test_speech_config_declares_sdk_fields() -> None:
     """Language code and multi-speaker voice config validate as typed fields, by name or alias."""
-    config = SpeechConfigSchema.model_validate({
+    config = SpeechConfig.model_validate({
         'language_code': 'en-US',
         'multiSpeakerVoiceConfig': {
             'speakerVoiceConfigs': [
@@ -1421,14 +1423,14 @@ def test_speech_config_schema_declares_sdk_fields() -> None:
 def test_tts_config_json_schema_exposes_speech_config_fields() -> None:
     """The Dev UI schema lists every speech config field the SDK accepts."""
     schema = GeminiTtsConfig.model_json_schema(by_alias=True)
-    speech = schema['$defs']['SpeechConfigSchema']['properties']
+    speech = schema['$defs']['SpeechConfig']['properties']
 
     assert {'voiceConfig', 'languageCode', 'multiSpeakerVoiceConfig'} <= set(speech)
 
 
-def test_speech_config_schema_populates_by_field_name() -> None:
+def test_speech_config_populates_by_field_name() -> None:
     """The speech config validates from snake_case field names, not only aliases."""
-    config = SpeechConfigSchema.model_validate({'voice_config': {'prebuilt_voice_config': {'voice_name': 'Kore'}}})
+    config = SpeechConfig.model_validate({'voice_config': {'prebuilt_voice_config': {'voice_name': 'Kore'}}})
 
     assert config.voice_config is not None
     assert config.voice_config.prebuilt_voice_config is not None
@@ -1486,21 +1488,10 @@ async def test_gemini_model__speech_config_keeps_multi_speaker_voice_config(
     assert [s.speaker for s in speakers] == ['Alice']
 
 
-@pytest.mark.asyncio
-async def test_gemini_model__unknown_speech_config_key_is_rejected(
-    tts_model_instance: GeminiModel,
-) -> None:
-    """An unknown speech config key is reported instead of silently dropped."""
-    request = ModelRequest(
-        messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
-        config=GeminiTtsConfig.model_validate({'speechConfig': {'languageCodes': 'en-US'}}),
-    )
-
-    with pytest.raises(GenkitError) as exc_info:
-        await tts_model_instance._genkit_to_googleai_cfg(request)
-
-    assert exc_info.value.status == 'INVALID_ARGUMENT'
-    assert 'speech_config' in str(exc_info.value)
+def test_gemini_tts_config_with_unknown_speech_config_key_raises_validation_error() -> None:
+    """`speechConfig={'languageCodes': ...}` fails at construction instead of being silently dropped."""
+    with pytest.raises(ValidationError, match='languageCodes'):
+        GeminiTtsConfig.model_validate({'speechConfig': {'languageCodes': 'en-US'}})
 
 
 @pytest.mark.asyncio
@@ -1654,6 +1645,77 @@ async def test_generate_adds_no_voice_to_a_multi_speaker_config(mocker: MockerFi
     assert sent_config.speech_config.multi_speaker_voice_config is not None
 
 
+# Each strict nested Gemini setting and the google.genai type it is sent as.
+_NESTED_SDK_MIRRORS: list[tuple[type[BaseModel], type[BaseModel]]] = [
+    (_gemini.SafetySettingsSchema, genai_types.SafetySetting),
+    (_gemini.PrebuiltVoiceConfig, genai_types.PrebuiltVoiceConfig),
+    (_gemini.FunctionCallingConfig, genai_types.FunctionCallingConfig),
+    (_gemini.ThinkingConfig, genai_types.ThinkingConfig),
+    (_gemini.FileSearchConfig, genai_types.FileSearch),
+    (_gemini.ImageConfig, genai_types.ImageConfig),
+    (_gemini.VoiceConfig, genai_types.VoiceConfig),
+    (_gemini.SpeakerVoiceConfig, genai_types.SpeakerVoiceConfig),
+    (_gemini.MultiSpeakerVoiceConfig, genai_types.MultiSpeakerVoiceConfig),
+    (_gemini.SpeechConfig, genai_types.SpeechConfig),
+]
+
+
+@pytest.mark.parametrize(('ours', 'sdk'), _NESTED_SDK_MIRRORS, ids=lambda c: c.__name__)
+def test_nested_gemini_setting_declares_exactly_the_sdk_fields(ours: type[BaseModel], sdk: type[BaseModel]) -> None:
+    """A strict nested setting accepts every key its google-genai type accepts, and no other."""
+    assert set(ours.model_fields) == set(sdk.model_fields)
+
+
+@pytest.mark.parametrize(
+    ('config_class', 'field', 'nested'),
+    [
+        (GeminiConfig, 'safetySettings', _gemini.SafetySettingsSchema),
+        (GeminiConfig, 'functionCallingConfig', _gemini.FunctionCallingConfig),
+        (GeminiConfig, 'thinkingConfig', _gemini.ThinkingConfig),
+        (GeminiConfig, 'fileSearch', _gemini.FileSearchConfig),
+        (GeminiImageConfig, 'imageConfig', _gemini.ImageConfig),
+    ],
+)
+def test_gemini_config_form_lists_every_nested_field(
+    config_class: type[BaseModel], field: str, nested: type[BaseModel]
+) -> None:
+    """The hand-written Dev UI schema for a nested setting lists every field the class accepts."""
+    schema = config_class.model_json_schema(by_alias=True)['properties'][field]
+    properties = schema.get('items', schema)['properties']
+
+    assert set(properties) == {f.alias or name for name, f in nested.model_fields.items()}
+
+
+@pytest.mark.asyncio
+async def test_gemini_model__tool_toggle_false_attaches_no_tool(gemini_model_instance: GeminiModel) -> None:
+    """`code_execution`, `google_search`, and `url_context` set to False add no tool."""
+    request = ModelRequest(
+        messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
+        config=GeminiConfig.model_validate({'code_execution': False, 'google_search': False, 'url_context': False}),
+    )
+
+    cfg = await gemini_model_instance._genkit_to_googleai_cfg(request)
+
+    assert cfg is None or not cfg.tools
+
+
+@pytest.mark.asyncio
+async def test_gemini_model__tool_toggle_empty_options_attaches_tool(gemini_model_instance: GeminiModel) -> None:
+    """An empty options dict attaches the tool, same as True."""
+    request = ModelRequest(
+        messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
+        config=GeminiConfig.model_validate({'code_execution': {}, 'google_search': {}, 'url_context': {}}),
+    )
+
+    cfg = await gemini_model_instance._genkit_to_googleai_cfg(request)
+
+    assert cfg is not None
+    tools = cast(list[genai_types.Tool], cfg.tools)
+    assert [t.code_execution is not None for t in tools] == [True, False, False]
+    assert [t.google_search is not None for t in tools] == [False, True, False]
+    assert [t.url_context is not None for t in tools] == [False, False, True]
+
+
 # ---------------------------------------------------------------------------
 # Error classification: credential failures, cache calls, unknown exceptions
 # ---------------------------------------------------------------------------
@@ -1701,8 +1763,8 @@ async def test_streaming_generate_credential_failure_is_unauthenticated(mocker: 
 
 
 @pytest.mark.asyncio
-async def test_generate_metadata_server_refresh_error_stays_raw(mocker: MockerFixture) -> None:
-    """On Cloud Run or GKE a metadata-server blip is RefreshError from TransportError, retryable=False; still raw."""
+async def test_generate_metadata_server_refresh_error_is_unavailable(mocker: MockerFixture) -> None:
+    """On Cloud Run or GKE a metadata-server blip is RefreshError from TransportError, retryable=False: UNAVAILABLE."""
     try:
         try:
             raise TransportError('metadata server unreachable')
@@ -1714,41 +1776,131 @@ async def test_generate_metadata_server_refresh_error_stays_raw(mocker: MockerFi
     client_mock.aio.models.generate_content.side_effect = blip
     gemini = GeminiModel('gemini-2.5-flash', client_mock)
 
-    with pytest.raises(RefreshError) as raised:
+    with pytest.raises(GenkitError) as raised:
         await gemini.generate(_hi_request(), ActionRunContext())
 
-    assert raised.value is blip
+    assert raised.value.status == 'UNAVAILABLE'
+    assert raised.value.cause is blip
 
 
 @pytest.mark.asyncio
-async def test_generate_retryable_refresh_error_stays_raw(mocker: MockerFixture) -> None:
-    """google.auth marked the refresh retryable (token endpoint 503), so retry must still see it."""
+async def test_generate_retryable_refresh_error_is_unavailable(mocker: MockerFixture) -> None:
+    """google.auth marked the refresh retryable (token endpoint 503): UNAVAILABLE, so Retry and Fallback act on it."""
     flaky = RefreshError('token endpoint returned 503', retryable=True)
     client_mock = mocker.AsyncMock()
     client_mock.aio.models.generate_content.side_effect = flaky
     gemini = GeminiModel('gemini-2.5-flash', client_mock)
 
-    with pytest.raises(RefreshError) as raised:
+    with pytest.raises(GenkitError) as raised:
         await gemini.generate(_hi_request(), ActionRunContext())
 
-    assert raised.value is flaky
+    assert raised.value.status == 'UNAVAILABLE'
+    assert raised.value.cause is flaky
+
+
+@pytest.mark.asyncio
+async def test_generate_bare_auth_transport_error_is_unavailable(mocker: MockerFixture) -> None:
+    """A google.auth TransportError that reaches the call is UNAVAILABLE, as in Vertex AI Model Garden."""
+    blip = TransportError('metadata server unreachable')
+    client_mock = mocker.AsyncMock()
+    client_mock.aio.models.generate_content.side_effect = blip
+    gemini = GeminiModel('gemini-2.5-flash', client_mock)
+
+    with pytest.raises(GenkitError) as raised:
+        await gemini.generate(_hi_request(), ActionRunContext())
+
+    assert raised.value.status == 'UNAVAILABLE'
+    assert raised.value.cause is blip
+
+
+async def _generate_failure(mocker: MockerFixture, failure: BaseException, *, streaming: bool = False) -> GenkitError:
+    client_mock = mocker.AsyncMock()
+    client_mock.aio.models.generate_content.side_effect = failure
+    client_mock.aio.models.generate_content_stream.side_effect = failure
+    gemini = GeminiModel('gemini-2.5-flash', client_mock)
+    ctx = ActionRunContext(streaming_callback=mocker.MagicMock()) if streaming else ActionRunContext()
+    with pytest.raises(GenkitError) as raised:
+        await gemini.generate(_hi_request(), ctx)
+    return raised.value
+
+
+def _quota_error(*, retry_delay: object = None, headers: dict[str, str] | None = None) -> APIError:
+    details = [{'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': retry_delay}] if retry_delay else []
+    body = {'error': {'code': 429, 'message': 'Quota exceeded', 'status': 'RESOURCE_EXHAUSTED', 'details': details}}
+    response = httpx.Response(429, json=body, headers=headers or {})
+    return APIError(429, body, response)
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('streaming', [False, True])
-async def test_generate_unknown_exception_stays_raw(mocker: MockerFixture, streaming: bool) -> None:
-    """A dropped connection has no known status; it reaches the caller unchanged, not as INTERNAL."""
-    dropped = ConnectionResetError('Connection reset by peer')
-    client_mock = mocker.AsyncMock()
-    client_mock.aio.models.generate_content.side_effect = dropped
-    client_mock.aio.models.generate_content_stream.side_effect = dropped
-    gemini = GeminiModel('gemini-2.5-flash', client_mock)
-    ctx = ActionRunContext(streaming_callback=mocker.MagicMock()) if streaming else ActionRunContext()
+@pytest.mark.parametrize(
+    'failure',
+    [
+        httpx.ConnectError('[Errno 61] Connection refused'),
+        httpx.RemoteProtocolError('Server disconnected without sending a response.'),
+        ConnectionResetError('Connection reset by peer'),
+    ],
+)
+async def test_connection_refused_is_unavailable(mocker: MockerFixture, failure: Exception, streaming: bool) -> None:
+    """A refused or dropped connection to Gemini is UNAVAILABLE so retry and fallback try again."""
+    error = await _generate_failure(mocker, failure, streaming=streaming)
 
-    with pytest.raises(ConnectionResetError) as raised:
-        await gemini.generate(_hi_request(), ctx)
+    assert error.status == 'UNAVAILABLE'
+    assert error.cause is failure
 
-    assert raised.value is dropped
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('streaming', [False, True])
+@pytest.mark.parametrize('failure', [httpx.ReadTimeout('timed out'), httpx.ConnectTimeout('timed out'), TimeoutError()])
+async def test_timeout_is_deadline_exceeded(mocker: MockerFixture, failure: Exception, streaming: bool) -> None:
+    """A Gemini call that times out is DEADLINE_EXCEEDED, not a raw transport error."""
+    error = await _generate_failure(mocker, failure, streaming=streaming)
+
+    assert error.status == 'DEADLINE_EXCEEDED'
+    assert error.cause is failure
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('code', [413, 418])
+async def test_unmapped_4xx_is_unknown_genkit_error(mocker: MockerFixture, code: int) -> None:
+    """A 4xx with no matching status is an UNKNOWN GenkitError that keeps the SDK error as its cause."""
+    api_error = APIError(code, {'error': {'message': 'Request payload too large'}})
+
+    error = await _generate_failure(mocker, api_error)
+
+    assert error.status == 'UNKNOWN'
+    assert error.cause is api_error
+    assert error.original_message == 'Request payload too large'
+
+
+@pytest.mark.asyncio
+async def test_429_retry_after_header_sets_retry_delay(mocker: MockerFixture) -> None:
+    """A Gemini 429 with a Retry-After header tells retry how long to wait."""
+    error = await _generate_failure(mocker, _quota_error(headers={'Retry-After': '7'}))
+
+    assert error.status == 'RESOURCE_EXHAUSTED'
+    assert error.response_metadata == {'retry_after_ms': 7000.0}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ('retry_delay', 'headers', 'expected'),
+    [
+        ('30s', {}, {'retry_after_ms': 30000.0}),
+        ('1.5s', {}, {'retry_after_ms': 1500.0}),
+        ('30s', {'Retry-After': '7'}, {'retry_after_ms': 30000.0}),
+        ('soon', {}, None),
+        (30, {}, None),
+    ],
+)
+async def test_429_retry_info_sets_retry_delay(
+    mocker: MockerFixture, retry_delay: object, headers: dict[str, str], expected: dict[str, float] | None
+) -> None:
+    """A Gemini 429 whose body says RetryInfo "30s" waits 30000 ms, over any header; a malformed delay is ignored."""
+    error = await _generate_failure(mocker, _quota_error(retry_delay=retry_delay, headers=headers))
+
+    assert error.status == 'RESOURCE_EXHAUSTED'
+    assert error.response_metadata == expected
 
 
 @pytest.mark.asyncio

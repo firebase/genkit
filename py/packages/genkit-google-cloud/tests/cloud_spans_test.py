@@ -24,10 +24,8 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from genkit_google_cloud.telemetry.tracing import (
-    _reset_google_cloud_telemetry,
-    enable_google_cloud_telemetry,
-)
+from genkit_google_cloud import enable_google_cloud_telemetry
+from genkit_google_cloud._telemetry._tracing import _reset_google_cloud_telemetry
 from genkit_otel import GenAiInstrumentation
 from opentelemetry import _logs, context as otel_context, trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
@@ -98,17 +96,17 @@ def _cloud_enable(**kwargs: Any) -> Generator[InMemorySpanExporter, None, None]:
     _reset_google_cloud_telemetry()
     cloud = InMemorySpanExporter()
     with (
-        patch('genkit_google_cloud.telemetry.config.GenkitGCPExporter'),
+        patch('genkit_google_cloud._telemetry._config.GenkitGCPExporter'),
         patch(
-            'genkit_google_cloud.telemetry.config.GcpAdjustingTraceExporter',
+            'genkit_google_cloud._telemetry._config.GcpAdjustingTraceExporter',
             return_value=cloud,
         ),
-        patch('genkit_google_cloud.telemetry.config.GoogleCloudResourceDetector'),
-        patch('genkit_google_cloud.telemetry.config.CloudMonitoringMetricsExporter'),
-        patch('genkit_google_cloud.telemetry.config.GenkitMetricExporter'),
-        patch('genkit_google_cloud.telemetry.config.PeriodicExportingMetricReader'),
-        patch('genkit_google_cloud.telemetry.config.metrics'),
-        patch('genkit_google_cloud.telemetry.config.CloudLoggingExporter'),
+        patch('genkit_google_cloud._telemetry._config.GoogleCloudResourceDetector'),
+        patch('genkit_google_cloud._telemetry._config.CloudMonitoringMetricsExporter'),
+        patch('genkit_google_cloud._telemetry._config.GenkitMetricExporter'),
+        patch('genkit_google_cloud._telemetry._config.PeriodicExportingMetricReader'),
+        patch('genkit_google_cloud._telemetry._config.metrics'),
+        patch('genkit_google_cloud._telemetry._config.CloudLoggingExporter'),
     ):
         enable_google_cloud_telemetry(**kwargs)
         yield cloud
@@ -120,15 +118,15 @@ def _cloud_trace(**kwargs: Any) -> Generator[InMemorySpanExporter, None, None]:
     _reset_google_cloud_telemetry()
     cloud = InMemorySpanExporter()
     with (
-        patch('genkit_google_cloud.telemetry.config.GenkitGCPExporter', return_value=cloud),
-        patch('genkit_google_cloud.telemetry.config.GoogleCloudResourceDetector'),
-        patch('genkit_google_cloud.telemetry.config.CloudMonitoringMetricsExporter'),
-        patch('genkit_google_cloud.telemetry.config.GenkitMetricExporter'),
-        patch('genkit_google_cloud.telemetry.config.PeriodicExportingMetricReader'),
-        patch('genkit_google_cloud.telemetry.config.metrics'),
-        patch('genkit_google_cloud.telemetry.config.CloudLoggingExporter'),
+        patch('genkit_google_cloud._telemetry._config.GenkitGCPExporter', return_value=cloud),
+        patch('genkit_google_cloud._telemetry._config.GoogleCloudResourceDetector'),
+        patch('genkit_google_cloud._telemetry._config.CloudMonitoringMetricsExporter'),
+        patch('genkit_google_cloud._telemetry._config.GenkitMetricExporter'),
+        patch('genkit_google_cloud._telemetry._config.PeriodicExportingMetricReader'),
+        patch('genkit_google_cloud._telemetry._config.metrics'),
+        patch('genkit_google_cloud._telemetry._config.CloudLoggingExporter'),
     ):
-        enable_google_cloud_telemetry(project_id='p', **kwargs)
+        enable_google_cloud_telemetry(project='p', **kwargs)
         yield cloud
 
 
@@ -244,7 +242,7 @@ def real_otel_globals() -> None:
 @pytest.fixture(autouse=True)
 def _no_adc_project() -> Generator[None, None, None]:
     """Keep the developer's own ADC project out of these tests."""
-    with patch('genkit_google_cloud.telemetry.config._adc_project_id', return_value=None):
+    with patch('genkit_google_cloud._telemetry._config._adc_project_id', return_value=None):
         yield
 
 
@@ -274,7 +272,7 @@ def _isolate_telemetry(
     monkeypatch.setattr(trace_api, 'get_tracer_provider', lambda: isolated)
     monkeypatch.setattr(trace_api, 'set_tracer_provider', lambda _provider: None)
     monkeypatch.setattr(
-        'genkit_google_cloud.telemetry.config.trace_api.get_tracer_provider',
+        'genkit_google_cloud._telemetry._config.trace_api.get_tracer_provider',
         lambda: isolated,
     )
     try:
@@ -539,7 +537,7 @@ def test_enable_with_non_sdk_tracer_raises_failed_precondition_and_does_not_log_
     """A non-SDK process tracer raises FAILED_PRECONDITION and does not log a full init."""
     trace_api.set_tracer_provider(NonSdkTracerProvider())
 
-    with patch('genkit_google_cloud.telemetry.config.logger.info') as mock_info:
+    with patch('genkit_google_cloud._telemetry._config.logger.info') as mock_info:
         with pytest.raises(GenkitError) as raised:
             with _cloud_enable():
                 pass
@@ -555,7 +553,7 @@ def test_enable_with_non_sdk_logger_raises_failed_precondition_and_does_not_log_
     """A non-SDK process logger raises FAILED_PRECONDITION and does not log a full init."""
     _logs.set_logger_provider(NonSdkLoggerProvider())  # type: ignore[arg-type]
 
-    with patch('genkit_google_cloud.telemetry.config.logger.info') as mock_info:
+    with patch('genkit_google_cloud._telemetry._config.logger.info') as mock_info:
         with pytest.raises(GenkitError) as raised:
             with _cloud_enable():
                 pass
@@ -571,7 +569,7 @@ def test_enable_with_non_sdk_tracer_and_disable_traces_runs_and_leaves_their_tra
     theirs = NonSdkTracerProvider()
     trace_api.set_tracer_provider(theirs)
 
-    with patch('genkit_google_cloud.telemetry.config.logger.info') as mock_info:
+    with patch('genkit_google_cloud._telemetry._config.logger.info') as mock_info:
         with _cloud_enable(disable_traces=True):
             pass
 
@@ -628,7 +626,7 @@ def test_nothing_registered_matches_only_the_default_otel_proxies(
     real_otel_globals: None,
 ) -> None:
     """The default tracer and logger proxies count as unset; a same-named class elsewhere does not."""
-    from genkit_google_cloud.telemetry.config import _nothing_registered
+    from genkit_google_cloud._telemetry._config import _nothing_registered
 
     class ProxyLoggerProvider:  # same name as OTel's, but the app's module
         pass
@@ -644,7 +642,7 @@ def test_import_survives_otel_moving_the_logger_proxy() -> None:
     script = (
         'import opentelemetry._logs._internal as m\n'
         'del m.ProxyLoggerProvider\n'
-        'import genkit_google_cloud.telemetry.config\n'
+        'import genkit_google_cloud._telemetry._config\n'
         "print('imported')\n"
     )
     result = subprocess.run([sys.executable, '-c', script], capture_output=True, text=True, check=False)  # noqa: S603

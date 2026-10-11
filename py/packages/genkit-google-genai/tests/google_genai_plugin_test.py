@@ -44,7 +44,8 @@ from genkit_google_genai._google import (
 from genkit_google_genai._models._veo import VeoConfig, VeoModel
 from google.genai import types as genai_types
 
-from genkit import BaseDataPoint, Genkit, GenkitError, Message, Operation, Part, Role
+from genkit import Genkit, GenkitError, Message, Operation, Part, Role
+from genkit.evaluator import BaseDataPoint
 from genkit.model import ModelRequest
 from genkit.plugin_api import Action, ActionKind, to_json_schema
 
@@ -173,11 +174,13 @@ async def test_vertexai_with_api_key_and_no_project_evaluate_unknown_name_says_n
     mock_list_models.return_value = GenaiModels()
     with patch.dict(os.environ, {'GCLOUD_PROJECT': '', 'GOOGLE_CLOUD_PROJECT': ''}):
         ai = Genkit(plugins=[VertexAI(api_key='k')])
-        with pytest.raises(ValueError, match='Evaluator "vertexai/not-a-metric" not found'):
+        with pytest.raises(GenkitError) as exc_info:
             await ai.evaluate(
                 evaluator='vertexai/not-a-metric',
                 dataset=[BaseDataPoint(input='hi', output='hello')],
             )
+        assert exc_info.value.status == 'NOT_FOUND'
+        assert 'vertexai/not-a-metric' in str(exc_info.value)
 
 
 @patch('genkit_google_genai._google.genai.client.Client')
@@ -397,7 +400,7 @@ async def test_veo_start_types_family_config(mock_list_models: MagicMock, mock_c
 @patch('genkit_google_genai._google._list_genai_models')
 @pytest.mark.asyncio
 async def test_veo_action_run_dumps_leftover_and_stamps(mock_list_models: MagicMock, mock_client: MagicMock) -> None:
-    """Action.run camelCase + leftover reaches generate_videos; start stamps the action key."""
+    """Action.run camelCase + extra reaches generate_videos; start stamps the action key."""
     mock_list_models.return_value = GenaiModels()
     op = MagicMock()
     op.name = 'operations/1'
@@ -410,7 +413,7 @@ async def test_veo_action_run_dumps_leftover_and_stamps(mock_list_models: MagicM
 
     started = await action.run({
         'messages': [{'role': 'user', 'content': [{'text': 'a cat walking'}]}],
-        'config': {'aspectRatio': '16:9', 'durationSeconds': 5, 'fooBar': 1},
+        'config': {'aspectRatio': '16:9', 'durationSeconds': 5, 'extra': {'parameters': {'fooBar': 1}}},
     })
 
     called = mock_client.return_value.aio.models.generate_videos.await_args
@@ -662,7 +665,7 @@ async def test_resolve_model_finds_veo_as_background(mock_list_models: MagicMock
     mock_list_models.return_value = GenaiModels()
 
     ai = Genkit(plugins=[GoogleAI(api_key='test-key')])
-    action = await ai.registry.resolve_model('googleai/veo-3.0-generate-001')
+    action = await ai._registry.resolve_model('googleai/veo-3.0-generate-001')
 
     assert action is not None
     assert action.kind == ActionKind.BACKGROUND_MODEL
@@ -885,7 +888,8 @@ def test_importing_vertex_ai_evaluation_metric_type_raises() -> None:
 
 def test_gemini_config() -> None:
     """Test GeminiConfig can be instantiated."""
-    config = GeminiConfig(temperature=0.7, max_output_tokens=1000)
+    # populate_by_name accepts the field name; pyrefly only knows the explicit alias.
+    config = GeminiConfig(temperature=0.7, max_output_tokens=1000)  # pyrefly: ignore[unexpected-keyword]
     assert config.temperature == 0.7
     assert config.max_output_tokens == 1000
 
@@ -919,7 +923,7 @@ async def test_generate_googleai_model_resolves_unchanged(mock_list_models: Magi
     ai = Genkit(plugins=[GoogleAI(api_key='test-key')])
 
     response = await ai.generate(model='googleai/gemini-2.5-flash', prompt='hi')
-    action = await ai.registry.resolve_action(ActionKind.MODEL, 'googleai/gemini-2.5-flash')
+    action = await ai.lookup_model('googleai/gemini-2.5-flash')
 
     assert response.text == 'hello'
     sent = mock_client.return_value.aio.models.generate_content.await_args
@@ -969,7 +973,7 @@ async def test_generate_vertexai_tuned_endpoint_keeps_endpoints_segment(
     ai = Genkit(plugins=[VertexAI(project='test-project', location='us-central1')])
 
     response = await ai.generate(model='vertexai/endpoints/123', prompt='hi')
-    action = await ai.registry.resolve_action(ActionKind.MODEL, 'vertexai/endpoints/123')
+    action = await ai.lookup_model('vertexai/endpoints/123')
 
     assert response.text == 'tuned'
     sent = mock_client.return_value.aio.models.generate_content.await_args
