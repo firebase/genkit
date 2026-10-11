@@ -784,8 +784,9 @@ async def run_generate(
     # reflection) starts here, so it fails before middleware or the model runs.
     reject_config_api_key(options.config)
     registry = scope.registry
-    # Same for typed config: every entry point (ai.generate, prompts,
-    # generate_operation, /util/generate) checks it here, once, before the turn.
+    # Config values the model's ModelRequest[...] class rejects raise here,
+    # before any hook runs, for every entry point (ai.generate, prompts,
+    # generate_operation, /util/generate).
     if options.model:
         await check_annotated_config(model=options.model, config=options.config, registry=registry)
 

@@ -54,7 +54,7 @@ from genkit._ai._model import (
     ModelResponseChunk,
     assert_correct_config_class,
     check_call_config,
-    check_config_dict,
+    check_config_values,
     config_class_for_generate,
     config_field_names,
     config_schema_at_define,
@@ -423,7 +423,7 @@ class Prompt(Generic[InputT, OutputT]):
                 schema=resolved.config_schema,
                 model=resolved.name,
             )
-        check_config_dict(
+        check_config_values(
             config=prompt_config_after_clears(
                 stored=self._def.config,
                 override=override_config,

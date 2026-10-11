@@ -332,7 +332,7 @@ async def check_annotated_config(*, model: str, config: object, registry: Regist
     still fill it, and the model action reports it if nothing does.
     """
     schema = annotated_config_class(await registry.resolve_model(model))
-    check_config_dict(config=config, schema=schema, model=model)
+    check_config_values(config=config, schema=schema, model=model)
 
 
 def config_schema_at_define(*, model: object | None, registry: Registry) -> tuple[str | None, type[BaseModel] | None]:
@@ -554,33 +554,37 @@ def assert_correct_config_class(
     )
 
 
-def check_config_dict(*, config: object, schema: type[BaseModel] | None, model: str) -> None:
-    """A dict config has to fit the model's class before anything is sent.
+def check_config_values(*, config: object, schema: type[BaseModel] | None, model: str) -> None:
+    """Raise if a value the config sets doesn't fit the model's config class.
 
-    Layers merge by top-level key, so a missing top-level field is fine
-    here — another layer may supply it. A nested object is sent whole, so
-    a missing field inside one raises. ``None`` means "clear the default"
-    and isn't checked.
+    Only fields the config sets are judged. A required field it leaves out is
+    not an error yet: another config layer or a wrap_model middleware may add
+    it, and the model action rejects it if nothing does. ``None`` means
+    "clear the default" and isn't checked.
     """
     if schema is None or not isinstance(config, Mapping):
         return
-    layer = {key: value for key, value in cast(Mapping[str, Any], config).items() if value is not None}
+    values = {key: value for key, value in cast(Mapping[str, Any], config).items() if value is not None}
     try:
-        schema.model_validate(layer)
+        schema.model_validate(values)
     except ValidationError as e:
+        # Pydantic also reports the required fields this config leaves out
+        # (type 'missing' at a one-part path). Drop those; keep everything
+        # else, including a field missing inside a nested object, which is
+        # sent whole and can't be filled later.
         problems = [err for err in e.errors() if not (err['type'] == 'missing' and len(err['loc']) == 1)]
         if not problems:
             return
         raise GenkitError(
             status='INVALID_ARGUMENT',
-            message=f'{model}: {_describe_config_problems(problems, layer=layer, schema=schema)}',
+            message=f'{model}: {_describe_config_problems(problems, values=values, schema=schema)}',
             reason=RuntimeErrorReason.INVALID_INPUT,
             cause=e,
         ) from e
 
 
 def _describe_config_problems(
-    problems: Sequence[Mapping[str, Any]], *, layer: Mapping[str, Any], schema: type[BaseModel]
+    problems: Sequence[Mapping[str, Any]], *, values: Mapping[str, Any], schema: type[BaseModel]
 ) -> str:
     # pydantic binds one spelling of a setting and calls the other unknown;
     # the caller didn't misspell anything, they wrote the setting twice.
@@ -592,7 +596,7 @@ def _describe_config_problems(
             continue
         key = _config_path(err['loc'])
         field = names.get(key) if len(err['loc']) == 1 else None
-        spellings = [k for k in layer if field and names.get(k) == field]
+        spellings = [k for k in values if field and names.get(k) == field]
         if field and len(spellings) > 1:
             repeated[field] = sorted(spellings, key=lambda k: k != field)
         else:
@@ -622,7 +626,7 @@ def _config_path(loc: tuple[int | str, ...]) -> str:
 def check_call_config(*, config: object, schema: type[BaseModel] | None, model: str) -> None:
     """Call-time config check: a typed object's class and a dict's keys and values."""
     assert_correct_config_class(config=config, schema=schema, model=model)
-    check_config_dict(config=config, schema=schema, model=model)
+    check_config_values(config=config, schema=schema, model=model)
 
 
 def _config_values(config: BaseModel) -> dict[str, Any]:
