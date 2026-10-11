@@ -36,6 +36,8 @@ from opentelemetry.trace import (
     NonRecordingSpan,
     NoOpTracer,
     SpanContext,
+    Status,
+    StatusCode,
     TraceFlags,
     TracerProvider as ApiTracerProvider,
     set_span_in_context,
@@ -947,31 +949,36 @@ async def test_resumed_tool_payload_is_redacted_in_cloud_trace() -> None:
 
 
 @pytest.mark.asyncio
-async def test_other_instrumentation_content_keys_are_redacted_in_cloud_trace() -> None:
-    """Spans from OpenLLMetry, OpenInference, or the deprecated GenAI keys go through the same exporter."""
-    keys = (
-        'gen_ai.prompt',
-        'gen_ai.completion',
-        'gen_ai.prompt.0.content',
-        'gen_ai.completion.0.content',
-        'input.value',
-        'output.value',
-        'llm.input_messages.0.message.content',
-        'llm.output_messages.0.message.content',
-        'traceloop.entity.input',
-    )
+async def test_other_instrumentation_spans_keep_content_and_error_text_in_cloud_trace() -> None:
+    """Another GenAI library's span belongs to whoever installed it; the exporter leaves it alone."""
     with _cloud_trace() as cloud:
         tracer = trace_api.get_tracer('openllmetry')
-        with tracer.start_as_current_span('openai.chat') as span:
-            for key in keys:
-                span.set_attribute(key, _PROMPT)
-            span.set_attribute('gen_ai.usage.prompt_tokens', _INPUT_TOKENS)
-            span.add_event('gen_ai.content.prompt', {'gen_ai.prompt': _PROMPT})
+        with tracer.start_as_current_span('openai.chat', record_exception=False) as span:
+            span.set_attribute('gen_ai.prompt.0.content', _PROMPT)
+            span.set_attribute('input.value', _PROMPT)
+            span.record_exception(ValueError(f'rejected: {_PROMPT}'))
+            span.set_status(Status(StatusCode.ERROR, f'rejected: {_PROMPT}'))
         _force_flush()
 
     stored = _one_span(cloud, 'openai.chat')
-    attrs = _attrs(stored)
-    for key in keys:
-        assert attrs[key] == '<redacted>'
-    assert attrs['gen_ai.usage.prompt_tokens'] == _INPUT_TOKENS
-    assert _PROMPT not in _stored_text(stored)
+    assert _attrs(stored)['gen_ai.prompt.0.content'] == _PROMPT
+    assert _attrs(stored)['input.value'] == _PROMPT
+    assert stored.status.description == f'rejected: {_PROMPT}'
+    assert stored.events[0].attributes is not None
+    assert stored.events[0].attributes['exception.message'] == f'rejected: {_PROMPT}'
+
+
+@pytest.mark.asyncio
+async def test_app_span_keeps_error_text_in_cloud_trace() -> None:
+    """The app's own span with a recorded exception keeps its message and stack trace."""
+    with _cloud_trace() as cloud:
+        tracer = trace_api.get_tracer('restaurant-app')
+        with tracer.start_as_current_span('charge_card', record_exception=False) as span:
+            span.record_exception(RuntimeError('card 4242 declined'))
+            span.set_status(Status(StatusCode.ERROR, 'card 4242 declined'))
+        _force_flush()
+
+    stored = _one_span(cloud, 'charge_card')
+    assert stored.status.description == 'card 4242 declined'
+    assert stored.events[0].attributes is not None
+    assert stored.events[0].attributes['exception.message'] == 'card 4242 declined'

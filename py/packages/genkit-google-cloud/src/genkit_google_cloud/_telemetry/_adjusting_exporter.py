@@ -41,28 +41,15 @@ TRACE_CONTENT_KEYS = frozenset({
     *CONTENT_ATTRIBUTES,
     INPUT,
     OUTPUT,
-    # This exporter sits on the process TracerProvider, so it also sees
-    # spans from other instrumentations. These and TRACE_CONTENT_PREFIXES
-    # are the content keys of the deprecated GenAI spec, OpenInference, and
-    # OpenLLMetry. Another library's own keys still pass through.
-    'input.value',
-    'output.value',
-    'traceloop.entity.input',
-    'traceloop.entity.output',
 })
-# Matched as the key itself or the key plus '.<anything>':
-# gen_ai.prompt.0.content, llm.input_messages.0.message.content.
-TRACE_CONTENT_PREFIXES = (
-    'gen_ai.prompt',
-    'gen_ai.completion',
-    'llm.input_messages',
-    'llm.output_messages',
-    'llm.prompts',
-)
 # An exception event's message and stack trace end in str(exc), which can
 # quote the prompt (a ValidationError's input_value, say). exception.type stays.
 EXCEPTION_EVENT = 'exception'
 EXCEPTION_CONTENT_KEYS = ('exception.message', 'exception.stacktrace')
+# GenAiInstrumentation's tracer scope. Its chat and tool spans carry only
+# gen_ai.* attributes, so the scope is how the exporter knows they're Genkit's.
+GENKIT_GENAI_SCOPE = 'genkit-genai'
+GENKIT_KEY_PREFIXES = ('genkit:', 'genkit.', 'genkit/')
 NAME = 'genkit:name'
 PATH = 'genkit:path'
 IS_ROOT = 'genkit:isRoot'
@@ -77,9 +64,21 @@ SUBTYPE_MODEL = 'model'
 
 def is_trace_content_key(key: str) -> bool:
     """True when Cloud Trace must not store the value under ``key``."""
-    if key.replace('/', ':') in TRACE_CONTENT_KEYS:
+    return key.replace('/', ':') in TRACE_CONTENT_KEYS
+
+
+def is_genkit_span(span: ReadableSpan) -> bool:
+    """True for spans Genkit wrote: GenAiInstrumentation's scope or a genkit attribute.
+
+    The exporter sits on the process TracerProvider, so it also sees HTTP,
+    database, the app's own spans, and other GenAI libraries' spans. Those
+    belong to whoever installed them; only Genkit's spans get their error
+    text blanked.
+    """
+    scope = getattr(span, 'instrumentation_scope', None)
+    if getattr(scope, 'name', None) == GENKIT_GENAI_SCOPE:
         return True
-    return any(key == prefix or key.startswith(prefix + '.') for prefix in TRACE_CONTENT_PREFIXES)
+    return any(key.startswith(GENKIT_KEY_PREFIXES) for key in span.attributes or {})
 
 
 def _copy_attrs(span: ReadableSpan) -> dict[str, AttributeValue]:
@@ -169,8 +168,9 @@ class AdjustingTraceExporter(SpanExporter):
     def _redact_pii(self, span: ReadableSpan) -> ReadableSpan:
         attrs = _copy_attrs(span)
         keys_to_redact = [key for key in attrs if is_trace_content_key(key)]
-        status = self._redact_status(span.status)
-        events = self._redact_events(span.events)
+        genkit = is_genkit_span(span)
+        status = self._redact_status(span.status) if genkit else None
+        events = self._redact_events(span.events, error_text=genkit)
         if not keys_to_redact and status is None and events is None:
             return span
         for key in keys_to_redact:
@@ -183,8 +183,8 @@ class AdjustingTraceExporter(SpanExporter):
             return None
         return Status(status.status_code, self.REDACTED)
 
-    def _redact_events(self, events: Sequence[Event] | None) -> list[Event] | None:
-        """Blank content keys on every event and the message and stack trace on exception events."""
+    def _redact_events(self, events: Sequence[Event] | None, *, error_text: bool) -> list[Event] | None:
+        """Blank content keys on every event, and exception message and stack trace when ``error_text``."""
         if not events:
             return None
         redacted: list[Event] = []
@@ -192,7 +192,7 @@ class AdjustingTraceExporter(SpanExporter):
         for event in events:
             attrs = dict(event.attributes) if event.attributes else {}
             keys = [key for key in attrs if is_trace_content_key(key)]
-            if event.name == EXCEPTION_EVENT:
+            if error_text and event.name == EXCEPTION_EVENT:
                 keys.extend(key for key in EXCEPTION_CONTENT_KEYS if key in attrs)
             if not keys:
                 redacted.append(event)

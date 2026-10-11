@@ -34,6 +34,7 @@ import pytest
 from genkit_google_cloud._telemetry._adjusting_exporter import AdjustingTraceExporter, RedactedSpan
 from opentelemetry.sdk.trace import Event, ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+from opentelemetry.sdk.util.instrumentation import InstrumentationScope
 from opentelemetry.trace import Status, StatusCode
 from opentelemetry.util.types import Attributes
 
@@ -139,13 +140,8 @@ def test_cloud_trace_export_redacts_when_span_has_both_spellings() -> None:
     assert attrs == {'genkit/input': '<redacted>'}
 
 
-def test_cloud_trace_export_redacts_error_status_message_and_exception_text() -> None:
-    """str(exc) can quote the prompt, so the status message and exception text export <redacted>."""
-    exporter = MockSpanExporter()
-    adjusting = AdjustingTraceExporter(exporter)
-    span = create_mock_span(attributes={'error.type': 'ValidationError'}, status_code=StatusCode.ERROR)
-    span.status = Status(StatusCode.ERROR, "input_value='Allergic to peanuts, table 4'")
-    span.events = (
+def _error_events() -> tuple[Event, Event]:
+    return (
         Event(
             'exception',
             {
@@ -158,6 +154,16 @@ def test_cloud_trace_export_redacts_error_status_message_and_exception_text() ->
         ),
         Event('cache.miss', {'key': 'menu'}, timestamp=43),
     )
+
+
+def test_cloud_trace_export_redacts_error_status_message_and_exception_text() -> None:
+    """On a Genkit span, str(exc) can quote the prompt, so the status message and exception text export <redacted>."""
+    exporter = MockSpanExporter()
+    adjusting = AdjustingTraceExporter(exporter)
+    span = create_mock_span(attributes={'error.type': 'ValidationError'}, status_code=StatusCode.ERROR)
+    span.instrumentation_scope = InstrumentationScope('genkit-genai')
+    span.status = Status(StatusCode.ERROR, "input_value='Allergic to peanuts, table 4'")
+    span.events = _error_events()
     span.dropped_events = 3
 
     adjusting.export([span])
@@ -178,30 +184,53 @@ def test_cloud_trace_export_redacts_error_status_message_and_exception_text() ->
     assert get_attrs(exported)['/http/status_code'] == '599'
 
 
-def test_cloud_trace_export_matches_content_key_prefixes_only_on_dot_boundary() -> None:
-    """gen_ai.prompt.0.content is content; gen_ai.prompt_tokens is a count and stays."""
+@pytest.mark.parametrize(
+    ('scope', 'attributes'),
+    [
+        pytest.param('restaurant-app', {'http.route': '/orders'}, id='app-span'),
+        pytest.param('openinference', {'llm.model_name': 'gpt-4o'}, id='other-genai-library'),
+    ],
+)
+def test_cloud_trace_export_keeps_error_text_on_spans_genkit_did_not_write(
+    scope: str, attributes: dict[str, Any]
+) -> None:
+    """HTTP, the app's own spans, and other GenAI libraries' spans keep their error text."""
+    exporter = MockSpanExporter()
+    adjusting = AdjustingTraceExporter(exporter)
+    span = create_mock_span(attributes=attributes, status_code=StatusCode.ERROR)
+    span.instrumentation_scope = InstrumentationScope(scope)
+    span.status = Status(StatusCode.ERROR, 'order 1182 rejected: kitchen closed')
+    span.events = _error_events()
+
+    adjusting.export([span])
+
+    exported = exporter.exported_spans[0]
+    assert exported.status.description == 'order 1182 rejected: kitchen closed'
+    assert tuple(exported.events) == span.events
+
+
+def test_cloud_trace_export_redacts_genkit_metadata_and_leaves_other_libraries_keys() -> None:
+    """Interrupt and resume payloads are Genkit content; another library's own keys pass through."""
     exporter = MockSpanExporter()
     adjusting = AdjustingTraceExporter(exporter)
     span = create_mock_span(
         attributes={
-            'gen_ai.prompt.0.content': 'Allergic to peanuts',
-            'gen_ai.completion.0.content': 'Smoked Salmon Tartine',
             'genkit:metadata:interrupt': '{"echo": "Allergic to peanuts"}',
             'genkit/metadata/resumed': '{"note": "approved by manager"}',
-            'gen_ai.prompt_tokens': 12,
             'genkit:metadata:subtype': 'tool',
+            'gen_ai.prompt.0.content': 'Allergic to peanuts',
+            'input.value': 'Allergic to peanuts',
         }
     )
 
     adjusting.export([span])
 
     assert get_attrs(exporter.exported_spans[0]) == {
-        'gen_ai.prompt.0.content': '<redacted>',
-        'gen_ai.completion.0.content': '<redacted>',
         'genkit/metadata/interrupt': '<redacted>',
         'genkit/metadata/resumed': '<redacted>',
-        'gen_ai.prompt_tokens': 12,
         'genkit/metadata/subtype': 'tool',
+        'gen_ai.prompt.0.content': 'Allergic to peanuts',
+        'input.value': 'Allergic to peanuts',
     }
 
 
