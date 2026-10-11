@@ -35,7 +35,8 @@ print(res.text)
 ```
 
 Set `OPENAI_API_KEY` in the environment, or pass `api_key=` to `OpenAI()`.
-`base_url=` points the plugin at another OpenAI-compatible server, and any other
+`base_url=` points the plugin at another OpenAI-compatible server. Pass the URL
+up to and including `/v1`; the SDK appends `/chat/completions`. Any other
 `AsyncOpenAI` setting goes in `client_options`:
 
 ```python

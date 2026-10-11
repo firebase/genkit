@@ -83,10 +83,10 @@ from genkit_openai._typing import OpenAIConfig
 # tenant key runs under the tenant's own account, so these are not copied.
 _PLUGIN_ACCOUNT_HEADERS = frozenset({'openai-organization', 'openai-project'})
 
-CLIENT_OPTION_KEYS = frozenset(inspect.signature(AsyncOpenAI.__init__).parameters) - {'self'}
+_CLIENT_OPTION_KEYS = frozenset(inspect.signature(AsyncOpenAI.__init__).parameters) - {'self'}
 
 
-def client_kwargs(
+def _client_kwargs(
     *, api_key: str | None, base_url: str | None, client_options: Mapping[str, Any] | None
 ) -> dict[str, Any]:
     """Merge the typed settings into ``client_options`` for ``AsyncOpenAI``.
@@ -97,10 +97,10 @@ def client_kwargs(
     """
     options = dict(client_options or {})
     for key in options:
-        if key not in CLIENT_OPTION_KEYS:
+        if key not in _CLIENT_OPTION_KEYS:
             raise TypeError(
                 f'OpenAI got an unexpected client_options key {key!r}; '
-                f'AsyncOpenAI accepts {", ".join(sorted(k for k in CLIENT_OPTION_KEYS if not k.startswith("_")))}'
+                f'AsyncOpenAI accepts {", ".join(sorted(k for k in _CLIENT_OPTION_KEYS if not k.startswith("_")))}'
             )
     for name, value in (('api_key', api_key), ('base_url', base_url)):
         if value is None:
@@ -358,8 +358,10 @@ class OpenAI(Plugin):
 
         Args:
             api_key: OpenAI API key. Defaults to ``OPENAI_API_KEY``.
-            base_url: OpenAI API base URL, e.g. an OpenAI-compatible server.
-                Defaults to ``OPENAI_BASE_URL``, then the public API.
+            base_url: OpenAI API base URL up to and including ``/v1``, e.g.
+                ``https://openrouter.ai/api/v1``; the SDK appends
+                ``/chat/completions``. Defaults to ``OPENAI_BASE_URL``, then the
+                public API.
             client_options: Other ``AsyncOpenAI`` settings, such as
                 ``organization``, ``project``, ``timeout``, ``max_retries``,
                 ``default_headers``, or ``http_client``.
@@ -368,7 +370,7 @@ class OpenAI(Plugin):
             TypeError: If ``client_options`` has a key ``AsyncOpenAI`` doesn't
                 take, or repeats ``api_key`` or ``base_url``.
         """
-        options = client_kwargs(api_key=api_key, base_url=base_url, client_options=client_options)
+        options = _client_kwargs(api_key=api_key, base_url=base_url, client_options=client_options)
         self._plugin_api_key: str | None = options.get('api_key')
         self._runtime_client = loop_local_client(lambda: AsyncOpenAI(**options))
         # Only used when the plugin has no key of its own. Its placeholder key is

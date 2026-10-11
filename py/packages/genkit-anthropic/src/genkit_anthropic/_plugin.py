@@ -42,10 +42,10 @@ logger = structlog.get_logger(__name__)
 
 ANTHROPIC_PLUGIN_NAME = 'anthropic'
 
-CLIENT_OPTION_KEYS = frozenset(inspect.signature(AsyncAnthropic.__init__).parameters) - {'self'}
+_CLIENT_OPTION_KEYS = frozenset(inspect.signature(AsyncAnthropic.__init__).parameters) - {'self'}
 
 
-def client_kwargs(
+def _client_kwargs(
     *, api_key: str | None, base_url: str | None, client_options: Mapping[str, Any] | None
 ) -> dict[str, Any]:
     """Merge the typed settings into ``client_options`` for ``AsyncAnthropic``.
@@ -56,10 +56,10 @@ def client_kwargs(
     """
     options = dict(client_options or {})
     for key in options:
-        if key not in CLIENT_OPTION_KEYS:
+        if key not in _CLIENT_OPTION_KEYS:
             raise TypeError(
                 f'Anthropic got an unexpected client_options key {key!r}; '
-                f'AsyncAnthropic accepts {", ".join(sorted(k for k in CLIENT_OPTION_KEYS if not k.startswith("_")))}'
+                f'AsyncAnthropic accepts {", ".join(sorted(k for k in _CLIENT_OPTION_KEYS if not k.startswith("_")))}'
             )
     for name, value in (('api_key', api_key), ('base_url', base_url)):
         if value is None:
@@ -157,8 +157,10 @@ class Anthropic(Plugin):
 
         Args:
             api_key: Anthropic API key. Defaults to ``ANTHROPIC_API_KEY``.
-            base_url: Anthropic API base URL. Defaults to ``ANTHROPIC_BASE_URL``,
-                then the public API.
+            base_url: Anthropic API origin with no ``/v1`` suffix, e.g.
+                ``https://claude-proxy.example.com``; the SDK appends
+                ``/v1/messages``. Defaults to ``ANTHROPIC_BASE_URL``, then the
+                public API.
             api_version: Default API surface unless overridden by per-request
                 config. An explicit config ``apiVersion`` always takes
                 precedence. Defaults to stable.
@@ -175,7 +177,7 @@ class Anthropic(Plugin):
         if api_version not in (None, 'stable', 'beta'):
             raise ValueError("api_version must be 'stable', 'beta', or None")
 
-        options = client_kwargs(api_key=api_key, base_url=base_url, client_options=client_options)
+        options = _client_kwargs(api_key=api_key, base_url=base_url, client_options=client_options)
         self._default_api_version: Literal['stable', 'beta'] | None = api_version
         self._runtime_client = loop_local_client(lambda: AsyncAnthropic(**options))
         self._list_actions_cache: list[ActionMetadata] | None = None

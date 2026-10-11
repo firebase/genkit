@@ -944,3 +944,27 @@ async def test_ollama_without_base_url_uses_local_default(monkeypatch: pytest.Mo
         await ai.generate(model='ollama/m', prompt='Suggest a dish.')
 
     assert {(r.url.host, r.url.port) for r in seen} == {('127.0.0.1', 11434)}
+
+
+@pytest.mark.asyncio
+async def test_ollama_without_base_url_reads_ollama_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ollama() with OLLAMA_HOST=http://gpu-box:11434 sends ai.generate to gpu-box, as the ollama SDK does."""
+    monkeypatch.setenv('OLLAMA_HOST', 'http://gpu-box:11434')
+    seen: list[httpx.Request] = []
+    with _real_client_on(_fake_server(seen)):
+        ai = Genkit(plugins=[Ollama()])
+        await ai.generate(model='ollama/m', prompt='Suggest a dish.')
+
+    assert {(r.url.host, r.url.port) for r in seen} == {('gpu-box', 11434)}
+
+
+@pytest.mark.asyncio
+async def test_ollama_base_url_wins_over_ollama_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ollama(base_url=...) sends ai.generate to that host even when OLLAMA_HOST is set."""
+    monkeypatch.setenv('OLLAMA_HOST', 'http://gpu-box:11434')
+    seen: list[httpx.Request] = []
+    with _real_client_on(_fake_server(seen)):
+        ai = Genkit(plugins=[Ollama(base_url='http://example:11434')])
+        await ai.generate(model='ollama/m', prompt='Suggest a dish.')
+
+    assert {(r.url.host, r.url.port) for r in seen} == {('example', 11434)}

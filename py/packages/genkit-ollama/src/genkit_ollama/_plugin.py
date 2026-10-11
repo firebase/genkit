@@ -18,6 +18,7 @@
 
 import asyncio
 import inspect
+import os
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass, replace
@@ -198,8 +199,10 @@ class Ollama(Plugin):
         ``/api/show`` probe.
 
         Args:
-            base_url: The URL of the Ollama server. Defaults to a predefined
-                Ollama server URL if not provided.
+            base_url: The Ollama server root, e.g. ``http://gpu-box:11434``,
+                with no ``/v1`` or ``/api`` suffix: requests go to
+                ``{base_url}/api/chat``. Defaults to ``OLLAMA_HOST``, then
+                ``http://127.0.0.1:11434``.
             request_headers: Extra HTTP headers for every request to the Ollama
                 server, typically auth for a proxy in front of it. A dict is
                 sent as-is. A callable (sync or async, no arguments) runs before
@@ -208,7 +211,8 @@ class Ollama(Plugin):
             timeout: Optional request timeout (seconds) forwarded to the underlying
                 httpx client.
         """
-        self.base_url = base_url or DEFAULT_OLLAMA_SERVER_URL
+        # Passing host= turns off the SDK's own OLLAMA_HOST lookup, so read it here.
+        self.base_url = base_url or os.environ.get('OLLAMA_HOST') or DEFAULT_OLLAMA_SERVER_URL
 
         # A dict is baked into the cached client; a callable runs per request via httpx auth.
         self.request_headers: dict[str, str] = {}

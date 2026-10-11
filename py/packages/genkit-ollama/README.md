@@ -135,6 +135,10 @@ response = await ai.generate(
 
 ### Remote server, headers, and timeouts
 
+`Ollama()` reads `OLLAMA_HOST`, then falls back to `http://127.0.0.1:11434`.
+`base_url` is the server root, with no `/v1` or `/api` suffix; the plugin calls
+`{base_url}/api/chat`.
+
 ```python
 Ollama(base_url='http://ollama.example.com:11434')
 

@@ -34,8 +34,9 @@ print(res.text)
 ```
 
 Set `ANTHROPIC_API_KEY` in the environment, or pass `api_key=` to `Anthropic()`.
-`base_url=` points the plugin at another server, and any other `AsyncAnthropic`
-setting goes in `client_options`:
+`base_url=` points the plugin at another server. Pass the origin with no `/v1`
+suffix; the SDK appends `/v1/messages`. Any other `AsyncAnthropic` setting goes
+in `client_options`:
 
 ```python
 Anthropic(
