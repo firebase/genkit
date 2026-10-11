@@ -262,6 +262,31 @@ _VERTEX_ONLY_FIELDS = (
 )
 
 
+# Genkit's generate(tool_choice=) and the Gemini function calling mode it sends.
+_FUNCTION_CALLING_MODES: dict[str, genai_types.FunctionCallingConfigMode] = {
+    'auto': genai_types.FunctionCallingConfigMode.AUTO,
+    'required': genai_types.FunctionCallingConfigMode.ANY,
+    'none': genai_types.FunctionCallingConfigMode.NONE,
+}
+
+
+def _tool_config(tool_choice: str, function_tools: list[genai_types.Tool]) -> genai_types.ToolConfig:
+    """The toolConfig for a request's tool_choice. Function calling has no config fields.
+
+    'required' also names the request's tools as the allowed functions, as Go
+    does; Gemini only reads allowed_function_names in ANY mode.
+    """
+    calling = genai_types.FunctionCallingConfig(mode=_FUNCTION_CALLING_MODES[tool_choice])
+    if tool_choice == 'required':
+        calling.allowed_function_names = [
+            declaration.name
+            for tool in function_tools
+            for declaration in tool.function_declarations or []
+            if declaration.name
+        ]
+    return genai_types.ToolConfig(function_calling_config=calling)
+
+
 def _pop_prefixed(config: dict[str, Any], prefix: str) -> dict[str, Any]:
     """Pop every ``<prefix>name`` key from *config*, returned as ``{name: value}``."""
     return {key[len(prefix) :]: config.pop(key) for key in [k for k in config if k.startswith(prefix)]}
@@ -1966,7 +1991,8 @@ class GeminiModel:
                         raise sdk_config_error(action_name=self._version, error=e) from e
 
         # Tools from top-level field and config-level fields
-        tools.extend(declared_tools if declared_tools is not None else self._get_tools(request))
+        function_tools = declared_tools if declared_tools is not None else self._get_tools(request)
+        tools.extend(function_tools)
 
         has_output = bool(request.output_format or request.output_schema)
 
@@ -2000,6 +2026,9 @@ class GeminiModel:
 
             if tools:
                 cfg.tools = cast(genai_types.ToolListUnion, tools)
+
+            if request.tool_choice and function_tools:
+                cfg.tool_config = _tool_config(request.tool_choice, function_tools)
 
             cfg.system_instruction = genai_types.Content(parts=system_instruction) if system_instruction else None
             cfg = attach_leftovers(cfg, leftovers, nest='generationConfig')

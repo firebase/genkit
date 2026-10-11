@@ -382,6 +382,59 @@ async def test_flat_config_request_body(monkeypatch: pytest.MonkeyPatch) -> None
     ]
 
 
+@pytest.mark.parametrize(
+    ('tool_choice', 'tool_config'),
+    [
+        ('auto', {'functionCallingConfig': {'mode': 'AUTO'}}),
+        ('required', {'functionCallingConfig': {'mode': 'ANY', 'allowedFunctionNames': ['lookup_menu']}}),
+        # 'none' used to be ignored, leaving Gemini free to call the tools.
+        ('none', {'functionCallingConfig': {'mode': 'NONE'}}),
+        (None, None),
+    ],
+    ids=['auto', 'required', 'none', 'unset'],
+)
+@pytest.mark.asyncio
+async def test_tool_choice_request_body(
+    monkeypatch: pytest.MonkeyPatch,
+    tool_choice: Literal['auto', 'required', 'none'] | None,
+    tool_config: dict[str, Any] | None,
+) -> None:
+    """Genkit's tool_choice goes out as toolConfig.functionCallingConfig; 'required' names the request's tools."""
+    # 1. Route google-genai's HTTP calls to a fake API and register one tool
+    bodies: list[dict[str, Any]] = []
+    monkeypatch.setattr(httpx.AsyncClient, 'send', _fake_gemini_api(bodies))
+    ai = Genkit(plugins=[GoogleAI(api_key='fake-key')])
+
+    @ai.tool(name='lookup_menu')
+    async def lookup_menu(dish: str) -> str:
+        return 'ramen'
+
+    # 2. Generate with the tool choice
+    await ai.generate(
+        model='googleai/gemini-2.5-flash',
+        prompt='Is the pho in stock?',
+        tools=['lookup_menu'],
+        tool_choice=tool_choice,
+    )
+
+    # 3. The body carries the mapped mode, or no toolConfig for unset
+    assert bodies[-1].get('toolConfig') == tool_config
+
+
+@pytest.mark.asyncio
+async def test_tool_choice_without_function_tools_sends_no_tool_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Built-in tools alone don't get a function calling mode; there are no functions to govern."""
+    bodies: list[dict[str, Any]] = []
+    monkeypatch.setattr(httpx.AsyncClient, 'send', _fake_gemini_api(bodies))
+    ai = Genkit(plugins=[GoogleAI(api_key='fake-key')])
+
+    await ai.generate(
+        model='googleai/gemini-2.5-flash', prompt='hi', tool_choice='required', config=GeminiConfig(google_search=True)
+    )
+
+    assert 'toolConfig' not in bodies[-1]
+
+
 def test_choice_fields_are_closed_literals() -> None:
     """Choice fields take plain strings from a closed set.
 
