@@ -107,7 +107,9 @@ class GenkitConfig(BaseModel):
     ModelRequest, the parent's settings apply, so traces stay camelCase.
 
     Use plain BaseModel for flow and tool input/output; that data is the
-    app's, and Genkit does not rename it.
+    app's, and Genkit does not rename it. An app's own middleware config may
+    also be a plain BaseModel: its keys are its field names everywhere, and
+    unknown keys still raise.
     """
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
