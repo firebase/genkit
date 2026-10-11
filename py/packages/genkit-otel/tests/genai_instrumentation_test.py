@@ -36,12 +36,12 @@ from genkit.telemetry import SpanContext, SpanMetadata, SpanNext
 
 
 def test_content_capturing_mode_is_on_the_package_door() -> None:
-    """from genkit_otel import gives GenAiInstrumentation, ContentCapturingMode, and CONTENT_ATTRIBUTES."""
+    """from genkit_otel import gives GenAiInstrumentation and ContentCapturingMode; content keys are on the class."""
     import genkit_otel
     from genkit_otel import ContentCapturingMode
 
-    assert genkit_otel.__all__ == ['CONTENT_ATTRIBUTES', 'ContentCapturingMode', 'GenAiInstrumentation']
-    assert genkit_otel.CONTENT_ATTRIBUTES is CONTENT_ATTRIBUTES
+    assert genkit_otel.__all__ == ['ContentCapturingMode', 'GenAiInstrumentation']
+    assert GenAiInstrumentation.CONTENT_ATTRIBUTES is CONTENT_ATTRIBUTES
     assert get_args(ContentCapturingMode) == ('NO_CONTENT', 'SPAN_ONLY', 'EVENT_ONLY', 'SPAN_AND_EVENT')
 
 
@@ -855,10 +855,11 @@ async def test_default_construction_enforces_dual_pii_barriers(harness) -> None:
 
 @pytest.mark.asyncio
 async def test_every_attribute_holding_content_is_in_content_attributes(harness) -> None:
-    """With every capture switch on, each span attribute that holds the secret is in CONTENT_ATTRIBUTES.
+    """With every capture switch on, each span attribute that holds the secret is listed.
 
     A trace store that drops content (the Cloud Trace exporter) blanks
-    CONTENT_ATTRIBUTES. A new content attribute fails here until it is listed.
+    GenAiInstrumentation.CONTENT_ATTRIBUTES. A new content attribute fails
+    here until it is listed.
     """
     secret = 'allergy-peanut-table-4'
     instr = harness.instrumentation(
@@ -913,4 +914,4 @@ async def test_every_attribute_holding_content_is_in_content_attributes(harness)
         for key, value in (span.attributes or {}).items()
         if secret in str(value)
     }
-    assert holding == CONTENT_ATTRIBUTES
+    assert holding == GenAiInstrumentation.CONTENT_ATTRIBUTES

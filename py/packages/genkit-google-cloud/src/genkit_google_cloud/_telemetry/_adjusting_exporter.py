@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Any, ClassVar
 
-from genkit_otel import CONTENT_ATTRIBUTES
+from genkit_otel import GenAiInstrumentation
 from opentelemetry.sdk.trace import Event, ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.trace import Status, StatusCode
@@ -38,7 +38,7 @@ OUTPUT = 'genkit:output'
 # forms are for spans other code writes; _normalize_labels runs after this,
 # so keys match with '/' read as ':'.
 TRACE_CONTENT_KEYS = frozenset({
-    *CONTENT_ATTRIBUTES,
+    *GenAiInstrumentation.CONTENT_ATTRIBUTES,
     INPUT,
     OUTPUT,
 })
