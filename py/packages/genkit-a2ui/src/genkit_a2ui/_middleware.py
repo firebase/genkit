@@ -24,9 +24,8 @@ from collections.abc import Awaitable, Callable, Sequence
 from typing import Literal
 
 from genkit import FinishReason, Message, ModelResponse, ModelResponseChunk, Part, Role
-from genkit._core._model import ABNORMAL_FINISH_REASONS
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, ModelHookParams
-from genkit.model import ModelRequest
+from genkit.model import ABNORMAL_FINISH_REASONS, ModelRequest
 from genkit.plugin_api import GenkitConfig
 
 from ._catalog import A2uiCatalog, render_catalog_instructions
@@ -83,7 +82,7 @@ class Surfaces(BaseMiddleware[SurfacesConfig]):
         ctx: GenerateMiddlewareContext,
         next_fn: Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        catalog = resolve_catalog(registry=ctx.ai.registry, catalog=self.config.catalog)
+        catalog = resolve_catalog(ctx=ctx, catalog=self.config.catalog)
         version = self.config.version or DEFAULT_VERSION
         validate = self.config.validation
         # Chunks are rewritten as fences close. The finished message is parsed

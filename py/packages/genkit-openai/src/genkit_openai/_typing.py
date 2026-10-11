@@ -34,8 +34,8 @@ from typing import Any, Literal
 
 from pydantic import Field
 
-from genkit._core._compat import StrEnum
 from genkit.model import ModelConfig
+from genkit.plugin_api import StrEnum
 
 
 class ReasoningEffort(StrEnum):

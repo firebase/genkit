@@ -20,12 +20,6 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import field_validator
-from typing_extensions import Never
-
-from genkit import ActionRunContext, ModelResponse
-from genkit.model import ModelRequest, model_action_metadata
-from genkit.plugin_api import Action, ActionKind, GenkitConfig
 from genkit_google_genai._interactions._client import create_interaction
 from genkit_google_genai._interactions._converters import from_interaction_sync
 from genkit_google_genai._interactions._options import ClientOptions
@@ -40,6 +34,12 @@ from genkit_google_genai._models._interactions_utils import (
     steps_with_folded_system_instruction,
 )
 from genkit_google_genai._models._secrets import reject_request_config_api_key
+from pydantic import field_validator
+from typing_extensions import Never
+
+from genkit import ActionRunContext, ModelResponse
+from genkit.model import ModelRequest, model_action_metadata
+from genkit.plugin_api import Action, ActionKind, GenkitConfig
 
 DEFAULT_ENVIRONMENT: dict[str, str] = {'type': 'remote'}
 

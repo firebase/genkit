@@ -19,8 +19,8 @@
 import pytest
 from genkit_evaluators import register_genkit_evaluators
 
-from genkit import BaseDataPoint, Genkit
-from genkit.evaluator import EvalRequest, Score
+from genkit import Genkit
+from genkit.evaluator import BaseDataPoint, EvalRequest, Score
 
 
 def _only_score(evaluation: list[Score]) -> Score:
@@ -44,7 +44,7 @@ async def test_deep_equal(ai: Genkit) -> None:
         {'input': 'sample', 'output': 'Foo bar', 'reference': 'gablorken'},
         {'input': 'sample', 'output': 'Foo bar'},
     ]
-    eval_action = await ai.registry.resolve_evaluator('genkitEval/deep_equal')
+    eval_action = await ai._registry.resolve_evaluator('genkitEval/deep_equal')
     assert eval_action is not None
     req = EvalRequest(
         dataset=[BaseDataPoint.model_validate(d) for d in dataset],
@@ -66,7 +66,7 @@ async def test_regex(ai: Genkit) -> None:
         {'input': 'sample', 'reference': 'ba?a?a', 'output': 'apple'},
         {'input': 'sample', 'reference': 12345, 'output': 'apple'},
     ]
-    eval_action = await ai.registry.resolve_evaluator('genkitEval/regex')
+    eval_action = await ai._registry.resolve_evaluator('genkitEval/regex')
     assert eval_action is not None
     req = EvalRequest(
         dataset=[BaseDataPoint.model_validate(d) for d in dataset],
@@ -88,7 +88,7 @@ async def test_jsonata(ai: Genkit) -> None:
         {'input': 'sample', 'reference': 'age=31', 'output': {'name': 'Bob', 'age': 33}},
         {'input': 'sample', 'reference': 123456, 'output': {'name': 'Bob', 'age': 33}},
     ]
-    eval_action = await ai.registry.resolve_evaluator('genkitEval/jsonata')
+    eval_action = await ai._registry.resolve_evaluator('genkitEval/jsonata')
     assert eval_action is not None
     req = EvalRequest(
         dataset=[BaseDataPoint.model_validate(d) for d in dataset],
