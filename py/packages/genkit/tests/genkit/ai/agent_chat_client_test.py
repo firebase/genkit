@@ -51,7 +51,6 @@ from genkit._core._model import (
     SessionSnapshot,
     SessionState,
 )
-from genkit._core._registry import Registry
 from genkit._core._typing import (
     AgentFinishReason,
     FinishReason,
@@ -1587,7 +1586,7 @@ def _ok_message(parts: list[Part] | None = None) -> Message:
 
 
 def _define_turns(
-    registry: Registry,
+    ai: Genkit,
     name: str,
     handle: Callable[[SessionRunner, AgentInput], Awaitable[TurnResult | None]],
     *,
@@ -1601,11 +1600,11 @@ def _define_turns(
         await session_runner.run(turn)
         return await session_runner.result()
 
-    return define_custom_agent(registry, name, fn, store=store, state_schema=state_schema)
+    return define_custom_agent(ai, name, fn, store=store, state_schema=state_schema)
 
 
 def _flaky(
-    registry: Registry,
+    ai: Genkit,
     name: str,
     *,
     store: InMemorySessionStore | None,
@@ -1638,7 +1637,7 @@ def _flaky(
         await session_runner.add_messages([model_reply])
         return TurnResult(finish_reason=AgentFinishReason.STOP)
 
-    return _define_turns(registry, name, handle, store=store)
+    return _define_turns(ai, name, handle, store=store)
 
 
 def _assert_failed(res: Any, *, message: str) -> GenkitRuntimeError:  # noqa: ANN401
@@ -1705,7 +1704,7 @@ class _MidStreamDropTransport(_DroppingTransport):
 async def test_send_on_failed_turn_with_reason_reads_reason() -> None:
     """A failed turn whose error carries a reason exposes it on res.error.reason."""
     agent = _flaky(
-        Registry(),
+        Genkit(),
         'failReason',
         store=InMemorySessionStore(),
         fail=GenkitError(status='INTERNAL', message='tool died', reason=RuntimeErrorReason.TOOL_FAILED),
@@ -1719,7 +1718,7 @@ async def test_send_on_failed_turn_with_reason_reads_reason() -> None:
 @pytest.mark.asyncio
 async def test_send_on_failed_turn_keeps_last_good_snapshot_id() -> None:
     """res.snapshot_id and chat.snapshot_id both stay on the last completed snapshot."""
-    agent = _flaky(Registry(), 'failSnap', store=InMemorySessionStore())
+    agent = _flaky(Genkit(), 'failSnap', store=InMemorySessionStore())
     chat = agent.chat()
     ok = await chat.send('hello')
     last_good = ok.snapshot_id
@@ -1734,7 +1733,7 @@ async def test_send_on_failed_turn_keeps_last_good_snapshot_id() -> None:
 @pytest.mark.asyncio
 async def test_send_on_failed_turn_drops_unanswered_prompt() -> None:
     """chat.messages and res.messages end at the last completed turn."""
-    agent = _flaky(Registry(), 'failDrop', store=InMemorySessionStore())
+    agent = _flaky(Genkit(), 'failDrop', store=InMemorySessionStore())
     chat = agent.chat()
     await chat.send('hello')
     before = list(chat.messages)
@@ -1759,7 +1758,7 @@ async def test_send_on_failed_client_managed_turn_returns_last_good_state() -> N
         await session_runner.add_messages([_ok_message()])
         return TurnResult(finish_reason=AgentFinishReason.STOP)
 
-    agent = _define_turns(Registry(), 'failState', handle, store=None)
+    agent = _define_turns(Genkit(), 'failState', handle, store=None)
     chat = agent.chat(state={'n': 0})
     ok = await chat.send('hello')
     assert ok.state == {'n': 1}
@@ -1773,7 +1772,7 @@ async def test_send_on_failed_client_managed_turn_returns_last_good_state() -> N
 @pytest.mark.asyncio
 async def test_send_after_failed_turn_continues_from_last_good_snapshot() -> None:
     """The next send succeeds and builds on the last good turn."""
-    agent = _flaky(Registry(), 'failContinue', store=InMemorySessionStore())
+    agent = _flaky(Genkit(), 'failContinue', store=InMemorySessionStore())
     chat = agent.chat()
     first = await chat.send('hello')
     failed = await chat.send('please fail now')
@@ -1792,7 +1791,7 @@ async def test_send_after_failed_turn_continues_from_last_good_snapshot() -> Non
 @pytest.mark.asyncio
 async def test_send_stream_on_failed_turn_ends_stream_and_response_has_error() -> None:
     """The chunk stream ends normally and await turn.response returns with .error set."""
-    agent = _flaky(Registry(), 'failStream', store=InMemorySessionStore())
+    agent = _flaky(Genkit(), 'failStream', store=InMemorySessionStore())
     chat = agent.chat()
     await chat.send('hello')
     turn = chat.send_stream('please fail now')
@@ -1805,7 +1804,7 @@ async def test_send_stream_on_failed_turn_ends_stream_and_response_has_error() -
 @pytest.mark.asyncio
 async def test_resume_on_failed_turn_returns_response_with_error() -> None:
     """chat.resume(...) that fails returns a response with .error."""
-    agent = _flaky(Registry(), 'failResume', store=InMemorySessionStore())
+    agent = _flaky(Genkit(), 'failResume', store=InMemorySessionStore())
     chat = agent.chat()
     paused = await chat.send('please pause')
     assert paused.finish_reason == AgentFinishReason.INTERRUPTED
@@ -1820,7 +1819,7 @@ async def test_resume_on_failed_turn_returns_response_with_error() -> None:
 @pytest.mark.asyncio
 async def test_send_on_successful_turn_has_no_error() -> None:
     """A normal turn returns res.error is None."""
-    agent = _flaky(Registry(), 'okTurn', store=InMemorySessionStore())
+    agent = _flaky(Genkit(), 'okTurn', store=InMemorySessionStore())
     res = await agent.chat().send('hello')
     assert res.finish_reason == AgentFinishReason.STOP
     assert res.error is None
@@ -1831,7 +1830,7 @@ async def test_send_on_successful_turn_has_no_error() -> None:
 @pytest.mark.asyncio
 async def test_send_on_blocked_turn_returns_blocked_without_raising() -> None:
     """A blocked turn still returns with finish_reason == 'blocked'."""
-    agent = _flaky(Registry(), 'blockedTurn', store=InMemorySessionStore())
+    agent = _flaky(Genkit(), 'blockedTurn', store=InMemorySessionStore())
     res = await agent.chat().send('please block this')
     assert res.finish_reason == AgentFinishReason.BLOCKED
     assert res.error is None
@@ -1845,7 +1844,7 @@ async def test_send_with_snapshot_id_on_agent_without_store_raises_genkit_error(
         del session_runner, inp
         return TurnResult(finish_reason=AgentFinishReason.STOP)
 
-    agent = _define_turns(Registry(), 'noStore', handle, store=None)
+    agent = _define_turns(Genkit(), 'noStore', handle, store=None)
     chat = agent.chat(snapshot_id='snap-1')
     with pytest.raises(GenkitError) as exc:
         await chat.send('hi')
@@ -1863,7 +1862,7 @@ async def _chat_after_one_good_turn(name: str) -> AgentChat[Any]:
         await session_runner.add_messages([_ok_message()])
         return TurnResult(finish_reason=AgentFinishReason.STOP)
 
-    agent = _define_turns(Registry(), name, handle, store=None)
+    agent = _define_turns(Genkit(), name, handle, store=None)
     chat = agent.chat(state={'n': 0})
     ok = await chat.send('hello')
     assert ok.state == {'n': 1}
@@ -1989,7 +1988,7 @@ async def test_send_with_invalid_custom_state_returns_response_with_error() -> N
         del session_runner, inp
         return TurnResult(finish_reason=AgentFinishReason.STOP)
 
-    agent = _define_turns(Registry(), 'badState', handle, store=None, state_schema=_TaskState)
+    agent = _define_turns(Genkit(), 'badState', handle, store=None, state_schema=_TaskState)
     res = await agent.chat(state={'done': 'nope'}).send('hi')  # type: ignore[arg-type]
     assert res.finish_reason == AgentFinishReason.FAILED
     assert isinstance(res.error, GenkitRuntimeError)
@@ -2002,7 +2001,7 @@ async def test_send_with_invalid_custom_state_returns_response_with_error() -> N
 async def test_send_on_failed_turn_after_data_reply_has_no_data() -> None:
     """res.data on a failed turn is None, not the previous turn's data."""
     agent = _flaky(
-        Registry(),
+        Genkit(),
         'failData',
         store=InMemorySessionStore(),
         reply=_ok_message([Part.from_text('ok'), Part.from_data({'n': 1})]),
@@ -2023,7 +2022,7 @@ async def test_send_on_failed_turn_without_error_still_has_error() -> None:
         del session_runner, inp
         return TurnResult(finish_reason=AgentFinishReason.FAILED)
 
-    agent = _define_turns(Registry(), 'silentFail', handle, store=InMemorySessionStore())
+    agent = _define_turns(Genkit(), 'silentFail', handle, store=InMemorySessionStore())
     res = await agent.chat().send('hi')
 
     err = _assert_failed(res, message='Agent turn failed.')
@@ -2043,7 +2042,7 @@ async def test_send_on_failed_server_managed_turn_rolls_back_custom_patches() ->
         return TurnResult(finish_reason=AgentFinishReason.STOP)
 
     store = InMemorySessionStore()
-    agent = _define_turns(Registry(), 'failPatch', handle, store=store)
+    agent = _define_turns(Genkit(), 'failPatch', handle, store=store)
     chat = agent.chat()
     ok = await chat.send('hello')
     assert ok.state == {'n': 1}

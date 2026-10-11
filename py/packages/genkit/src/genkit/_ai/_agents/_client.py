@@ -888,6 +888,14 @@ class TurnDriver(Generic[StateT]):
             # No turn result: undo local changes, then raise one type for every
             # transport. GenkitError passes through as-is (AgentInitError stays
             # AgentInitError); anything else is wrapped with cause=e.
+            #
+            # There is deliberately no AgentError here. A turn that ran and
+            # failed returns res.error, so a raise only means "no turn result",
+            # which is what ai.generate raises GenkitError for. An agent-specific
+            # wrapper only duplicated status/details/reason, copied
+            # chat.state / chat.snapshot_id (still on the chat after _restore),
+            # and hid GenkitError: `except GenkitError` missed it and a
+            # server-side PublicError lost its type, so web handlers sent a 500.
             if self.rollback is not None:
                 self.rollback()
             wrapped = error_from_exception(e)

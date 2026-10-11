@@ -38,8 +38,10 @@ class FakeClient:
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
 
-    def stream(self, method: str, url: str, *, json: dict[str, Any], headers: dict[str, str]) -> Any:
-        self.calls.append({'url': url, 'json': json, 'headers': headers})
+    def stream(
+        self, method: str, url: str, *, json: dict[str, Any], headers: dict[str, str], timeout: Any = None
+    ) -> Any:
+        self.calls.append({'url': url, 'json': json, 'headers': headers, 'timeout': timeout})
 
         class Resp:
             status_code = 200
@@ -58,8 +60,10 @@ class FakeClient:
 
         return Resp()
 
-    async def post(self, url: str, *, json: dict[str, Any], headers: dict[str, str] | None = None) -> Any:
-        self.calls.append({'url': url, 'json': json, 'headers': headers or {}})
+    async def post(
+        self, url: str, *, json: dict[str, Any], headers: dict[str, str] | None = None, timeout: Any = None
+    ) -> Any:
+        self.calls.append({'url': url, 'json': json, 'headers': headers or {}, 'timeout': timeout})
 
         class Resp:
             status_code = 200
@@ -87,7 +91,7 @@ async def test_run_turn_posts_data_init_envelope_with_accept_header() -> None:
     client = FakeClient()
     transport = HttpAgentTransport(url=URL, state_management='server')
     with mock.patch(
-        'genkit._ai._agents._transports._http.get_cached_client',
+        'genkit._ai._agents._transports._http._agent_client',
         return_value=client,
     ):
         await _run_turn(transport)
@@ -104,7 +108,7 @@ async def test_get_snapshot_posts_data_envelope() -> None:
     client = FakeClient()
     transport = HttpAgentTransport(url=URL, state_management='server')
     with mock.patch(
-        'genkit._ai._agents._transports._http.get_cached_client',
+        'genkit._ai._agents._transports._http._agent_client',
         return_value=client,
     ):
         await transport.get_snapshot(snapshot_id='snap-1')
@@ -121,7 +125,7 @@ async def test_static_headers_on_turn_and_snapshot() -> None:
         headers={'Authorization': 'Bearer static'},
     )
     with mock.patch(
-        'genkit._ai._agents._transports._http.get_cached_client',
+        'genkit._ai._agents._transports._http._agent_client',
         return_value=client,
     ):
         await _run_turn(transport)
@@ -145,7 +149,7 @@ async def test_sync_callable_headers_resolved_per_request() -> None:
         headers=lambda: {'Authorization': f'Bearer {next(tokens)}'},
     )
     with mock.patch(
-        'genkit._ai._agents._transports._http.get_cached_client',
+        'genkit._ai._agents._transports._http._agent_client',
         return_value=client,
     ):
         await _run_turn(transport)
@@ -170,7 +174,7 @@ async def test_async_callable_headers_resolved_per_request() -> None:
         headers=refresh,
     )
     with mock.patch(
-        'genkit._ai._agents._transports._http.get_cached_client',
+        'genkit._ai._agents._transports._http._agent_client',
         return_value=client,
     ):
         await _run_turn(transport)
@@ -178,6 +182,40 @@ async def test_async_callable_headers_resolved_per_request() -> None:
 
     assert client.calls[0]['headers']['Authorization'] == 'Bearer async-1'
     assert client.calls[1]['headers']['Authorization'] == 'Bearer async-2'
+
+
+@pytest.mark.asyncio
+async def test_timeout_defaults_to_60s_reads_and_10s_connect() -> None:
+    client = FakeClient()
+    transport = HttpAgentTransport(url=URL, state_management='server')
+    with mock.patch('genkit._ai._agents._transports._http._agent_client', return_value=client):
+        await _run_turn(transport)
+        await transport.get_snapshot(snapshot_id='snap-1')
+
+    for call in client.calls:
+        assert call['timeout'] == httpx.Timeout(60.0, connect=10.0)
+
+
+@pytest.mark.asyncio
+async def test_timeout_reaches_turn_and_one_shot_requests() -> None:
+    """A long research turn can go quiet for minutes between chunks."""
+    client = FakeClient()
+    transport = HttpAgentTransport(url=URL, state_management='server', timeout=600.0)
+    with mock.patch('genkit._ai._agents._transports._http._agent_client', return_value=client):
+        await _run_turn(transport)
+        await transport.abort_snapshot('snap-1')
+
+    assert [call['timeout'] for call in client.calls] == [httpx.Timeout(600.0, connect=10.0)] * 2
+
+
+@pytest.mark.asyncio
+async def test_timeout_none_waits_indefinitely_but_still_bounds_connect() -> None:
+    client = FakeClient()
+    transport = HttpAgentTransport(url=URL, state_management='server', timeout=None)
+    with mock.patch('genkit._ai._agents._transports._http._agent_client', return_value=client):
+        await _run_turn(transport)
+
+    assert client.calls[0]['timeout'] == httpx.Timeout(None, connect=10.0)
 
 
 # ---------------------------------------------------------------------------
@@ -200,7 +238,7 @@ def _time_out(request: httpx.Request) -> httpx.Response:
 @pytest.mark.asyncio
 async def test_get_snapshot_connection_refused_raises_unavailable() -> None:
     transport = HttpAgentTransport(url=URL, state_management='server')
-    with mock.patch('genkit._ai._agents._transports._http.get_cached_client', return_value=_mock_client(_refuse)):
+    with mock.patch('genkit._ai._agents._transports._http._agent_client', return_value=_mock_client(_refuse)):
         with pytest.raises(GenkitError) as exc:
             await transport.get_snapshot(snapshot_id='snap-1')
     assert exc.value.status == 'UNAVAILABLE'
@@ -210,7 +248,7 @@ async def test_get_snapshot_connection_refused_raises_unavailable() -> None:
 @pytest.mark.asyncio
 async def test_abort_snapshot_timeout_raises_deadline_exceeded() -> None:
     transport = HttpAgentTransport(url=URL, state_management='server')
-    with mock.patch('genkit._ai._agents._transports._http.get_cached_client', return_value=_mock_client(_time_out)):
+    with mock.patch('genkit._ai._agents._transports._http._agent_client', return_value=_mock_client(_time_out)):
         with pytest.raises(GenkitError) as exc:
             await transport.abort_snapshot('snap-1')
     assert exc.value.status == 'DEADLINE_EXCEEDED'
@@ -220,7 +258,7 @@ async def test_abort_snapshot_timeout_raises_deadline_exceeded() -> None:
 async def test_get_snapshot_non_json_body_raises_internal() -> None:
     transport = HttpAgentTransport(url=URL, state_management='server')
     client = _mock_client(lambda _req: httpx.Response(200, text='<html>proxy page</html>'))
-    with mock.patch('genkit._ai._agents._transports._http.get_cached_client', return_value=client):
+    with mock.patch('genkit._ai._agents._transports._http._agent_client', return_value=client):
         with pytest.raises(GenkitError) as exc:
             await transport.get_snapshot(snapshot_id='snap-1')
     assert exc.value.status == 'INTERNAL'
@@ -231,7 +269,7 @@ async def test_get_snapshot_wrong_shape_raises_internal() -> None:
     """Valid JSON that isn't a snapshot is GenkitError, not a raw pydantic error."""
     transport = HttpAgentTransport(url=URL, state_management='server')
     client = _mock_client(lambda _req: httpx.Response(200, json={'result': {'snapshotId': 42}}))
-    with mock.patch('genkit._ai._agents._transports._http.get_cached_client', return_value=client):
+    with mock.patch('genkit._ai._agents._transports._http._agent_client', return_value=client):
         with pytest.raises(GenkitError) as exc:
             await transport.get_snapshot(snapshot_id='snap-1')
     assert exc.value.status == 'INTERNAL'
@@ -243,7 +281,7 @@ async def test_get_snapshot_server_error_keeps_server_status() -> None:
     transport = HttpAgentTransport(url=URL, state_management='server')
     body = '{"error": {"status": "PERMISSION_DENIED", "message": "not your session"}}'
     client = _mock_client(lambda _req: httpx.Response(403, text=body))
-    with mock.patch('genkit._ai._agents._transports._http.get_cached_client', return_value=client):
+    with mock.patch('genkit._ai._agents._transports._http._agent_client', return_value=client):
         with pytest.raises(GenkitError) as exc:
             await transport.get_snapshot(snapshot_id='snap-1')
     assert exc.value.status == 'PERMISSION_DENIED'
@@ -253,7 +291,7 @@ async def test_get_snapshot_server_error_keeps_server_status() -> None:
 @pytest.mark.asyncio
 async def test_run_turn_connection_refused_raises_unavailable() -> None:
     transport = HttpAgentTransport(url=URL, state_management='server')
-    with mock.patch('genkit._ai._agents._transports._http.get_cached_client', return_value=_mock_client(_refuse)):
+    with mock.patch('genkit._ai._agents._transports._http._agent_client', return_value=_mock_client(_refuse)):
         with pytest.raises(GenkitError) as exc:
             await _run_turn(transport)
     assert exc.value.status == 'UNAVAILABLE'
@@ -265,7 +303,7 @@ async def test_run_turn_stream_ends_without_result_raises_unavailable() -> None:
     transport = HttpAgentTransport(url=URL, state_management='server')
     chunk = 'data: {"message": {"modelChunk": {"content": [{"text": "Booking for "}]}}}\n\n'
     client = _mock_client(lambda _req: httpx.Response(200, text=chunk))
-    with mock.patch('genkit._ai._agents._transports._http.get_cached_client', return_value=client):
+    with mock.patch('genkit._ai._agents._transports._http._agent_client', return_value=client):
         with pytest.raises(GenkitError) as exc:
             await _run_turn(transport)
     assert exc.value.status == 'UNAVAILABLE'
@@ -275,7 +313,7 @@ async def test_run_turn_stream_ends_without_result_raises_unavailable() -> None:
 async def test_remote_chat_send_connection_refused_raises_unavailable_and_keeps_history() -> None:
     """End to end: chat.send over HTTP raises GenkitError and leaves the chat as it was."""
     chat = remote_agent(URL, state_management='client').chat()
-    with mock.patch('genkit._ai._agents._transports._http.get_cached_client', return_value=_mock_client(_refuse)):
+    with mock.patch('genkit._ai._agents._transports._http._agent_client', return_value=_mock_client(_refuse)):
         with pytest.raises(GenkitError) as exc:
             await chat.send('book a table for 4')
     assert exc.value.status == 'UNAVAILABLE'
