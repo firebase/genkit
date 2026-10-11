@@ -24,6 +24,7 @@ import (
 	"iter"
 	"log/slog"
 	"maps"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"sync"
@@ -55,7 +56,10 @@ type Model interface {
 	Register(r api.Registry)
 }
 
-// ModelArg is the interface for model arguments. It can either be the retriever action itself or a reference to be looked up.
+// ModelArg is the interface for model arguments. It is either a model value
+// ([Model] or [BackgroundModel]), which generation calls directly whether or not
+// it is registered, or a reference such as [ModelRef] whose name is looked up
+// in the registry.
 type ModelArg interface {
 	Name() string
 }
@@ -204,7 +208,7 @@ func DefineGenerateAction(ctx context.Context, r api.Registry) *generateAction {
 			// The action's own span records the request and response, and
 			// stands in for the first turn's: opening one would nest a
 			// duplicate "generate" span directly inside it.
-			return generateWithRequest(ctx, r, actionOpts, nil, cb, false /* spanTurnZero */)
+			return generateWithRequest(ctx, r, actionOpts, nil, nil, cb, false /* spanTurnZero */)
 		})
 	a.Register(r)
 	return (*generateAction)(a)
@@ -267,6 +271,7 @@ func NewModelAction[Config any](
 		simulateSystemPrompt(&o, nil),
 		augmentWithContext(&o, nil),
 		validateSupport(name, &o),
+		reportUsage(),
 		addAutomaticTelemetry(),
 	)(typedFn)
 
@@ -378,7 +383,8 @@ func responseError(cause error) *status.Error {
 
 // callerStopped reports whether the loop ended because the caller stopped it
 // rather than because something inside it broke: it cancelled the context, its
-// deadline expired, or the loop reached a limit it set ([ErrMaxTurnsExceeded]).
+// deadline expired, or the loop reached a limit it set ([ErrMaxTurnsExceeded],
+// [ErrBudgetExceeded]).
 // Those report [FinishReasonAborted]; everything else reports
 // [FinishReasonFailed].
 //
@@ -391,7 +397,8 @@ func callerStopped(ctx context.Context, cause error) bool {
 	return ctx.Err() != nil ||
 		errors.Is(cause, context.Canceled) ||
 		errors.Is(cause, context.DeadlineExceeded) ||
-		errors.Is(cause, ErrMaxTurnsExceeded)
+		errors.Is(cause, ErrMaxTurnsExceeded) ||
+		errors.Is(cause, ErrBudgetExceeded)
 }
 
 // failurePartial builds the partial [ModelResponse] that accompanies the
@@ -440,7 +447,7 @@ func failurePartial(ctx context.Context, base *ModelResponse, req *ModelRequest,
 //
 // Failures follow the partial-response contract documented on [Generate].
 func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActionOptions, mmws []ModelMiddleware, cb ModelStreamCallback) (*ModelResponse, error) {
-	return generateWithRequest(ctx, r, opts, mmws, cb, true /* spanTurnZero */)
+	return generateWithRequest(ctx, r, opts, nil, mmws, cb, true /* spanTurnZero */)
 }
 
 // withoutToolCall returns ctx without the state of a tool call it may run
@@ -459,10 +466,11 @@ func withoutToolCall(ctx context.Context) context.Context {
 	return base.ToolChunkSenderKey.NewContext(ctx, nil)
 }
 
-// generateWithRequest runs the tool loop. spanTurnZero reports whether the
-// first turn opens its own "generate" span; the generate action passes false
-// because its own span already serves as that one.
-func generateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActionOptions, mmws []ModelMiddleware, cb ModelStreamCallback, spanTurnZero bool) (*ModelResponse, error) {
+// generateWithRequest runs the tool loop. model is the caller's model
+// argument, if any, named by opts.Model (see [resolveModel]). spanTurnZero
+// reports whether the first turn opens its own "generate" span; the generate
+// action passes false because its own span already serves as that one.
+func generateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActionOptions, model ModelArg, mmws []ModelMiddleware, cb ModelStreamCallback, spanTurnZero bool) (*ModelResponse, error) {
 	// Every path into the loop (genkit.Generate, Prompt.Execute, the generate
 	// action the Dev UI runs) puts the *genkit.Genkit backing r on the
 	// context, so middleware that resolves other actions through
@@ -486,8 +494,7 @@ func generateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		}
 	}
 
-	m := LookupModel(r, opts.Model)
-	bm := LookupBackgroundModel(r, opts.Model)
+	m, bm := resolveModel(r, opts.Model, model)
 	if m == nil && bm == nil {
 		return nil, status.Errorf(ErrModelNotFound, "ai.GenerateWithRequest: model %q not found", opts.Model)
 	}
@@ -569,11 +576,17 @@ func generateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		// Native constrained output is enabled only when the user has
 		// requested it, the model supports it, and there's a JSON schema.
 		outputCfg.Constrained = opts.Output.JsonSchema != nil &&
-			opts.Output.Constrained && outputCfg.Constrained && m != nil && m.(*ModelAction).supportsConstrained(len(toolDefs) > 0)
+			opts.Output.Constrained && outputCfg.Constrained && supportsConstrained(m, len(toolDefs) > 0)
 
 		// Add schema instructions to prompt when not using native constraints.
-		// This is a no-op for unstructured output requests.
-		if !outputCfg.Constrained {
+		// Under a native constraint only the json format goes without its
+		// default instructions: a plugin may constrain json alone, and an
+		// array or enum request that reaches it with neither a constraint
+		// nor instructions has nothing to follow. Explicit instructions are
+		// always sent. This matches JS, where only json sets
+		// defaultInstructions to false. This is a no-op for unstructured
+		// output requests.
+		if !outputCfg.Constrained || outputCfg.Format != OutputFormatJSON || opts.Output.Instructions != nil {
 			instructions := ""
 			if opts.Output.Instructions != nil {
 				instructions = *opts.Output.Instructions
@@ -583,7 +596,8 @@ func generateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 			if instructions != "" {
 				opts.Messages = injectInstructions(opts.Messages, instructions)
 			}
-
+		}
+		if !outputCfg.Constrained {
 			// This is optional to make the output config internally consistent.
 			outputCfg.Schema = nil
 		}
@@ -607,6 +621,28 @@ func generateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 	} else {
 		fn = m.Generate
 	}
+
+	// The run's total counts every model action call made under it: model
+	// actions report their usage to the context's sink (see
+	// [reportUsage]), so a call a hook makes to another model (a fallback, a
+	// judge) counts as well as a retry, and so does a nested generate, whose
+	// own sink forwards here. A response a cache serves never reaches a model
+	// action and does not count. Calls can be concurrent, hence the lock.
+	var (
+		usageMu    sync.Mutex
+		totalUsage *GenerationUsage
+	)
+	outerSink := base.UsageSinkFromContext(ctx)
+	ctx = base.WithUsageSink(ctx, func(v any) {
+		if u, ok := v.(*GenerationUsage); ok {
+			usageMu.Lock()
+			totalUsage = SumUsage(totalUsage, u)
+			usageMu.Unlock()
+		}
+		if outerSink != nil {
+			outerSink(v)
+		}
+	})
 
 	// Build the full hook chains once: wrapping the model function with
 	// WrapModel hooks from middleware, and wrapping the generate iteration
@@ -678,7 +714,12 @@ func generateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		// execution is both wrapped by WrapGenerate and recorded under this
 		// turn's span (generate > tool > generate > model > tool).
 		if currentTurn == 0 && resumeRequested(opts) {
-			resumeOutput, err := handleResumeOption(ctx, r, opts, runTool, wrappedCb)
+			// The resume revises the conversation this turn received, so
+			// what the WrapGenerate hooks changed carries into the resumed
+			// turn, as it does from one turn to the next.
+			turnOpts := *opts
+			turnOpts.Messages = req.Messages
+			resumeOutput, err := handleResumeOption(ctx, r, &turnOpts, runTool, wrappedCb)
 			if err != nil {
 				if resumeOutput == nil || resumeOutput.failedMessage == nil {
 					return nil, err
@@ -689,24 +730,25 @@ func generateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 				// finished, so a retry replays them instead of running
 				// them again.
 				failedReq := *req
-				failedReq.Messages = opts.Messages[:len(opts.Messages)-1]
+				failedReq.Messages = req.Messages[:len(req.Messages)-1]
 				partial := failurePartial(ctx, nil, &failedReq, err)
 				partial.Message = resumeOutput.failedMessage
 				return partial, err
 			}
 
+			// A restarted call may interrupt again: a later hook holds it,
+			// or the tool asks its own question once a hook lets it
+			// through. That is a pause like any other, answered the same
+			// way, so it returns no error.
 			if ir := resumeOutput.interruptedResponse; ir != nil {
-				err := status.Errorf(status.ErrFailedPrecondition,
-					"One or more tools triggered an interrupt during a restarted execution.")
-				ir.Error = responseError(err)
 				// ir.Message is the conversation's revised last message, so
 				// the request carries the messages before it and History()
 				// reproduces the full conversation. Copied from the turn's
 				// request so a field added to ModelRequest carries through.
 				irReq := *req
-				irReq.Messages = opts.Messages[:len(opts.Messages)-1]
+				irReq.Messages = req.Messages[:len(req.Messages)-1]
 				ir.Request = &irReq
-				return ir, err
+				return ir, nil
 			}
 
 			opts = resumeOutput.revisedRequest
@@ -904,7 +946,49 @@ func generateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 			resp = failurePartial(ctx, nil, lastReq, err)
 		}
 	}
+	if resp != nil {
+		usageMu.Lock()
+		resp.TotalUsage = totalUsage
+		usageMu.Unlock()
+	}
 	return resp, err
+}
+
+// SumUsage returns the field-by-field sum of usages, adding
+// [GenerationUsage.Custom] key by key. Nil entries are skipped; the result is
+// nil when every entry is. It never mutates its arguments, so it is safe on
+// usage a model or hook still holds.
+func SumUsage(usages ...*GenerationUsage) *GenerationUsage {
+	var sum *GenerationUsage
+	for _, u := range usages {
+		if u == nil {
+			continue
+		}
+		if sum == nil {
+			sum = &GenerationUsage{}
+		}
+		sum.InputTokens += u.InputTokens
+		sum.OutputTokens += u.OutputTokens
+		sum.TotalTokens += u.TotalTokens
+		sum.InputCharacters += u.InputCharacters
+		sum.OutputCharacters += u.OutputCharacters
+		sum.InputImages += u.InputImages
+		sum.OutputImages += u.OutputImages
+		sum.InputVideos += u.InputVideos
+		sum.OutputVideos += u.OutputVideos
+		sum.InputAudioFiles += u.InputAudioFiles
+		sum.OutputAudioFiles += u.OutputAudioFiles
+		sum.ThoughtsTokens += u.ThoughtsTokens
+		sum.CachedContentTokens += u.CachedContentTokens
+		sum.CacheWriteTokens += u.CacheWriteTokens
+		for k, v := range u.Custom {
+			if sum.Custom == nil {
+				sum.Custom = make(map[string]float64, len(u.Custom))
+			}
+			sum.Custom[k] += v
+		}
+	}
+	return sum
 }
 
 // turnOptions returns a per-turn copy of opts for the WrapGenerate hooks and
@@ -1120,7 +1204,7 @@ func buildToolRunner(mws []namedHooks) toolRunnerFunc {
 	stages := toolStages(mws)
 	if len(stages) == 0 {
 		return func(ctx context.Context, tool Tool, req *ToolRequest) (*MultipartToolResponse, error) {
-			resp, err := tool.RunRawMultipart(toolStageContext(ctx, tool.Name(), nil, 0), req.Input)
+			resp, err := runToolRecovered(toolStageContext(ctx, tool.Name(), nil, 0), tool, req.Input)
 			return answerToolError(ctx, tool.Name(), resp, err, true)
 		}
 	}
@@ -1129,7 +1213,7 @@ func buildToolRunner(mws []namedHooks) toolRunnerFunc {
 		if run != nil {
 			run.ran = true
 		}
-		resp, err := params.Tool.RunRawMultipart(toolStageContext(ctx, params.Tool.Name(), stages, len(stages)), params.Request.Input)
+		resp, err := runToolRecovered(toolStageContext(ctx, params.Tool.Name(), stages, len(stages)), params.Tool, params.Request.Input)
 		if run != nil {
 			run.err = err
 		}
@@ -1220,12 +1304,15 @@ func recordToolShortCircuit(ctx context.Context, name string, input any, resp *M
 // tool request nothing answered is one no provider accepts. Text streamed
 // before the failure still reached the callback.
 //
-// Two errors are not loop failures and keep their response's message: a
+// One error is not a loop failure and keeps its response's message: a
 // response the model completed but post-processing rejected (structured
 // output that does not match the schema), which keeps the model's own finish
-// reason, and a resume whose restarted tool interrupted again, which keeps
-// FinishReason interrupted under its FAILED_PRECONDITION error and is
-// answered with [WithResume] rather than re-sent.
+// reason.
+//
+// A resume whose restarted call interrupts again, because a later middleware
+// hook holds it or the tool asks its own question, returns no error: like any
+// pause, it reports FinishReason interrupted and is answered with
+// [WithResume]. The model is not called.
 //
 // A resume whose restarted tool failed also keeps the resumed message, with
 // the failed request as it was and its siblings' outcomes recorded on their
@@ -1238,6 +1325,11 @@ func recordToolShortCircuit(ctx context.Context, name string, input any, resp *M
 // SoftToolErrors middleware (plugins/middleware) covers, answers the call
 // with a response for which [Part.IsToolError] is true, and the loop
 // continues.
+//
+// A tool that panics fails its call with [ErrToolFailed], as an error of its
+// own would, under the message "tool panicked": the panic value and its stack
+// go to the error log only, never to the model or the returned error. A
+// WrapTool hook that panics fails the call the same way, as its own error.
 //
 // Errors reported before a request is made (unknown model or tool, invalid
 // options) carry a nil response.
@@ -1374,7 +1466,7 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 	}
 	actionOpts.Messages = processedMessages
 
-	return GenerateWithRequest(ctx, r, actionOpts, genOpts.Middleware, genOpts.Stream)
+	return generateWithRequest(ctx, r, actionOpts, genOpts.Model, genOpts.Middleware, genOpts.Stream, true /* spanTurnZero */)
 }
 
 // GenerateText run generate request for this model. Returns generated text only.
@@ -1605,6 +1697,27 @@ func (m *ModelAction) Generate(ctx context.Context, req *ModelRequest, cb ModelS
 	return m.Run(ctx, req, cb)
 }
 
+// resolveModel returns the model or background model that serves name. arg is
+// used as is when it is a model value, so a model made with [NewModelAction]
+// runs without being registered, and in preference to a registered model of
+// the same name; any other arg (a [ModelRef], or none) is resolved by name.
+func resolveModel(r api.Registry, name string, arg ModelArg) (Model, BackgroundModel) {
+	switch v := arg.(type) {
+	case Model:
+		return v, nil
+	case BackgroundModel:
+		return nil, v
+	}
+	return LookupModel(r, name), LookupBackgroundModel(r, name)
+}
+
+// supportsConstrained reports whether m supports constrained output. A [Model]
+// that is not a [ModelAction] has no descriptor to say so, and is taken not to.
+func supportsConstrained(m Model, hasTools bool) bool {
+	ma, ok := m.(*ModelAction)
+	return ok && ma.supportsConstrained(hasTools)
+}
+
 // supportsConstrained returns whether the model supports constrained output.
 func (m *ModelAction) supportsConstrained(hasTools bool) bool {
 	if m == nil {
@@ -1686,6 +1799,31 @@ func toolFailureError(ctx context.Context, name string, cause error) error {
 		return status.Errorf(status.ErrCancelled, "tool %q stopped: %w", name, cause)
 	}
 	return status.Errorf(ErrToolFailed, "tool %q failed: %w", name, cause)
+}
+
+// errToolPanicked is the error of a tool call that panicked. Its message is
+// fixed: the error can reach the model as the call's answer, and the panic
+// value can hold anything the tool had in hand, secrets included, so the value
+// and its stack go only to the error log.
+var errToolPanicked = errors.New("tool panicked")
+
+// recoverToolPanic, deferred in a function that runs a call to the named
+// tool, turns a panic into errToolPanicked on *err and logs the panic value
+// and its stack.
+func recoverToolPanic(ctx context.Context, name string, err *error) {
+	if v := recover(); v != nil {
+		logger.Error(ctx, "tool call panicked", "tool", name, "panic", v, "stack", string(debug.Stack()))
+		*err = errToolPanicked
+	}
+}
+
+// runToolRecovered runs tool on input, and fails with errToolPanicked when
+// the tool panics, so the loop handles the panic as an error of the tool's
+// own: the WrapTool hooks see it, and SoftToolErrors can answer the call
+// with it.
+func runToolRecovered(ctx context.Context, tool Tool, input any) (resp *MultipartToolResponse, err error) {
+	defer recoverToolPanic(ctx, tool.Name(), &err)
+	return tool.RunRawMultipart(ctx, input)
 }
 
 // toolStreamer lets the tools of one round, which run concurrently, stream
@@ -1870,6 +2008,17 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 
 		go func(idx int, p *Part) {
 			toolReq := p.ToolRequest
+			res := result[*MultipartToolResponse]{index: idx}
+			defer func() { resultChan <- res }()
+			// A panic outside the tool itself, in a WrapTool hook say, fails
+			// the call rather than the process.
+			var panicErr error
+			defer func() {
+				if panicErr != nil {
+					res.value, res.err = nil, toolFailureError(ctx, toolReq.Name, panicErr)
+				}
+			}()
+			defer recoverToolPanic(ctx, toolReq.Name, &panicErr)
 			respond := func(resp *MultipartToolResponse) {
 				// p is already private to this call (revisedMsg is a deep
 				// clone of the model message), and the stamp writes only its
@@ -1878,7 +2027,7 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 				stampPendingToolOutcome(newPart, resp)
 				revisedMsg.Content[idx] = newPart
 
-				resultChan <- result[*MultipartToolResponse]{index: idx, value: resp}
+				res.value = resp
 			}
 
 			tool := LookupTool(r, p.ToolRequest.Name)
@@ -1888,7 +2037,7 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 					respond(resp)
 					return
 				}
-				resultChan <- result[*MultipartToolResponse]{index: idx, err: err}
+				res.err = err
 				return
 			}
 
@@ -1910,14 +2059,14 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 					logger.Debug(ctx, "tool triggered an interrupt", "tool", toolReq.Name)
 					interrupt, ierr := interruptedPart(p, tie)
 					if ierr != nil {
-						resultChan <- result[*MultipartToolResponse]{index: idx, err: toolFailureError(ctx, toolReq.Name, ierr)}
+						res.err = toolFailureError(ctx, toolReq.Name, ierr)
 						return
 					}
 					revisedMsg.Content[idx] = interrupt
-					resultChan <- result[*MultipartToolResponse]{index: idx, err: tie}
+					res.err = tie
 					return
 				}
-				resultChan <- result[*MultipartToolResponse]{index: idx, err: toolFailureError(ctx, toolReq.Name, err)}
+				res.err = toolFailureError(ctx, toolReq.Name, err)
 				return
 			}
 			multipartResp = foldAttachedParts(multipartResp, sink)
@@ -2014,7 +2163,9 @@ func (mr *ModelResponse) Text() string {
 }
 
 // History returns messages from the request combined with the response message
-// to represent the conversation history. The result is always freshly
+// to represent the conversation history. The request is the one the model
+// recorded on the response, so a [Hooks.WrapModel] middleware that changes
+// the messages decides what History returns. The result is always freshly
 // allocated, so callers may retain or append to it without disturbing
 // Request.Messages.
 func (mr *ModelResponse) History() []*Message {
@@ -2779,12 +2930,18 @@ func handleResumeOption(ctx context.Context, r api.Registry, genOpts *GenerateAc
 
 	for i, step := range steps {
 		go func(idx int, step *resumeStep) {
-			output, err := handleResumedToolRequest(ctx, step, runTool, stream)
-			resultChan <- result[*resumedToolRequestOutput]{
-				index: idx,
-				value: output,
-				err:   err,
-			}
+			res := result[*resumedToolRequestOutput]{index: idx}
+			defer func() { resultChan <- res }()
+			// A panic outside the tool itself, in a WrapTool hook say, fails
+			// the call rather than the process.
+			var panicErr error
+			defer func() {
+				if panicErr != nil {
+					res.value, res.err = nil, toolFailureError(ctx, step.request.ToolRequest.Name, panicErr)
+				}
+			}()
+			defer recoverToolPanic(ctx, step.request.ToolRequest.Name, &panicErr)
+			res.value, res.err = handleResumedToolRequest(ctx, step, runTool, stream)
 		}(i, step)
 	}
 

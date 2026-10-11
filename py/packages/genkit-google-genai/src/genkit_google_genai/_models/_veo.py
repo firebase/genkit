@@ -23,15 +23,6 @@ import base64
 from collections.abc import Mapping
 from typing import Any, Literal, TypeAlias
 
-from google import genai
-from google.genai import types as genai_types
-from google.genai.errors import APIError
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
-from pydantic.alias_generators import to_camel
-
-from genkit import ActionRunContext, FinishReason, GenkitError, Message, ModelResponse, Operation, Part, Role
-from genkit.model import ModelInfo, ModelRequest, OperationError, Supports
-from genkit.plugin_api import wrap_http_error
 from genkit_google_genai._auth import GOOGLE_AUTH_ERRORS, raise_auth_error
 from genkit_google_genai._constants import is_multi_regional_location, multi_regional_base_url
 from genkit_google_genai._models._sdk_config import (
@@ -42,6 +33,15 @@ from genkit_google_genai._models._sdk_config import (
     sdk_config_error,
 )
 from genkit_google_genai._models._secrets import context_api_key, misplaced_key_error
+from genkit_google_genai._provider_errors import TRANSPORT_ERRORS, api_error, transport_error
+from google import genai
+from google.genai import types as genai_types
+from google.genai.errors import APIError
+from pydantic import Field, ValidationError, model_validator
+
+from genkit import ActionRunContext, FinishReason, GenkitError, Message, ModelResponse, Operation, Part, Role
+from genkit.model import ModelInfo, ModelRequest, OperationError, Supports
+from genkit.plugin_api import GenkitConfig
 
 # Quote autocomplete needs a Literal, so this alias is the Veo catalog.
 # ``veo_model`` takes ``KnownVeo | str`` so unlisted ids still work.
@@ -74,10 +74,9 @@ def is_veo_model(name: str) -> bool:
     return name.split('/')[-1].lower().startswith('veo-')
 
 
-class VeoConfig(BaseModel):
+class VeoConfig(GenkitConfig):
     """Veo Config Schema."""
 
-    model_config = ConfigDict(extra='forbid', validate_by_name=True, validate_by_alias=True, alias_generator=to_camel)
     number_of_videos: int | None = Field(default=None)
     generate_audio: bool | None = Field(default=None)
     fps: int | None = Field(default=None)
@@ -377,9 +376,11 @@ class VeoModel:
                 config=config,
             )
         except APIError as e:
-            raise wrap_http_error(e, status_code=e.code, message=e.message or str(e)) from e
+            raise api_error(e) from e
         except GOOGLE_AUTH_ERRORS as e:
             raise_auth_error(e)
+        except TRANSPORT_ERRORS as e:
+            raise transport_error(e) from e
 
         return _from_veo_operation(api_op=response)
 
@@ -403,9 +404,11 @@ class VeoModel:
                 operation=op_request
             )
         except APIError as e:
-            raise wrap_http_error(e, status_code=e.code, message=e.message or str(e)) from e
+            raise api_error(e) from e
         except GOOGLE_AUTH_ERRORS as e:
             raise_auth_error(e)
+        except TRANSPORT_ERRORS as e:
+            raise transport_error(e) from e
 
         return _from_veo_operation(api_op=response)
 
