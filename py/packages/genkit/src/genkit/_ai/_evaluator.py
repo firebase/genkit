@@ -225,6 +225,47 @@ def define_evaluator(
     return action
 
 
+def batch_evaluator(
+    name: str,
+    fn: BatchEvaluatorFn,
+    *,
+    display_name: str,
+    definition: str,
+    is_billed: bool = False,
+    config_schema: type[BaseModel] | dict[str, object] | None = None,
+    metadata: dict[str, object] | None = None,
+    description: str | None = None,
+) -> Action:
+    """Build a batch evaluator action that runs ``fn`` once on the whole ``EvalRequest``, without registering it.
+
+    ``fn`` returns the rows as a list or an ``EvalResponse``. The action wraps
+    them so ``action.run(...).response`` is always an ``EvalResponse``.
+    Plugin ``init`` / ``resolve`` return this. ``define_batch_evaluator`` registers it.
+    """
+    if not inspect.iscoroutinefunction(fn):
+        raise TypeError(f"Action handlers must be async functions. Got sync function for '{name}'.")
+
+    evaluator_meta = _evaluator_metadata(name, display_name, definition, is_billed, config_schema, metadata)
+    evaluator_description = _get_func_description(fn, description)
+
+    # the action hands back the rows as one model so the Dev UI and
+    # `genkit eval:run` get a JSON array, the same as a per-row evaluator.
+    # fn stays the metadata_fn, so its signature is still checked when built.
+    # model_validate takes a list or an EvalResponse; the constructor rejects the latter.
+    async def batch_fn(req: EvalRequest, ctx: ActionRunContext) -> EvalResponse:
+        return EvalResponse.model_validate(await action.params.call(fn, req, ctx))
+
+    action = Action(
+        kind=ActionKind.EVALUATOR,
+        name=name,
+        fn=batch_fn,
+        metadata_fn=fn,
+        metadata=evaluator_meta,
+        description=evaluator_description,
+    )
+    return action
+
+
 def define_batch_evaluator(
     registry: Registry,
     name: str,
@@ -236,31 +277,16 @@ def define_batch_evaluator(
     metadata: dict[str, object] | None = None,
     description: str | None = None,
 ) -> Action:
-    """Register a batch evaluator that runs ``fn`` once on the whole ``EvalRequest``.
-
-    ``fn`` returns the rows as a list or an ``EvalResponse``. The action wraps
-    them so ``action.run(...).response`` is always an ``EvalResponse``.
-    """
-    evaluator_meta = _evaluator_metadata(name, display_name, definition, is_billed, config_schema, metadata)
-
-    evaluator_description = _get_func_description(fn, description)
-
-    if not inspect.iscoroutinefunction(fn):
-        raise TypeError(f"Action handlers must be async functions. Got sync function for '{name}'.")
-
-    # the action hands back the rows as one model so the Dev UI and
-    # `genkit eval:run` get a JSON array, the same as a per-row evaluator.
-    # fn stays the metadata_fn, so its signature is still checked when defined.
-    # model_validate takes a list or an EvalResponse; the constructor rejects the latter.
-    async def batch_fn(req: EvalRequest, ctx: ActionRunContext) -> EvalResponse:
-        return EvalResponse.model_validate(await action.params.call(fn, req, ctx))
-
-    action = registry.register_action(
-        name=name,
-        kind=ActionKind.EVALUATOR,
-        fn=batch_fn,
-        metadata_fn=fn,
-        metadata=evaluator_meta,
-        description=evaluator_description,
+    """Register a batch evaluator that runs ``fn`` once on the whole ``EvalRequest``."""
+    action = batch_evaluator(
+        name,
+        fn,
+        display_name=display_name,
+        definition=definition,
+        is_billed=is_billed,
+        config_schema=config_schema,
+        metadata=metadata,
+        description=description,
     )
+    registry.register_action_from_instance(action)
     return action

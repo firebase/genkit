@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Plugin authors build evaluators with genkit.evaluator.evaluator and list them with evaluator_action_metadata."""
+"""Plugin authors build evaluators with evaluator / batch_evaluator and list them with evaluator_action_metadata."""
 
 from typing import Any, cast
 
@@ -22,7 +22,15 @@ import pytest
 from pydantic import BaseModel
 
 from genkit import Genkit, GenkitError
-from genkit.evaluator import BaseDataPoint, EvalFnResponse, EvalRequest, Score, evaluator, evaluator_action_metadata
+from genkit.evaluator import (
+    BaseDataPoint,
+    EvalFnResponse,
+    EvalRequest,
+    Score,
+    batch_evaluator,
+    evaluator,
+    evaluator_action_metadata,
+)
 from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin
 
 
@@ -154,6 +162,77 @@ async def test_plugin_returning_evaluator_registers_it_on_app() -> None:
     ai = Genkit(plugins=[ExactMatchPlugin()])
 
     results = await ai.evaluate(evaluator='p/e', dataset=_two_rows())
+
+    assert [row.test_case_id for row in results] == ['case1', 'case2']
+    assert [score.score for score in results[0].evaluation] == [True]
+    assert [score.score for score in results[1].evaluation] == [False]
+
+
+async def _exact_match_batch(req: EvalRequest) -> list[EvalFnResponse]:
+    return [await _exact_match(datapoint, None) for datapoint in req.dataset]
+
+
+class ExactMatchBatchPlugin(Plugin):
+    """Plugin that hands Genkit a batch evaluator built with batch_evaluator(...) from init."""
+
+    name = 'b'
+
+    async def init(self) -> list[Action]:
+        return [
+            batch_evaluator('b/e', _exact_match_batch, display_name='Exact match', definition='output equals reference')
+        ]
+
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
+        return None
+
+    async def list_actions(self) -> list[ActionMetadata]:
+        return []
+
+
+@pytest.mark.asyncio
+async def test_batch_evaluator_builds_action_without_registering() -> None:
+    """batch_evaluator('t/b', fn, ...) is an EVALUATOR action that no app knows about until something registers it."""
+    ai = Genkit()
+
+    action = batch_evaluator(
+        't/b', _exact_match_batch, display_name='Exact match', definition='output equals reference'
+    )
+
+    assert action.kind == ActionKind.EVALUATOR
+    with pytest.raises(GenkitError) as raised:
+        await ai.evaluate(evaluator='t/b', dataset=_two_rows())
+    assert raised.value.status == 'NOT_FOUND'
+
+
+def test_batch_evaluator_sync_fn_raises_type_error() -> None:
+    """batch_evaluator(...) rejects a sync fn when built."""
+
+    def sync_batch(req: EvalRequest) -> list[EvalFnResponse]:
+        return []
+
+    with pytest.raises(TypeError, match="Got sync function for 't/b'"):
+        batch_evaluator('t/b', cast(Any, sync_batch), display_name='Exact match', definition='output equals reference')
+
+
+def test_batch_evaluator_and_metadata_agree_for_same_args() -> None:
+    """A built batch evaluator and its listing show the Dev UI the same card."""
+    action = batch_evaluator(
+        'p/b', _exact_match_batch, display_name='Exact match', definition='output equals reference', is_billed=True
+    )
+    listing = evaluator_action_metadata(
+        'p/b', display_name='Exact match', definition='output equals reference', is_billed=True
+    )
+
+    assert listing.metadata is not None
+    assert action.metadata['evaluator'] == listing.metadata['evaluator']
+
+
+@pytest.mark.asyncio
+async def test_plugin_returning_batch_evaluator_registers_it_on_app() -> None:
+    """A plugin whose init() returns batch_evaluator(...) makes ai.evaluate(evaluator='b/e', ...) score every row."""
+    ai = Genkit(plugins=[ExactMatchBatchPlugin()])
+
+    results = await ai.evaluate(evaluator='b/e', dataset=_two_rows())
 
     assert [row.test_case_id for row in results] == ['case1', 'case2']
     assert [score.score for score in results[0].evaluation] == [True]
