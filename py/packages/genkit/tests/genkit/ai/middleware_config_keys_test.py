@@ -13,7 +13,7 @@ the class doesn't declare raises instead of being dropped.
 from typing import Any
 
 import pytest
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from genkit import Genkit, GenkitError
 from genkit._ai._generate import register_middleware, resolve_middleware_from_use
@@ -79,10 +79,12 @@ def test_unknown_ref_key_names_middleware_and_accepted_keys() -> None:
     )
 
 
-def test_unknown_kwarg_raises_type_error() -> None:
-    """A misspelled keyword in Python code raises like any unexpected keyword."""
-    with pytest.raises(TypeError, match=r'AllergyGuard got unknown config field\(s\) max_warning;'):
+def test_unknown_kwarg_raises_extra_forbidden() -> None:
+    """A misspelled keyword raises the same extra_forbidden error a GenkitConfig would."""
+    with pytest.raises(ValidationError) as raised:
         AllergyGuard(max_warning=1)
+
+    assert [(e['type'], e['loc']) for e in raised.value.errors()] == [('extra_forbidden', ('max_warning',))]
 
 
 def test_extra_allow_config_keeps_undeclared_keys() -> None:

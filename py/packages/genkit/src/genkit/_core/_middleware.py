@@ -25,7 +25,7 @@ from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Generic, NamedTuple, Protocol, TypeVar, cast, get_args, get_origin
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, PrivateAttr, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, PrivateAttr, ValidationError, field_validator
 
 from genkit._core._action import Action
 from genkit._core._error import GenkitError, RuntimeErrorReason
@@ -236,7 +236,8 @@ class BaseMiddleware(Generic[TConfig]):
        Any pydantic BaseModel works. Its keys (field names, or aliases if it
        declares them) are the config keys in .prompt files, the Dev UI form
        and traces. A key the class doesn't declare raises instead of being
-       dropped, unless the class sets ``extra='allow'`` or ``'ignore'``.
+       dropped (a ValidationError, as for a GenkitConfig), unless the class sets
+       ``extra='allow'`` or ``'ignore'``.
 
     2. Extend BaseMiddleware with your config model, e.g. Retry:
         ai = Genkit()
@@ -310,11 +311,12 @@ class BaseMiddleware(Generic[TConfig]):
                 raise TypeError(f'expected config type {self.Config.__name__}, got {type(config).__name__}')
             self.config = config
         else:
-            unknown, accepted = _unknown_config_keys(self.Config, kwargs)
+            unknown, _ = _unknown_config_keys(self.Config, kwargs)
             if unknown:
-                raise TypeError(
-                    f'{type(self).__name__} got unknown config field(s) {", ".join(unknown)}; '
-                    f'{self.Config.__name__} accepts: {", ".join(accepted) or "none"}'
+                # The same error a GenkitConfig raises, so the base class doesn't change what callers catch.
+                raise ValidationError.from_exception_data(
+                    self.Config.__name__,
+                    [{'type': 'extra_forbidden', 'loc': (key,), 'input': kwargs[key]} for key in unknown],
                 )
             self.config = cast(Any, self.Config(**kwargs))
 
