@@ -171,11 +171,8 @@ class ActionKind(StrEnum):
     EVALUATOR = 'evaluator'
     EXECUTABLE_PROMPT = 'executable-prompt'
     FLOW = 'flow'
-    INDEXER = 'indexer'
     MODEL = 'model'
     PROMPT = 'prompt'
-    RERANKER = 'reranker'
-    RETRIEVER = 'retriever'
     # Catalog key for tools. Action.run / Dev UI see the multipart envelope.
     TOOL = 'tool.v2'
     UTIL = 'util'
@@ -188,11 +185,7 @@ class ActionResponse(BaseModel, Generic[ResponseT]):
     """Response from an action with trace ID."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
-        extra='forbid',
-        validate_by_name=True,
-        validate_by_alias=True,
-        alias_generator=to_camel,
-        arbitrary_types_allowed=True,
+        extra='forbid', populate_by_name=True, alias_generator=to_camel, arbitrary_types_allowed=True
     )
 
     response: ResponseT

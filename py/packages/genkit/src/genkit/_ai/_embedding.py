@@ -33,7 +33,7 @@ from genkit._core._typing import ActionMetadata, EmbedResponse
 class EmbedderSupports(BaseModel):
     """Embedder capability support."""
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', validate_by_name=True, validate_by_alias=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True)
 
     input: list[str] | None = None
     multilingual: bool | None = None
@@ -42,9 +42,7 @@ class EmbedderSupports(BaseModel):
 class EmbedderInfo(BaseModel):
     """Catalog card for an embedder: label, vector width, and input kinds."""
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(
-        extra='forbid', validate_by_name=True, validate_by_alias=True, alias_generator=to_camel
-    )
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
 
     config_schema: dict[str, Any] | None = None
     label: str | None = None
@@ -55,7 +53,7 @@ class EmbedderInfo(BaseModel):
 class EmbedderRef(BaseModel):
     """Reference to an embedder with configuration."""
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', validate_by_name=True, validate_by_alias=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True)
 
     name: str
     config: dict[str, Any] | None = None
@@ -110,15 +108,6 @@ def embedder_action_metadata(
         output_json_schema=to_json_schema(EmbedResponse),
         metadata=embedder_metadata_dict,
     )
-
-
-def create_embedder_ref(name: str, *, config: dict[str, Any] | None = None, version: str | None = None) -> EmbedderRef:
-    """Create an EmbedderRef. Settings and version are named.
-
-    A version string in the second position used to be stored as config and
-    silently dropped. Pass config= and version=.
-    """
-    return EmbedderRef(name=name, config=config, version=version)
 
 
 def embedder(

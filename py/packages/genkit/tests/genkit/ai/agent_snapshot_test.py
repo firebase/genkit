@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from genkit import Part
+from genkit import Genkit, Part
 from genkit._ai._agents._base import define_custom_agent
 from genkit._ai._agents._client import AgentError
 from genkit._ai._agents._runtime import SessionRunner
@@ -29,7 +29,6 @@ from genkit._ai._agents._types import TurnContext, TurnResult
 from genkit._core._action import ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._model import AgentInput, AgentResult, Message, SessionSnapshot, SessionState
-from genkit._core._registry import Registry
 from genkit._core._typing import (
     SnapshotStatus,
 )
@@ -118,7 +117,7 @@ def test_is_heartbeat_expired_pending_with_stale_heartbeat() -> None:
 
 @pytest.mark.asyncio
 async def test_define_custom_agent_registers_snapshot_and_abort_actions() -> None:
-    registry = Registry()
+    ai = Genkit()
     store = InMemorySessionStore()
 
     async def fn(session_runner: SessionRunner, _: ActionRunContext) -> AgentResult:
@@ -129,10 +128,10 @@ async def test_define_custom_agent_registers_snapshot_and_abort_actions() -> Non
         await session_runner.run(handle_turn)
         return await session_runner.result()
 
-    agent = define_custom_agent(registry, 'snapTest', fn, store=store)
+    agent = define_custom_agent(ai, 'snapTest', fn, store=store)
 
-    snapshot_action = registry._entries[ActionKind.AGENT_SNAPSHOT]['snapTest']  # noqa: SLF001
-    abort_action = registry._entries[ActionKind.AGENT_ABORT]['snapTest']  # noqa: SLF001
+    snapshot_action = ai._registry._entries[ActionKind.AGENT_SNAPSHOT]['snapTest']  # noqa: SLF001
+    abort_action = ai._registry._entries[ActionKind.AGENT_ABORT]['snapTest']  # noqa: SLF001
     assert snapshot_action is not None
     assert abort_action is not None
 
@@ -155,14 +154,14 @@ async def test_define_custom_agent_registers_snapshot_and_abort_actions() -> Non
 @pytest.mark.asyncio
 async def test_snapshot_action_raises_not_found_for_missing_snapshot() -> None:
     """A poll for a snapshot that isn't in the store surfaces NOT_FOUND, not a null."""
-    registry = Registry()
+    ai = Genkit()
     store = InMemorySessionStore()
 
     async def fn(session_runner: SessionRunner, _: ActionRunContext) -> AgentResult:
         return await session_runner.result()
 
-    define_custom_agent(registry, 'missingSnapTest', fn, store=store)
-    snapshot_action = registry._entries[ActionKind.AGENT_SNAPSHOT]['missingSnapTest']  # noqa: SLF001
+    define_custom_agent(ai, 'missingSnapTest', fn, store=store)
+    snapshot_action = ai._registry._entries[ActionKind.AGENT_SNAPSHOT]['missingSnapTest']  # noqa: SLF001
 
     with pytest.raises(GenkitError) as exc:
         await snapshot_action.run({'snapshotId': 'non-existent-id'})
@@ -173,13 +172,13 @@ async def test_snapshot_action_raises_not_found_for_missing_snapshot() -> None:
 @pytest.mark.asyncio
 async def test_get_snapshot_data_returns_none_for_missing_snapshot() -> None:
     """The method returns None on a miss; the action wraps that as NOT_FOUND."""
-    registry = Registry()
+    ai = Genkit()
     store = InMemorySessionStore()
 
     async def fn(session_runner: SessionRunner, _: ActionRunContext) -> AgentResult:
         return await session_runner.result()
 
-    agent = define_custom_agent(registry, 'missingMethodSnapTest', fn, store=store)
+    agent = define_custom_agent(ai, 'missingMethodSnapTest', fn, store=store)
     assert await agent.get_snapshot_data(snapshot_id='non-existent-id') is None
 
 
@@ -187,7 +186,7 @@ async def test_get_snapshot_data_returns_none_for_missing_snapshot() -> None:
 async def test_custom_agent_turn_that_raises_resolves_as_failed() -> None:
     """A turn that raises settles FAILED, keeps the resume handle on the last good
     parent, and rolls the optimistic prompt back instead of crashing the chat."""
-    registry = Registry()
+    ai = Genkit()
     store = InMemorySessionStore()
 
     async def fn(session_runner: SessionRunner, _: ActionRunContext) -> AgentResult:
@@ -201,7 +200,7 @@ async def test_custom_agent_turn_that_raises_resolves_as_failed() -> None:
         await session_runner.run(handle_turn)
         return await session_runner.result()
 
-    agent = define_custom_agent(registry, 'flakyTest', fn, store=store)
+    agent = define_custom_agent(ai, 'flakyTest', fn, store=store)
     chat = agent.chat()
 
     out_ok = await chat.send('hello')
@@ -223,7 +222,7 @@ async def test_custom_agent_turn_that_raises_resolves_as_failed() -> None:
 @pytest.mark.asyncio
 async def test_chat_resumes_from_blocked_snapshot() -> None:
     """A blocked turn was still asked: keep the prompt and resume from it."""
-    registry = Registry()
+    ai = Genkit()
     store = InMemorySessionStore()
 
     async def fn(session_runner: SessionRunner, _: ActionRunContext) -> AgentResult:
@@ -237,7 +236,7 @@ async def test_chat_resumes_from_blocked_snapshot() -> None:
         await session_runner.run(handle_turn)
         return await session_runner.result()
 
-    agent = define_custom_agent(registry, 'blockedResumeTest', fn, store=store)
+    agent = define_custom_agent(ai, 'blockedResumeTest', fn, store=store)
     chat = agent.chat()
 
     await chat.send('hello')
@@ -271,7 +270,7 @@ async def test_chat_points_at_detached_snapshot_so_send_needs_completed_or_reloa
     A send while it is still pending (or after abort) is rejected; resume by
     session_id walks back to the last completed turn.
     """
-    registry = Registry()
+    ai = Genkit()
     store = InMemorySessionStore()
 
     async def fn(session_runner: SessionRunner, _: ActionRunContext) -> AgentResult:
@@ -285,7 +284,7 @@ async def test_chat_points_at_detached_snapshot_so_send_needs_completed_or_reloa
         await session_runner.run(handle_turn)
         return await session_runner.result()
 
-    agent = define_custom_agent(registry, 'detachAbortTest', fn, store=store)
+    agent = define_custom_agent(ai, 'detachAbortTest', fn, store=store)
     chat = agent.chat()
 
     await chat.send('hello')
@@ -320,7 +319,7 @@ async def test_chat_points_at_detached_snapshot_so_send_needs_completed_or_reloa
 async def test_load_chat_by_session_hydrates_aborted_leaf() -> None:
     """load_chat is inspect: a session whose newest snapshot is aborted lands
     on that leaf. send() is rejected; chat(session_id=) walks back to resume."""
-    registry = Registry()
+    ai = Genkit()
     store = InMemorySessionStore()
 
     async def fn(session_runner: SessionRunner, _: ActionRunContext) -> AgentResult:
@@ -334,7 +333,7 @@ async def test_load_chat_by_session_hydrates_aborted_leaf() -> None:
         await session_runner.run(handle_turn)
         return await session_runner.result()
 
-    agent = define_custom_agent(registry, 'loadAfterAbortTest', fn, store=store)
+    agent = define_custom_agent(ai, 'loadAfterAbortTest', fn, store=store)
     chat = agent.chat()
     await chat.send('hello')
     session_id = chat.session_id

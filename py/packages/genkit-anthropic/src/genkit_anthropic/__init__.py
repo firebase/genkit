@@ -47,7 +47,7 @@ See Also:
 """
 
 from genkit_anthropic._config import AnthropicConfig, Effort, ThinkingDisplay, ThinkingMode
-from genkit_anthropic._plugin import Anthropic, anthropic_name
+from genkit_anthropic._plugin import Anthropic
 
 __all__ = [
     'Anthropic',
@@ -55,5 +55,4 @@ __all__ = [
     'Effort',
     'ThinkingDisplay',
     'ThinkingMode',
-    'anthropic_name',
 ]

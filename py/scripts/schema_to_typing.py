@@ -58,7 +58,18 @@ TRANSFORMATIONS = {
     # docs= always goes into the prompt and nothing in Python reads
     # supports.context, so the field isn't emitted.
     'Supports': {'omit': ['context']},
+    # Evaluator authors type these names when building a Score. Only the
+    # Python class names differ; the JSON ('PASS', details.reasoning) follows the schema.
+    'EvalStatusEnum': {'output_name': 'ScoreStatus'},
+    # Inline Score.details object. Only Score has an object-typed details.
+    'Details': {'output_name': 'ScoreDetails'},
 }
+
+# Settings a caller passes into a model, not data Genkit emits. These subclass
+# GenkitConfig instead of GenkitModel: model_dump() returns field names for
+# provider SDKs, unknown keys raise, and the schema's additionalProperties is
+# ignored (provider-only keys go in ModelConfig.extra).
+CONFIG_MODELS = frozenset({'GenerationCommonConfig'})
 
 
 def _output_name(name: str) -> str:
@@ -104,7 +115,7 @@ from typing import Any, ClassVar, Literal
 from pydantic import ConfigDict, Field, RootModel, field_validator
 from pydantic.alias_generators import to_camel
 
-from genkit._core._base import GenkitModel
+from genkit._core._base import GenkitConfig, GenkitModel
 from genkit._core._compat import StrEnum
 
 '''
@@ -179,7 +190,7 @@ def _typed_map_aliases(defs: dict) -> dict[str, str]:
 
 
 def _extract_inline_classes(schema: dict) -> dict[str, dict]:
-    """Extract inline object schemas to named classes (e.g. Score.details -> Details).
+    """Extract inline object schemas to named classes (e.g. Score.details -> ScoreDetails).
 
     When two inline schemas across different parents share a derived class
     name (e.g. ``resume`` on both ``AgentInput`` and ``GenerateActionOptions``),
@@ -312,11 +323,19 @@ def _emit_model(
     frz = ', frozen=True' if name == 'PathMetadata' else ''
     extra = 'allow' if name in allow else 'forbid'
     cfg = f"ConfigDict(alias_generator=to_camel, extra='{extra}', validate_by_name=True, validate_by_alias=True{ext}{frz})"
-    lines = [
-        f'class {name}(GenkitModel):',
-        f'    """Model for {name.lower().replace("_", " ")} data."""',
-        f'    model_config: ClassVar[ConfigDict] = {cfg}',
-    ]
+    if name in CONFIG_MODELS:
+        # GenkitConfig already carries the flags; redeclaring them here would
+        # let the schema's additionalProperties reopen extra='allow'.
+        lines = [
+            f'class {name}(GenkitConfig):',
+            f'    """Model for {name.lower().replace("_", " ")} data."""',
+        ]
+    else:
+        lines = [
+            f'class {name}(GenkitModel):',
+            f'    """Model for {name.lower().replace("_", " ")} data."""',
+            f'    model_config: ClassVar[ConfigDict] = {cfg}',
+        ]
     for k, v in props.items():
         # OutputConfig.schema would shadow BaseModel.schema, so the Python
         # name is json_schema. alias pins the wire key; to_camel would emit

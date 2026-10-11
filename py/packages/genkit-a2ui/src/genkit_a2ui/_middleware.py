@@ -23,13 +23,10 @@ import uuid
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
-from pydantic.alias_generators import to_camel
-
 from genkit import FinishReason, Message, ModelResponse, ModelResponseChunk, Part, Role
-from genkit._core._model import ABNORMAL_FINISH_REASONS
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, ModelHookParams
-from genkit.model import ModelRequest
+from genkit.model import ABNORMAL_FINISH_REASONS, ModelRequest
+from genkit.plugin_api import GenkitConfig
 
 from ._catalog import A2uiCatalog, render_catalog_instructions
 from ._loader import resolve_catalog
@@ -46,20 +43,18 @@ from ._types import DEFAULT_VERSION, SURFACE_KEYS, Envelope, SupportedVersion, V
 SKIP_REWRITE_FINISH_REASONS = ABNORMAL_FINISH_REASONS | {FinishReason.UNKNOWN}
 
 
-class SurfacesConfig(BaseModel):
+class SurfacesConfig(GenkitConfig):
     """Options for :class:`Surfaces`."""
-
-    model_config = ConfigDict(extra='forbid', validate_by_name=True, validate_by_alias=True, alias_generator=to_camel)
 
     instructions: Literal['system', 'none'] = 'system'
     # 'off' passes envelopes through unchecked, 'warn' logs and drops the
     # offending block, 'strict' kills the turn. Default is 'warn' because a
     # single hallucinated component should not cost the whole answer.
     #
-    # The JSON key is 'validate' (matches JS), but a field by that name would
-    # shadow BaseModel.validate. The Python kwarg is validation=; runtime
-    # also accepts validate=.
-    validation: ValidateMode = Field(default='warn', validation_alias='validate', serialization_alias='validate')
+    # Named validation, not validate (JS's option name), because a field
+    # called validate would shadow BaseModel.validate. This is in-process
+    # middleware config, not a cross-SDK wire format, so the names can differ.
+    validation: ValidateMode = 'warn'
     surface_id: str | None = None
     # Registry id from load_catalog. The Developer UI lists those same ids.
     catalog: str | None = None
@@ -87,7 +82,7 @@ class Surfaces(BaseMiddleware[SurfacesConfig]):
         ctx: GenerateMiddlewareContext,
         next_fn: Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        catalog = resolve_catalog(registry=ctx.ai.registry, catalog=self.config.catalog)
+        catalog = resolve_catalog(ctx=ctx, catalog=self.config.catalog)
         version = self.config.version or DEFAULT_VERSION
         validate = self.config.validation
         # Chunks are rewritten as fences close. The finished message is parsed

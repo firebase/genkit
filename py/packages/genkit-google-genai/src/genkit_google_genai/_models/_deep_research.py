@@ -21,23 +21,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Annotated, Any, Literal, cast
 
-from pydantic import BaseModel, ConfigDict, WithJsonSchema, field_validator, model_validator, with_config
-from pydantic.alias_generators import to_camel, to_snake
-from typing_extensions import NotRequired, TypedDict
-
-from genkit import ActionRunContext, GenkitError, Operation, RuntimeErrorReason
-from genkit.model import BackgroundAction, ModelRef, ModelRequest, model_ref
-from genkit.plugin_api import Action, ActionKind, to_json_schema
 from genkit_google_genai._interactions._client import (
     cancel_interaction,
     create_interaction,
     get_interaction,
 )
-from genkit_google_genai._interactions._converters import (
-    clean_schema,
-    from_interaction,
-    to_interaction_tool,
-)
+from genkit_google_genai._interactions._converters import from_interaction
 from genkit_google_genai._interactions._options import ClientOptions
 from genkit_google_genai._models._interactions_registry import deep_research_model_info
 from genkit_google_genai._models._interactions_utils import (
@@ -51,6 +40,13 @@ from genkit_google_genai._models._interactions_utils import (
     steps_with_folded_system_instruction,
 )
 from genkit_google_genai._models._secrets import reject_request_config_api_key
+from pydantic import ConfigDict, WithJsonSchema, field_validator, model_validator, with_config
+from pydantic.alias_generators import to_camel, to_snake
+from typing_extensions import NotRequired, TypedDict
+
+from genkit import ActionRunContext, GenkitError, Operation, RuntimeErrorReason
+from genkit.model import BackgroundAction, ModelRef, ModelRequest, model_ref
+from genkit.plugin_api import Action, ActionKind, GenkitConfig, to_json_schema
 
 AGENT_CONFIG_KEYS = (
     'thinking_summaries',
@@ -102,10 +98,9 @@ _MCP_SERVERS_SCHEMA = WithJsonSchema({
 })
 
 
-class DeepResearchConfig(BaseModel):
+class DeepResearchConfig(GenkitConfig):
     """Deep Research model configuration."""
 
-    model_config = ConfigDict(extra='allow', validate_by_name=True, validate_by_alias=True, alias_generator=to_camel)
     base_url: str | None = None
     api_version: str | None = None
     # Milliseconds — applied to the HTTP call, not the create body.
@@ -128,7 +123,7 @@ class DeepResearchConfig(BaseModel):
     @model_validator(mode='before')
     @classmethod
     def reject_nested_file_search(cls, data: object) -> object:
-        """Unknown keys pass through to the API, so name the flat fields for the old nested one."""
+        """Name the flat fields for the old nested key instead of the generic unknown-key error."""
         if isinstance(data, Mapping):
             for key in ('file_search', 'fileSearch'):
                 if key in data:
@@ -178,11 +173,20 @@ def deep_research_model(version: str) -> ModelRef:
 
 
 def build_tools(request: ModelRequest[DeepResearchConfig], config: DeepResearchConfig) -> list[dict[str, Any]]:
-    """Build Interactions API tool configurations for Deep Research."""
-    tools: list[dict[str, Any]] = []
-    if request.tools:
-        tools.extend(dict(to_interaction_tool(tool_def)) for tool_def in request.tools)
+    """Build Interactions API tool configurations for Deep Research.
 
+    Only the agent's built-in tools and remote MCP servers are sent. Deep
+    Research does not accept function tools, so ``request.tools`` is rejected.
+    """
+    if request.tools:
+        raise GenkitError(
+            status='INVALID_ARGUMENT',
+            message=(
+                'Deep Research does not support function tools. '
+                'Use config google_search, url_context, code_execution, file_search, or mcp_servers.'
+            ),
+        )
+    tools: list[dict[str, Any]] = []
     for tool_type in ('google_search', 'url_context', 'code_execution'):
         if getattr(config, tool_type, None):
             tools.append({'type': tool_type})
@@ -202,20 +206,6 @@ def build_tools(request: ModelRequest[DeepResearchConfig], config: DeepResearchC
         tools.append({'type': 'mcp_server', **{k: v for k, v in mcp_server.items() if v is not None}})
 
     return tools
-
-
-def response_format_from_request(
-    request: ModelRequest[DeepResearchConfig],
-) -> dict[str, Any] | None:
-    """Build response_format when the caller asked for JSON output."""
-    if request.output_format != 'json' and request.output_content_type != 'application/json':
-        return None
-    response_format: dict[str, Any] = {'type': 'text', 'mime_type': 'application/json'}
-    if request.output_schema:
-        # output_schema is already a JSON Schema dict. Dumping a model
-        # by alias here would rename properties the constraint expects.
-        response_format['schema'] = clean_schema(request.output_schema)
-    return response_format
 
 
 def create_deep_research_background_action(
@@ -251,7 +241,6 @@ def create_deep_research_background_action(
         agent_config: dict[str, Any] = {'type': 'deep-research', **agent_fields}
 
         tools = build_tools(request, config)
-        response_format = response_format_from_request(request)
         create_kwargs: dict[str, Any] = {
             'agent': version,
             'input': steps_with_folded_system_instruction(request.messages),
@@ -262,8 +251,6 @@ def create_deep_research_background_action(
         }
         if tools:
             create_kwargs['tools'] = tools
-        if response_format is not None:
-            create_kwargs['response_format'] = response_format
 
         interaction = await create_interaction(api_key, create_kwargs, options)
         return persist(from_interaction(interaction))

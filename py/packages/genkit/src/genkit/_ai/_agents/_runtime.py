@@ -40,7 +40,7 @@ from genkit._ai._agents._session import (
 from genkit._ai._agents._session_stores._util import session_id_of
 from genkit._ai._agents._snapshot import walk_back_to_resumable
 from genkit._ai._agents._types import ChunkTransform, StateTransform, TurnContext, TurnResult
-from genkit._ai._generate import generate_action
+from genkit._ai._generate import CallScope, generate_action
 from genkit._ai._json_patch import diff_json
 from genkit._core._action import ActionRunContext, StreamingCallback, get_current_context
 from genkit._core._channel import CloseableQueue, QueueShutDown
@@ -60,7 +60,6 @@ from genkit._core._model import (
     SessionSnapshot,
     SessionState,
 )
-from genkit._core._registry import Registry
 from genkit._core._telemetry._instrumentation import SpanContext, run_in_new_span
 from genkit._core._typing import (
     AgentFinishReason,
@@ -1043,7 +1042,7 @@ async def generate_prompt_agent_turn(
     *,
     session_runner: SessionRunner,
     ctx: ActionRunContext,
-    registry: Registry,
+    scope: CallScope,
     options: GenerateActionOptions,
     history: list[Message],
 ) -> TurnResult | None:
@@ -1053,7 +1052,7 @@ async def generate_prompt_agent_turn(
         ctx.send_chunk(AgentStreamChunk(model_chunk=chunk))
 
     response = await generate_action(
-        registry,
+        scope,
         options,
         on_chunk=on_chunk,
         abort_signal=ctx.abort_signal,
