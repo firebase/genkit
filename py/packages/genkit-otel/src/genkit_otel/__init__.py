@@ -42,10 +42,11 @@ It composes freely with the built-in Developer UI poster (they export
 to separate pipelines).
 """
 
-from genkit_otel._gen_ai_attributes import ContentCapturingMode
+from genkit_otel._gen_ai_attributes import CONTENT_ATTRIBUTES, ContentCapturingMode
 from genkit_otel._genai_instrumentation import GenAiInstrumentation
 
 __all__ = [
+    'CONTENT_ATTRIBUTES',
     'ContentCapturingMode',
     'GenAiInstrumentation',
 ]

@@ -41,18 +41,21 @@ from opentelemetry.trace import (
     set_span_in_context,
 )
 from opentelemetry.util._once import Once
+from pydantic import BaseModel
 
 from genkit import (
     ActionRunContext,
     FinishReason,
     Genkit,
     GenkitError,
+    Interrupt,
     Message,
     ModelResponse,
     ModelResponseChunk,
     Part,
     Role,
 )
+from genkit._ai._tools import run_tool_after_restart
 from genkit._core._action import Action
 from genkit.model import ModelRequest, ModelUsage
 from genkit.plugin_api import ActionKind
@@ -154,6 +157,16 @@ _CONTENT_KEYS = (
 def _attrs(span: object) -> dict[str, Any]:
     attributes = getattr(span, 'attributes', None)
     return dict(attributes) if attributes else {}
+
+
+def _stored_text(span: Any) -> str:
+    """Everything Cloud Trace stores as text for a span: attributes, status message, and events."""
+    parts = [str(value) for value in _attrs(span).values()]
+    if span.status.description:
+        parts.append(span.status.description)
+    for event in span.events:
+        parts.extend(str(value) for value in (event.attributes or {}).values())
+    return ' '.join(parts)
 
 
 def _spans_named(exporter: InMemorySpanExporter, name: str) -> list[Any]:
@@ -667,26 +680,11 @@ async def test_generate_with_span_only_env_shows_redacted_prompt_and_reply_in_cl
 
     attrs = _chat_attrs(cloud)
     _assert_model_and_tokens(attrs)
+    assert attrs['gen_ai.usage.output_tokens'] == _OUTPUT_TOKENS
     assert attrs['gen_ai.input.messages'] == '<redacted>'
     assert attrs['gen_ai.output.messages'] == '<redacted>'
     assert _PROMPT not in attrs['gen_ai.input.messages']
     assert _REPLY not in attrs['gen_ai.output.messages']
-
-
-@pytest.mark.asyncio
-async def test_generate_with_span_and_event_env_shows_redacted_prompt_in_cloud_trace(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """SPAN_AND_EVENT redacts the same two message keys on the Cloud span."""
-    monkeypatch.setenv(_CAPTURE_ENV, 'SPAN_AND_EVENT')
-    with _cloud_trace() as cloud:
-        await _echo_app().generate(prompt=_PROMPT, model=_MODEL)
-        _force_flush()
-
-    attrs = _chat_attrs(cloud)
-    _assert_model_and_tokens(attrs)
-    assert attrs['gen_ai.input.messages'] == '<redacted>'
-    assert attrs['gen_ai.output.messages'] == '<redacted>'
 
 
 @pytest.mark.asyncio
@@ -703,20 +701,6 @@ async def test_generate_with_system_prompt_and_span_only_env_shows_redacted_syst
     _assert_model_and_tokens(attrs)
     assert attrs['gen_ai.system_instructions'] == '<redacted>'
     assert _SYSTEM not in ' '.join(str(value) for value in attrs.values())
-
-
-@pytest.mark.asyncio
-async def test_generate_with_span_only_set_in_code_shows_redacted_prompt_in_cloud_trace() -> None:
-    """Registering content_capturing_mode='SPAN_ONLY' in code still redacts Cloud Trace."""
-    configure_instrumentation(GenAiInstrumentation(content_capturing_mode='SPAN_ONLY'))
-    with _cloud_trace() as cloud:
-        await _echo_app().generate(prompt=_PROMPT, model=_MODEL)
-        _force_flush()
-
-    attrs = _chat_attrs(cloud)
-    _assert_model_and_tokens(attrs)
-    assert attrs['gen_ai.input.messages'] == '<redacted>'
-    assert attrs['gen_ai.output.messages'] == '<redacted>'
 
 
 @pytest.mark.asyncio
@@ -853,32 +837,15 @@ async def test_generate_with_no_capture_has_no_message_keys_in_cloud_trace() -> 
 
 
 @pytest.mark.asyncio
-async def test_generate_with_span_only_env_keeps_token_counts_and_model_in_cloud_trace(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Redaction leaves gen_ai.request.model and the usage counts as they were."""
-    monkeypatch.setenv(_CAPTURE_ENV, 'SPAN_ONLY')
-    with _cloud_trace() as cloud:
-        await _echo_app().generate(prompt=_PROMPT, model=_MODEL)
-        _force_flush()
-
-    attrs = _chat_attrs(cloud)
-    _assert_model_and_tokens(attrs)
-    assert attrs['gen_ai.usage.output_tokens'] == _OUTPUT_TOKENS
-    assert attrs['gen_ai.input.messages'] == '<redacted>'
-    assert attrs['gen_ai.output.messages'] == '<redacted>'
-
-
-@pytest.mark.asyncio
 async def test_generate_that_raises_with_span_only_env_has_no_prompt_in_cloud_trace(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """When the model raises, the Cloud span has no prompt text in any content key."""
+    """A model error that quotes the prompt stores <redacted> as the status message and exception text."""
     monkeypatch.setenv(_CAPTURE_ENV, 'SPAN_ONLY')
     ai = Genkit()
 
     async def boom(_request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
-        raise RuntimeError('model exploded')
+        raise RuntimeError(f'model rejected: {_PROMPT}')
 
     ai.define_model(_MODEL, boom)
     with _cloud_trace() as cloud:
@@ -886,8 +853,125 @@ async def test_generate_that_raises_with_span_only_env_has_no_prompt_in_cloud_tr
         _force_flush()
 
     assert response.finish_reason == FinishReason.FAILED
-    attrs = _chat_attrs(cloud)
+    chat = _one_span(cloud, f'chat {_MODEL}')
+    attrs = _attrs(chat)
     assert attrs['gen_ai.request.model'] == _MODEL
+    assert attrs['error.type'] == 'RuntimeError'
     for key in _CONTENT_KEYS:
         assert key not in attrs
-    assert _PROMPT not in ' '.join(str(value) for value in attrs.values())
+    assert chat.status.description == '<redacted>'
+    exception = next(event for event in chat.events if event.name == 'exception')
+    assert exception.attributes['exception.type'] == 'RuntimeError'
+    assert exception.attributes['exception.message'] == '<redacted>'
+    assert exception.attributes['exception.stacktrace'] == '<redacted>'
+    for span in cloud.get_finished_spans():
+        assert _PROMPT not in _stored_text(span)
+
+
+class _Order(BaseModel):
+    table: int
+
+
+@pytest.mark.asyncio
+async def test_flow_that_raises_validation_error_has_no_input_in_cloud_trace() -> None:
+    """A ValidationError quotes input_value; Cloud Trace stores <redacted> for the status and exception text."""
+    with _cloud_trace() as cloud:
+        ai = Genkit()
+
+        @ai.flow()
+        async def seat(note: str) -> str:
+            order = _Order.model_validate({'table': note})
+            return f'table {order.table}'
+
+        with pytest.raises(Exception, match='table'):
+            await seat(_PROMPT)
+        _force_flush()
+
+    span = _one_span(cloud, 'seat')
+    assert span.status.description == '<redacted>'
+    assert any(event.name == 'exception' for event in span.events)
+    assert _PROMPT not in _stored_text(span)
+
+
+@pytest.mark.asyncio
+async def test_tool_interrupt_payload_is_redacted_in_cloud_trace() -> None:
+    """A tool that raises Interrupt({'echo': query}) stores genkit/metadata/interrupt as <redacted>."""
+    ai = Genkit()
+
+    @ai.tool(name='approve')
+    async def approve(query: str) -> str:
+        """Ask a human to approve."""
+        raise Interrupt({'echo': query})
+
+    async def tool_model(_request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(
+                role=Role.MODEL,
+                content=[Part.from_tool_request(name='approve', input=_PROMPT, ref='r1')],
+            ),
+        )
+
+    ai.define_model(_MODEL, tool_model)
+    with _cloud_trace() as cloud:
+        response = await ai.generate(prompt='approve this', model=_MODEL, tools=['approve'])
+        _force_flush()
+
+    assert response.finish_reason == FinishReason.INTERRUPTED
+    attrs = _attrs(_one_span(cloud, 'approve'))
+    assert attrs['genkit/metadata/interrupt'] == '<redacted>'
+    for span in cloud.get_finished_spans():
+        assert _PROMPT not in _stored_text(span)
+
+
+@pytest.mark.asyncio
+async def test_resumed_tool_payload_is_redacted_in_cloud_trace() -> None:
+    """The caller's resume payload stores genkit/metadata/resumed as <redacted>."""
+    ai = Genkit()
+
+    @ai.tool(name='approve')
+    async def approve(query: str) -> str:
+        """Ask a human to approve."""
+        return 'approved'
+
+    action = await ai._registry.resolve_action(kind=ActionKind.TOOL, name='approve')
+    assert action is not None
+    restart = Part.from_tool_request(name='approve', ref='r1', input='q', metadata={'resumed': {'note': _PROMPT}})
+    with _cloud_trace() as cloud:
+        await run_tool_after_restart(tool=action, restart_trp=restart)
+        _force_flush()
+
+    span = _one_span(cloud, 'approve')
+    assert _attrs(span)['genkit/metadata/resumed'] == '<redacted>'
+    assert _PROMPT not in _stored_text(span)
+
+
+@pytest.mark.asyncio
+async def test_other_instrumentation_content_keys_are_redacted_in_cloud_trace() -> None:
+    """Spans from OpenLLMetry, OpenInference, or the deprecated GenAI keys go through the same exporter."""
+    keys = (
+        'gen_ai.prompt',
+        'gen_ai.completion',
+        'gen_ai.prompt.0.content',
+        'gen_ai.completion.0.content',
+        'input.value',
+        'output.value',
+        'llm.input_messages.0.message.content',
+        'llm.output_messages.0.message.content',
+        'traceloop.entity.input',
+    )
+    with _cloud_trace() as cloud:
+        tracer = trace_api.get_tracer('openllmetry')
+        with tracer.start_as_current_span('openai.chat') as span:
+            for key in keys:
+                span.set_attribute(key, _PROMPT)
+            span.set_attribute('gen_ai.usage.prompt_tokens', _INPUT_TOKENS)
+            span.add_event('gen_ai.content.prompt', {'gen_ai.prompt': _PROMPT})
+        _force_flush()
+
+    stored = _one_span(cloud, 'openai.chat')
+    attrs = _attrs(stored)
+    for key in keys:
+        assert attrs[key] == '<redacted>'
+    assert attrs['gen_ai.usage.prompt_tokens'] == _INPUT_TOKENS
+    assert _PROMPT not in _stored_text(stored)

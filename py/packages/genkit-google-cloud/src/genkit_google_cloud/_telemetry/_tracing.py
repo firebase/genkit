@@ -88,11 +88,15 @@ def enable_google_cloud_telemetry(
     ``force_dev_export=False``. ``disable_traces=True`` skips the Cloud
     Trace exporter only: ``GenAiInstrumentation`` is still installed, so
     model-call metrics still reach Cloud Monitoring and ``gen_ai.*`` spans
-    still reach any exporter you added. Cloud Trace never stores prompt or reply
-    text. Content capture and ``capture_action_io`` only reach exporters
-    you add yourself. With ``EVENT_ONLY`` or ``SPAN_AND_EVENT``, prompt
-    text does go to Cloud Logging. Sampler and provider checks still run
-    under ``GENKIT_ENV=dev``.
+    still reach any exporter you added. Cloud Trace never stores the prompt
+    or reply text Genkit writes: content attributes, error status messages,
+    and exception messages and stack traces are ``<redacted>``. Spans from
+    other instrumentations get the same treatment for the common content
+    keys (``gen_ai.prompt*``, ``input.value``, ``llm.input_messages*``);
+    a library's own keys pass through. Content capture and
+    ``capture_action_io`` only reach exporters you add yourself. With
+    ``EVENT_ONLY`` or ``SPAN_AND_EVENT``, prompt text does go to Cloud
+    Logging. Sampler and provider checks still run under ``GENKIT_ENV=dev``.
 
     Args:
         project: Google Cloud project ID. Wins over ``GOOGLE_CLOUD_PROJECT``,

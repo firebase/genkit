@@ -18,7 +18,7 @@
 
 This module tests the AdjustingTraceExporter which adjusts spans before
 exporting, including:
-- PII redaction (genkit:input/output)
+- PII redaction (content keys, status message, exception events)
 - Error span marking with HTTP status code
 - Failed span marking
 - Feature and model marking
@@ -32,7 +32,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from genkit_google_cloud._telemetry._adjusting_exporter import AdjustingTraceExporter, RedactedSpan
-from opentelemetry.sdk.trace import ReadableSpan
+from opentelemetry.sdk.trace import Event, ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.trace import Status, StatusCode
 from opentelemetry.util.types import Attributes
@@ -137,6 +137,72 @@ def test_cloud_trace_export_redacts_when_span_has_both_spellings() -> None:
 
     attrs = get_attrs(exporter.exported_spans[0])
     assert attrs == {'genkit/input': '<redacted>'}
+
+
+def test_cloud_trace_export_redacts_error_status_message_and_exception_text() -> None:
+    """str(exc) can quote the prompt, so the status message and exception text export <redacted>."""
+    exporter = MockSpanExporter()
+    adjusting = AdjustingTraceExporter(exporter)
+    span = create_mock_span(attributes={'error.type': 'ValidationError'}, status_code=StatusCode.ERROR)
+    span.status = Status(StatusCode.ERROR, "input_value='Allergic to peanuts, table 4'")
+    span.events = (
+        Event(
+            'exception',
+            {
+                'exception.type': 'ValidationError',
+                'exception.message': "input_value='Allergic to peanuts, table 4'",
+                'exception.stacktrace': "Traceback ... input_value='Allergic to peanuts, table 4'",
+                'exception.escaped': 'False',
+            },
+            timestamp=42,
+        ),
+        Event('cache.miss', {'key': 'menu'}, timestamp=43),
+    )
+    span.dropped_events = 3
+
+    adjusting.export([span])
+
+    exported = exporter.exported_spans[0]
+    assert exported.status.status_code == StatusCode.ERROR
+    assert exported.status.description == '<redacted>'
+    exception, other = exported.events
+    assert dict(exception.attributes or {}) == {
+        'exception.type': 'ValidationError',
+        'exception.message': '<redacted>',
+        'exception.stacktrace': '<redacted>',
+        'exception.escaped': 'False',
+    }
+    assert exception.timestamp == 42
+    assert other is span.events[1]
+    assert exported.dropped_events == 3
+    assert get_attrs(exported)['/http/status_code'] == '599'
+
+
+def test_cloud_trace_export_matches_content_key_prefixes_only_on_dot_boundary() -> None:
+    """gen_ai.prompt.0.content is content; gen_ai.prompt_tokens is a count and stays."""
+    exporter = MockSpanExporter()
+    adjusting = AdjustingTraceExporter(exporter)
+    span = create_mock_span(
+        attributes={
+            'gen_ai.prompt.0.content': 'Allergic to peanuts',
+            'gen_ai.completion.0.content': 'Smoked Salmon Tartine',
+            'genkit:metadata:interrupt': '{"echo": "Allergic to peanuts"}',
+            'genkit/metadata/resumed': '{"note": "approved by manager"}',
+            'gen_ai.prompt_tokens': 12,
+            'genkit:metadata:subtype': 'tool',
+        }
+    )
+
+    adjusting.export([span])
+
+    assert get_attrs(exporter.exported_spans[0]) == {
+        'gen_ai.prompt.0.content': '<redacted>',
+        'gen_ai.completion.0.content': '<redacted>',
+        'genkit/metadata/interrupt': '<redacted>',
+        'genkit/metadata/resumed': '<redacted>',
+        'gen_ai.prompt_tokens': 12,
+        'genkit/metadata/subtype': 'tool',
+    }
 
 
 def test_adjusting_exporter_rejects_log_input_and_output() -> None:
