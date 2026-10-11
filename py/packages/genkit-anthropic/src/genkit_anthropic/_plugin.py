@@ -17,8 +17,10 @@
 """Anthropic plugin for Genkit."""
 
 import inspect
+import os
 from collections.abc import Mapping
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
 import structlog
 from anthropic import AsyncAnthropic
@@ -68,6 +70,15 @@ def _client_kwargs(
             raise TypeError(f'Anthropic got {name} both as an argument and in client_options; pass it once')
         options[name] = value
     return options
+
+
+def _reject_v1_suffix(base_url: str | None, *, source: str) -> None:
+    """The SDK appends ``/v1/messages``, so a base URL ending in ``/v1`` would send ``/v1/v1/messages``."""
+    if base_url and urlsplit(base_url).path.rstrip('/').endswith('/v1'):
+        raise ValueError(
+            f'{source} {base_url!r} ends in /v1, but the Anthropic SDK appends /v1/messages itself; '
+            'pass the origin, e.g. https://claude-proxy.example.com'
+        )
 
 
 def _has_credential(client: AsyncAnthropic) -> bool:
@@ -160,7 +171,7 @@ class Anthropic(Plugin):
             base_url: Anthropic API origin with no ``/v1`` suffix, e.g.
                 ``https://claude-proxy.example.com``; the SDK appends
                 ``/v1/messages``. Defaults to ``ANTHROPIC_BASE_URL``, then the
-                public API.
+                public API. A value ending in ``/v1`` raises.
             api_version: Default API surface unless overridden by per-request
                 config. An explicit config ``apiVersion`` always takes
                 precedence. Defaults to stable.
@@ -170,7 +181,7 @@ class Anthropic(Plugin):
 
         Raises:
             ValueError: If ``api_version`` is not ``'stable'``, ``'beta'``, or
-                ``None``.
+                ``None``, or the base URL ends in ``/v1``.
             TypeError: If ``client_options`` has a key ``AsyncAnthropic`` doesn't
                 take, or repeats ``api_key`` or ``base_url``.
         """
@@ -178,6 +189,10 @@ class Anthropic(Plugin):
             raise ValueError("api_version must be 'stable', 'beta', or None")
 
         options = _client_kwargs(api_key=api_key, base_url=base_url, client_options=client_options)
+        if 'base_url' in options:
+            _reject_v1_suffix(options['base_url'], source='base_url')
+        else:
+            _reject_v1_suffix(os.environ.get('ANTHROPIC_BASE_URL'), source='ANTHROPIC_BASE_URL')
         self._default_api_version: Literal['stable', 'beta'] | None = api_version
         self._runtime_client = loop_local_client(lambda: AsyncAnthropic(**options))
         self._list_actions_cache: list[ActionMetadata] | None = None

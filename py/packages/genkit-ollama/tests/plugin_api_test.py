@@ -958,6 +958,31 @@ async def test_ollama_without_base_url_reads_ollama_host(monkeypatch: pytest.Mon
     assert {(r.url.host, r.url.port) for r in seen} == {('gpu-box', 11434)}
 
 
+@pytest.mark.parametrize(
+    'base_url',
+    ['http://gpu-box:11434/v1', 'http://gpu-box:11434/v1/', 'http://gpu-box:11434/api', 'gpu-box:11434/v1'],
+)
+def test_ollama_base_url_with_api_suffix_raises(monkeypatch: pytest.MonkeyPatch, base_url: str) -> None:
+    """A /v1 or /api suffix would turn into a path prefix (/v1/api/chat) and 404, so the constructor says so."""
+    monkeypatch.delenv('OLLAMA_HOST', raising=False)
+    with pytest.raises(ValueError, match=r'server root'):
+        Ollama(base_url=base_url)
+
+
+def test_ollama_host_with_v1_suffix_raises_naming_the_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The same check covers OLLAMA_HOST, and the error says that's where the value came from."""
+    monkeypatch.setenv('OLLAMA_HOST', 'http://gpu-box:11434/v1')
+    with pytest.raises(ValueError, match='OLLAMA_HOST'):
+        Ollama()
+
+
+@pytest.mark.parametrize('base_url', ['http://gpu-box:11434', 'gpu-box:11434', 'https://proxy.example.com/ollama'])
+def test_ollama_server_root_and_proxy_paths_are_accepted(monkeypatch: pytest.MonkeyPatch, base_url: str) -> None:
+    """A bare server, host:port, or a proxy path prefix passes."""
+    monkeypatch.delenv('OLLAMA_HOST', raising=False)
+    assert Ollama(base_url=base_url).base_url == base_url
+
+
 @pytest.mark.asyncio
 async def test_ollama_base_url_wins_over_ollama_host(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ollama(base_url=...) sends ai.generate to that host even when OLLAMA_HOST is set."""

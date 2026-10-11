@@ -474,6 +474,33 @@ def test_anthropic_base_url_in_both_places_raises() -> None:
         Anthropic(base_url='https://a.example', client_options={'base_url': 'https://b.example'})
 
 
+@pytest.mark.parametrize(
+    'kwargs',
+    [
+        {'base_url': 'https://api.anthropic.com/v1'},
+        {'base_url': 'https://claude-proxy.example.com/v1/'},
+        {'client_options': {'base_url': 'https://claude-proxy.example.com/v1'}},
+    ],
+)
+def test_anthropic_base_url_ending_in_v1_raises(kwargs: dict[str, Any]) -> None:
+    """The SDK appends /v1/messages, so a /v1 base would send /v1/v1/messages; the constructor says so."""
+    with pytest.raises(ValueError, match='origin'):
+        Anthropic(api_key='sk-ant-key', **kwargs)
+
+
+def test_anthropic_base_url_env_ending_in_v1_raises_naming_the_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
+    """ANTHROPIC_BASE_URL gets the same check, and the error names the env var."""
+    monkeypatch.setenv('ANTHROPIC_BASE_URL', 'https://claude-proxy.example.com/v1')
+    with pytest.raises(ValueError, match='ANTHROPIC_BASE_URL'):
+        Anthropic(api_key='sk-ant-key')
+
+
+def test_anthropic_base_url_origin_and_proxy_path_are_accepted() -> None:
+    """An origin or a gateway path that doesn't end in /v1 passes."""
+    Anthropic(api_key='sk-ant-key', base_url='https://claude-proxy.example.com')
+    Anthropic(api_key='sk-ant-key', base_url='https://gateway.example.com/anthropic')
+
+
 def test_anthropic_unknown_client_options_key_raises_type_error() -> None:
     """Anthropic(client_options={'api_kye': ...}) raises TypeError naming api_kye at construction."""
     with pytest.raises(TypeError, match='api_kye'):
