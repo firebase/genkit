@@ -155,7 +155,7 @@ def build_tools(request: ModelRequest[DeepResearchConfig], config: DeepResearchC
     return tools
 
 
-def create_deep_research_background_action(
+def create_deep_research_background_model(
     target: str | ModelRef,
     *,
     plugin_api_key: str | None,

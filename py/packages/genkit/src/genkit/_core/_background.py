@@ -468,7 +468,7 @@ def require_operation(*, value: object) -> Operation:
     )
 
 
-async def resolve_operation_action(
+async def resolve_operation_model(
     registry: Registry,
     operation: Operation,
 ) -> BackgroundModel:
@@ -524,7 +524,7 @@ async def check_operation(
         GenkitError: If the handle is missing action, or the action is
             not found.
     """
-    bg_model = await resolve_operation_action(registry, operation)
+    bg_model = await resolve_operation_model(registry, operation)
     return await bg_model.check(
         operation,
         context=operation_context(context=context, config=config),
@@ -556,7 +556,7 @@ async def cancel_operation(
             found, or cancel is not implemented (UNIMPLEMENTED, raised by
             ``BackgroundModel.cancel``).
     """
-    bg_model = await resolve_operation_action(registry, operation)
+    bg_model = await resolve_operation_model(registry, operation)
     return await bg_model.cancel(
         operation,
         context=operation_context(context=context, config=config),

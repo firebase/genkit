@@ -219,13 +219,13 @@ async def test_genkit_check_operation() -> None:
     op = Operation(id='123', done=False, action='/background-model/test_action')
 
     # Create mock background model with check method
-    mock_background_action = MagicMock()
-    mock_background_action.check = AsyncMock(return_value=Operation(id='123', done=True, output='result'))
+    mock_background_model = MagicMock()
+    mock_background_model.check = AsyncMock(return_value=Operation(id='123', done=True, output='result'))
 
     # Patch lookup_background_model to return our mock
     with mock.patch(
         'genkit._core._background.lookup_background_model',
-        new=AsyncMock(return_value=mock_background_action),
+        new=AsyncMock(return_value=mock_background_model),
     ) as mock_lookup:
         updated_op = await ai.check_operation(op)
 
@@ -395,7 +395,7 @@ async def test_cancel_operation_without_cancel_is_unimplemented() -> None:
 
 
 @pytest.mark.asyncio
-async def test_background_action_cancel_without_fn_is_unimplemented() -> None:
+async def test_background_model_cancel_without_fn_is_unimplemented() -> None:
     """A real no-cancel BackgroundModel raises UNIMPLEMENTED from .cancel."""
 
     async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
@@ -416,7 +416,7 @@ async def test_background_action_cancel_without_fn_is_unimplemented() -> None:
 
 
 @pytest.mark.asyncio
-async def test_background_action_check_rejects_non_operation() -> None:
+async def test_background_model_check_rejects_non_operation() -> None:
     """BackgroundModel.check uses the same require_operation gate as the veneer."""
 
     async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
@@ -444,7 +444,7 @@ async def test_background_action_check_rejects_non_operation() -> None:
 
 
 @pytest.mark.asyncio
-async def test_background_action_cancel_rejects_non_operation() -> None:
+async def test_background_model_cancel_rejects_non_operation() -> None:
     """A dump must not AttributeError on .action before UNIMPLEMENTED."""
 
     async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:

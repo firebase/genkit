@@ -93,7 +93,7 @@ from genkit_google_genai._interactions._options import ClientOptions
 from genkit_google_genai._models._antigravity import AntigravityConfig, create_antigravity_action
 from genkit_google_genai._models._deep_research import (
     DeepResearchConfig,
-    create_deep_research_background_action,
+    create_deep_research_background_model,
     deep_research_model,
 )
 from genkit_google_genai._models._embedder import (
@@ -341,7 +341,7 @@ def _create_embedder_action(
     return embedder(full_name, _run, info=embed_info)
 
 
-def _create_veo_background_action(
+def _create_veo_background_model(
     name: str,
     client_getter: Callable[[], genai.Client],
     plugin_name: str,
@@ -491,7 +491,7 @@ class GoogleFamilyRefs:
         return family_embedder_ref(name, namespace=cls.name, plugin_class=cls.__name__, config=config, version=version)
 
 
-def _veo_background_action_metadata(name: str) -> ActionMetadata:
+def _veo_background_model_metadata(name: str) -> ActionMetadata:
     """Build list_actions metadata for a Veo model as a background model.
 
     The kind advertised here has to match what resolve() will actually hand
@@ -698,7 +698,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         plugin_api_key = self._plugin_api_key()
         for name in list_known_deep_research_models():
             actions.extend(
-                create_deep_research_background_action(
+                create_deep_research_background_model(
                     name,
                     plugin_api_key=plugin_api_key,
                     client_options=client_options,
@@ -757,7 +757,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         if is_veo_model(name):
             return self._resolve_veo_model(name)
         if is_deep_research_model_name(name):
-            return create_deep_research_background_action(
+            return create_deep_research_background_model(
                 deep_research_model(name),
                 plugin_api_key=self._plugin_api_key(),
                 client_options=self._interactions_client_options(),
@@ -773,7 +773,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         Returns:
             BackgroundModel for the Veo model.
         """
-        return _create_veo_background_action(name, self._runtime_client, GOOGLEAI_PLUGIN_NAME, self._client_kwargs)
+        return _create_veo_background_model(name, self._runtime_client, GOOGLEAI_PLUGIN_NAME, self._client_kwargs)
 
     def _resolve_model(self, name: str) -> Action | None:
         """Create an Action object for a Google AI model.
@@ -874,7 +874,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
             )
 
         for name in genai_models.veo:
-            actions_list.append(_veo_background_action_metadata(googleai_name(name)))
+            actions_list.append(_veo_background_model_metadata(googleai_name(name)))
 
         for name in list_known_deep_research_models():
             actions_list.append(
@@ -1150,7 +1150,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
         Returns:
             BackgroundModel for the Veo model.
         """
-        return _create_veo_background_action(name, self._runtime_client, VERTEXAI_PLUGIN_NAME, self._client_kwargs)
+        return _create_veo_background_model(name, self._runtime_client, VERTEXAI_PLUGIN_NAME, self._client_kwargs)
 
     def _resolve_evaluator(self, name: str) -> Action | None:
         """Create an Action object for a Vertex AI evaluator.
@@ -1288,7 +1288,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
             )
 
         for name in genai_models.veo:
-            actions_list.append(_veo_background_action_metadata(vertexai_name(name)))
+            actions_list.append(_veo_background_model_metadata(vertexai_name(name)))
 
         for name in VERTEX_KNOWN_EMBEDDERS:
             actions_list.append(
