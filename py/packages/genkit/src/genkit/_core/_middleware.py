@@ -141,12 +141,12 @@ class ToolHookParams(BaseModel):
 class GenerateMiddlewareContext:
     """Per-``generate()`` runtime services shared by every middleware in ``use=[...]``.
 
-    ``ai`` is a lightweight Genkit-like view scoped to this one invocation: its
-    ``registry`` is the call's child registry (so middleware sees this call's own
-    tool/middleware registrations, not the global ones). Inside an agent, read
-    the session with ``genkit.exp.current_session()``. Also carries
-    caller-provided metadata (``custom_context``), streaming hooks, and the abort
-    signal for the whole generate invocation.
+    ``ai`` is the app's ``Genkit`` instance, so ``await ctx.ai.lookup_model(name)``,
+    ``await ctx.ai.lookup_tool(name)`` and ``ctx.ai.lookup_value(kind=..., name=...)``
+    find what the app defined. Inside an agent, read the session with
+    ``genkit.exp.current_session()``. Also carries caller-provided metadata
+    (``custom_context``), streaming hooks, and the abort signal for the whole
+    generate invocation.
     """
 
     ai: GenkitLike
@@ -404,24 +404,6 @@ def _derive_config_schema(cls: type[BaseMiddleware]) -> dict[str, Any]:
             'properties': {},
             'additionalProperties': True,
         }
-
-
-def new_middleware(
-    cls: type[BaseMiddleware],
-    name: str,
-    description: str | None = None,
-) -> GenerateMiddleware:
-    """Ergonomic helper to define a new ``GenerateMiddleware``.
-
-    Args:
-        cls: The BaseMiddleware subclass.
-        name: The registry name.
-        description: Optional human-readable description.
-
-    Returns:
-        A new GenerateMiddleware instance.
-    """
-    return GenerateMiddleware(cls=cls, name=name, description=description)
 
 
 def middleware_class_index(registry: RegistryLike) -> dict[type[BaseMiddleware], str]:
