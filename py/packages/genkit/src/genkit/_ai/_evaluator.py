@@ -20,7 +20,7 @@ import inspect
 import traceback
 import uuid
 from collections.abc import Callable, Coroutine
-from typing import Any, ClassVar, TypeVar, cast
+from typing import Any, ClassVar, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
@@ -67,32 +67,27 @@ class EvaluatorRef(BaseModel):
     config: dict[str, object] | None = None
 
 
-def build_evaluator_metadata(
-    *,
+def _evaluator_metadata(
     name: str,
     display_name: str,
     definition: str,
     is_billed: bool,
-    config_schema: type | dict[str, Any] | None,
-    metadata: dict[str, object] | None,
+    config_schema: type[BaseModel] | dict[str, object] | None,
+    metadata: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    """Action metadata with the evaluator card the Dev UI shows."""
+    """Build the action metadata that the Dev UI and `genkit eval:run` read."""
     evaluator_meta: dict[str, object] = dict(metadata) if metadata else {}
-    evaluator_info: dict[str, object]
-    existing_evaluator = evaluator_meta.get('evaluator')
-    if isinstance(existing_evaluator, dict):
-        evaluator_info = {str(key): value for key, value in existing_evaluator.items()}
-    else:
-        evaluator_info = {}
-    evaluator_meta['evaluator'] = evaluator_info
-    evaluator_info[EVALUATOR_METADATA_KEY_DEFINITION] = definition
-    evaluator_info[EVALUATOR_METADATA_KEY_DISPLAY_NAME] = display_name
-    evaluator_info[EVALUATOR_METADATA_KEY_IS_BILLED] = is_billed
-    label_value = evaluator_info.get('label')
-    if not isinstance(label_value, str) or not label_value:
-        evaluator_info['label'] = name
+    existing = evaluator_meta.get('evaluator')
+    info: dict[str, object] = {str(k): v for k, v in existing.items()} if isinstance(existing, dict) else {}
+    evaluator_meta['evaluator'] = info
+    info[EVALUATOR_METADATA_KEY_DEFINITION] = definition
+    info[EVALUATOR_METADATA_KEY_DISPLAY_NAME] = display_name
+    info[EVALUATOR_METADATA_KEY_IS_BILLED] = is_billed
+    label = info.get('label')
+    if not isinstance(label, str) or not label:
+        info['label'] = name
     if config_schema:
-        evaluator_info['customOptions'] = to_json_schema(config_schema)
+        info['customOptions'] = to_json_schema(config_schema)
     return evaluator_meta
 
 
@@ -102,26 +97,19 @@ def evaluator_action_metadata(
     display_name: str,
     definition: str,
     is_billed: bool = False,
-    config_schema: type | dict[str, Any] | None = None,
+    config_schema: type[BaseModel] | dict[str, object] | None = None,
 ) -> ActionMetadata:
-    """Listing entry for an evaluator a plugin can resolve later.
+    """Describe an evaluator in a plugin's list_actions.
 
-    The Dev UI shows the display name, definition and billed flag before the
-    evaluator is ever built, so they're required here too.
+    The metadata matches what define_evaluator registers, so the Dev UI shows
+    the same display name and definition before and after the action resolves.
     """
     return ActionMetadata(
         action_type=ActionKind.EVALUATOR,
         name=name,
         input_json_schema=to_json_schema(EvalRequest),
         output_json_schema=to_json_schema(list[EvalFnResponse]),
-        metadata=build_evaluator_metadata(
-            name=name,
-            display_name=display_name,
-            definition=definition,
-            is_billed=is_billed,
-            config_schema=config_schema,
-            metadata=None,
-        ),
+        metadata=_evaluator_metadata(name, display_name, definition, is_billed, config_schema),
     )
 
 
@@ -152,14 +140,7 @@ def evaluator(
     if not inspect.iscoroutinefunction(fn):
         raise TypeError(f"Action handlers must be async functions. Got sync function for '{name}'.")
 
-    evaluator_meta = build_evaluator_metadata(
-        name=name,
-        display_name=display_name,
-        definition=definition,
-        is_billed=is_billed,
-        config_schema=config_schema,
-        metadata=metadata,
-    )
+    evaluator_meta = _evaluator_metadata(name, display_name, definition, is_billed, config_schema, metadata)
 
     evaluator_description = _get_func_description(fn, description)
 
@@ -260,18 +241,7 @@ def define_batch_evaluator(
     ``fn`` returns the rows as a list or an ``EvalResponse``. The action wraps
     them so ``action.run(...).response`` is always an ``EvalResponse``.
     """
-    evaluator_meta: dict[str, object] = metadata.copy() if metadata else {}
-    if 'evaluator' not in evaluator_meta:
-        evaluator_meta['evaluator'] = {}
-    # Cast to dict for nested operations - pyrefly doesn't narrow nested dict types
-    evaluator_dict = cast(dict[str, object], evaluator_meta['evaluator'])
-    evaluator_dict[EVALUATOR_METADATA_KEY_DEFINITION] = definition
-    evaluator_dict[EVALUATOR_METADATA_KEY_DISPLAY_NAME] = display_name
-    evaluator_dict[EVALUATOR_METADATA_KEY_IS_BILLED] = is_billed
-    if 'label' not in evaluator_dict or not evaluator_dict['label']:
-        evaluator_dict['label'] = name
-    if config_schema:
-        evaluator_dict['customOptions'] = to_json_schema(config_schema)
+    evaluator_meta = _evaluator_metadata(name, display_name, definition, is_billed, config_schema, metadata)
 
     evaluator_description = _get_func_description(fn, description)
 

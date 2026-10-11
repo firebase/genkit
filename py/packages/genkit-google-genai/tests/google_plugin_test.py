@@ -27,6 +27,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from genkit_google_genai import GoogleAI, VertexAI
+from genkit_google_genai._evaluators._evaluation import VertexAIEvaluationMetricType
 from genkit_google_genai._google import _inject_attribution_headers, _plugin_client, googleai_name, vertexai_name
 from genkit_google_genai._models._embedder import VERTEX_KNOWN_EMBEDDERS
 from genkit_google_genai._models._gemini import (
@@ -874,7 +875,7 @@ async def test_vertexai_listed_evaluator_metadata_matches_resolved(vertexai_plug
 
     listed = {a.name: a for a in await plugin.list_actions() if a.action_type == ActionKind.EVALUATOR}
 
-    assert len(listed) == 8
+    assert sorted(listed) == sorted(vertexai_name(m.lower()) for m in VertexAIEvaluationMetricType)
     for name, meta in listed.items():
         action = await plugin.resolve(action_type=ActionKind.EVALUATOR, name=name.removeprefix('vertexai/'))
         assert action is not None

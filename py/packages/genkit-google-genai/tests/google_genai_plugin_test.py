@@ -201,35 +201,6 @@ async def test_vertexai_with_api_key_and_no_project_lists_no_evaluators(
 @patch('genkit_google_genai._google.genai.client.Client')
 @patch('genkit_google_genai._google._list_genai_models')
 @pytest.mark.asyncio
-async def test_vertex_list_actions_shows_evaluator_names_and_billed(
-    mock_list_models: MagicMock, mock_client: MagicMock
-) -> None:
-    """VertexAI(project='p').list_actions() shows every metric with its display name, definition, and billed=True."""
-    mock_list_models.return_value = GenaiModels()
-
-    listed = await VertexAI(project='p', location='us-central1').list_actions()
-
-    evaluators = {a.name: a.metadata for a in listed if a.action_type == ActionKind.EVALUATOR}
-    assert sorted(evaluators) == sorted(f'vertexai/{m.lower()}' for m in VertexAIEvaluationMetricType)
-    assert evaluators['vertexai/fluency'] == {
-        'evaluator': {
-            'evaluatorDisplayName': 'Fluency',
-            'evaluatorDefinition': 'Assesses the language mastery of an output',
-            'evaluatorIsBilled': True,
-            'label': 'vertexai/fluency',
-        }
-    }
-    for name, metadata in evaluators.items():
-        assert metadata is not None, name
-        card = cast('dict[str, object]', metadata['evaluator'])
-        assert card['evaluatorDisplayName'], name
-        assert card['evaluatorDefinition'], name
-        assert card['evaluatorIsBilled'] is True, name
-
-
-@patch('genkit_google_genai._google.genai.client.Client')
-@patch('genkit_google_genai._google._list_genai_models')
-@pytest.mark.asyncio
 async def test_vertex_init_does_not_create_a_second_app(mock_list_models: MagicMock, mock_client: MagicMock) -> None:
     """Starting VertexAI(project='p') builds its evaluators without constructing another Genkit app."""
     mock_list_models.return_value = GenaiModels()

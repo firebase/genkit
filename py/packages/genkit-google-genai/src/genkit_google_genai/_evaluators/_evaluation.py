@@ -431,25 +431,16 @@ def create_vertex_evaluators(
         List of evaluator actions, not yet registered anywhere.
     """
     factory = EvaluatorFactory(project, location)
-    actions = []
-
-    for metric_type in metrics:
-        action = _create_evaluator_for_metric(factory=factory, metric_type=metric_type)
-        if action:
-            actions.append(action)
-
-    return actions
+    return [_create_evaluator_for_metric(factory=factory, metric_type=metric_type) for metric_type in metrics]
 
 
 def _create_evaluator_for_metric(
     *,
     factory: EvaluatorFactory,
     metric_type: VertexAIEvaluationMetricType,
-) -> Action | None:
-    """Build the evaluator action for one metric, or None if it isn't supported."""
-    config = METRIC_CONFIGS.get(metric_type)
-    if not config:
-        return None
+) -> Action:
+    """Build the evaluator action for one metric."""
+    config = METRIC_CONFIGS[metric_type]
 
     evaluator_fn = factory.create_evaluator_fn(
         metric_type,

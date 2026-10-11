@@ -1174,12 +1174,12 @@ class VertexAI(GoogleFamilyRefs, Plugin):
                 status='FAILED_PRECONDITION',
             )
 
-        actions = create_vertex_evaluators(
+        [action] = create_vertex_evaluators(
             [metric_type],
             project=self._project,
             location=self._location,
         )
-        return actions[0] if actions else None
+        return action
 
     def _resolve_model(self, name: str) -> Action | None:
         """Create an Action object for a Vertex AI model.
