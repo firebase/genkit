@@ -35,7 +35,6 @@ from genkit_google_genai._models._gemini import (
     KnownGeminiImage,
     KnownGeminiTts,
     KnownGemma,
-    SpeechConfig,
     _to_finish_reason,
     get_model_config_schema,
     google_model_info,
@@ -293,7 +292,8 @@ async def test_generate_media_response(mocker: MockerFixture, version: str) -> N
         mocker.call.aio.models.generate_content(
             model=version,
             contents=[genai.types.Content(parts=[genai.types.Part(text=request_text)], role=Role.USER)],
-            config=genai.types.GenerateContentConfig(response_modalities=modalities),
+            # Mixed-case modalities are sent upper-cased.
+            config=genai.types.GenerateContentConfig(response_modalities=['TEXT', 'IMAGE']),
         )
     ])
     assert isinstance(response, ModelResponse)
@@ -1399,57 +1399,28 @@ def tts_model_instance() -> GeminiModel:
     )
 
 
-def test_speech_config_declares_sdk_fields() -> None:
-    """Language code and multi-speaker voice config validate as typed fields, by name or alias."""
-    config = SpeechConfig.model_validate({
-        'language_code': 'en-US',
-        'multiSpeakerVoiceConfig': {
-            'speakerVoiceConfigs': [
-                {'speaker': 'Alice', 'voice_config': {'prebuilt_voice_config': {'voice_name': 'Kore'}}},
-            ]
-        },
-    })
+def test_tts_config_json_schema_exposes_flat_voice_fields() -> None:
+    """The Dev UI schema lists the flat voice fields, not a nested speechConfig."""
+    properties = GeminiTtsConfig.model_json_schema(by_alias=True)['properties']
 
-    assert config.language_code == 'en-US'
-    assert config.multi_speaker_voice_config is not None
-    speakers = config.multi_speaker_voice_config.speaker_voice_configs
-    assert speakers is not None
-    assert speakers[0].speaker == 'Alice'
-    assert speakers[0].voice_config is not None
-    assert speakers[0].voice_config.prebuilt_voice_config is not None
-    assert speakers[0].voice_config.prebuilt_voice_config.voice_name == 'Kore'
+    assert {'voice', 'speakers', 'languageCode'} <= set(properties)
+    assert 'speechConfig' not in properties
 
 
-def test_tts_config_json_schema_exposes_speech_config_fields() -> None:
-    """The Dev UI schema lists every speech config field the SDK accepts."""
-    schema = GeminiTtsConfig.model_json_schema(by_alias=True)
-    speech = schema['$defs']['SpeechConfig']['properties']
-
-    assert {'voiceConfig', 'languageCode', 'multiSpeakerVoiceConfig'} <= set(speech)
-
-
-def test_speech_config_populates_by_field_name() -> None:
-    """The speech config validates from snake_case field names, not only aliases."""
-    config = SpeechConfig.model_validate({'voice_config': {'prebuilt_voice_config': {'voice_name': 'Kore'}}})
-
-    assert config.voice_config is not None
-    assert config.voice_config.prebuilt_voice_config is not None
-    assert config.voice_config.prebuilt_voice_config.voice_name == 'Kore'
+def test_gemini_tts_config_voice_and_speakers_raise() -> None:
+    """`voice` and `speakers` together raise at construction, naming the None escape."""
+    with pytest.raises(ValidationError, match='voice=None or speakers=None'):
+        GeminiTtsConfig(voice='Kore', speakers={'Alice': 'Puck'})
 
 
 @pytest.mark.asyncio
-async def test_gemini_model__speech_config_keeps_language_code(
+async def test_gemini_model__voice_and_language_code_build_speech_config(
     tts_model_instance: GeminiModel,
 ) -> None:
-    """A language code on the speech config reaches the SDK config."""
+    """`voice` and `language_code` build the SDK speech config."""
     request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
-        config=GeminiTtsConfig.model_validate({
-            'speechConfig': {
-                'languageCode': 'en-US',
-                'voiceConfig': {'prebuiltVoiceConfig': {'voiceName': 'Kore'}},
-            }
-        }),
+        config=GeminiTtsConfig(voice='Kore', language_code='en-US'),
     )
 
     cfg = await tts_model_instance._genkit_to_googleai_cfg(request)
@@ -1458,24 +1429,18 @@ async def test_gemini_model__speech_config_keeps_language_code(
     assert isinstance(cfg.speech_config, genai_types.SpeechConfig)
     assert cfg.speech_config.language_code == 'en-US'
     assert cfg.speech_config.voice_config is not None
+    assert cfg.speech_config.voice_config.prebuilt_voice_config is not None
+    assert cfg.speech_config.voice_config.prebuilt_voice_config.voice_name == 'Kore'
 
 
 @pytest.mark.asyncio
-async def test_gemini_model__speech_config_keeps_multi_speaker_voice_config(
+async def test_gemini_model__speakers_build_multi_speaker_voice_config(
     tts_model_instance: GeminiModel,
 ) -> None:
-    """A multi-speaker voice config on the speech config reaches the SDK config."""
+    """`speakers` builds one speaker voice config per entry, in order."""
     request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
-        config=GeminiTtsConfig.model_validate({
-            'speechConfig': {
-                'multiSpeakerVoiceConfig': {
-                    'speakerVoiceConfigs': [
-                        {'speaker': 'Alice', 'voiceConfig': {'prebuiltVoiceConfig': {'voiceName': 'Kore'}}},
-                    ]
-                }
-            }
-        }),
+        config=GeminiTtsConfig(speakers={'Alice': 'Kore', 'Bob': 'Puck'}),
     )
 
     cfg = await tts_model_instance._genkit_to_googleai_cfg(request)
@@ -1485,13 +1450,12 @@ async def test_gemini_model__speech_config_keeps_multi_speaker_voice_config(
     assert cfg.speech_config.multi_speaker_voice_config is not None
     speakers = cfg.speech_config.multi_speaker_voice_config.speaker_voice_configs
     assert speakers is not None
-    assert [s.speaker for s in speakers] == ['Alice']
-
-
-def test_gemini_tts_config_with_unknown_speech_config_key_raises_validation_error() -> None:
-    """`speechConfig={'languageCodes': ...}` fails at construction instead of being silently dropped."""
-    with pytest.raises(ValidationError, match='languageCodes'):
-        GeminiTtsConfig.model_validate({'speechConfig': {'languageCodes': 'en-US'}})
+    assert [s.speaker for s in speakers] == ['Alice', 'Bob']
+    assert [
+        s.voice_config.prebuilt_voice_config.voice_name
+        for s in speakers
+        if s.voice_config and s.voice_config.prebuilt_voice_config
+    ] == ['Kore', 'Puck']
 
 
 @pytest.mark.asyncio
@@ -1586,7 +1550,7 @@ async def test_generate_defaults_the_tts_voice_next_to_a_language_code(mocker: M
     """A speech config that sets only a language code still gets the default voice."""
     request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
-        config=GeminiTtsConfig.model_validate({'speechConfig': {'languageCode': 'en-US'}}),
+        config=GeminiTtsConfig(language_code='en-US'),
     )
     client_mock = _tts_client_mock(mocker, vertexai=False)
 
@@ -1605,9 +1569,7 @@ async def test_generate_keeps_the_caller_tts_voice(mocker: MockerFixture) -> Non
     """A voice named by the caller is sent unchanged where the default would otherwise apply."""
     request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
-        config=GeminiTtsConfig.model_validate({
-            'speechConfig': {'voiceConfig': {'prebuiltVoiceConfig': {'voiceName': 'Puck'}}}
-        }),
+        config=GeminiTtsConfig(voice='Puck'),
     )
     client_mock = _tts_client_mock(mocker, vertexai=True)
 
@@ -1625,15 +1587,7 @@ async def test_generate_adds_no_voice_to_a_multi_speaker_config(mocker: MockerFi
     """A multi-speaker voice config is sent without a single-voice config beside it."""
     request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
-        config=GeminiTtsConfig.model_validate({
-            'speechConfig': {
-                'multiSpeakerVoiceConfig': {
-                    'speakerVoiceConfigs': [
-                        {'speaker': 'Alice', 'voiceConfig': {'prebuiltVoiceConfig': {'voiceName': 'Kore'}}},
-                    ]
-                }
-            }
-        }),
+        config=GeminiTtsConfig(speakers={'Alice': 'Kore', 'Bob': 'Puck'}),
     )
     client_mock = _tts_client_mock(mocker, vertexai=True)
 
@@ -1645,45 +1599,73 @@ async def test_generate_adds_no_voice_to_a_multi_speaker_config(mocker: MockerFi
     assert sent_config.speech_config.multi_speaker_voice_config is not None
 
 
-# Each strict nested Gemini setting and the google.genai type it is sent as.
-_NESTED_SDK_MIRRORS: list[tuple[type[BaseModel], type[BaseModel]]] = [
-    (_gemini.SafetySetting, genai_types.SafetySetting),
-    (_gemini.PrebuiltVoiceConfig, genai_types.PrebuiltVoiceConfig),
-    (_gemini.FunctionCallingConfig, genai_types.FunctionCallingConfig),
-    (_gemini.ThinkingConfig, genai_types.ThinkingConfig),
-    (_gemini.FileSearchConfig, genai_types.FileSearch),
-    (_gemini.ImageConfig, genai_types.ImageConfig),
-    (_gemini.VoiceConfig, genai_types.VoiceConfig),
-    (_gemini.SpeakerVoiceConfig, genai_types.SpeakerVoiceConfig),
-    (_gemini.MultiSpeakerVoiceConfig, genai_types.MultiSpeakerVoiceConfig),
-    (_gemini.SpeechConfig, genai_types.SpeechConfig),
-    (_gemini.ImageOutputOptions, genai_types.ImageConfigImageOutputOptions),
-    (_gemini.ReplicatedVoiceConfig, genai_types.ReplicatedVoiceConfig),
-    (_gemini.VoiceConsentSignature, genai_types.VoiceConsentSignature),
-    (_gemini.CodeExecution, genai_types.ToolCodeExecution),
-    (_gemini.UrlContext, genai_types.UrlContext),
-    (_gemini.GoogleSearch, genai_types.GoogleSearch),
-    (_gemini.SearchTypes, genai_types.SearchTypes),
-    (_gemini.WebSearch, genai_types.WebSearch),
-    (_gemini.ImageSearch, genai_types.ImageSearch),
-    (_gemini.Interval, genai_types.Interval),
+@pytest.mark.asyncio
+async def test_generate_adds_no_default_voice_next_to_an_extra_voice(mocker: MockerFixture) -> None:
+    """A cloned voice sent through `extra` keeps the default prebuilt voice out of the body."""
+    replicated = {'replicatedVoiceConfig': {'mimeType': 'audio/wav', 'voiceSampleAudio': 'Y2hlZg=='}}
+    request = ModelRequest(
+        messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
+        config=GeminiTtsConfig(extra={'generationConfig': {'speechConfig': {'voiceConfig': replicated}}}),
+    )
+    client_mock = _tts_client_mock(mocker, vertexai=True)
+
+    await GeminiModel('gemini-2.5-flash-preview-tts', client_mock).generate(request, ActionRunContext())
+
+    sent_config = client_mock.aio.models.generate_content.call_args.kwargs['config']
+    assert sent_config.speech_config is None or sent_config.speech_config.voice_config is None
+
+
+@pytest.mark.asyncio
+async def test_gemini_model__voice_and_extra_voice_raise(tts_model_instance: GeminiModel) -> None:
+    """`voice` plus a voice in `extra` raises; the deep merge would send both."""
+    request = ModelRequest(
+        messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
+        config=GeminiTtsConfig(
+            voice='Kore',
+            extra={'generationConfig': {'speechConfig': {'voiceConfig': {'replicatedVoiceConfig': {}}}}},
+        ),
+    )
+
+    with pytest.raises(GenkitError, match='voice and extra generationConfig.speechConfig both name a voice'):
+        await tts_model_instance._genkit_to_googleai_cfg(request)
+
+
+# Each google.genai type a flat group is built into, and the SDK fields Genkit
+# sets from flat fields. Fields not listed are left out on purpose (named in
+# _LEFT_OUT); a google-genai bump that adds a field fails until it's decided.
+_FLAT_GROUPS: list[tuple[type[BaseModel], frozenset[str]]] = [
+    (genai_types.ThinkingConfig, frozenset(_gemini._THINKING_FIELDS)),
+    (genai_types.ImageConfig, frozenset(_gemini._IMAGE_FIELDS)),
+    (genai_types.FileSearch, frozenset({'file_search_store_names', 'metadata_filter', 'top_k'})),
+    (
+        genai_types.GoogleSearch,
+        frozenset({'search_types', 'exclude_domains', 'blocking_confidence', 'time_range_filter'}),
+    ),
+    (genai_types.SearchTypes, frozenset({'web_search', 'image_search'})),
+    (genai_types.Interval, frozenset({'start_time', 'end_time'})),
+    (genai_types.WebSearch, frozenset()),
+    (genai_types.ImageSearch, frozenset()),
+    (genai_types.ToolCodeExecution, frozenset()),
+    (genai_types.UrlContext, frozenset()),
+    (genai_types.SpeechConfig, frozenset({'voice_config', 'language_code', 'multi_speaker_voice_config'})),
+    (genai_types.VoiceConfig, frozenset({'prebuilt_voice_config'})),
+    (genai_types.PrebuiltVoiceConfig, frozenset({'voice_name'})),
+    (genai_types.MultiSpeakerVoiceConfig, frozenset({'speaker_voice_configs'})),
+    (genai_types.SpeakerVoiceConfig, frozenset({'speaker', 'voice_config'})),
+    (genai_types.SafetySetting, frozenset(_gemini.SafetySetting.__annotations__)),
 ]
+_LEFT_OUT: dict[type[BaseModel], frozenset[str]] = {
+    # The same two settings as output_mime_type / output_compression_quality.
+    genai_types.ImageConfig: frozenset({'image_output_options'}),
+    # A cloned voice goes through config.extra.
+    genai_types.VoiceConfig: frozenset({'replicated_voice_config'}),
+}
 
 
-@pytest.mark.parametrize(('ours', 'sdk'), _NESTED_SDK_MIRRORS, ids=lambda c: c.__name__)
-def test_nested_gemini_setting_declares_exactly_the_sdk_fields(ours: type[BaseModel], sdk: type[BaseModel]) -> None:
-    """A strict nested setting accepts every key its google-genai type accepts, and no other."""
-    assert set(ours.model_fields) == set(sdk.model_fields)
-
-
-@pytest.mark.parametrize(
-    ('ours', 'sdk'),
-    [(o, s) for o, s in _NESTED_SDK_MIRRORS if not any(f.is_required() for f in o.model_fields.values())],
-    ids=lambda c: c.__name__,
-)
-def test_nested_gemini_setting_accepts_the_sdk_object(ours: type[BaseModel], sdk: type[BaseModel]) -> None:
-    """Code written against the google-genai types still validates: the SDK object coerces into its mirror."""
-    assert isinstance(ours.model_validate(sdk()), ours)
+@pytest.mark.parametrize(('sdk', 'covered'), _FLAT_GROUPS, ids=lambda c: getattr(c, '__name__', ''))
+def test_flat_group_covers_every_sdk_field(sdk: type[BaseModel], covered: frozenset[str]) -> None:
+    """Every field of the SDK type is set from a flat field or left out on purpose."""
+    assert set(sdk.model_fields) == covered | _LEFT_OUT.get(sdk, frozenset())
 
 
 # SDK placeholder values Genkit doesn't offer. Selecting one means "use the
@@ -1697,7 +1679,6 @@ _OMITTED_UNSPECIFIED = {'HARM_BLOCK_THRESHOLD_UNSPECIFIED', 'THINKING_LEVEL_UNSP
         (_gemini.HarmCategory, genai_types.HarmCategory),
         (_gemini.HarmBlockThreshold, genai_types.HarmBlockThreshold),
         (_gemini.HarmBlockMethod, genai_types.HarmBlockMethod),
-        (_gemini.FunctionCallingMode, genai_types.FunctionCallingConfigMode),
         (_gemini.ThinkingLevel, genai_types.ThinkingLevel),
         (_gemini.ProminentPeople, genai_types.ProminentPeople),
         (_gemini.PhishBlockThreshold, genai_types.PhishBlockThreshold),
@@ -1708,7 +1689,6 @@ _OMITTED_UNSPECIFIED = {'HARM_BLOCK_THRESHOLD_UNSPECIFIED', 'THINKING_LEVEL_UNSP
         'HarmCategory',
         'HarmBlockThreshold',
         'HarmBlockMethod',
-        'FunctionCallingMode',
         'ThinkingLevel',
         'ProminentPeople',
         'PhishBlockThreshold',
@@ -1747,24 +1727,11 @@ def test_image_choice_literals_match_the_docs() -> None:
     assert get_args(_gemini.ImageSize) == ('1K', '2K', '4K')
 
 
-@pytest.mark.parametrize(
-    ('config_class', 'field', 'nested'),
-    [
-        (GeminiConfig, 'safetySettings', _gemini.SafetySetting),
-        (GeminiConfig, 'functionCallingConfig', _gemini.FunctionCallingConfig),
-        (GeminiConfig, 'thinkingConfig', _gemini.ThinkingConfig),
-        (GeminiConfig, 'fileSearch', _gemini.FileSearchConfig),
-        (GeminiImageConfig, 'imageConfig', _gemini.ImageConfig),
-    ],
-)
-def test_gemini_config_form_lists_every_nested_field(
-    config_class: type[BaseModel], field: str, nested: type[BaseModel]
-) -> None:
-    """The hand-written Dev UI schema for a nested setting lists every field the class accepts."""
-    schema = config_class.model_json_schema(by_alias=True)['properties'][field]
-    properties = schema.get('items', schema)['properties']
+def test_gemini_config_form_lists_every_safety_setting_key() -> None:
+    """The hand-written Dev UI schema for a safety setting lists every SafetySetting key."""
+    schema = GeminiConfig.model_json_schema(by_alias=True)['properties']['safetySettings']
 
-    assert set(properties) == {f.alias or name for name, f in nested.model_fields.items()}
+    assert set(schema['items']['properties']) == set(_gemini.SafetySetting.__annotations__)
 
 
 @pytest.mark.asyncio
@@ -1781,11 +1748,11 @@ async def test_gemini_model__tool_toggle_false_attaches_no_tool(gemini_model_ins
 
 
 @pytest.mark.asyncio
-async def test_gemini_model__tool_toggle_empty_options_attaches_tool(gemini_model_instance: GeminiModel) -> None:
-    """An empty options dict attaches the tool, same as True."""
+async def test_gemini_model__tool_toggles_true_attach_tools_in_order(gemini_model_instance: GeminiModel) -> None:
+    """`code_execution`, `google_search` and `url_context` set to True attach one tool each."""
     request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part.from_text('hi')])],
-        config=GeminiConfig.model_validate({'code_execution': {}, 'google_search': {}, 'url_context': {}}),
+        config=GeminiConfig(code_execution=True, google_search=True, url_context=True),
     )
 
     cfg = await gemini_model_instance._genkit_to_googleai_cfg(request)

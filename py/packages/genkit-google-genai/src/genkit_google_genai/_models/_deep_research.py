@@ -18,12 +18,14 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from collections.abc import Mapping
+from typing import Annotated, Any, Literal, cast
 
-from pydantic import BaseModel, ConfigDict, field_validator
-from pydantic.alias_generators import to_camel
+from pydantic import BaseModel, ConfigDict, WithJsonSchema, field_validator, model_validator, with_config
+from pydantic.alias_generators import to_camel, to_snake
+from typing_extensions import NotRequired, TypedDict
 
-from genkit import ActionRunContext, Operation
+from genkit import ActionRunContext, GenkitError, Operation, RuntimeErrorReason
 from genkit.model import BackgroundAction, ModelRef, ModelRequest, model_ref
 from genkit.plugin_api import Action, ActionKind, to_json_schema
 from genkit_google_genai._interactions._client import (
@@ -37,9 +39,6 @@ from genkit_google_genai._interactions._converters import (
     to_interaction_tool,
 )
 from genkit_google_genai._interactions._options import ClientOptions
-
-# Gemini and the Interactions file_search tool take the same three fields.
-from genkit_google_genai._models._gemini import FileSearchConfig
 from genkit_google_genai._models._interactions_registry import deep_research_model_info
 from genkit_google_genai._models._interactions_utils import (
     api_key_for_context,
@@ -62,7 +61,9 @@ TOOL_CONFIG_KEYS = (
     'google_search',
     'url_context',
     'code_execution',
-    'file_search',
+    'file_search_store_names',
+    'file_search_metadata_filter',
+    'file_search_top_k',
     'mcp_servers',
 )
 CREATE_OPTION_KEYS = (
@@ -72,14 +73,33 @@ CREATE_OPTION_KEYS = (
 )
 
 
-class McpServerConfig(BaseModel):
-    """MCP server configuration for Deep Research."""
+@with_config(ConfigDict(extra='allow'))
+class McpServerConfig(TypedDict):
+    """One ``mcp_servers`` entry for Deep Research.
 
-    model_config = ConfigDict(extra='allow', validate_by_name=True, validate_by_alias=True, alias_generator=to_camel)
-    name: str | None = None
-    url: str | None = None
-    headers: dict[str, str] | None = None
-    allowed_tools: list[str] | None = None
+    A TypedDict so a dict literal type-checks without importing it. Keys
+    the Interactions API adds later pass through.
+    """
+
+    name: NotRequired[str]
+    url: NotRequired[str]
+    headers: NotRequired[dict[str, str]]
+    allowed_tools: NotRequired[list[str]]
+
+
+_MCP_SERVERS_SCHEMA = WithJsonSchema({
+    'type': 'array',
+    'items': {
+        'type': 'object',
+        'properties': {
+            'name': {'type': 'string'},
+            'url': {'type': 'string'},
+            'headers': {'type': 'object', 'additionalProperties': {'type': 'string'}},
+            'allowedTools': {'type': 'array', 'items': {'type': 'string'}},
+        },
+    },
+    'description': 'MCP servers Deep Research may call.',
+})
 
 
 class DeepResearchConfig(BaseModel):
@@ -100,8 +120,38 @@ class DeepResearchConfig(BaseModel):
     google_search: bool | None = None
     url_context: bool | None = None
     code_execution: bool | None = None
-    file_search: FileSearchConfig | None = None
-    mcp_servers: list[McpServerConfig] | None = None
+    file_search_store_names: list[str] | None = None
+    file_search_metadata_filter: str | None = None
+    file_search_top_k: int | None = None
+    mcp_servers: Annotated[list[McpServerConfig] | None, _MCP_SERVERS_SCHEMA] = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def reject_nested_file_search(cls, data: object) -> object:
+        """Unknown keys pass through to the API, so name the flat fields for the old nested one."""
+        if isinstance(data, Mapping):
+            for key in ('file_search', 'fileSearch'):
+                if key in data:
+                    names = ('file_search_store_names', 'file_search_metadata_filter', 'file_search_top_k')
+                    if key == 'fileSearch':
+                        names = tuple(to_camel(n) for n in names)
+                    raise GenkitError(
+                        status='INVALID_ARGUMENT',
+                        message=f'{key} was flattened; use {" / ".join(names)}',
+                        reason=RuntimeErrorReason.INVALID_INPUT,
+                    )
+        return data
+
+    @field_validator('mcp_servers', mode='before')
+    @classmethod
+    def snake_case_mcp_keys(cls, value: object) -> object:
+        """Accept ``allowedTools`` from .prompt files; the create body is snake_case."""
+        if not isinstance(value, list):
+            return value
+        return [
+            {to_snake(k): v for k, v in cast(Mapping[str, Any], entry).items()} if isinstance(entry, Mapping) else entry
+            for entry in cast(list[object], value)
+        ]
 
     @field_validator('thinking_summaries', 'visualization', mode='before')
     @classmethod
@@ -136,12 +186,20 @@ def build_tools(request: ModelRequest[DeepResearchConfig], config: DeepResearchC
     for tool_type in ('google_search', 'url_context', 'code_execution'):
         if getattr(config, tool_type, None):
             tools.append({'type': tool_type})
-    if config.file_search is not None:
-        # Create body is snake_case. Dumping by alias would send
-        # fileSearchStoreNames and the stores would never attach.
-        tools.append({'type': 'file_search', **config.file_search.model_dump(exclude_none=True)})
+    # The create body is snake_case, the same names the Gemini FileSearch tool takes.
+    file_search = {
+        key: value
+        for key, value in (
+            ('file_search_store_names', config.file_search_store_names),
+            ('metadata_filter', config.file_search_metadata_filter),
+            ('top_k', config.file_search_top_k),
+        )
+        if value is not None
+    }
+    if file_search:
+        tools.append({'type': 'file_search', **file_search})
     for mcp_server in config.mcp_servers or []:
-        tools.append({'type': 'mcp_server', **mcp_server.model_dump(exclude_none=True)})
+        tools.append({'type': 'mcp_server', **{k: v for k, v in mcp_server.items() if v is not None}})
 
     return tools
 

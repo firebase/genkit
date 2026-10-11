@@ -774,8 +774,8 @@ async def test_deep_research_file_search_and_mcp_dump_snake_case() -> None:
     request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part.from_text('q')])],
         config={
-            'file_search': {'file_search_store_names': ['stores/one']},
-            'mcp_servers': [{'name': 'docs', 'url': 'https://mcp.example', 'allowed_tools': ['search']}],
+            'file_search_store_names': ['stores/one'],
+            'mcp_servers': [{'name': 'docs', 'url': 'https://mcp.example', 'allowedTools': ['search']}],
         },
     )
     with patcher:

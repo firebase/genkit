@@ -59,43 +59,62 @@ The plugin automatically discovers available models from the API upon initializa
 
 ### Typed config
 
-Config classes and their nested settings take snake_case keyword arguments,
-so pyright, pyrefly and ty check every key. All of them import from the
-package root. The Dev UI and JSON configs use the camelCase names
-(`thinkingConfig`, `thinkingBudget`); both spellings validate at runtime.
+Config classes take flat snake_case keyword arguments, so pyright, pyrefly
+and ty check every key. The plugin builds Gemini's nested request objects
+(`thinkingConfig`, `speechConfig`, `tools`) when it sends the request. The Dev
+UI and `.prompt` files use the same flat fields in camelCase
+(`thinkingLevel`); both spellings validate at runtime.
 
 ```python
-from genkit_google_genai import GeminiConfig, GeminiTtsConfig, PrebuiltVoiceConfig, SpeechConfig, ThinkingConfig, VoiceConfig
+from genkit_google_genai import GeminiConfig, GeminiTtsConfig
 
-# 1. Cap thinking on a text model
-config = GeminiConfig(temperature=0.4, thinking_config=ThinkingConfig(thinking_budget=1024))
-
-# 2. Pick a prebuilt voice on a TTS model
-tts_config = GeminiTtsConfig(
-    speech_config=SpeechConfig(voice_config=VoiceConfig(prebuilt_voice_config=PrebuiltVoiceConfig(voice_name='Kore')))
+# 1. Thinking, safety and grounding on a text model
+config = GeminiConfig(
+    thinking_level='HIGH',
+    include_thoughts=True,
+    safety_settings=[{'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold': 'BLOCK_ONLY_HIGH'}],
+    google_search=True,
 )
 
+# 2. Two voices on a TTS model
+tts_config = GeminiTtsConfig(speakers={'Host': 'Kore', 'Chef': 'Puck'}, language_code='en-US')
+
 # 3. Dump the config the way the Dev UI shows it
-print(config.model_dump(by_alias=True, exclude_none=True))
-# => {'temperature': 0.4, 'thinkingConfig': {'thinkingBudget': 1024}}
+print(tts_config.model_dump(by_alias=True, exclude_none=True))
+# => {'speakers': {'Host': 'Kore', 'Chef': 'Puck'}, 'languageCode': 'en-US'}
 ```
 
-Nested fields take Genkit types, not `google.genai.types` classes; the plugin
-converts them when it builds the request. The tool toggles take `True` or
-their options class:
+Choice fields take plain strings. The Literal aliases (`ThinkingLevel`,
+`HarmCategory`, `ImageAspectRatio`, ...) export from the package root for
+annotating your own code. `safety_settings` entries are `SafetySetting`
+TypedDicts: pass a dict literal or `SafetySetting(category=..., threshold=...)`.
+
+Setting any `google_search_*` option turns Google Search on;
+`google_search=False` next to an option raises. A nested key such as
+`thinkingConfig` raises and names the flat fields that replace it.
+
+Settings that can't be combined raise before anything is sent:
+
+- `thinking_level` with `thinking_budget`, and `voice` with `speakers`. When
+  one comes from a model reference default, pass `None` for it on the call.
+- `google_search_start_time` without `google_search_end_time`, and
+  `file_search_top_k` or `file_search_metadata_filter` without
+  `file_search_store_names`.
+- Vertex AI only settings on the Gemini API: `google_search_exclude_domains`,
+  `google_search_blocking_confidence`, safety `method`, `output_mime_type`,
+  `output_compression_quality`, `person_generation`, `prominent_people`.
+
+A cloned (replicated) voice has no flat field; send it through `extra`:
 
 ```python
-from genkit_google_genai import GeminiConfig, GoogleSearch
-
-# 1. Ground a Vertex AI request in web results, minus one domain
-config = GeminiConfig(google_search=GoogleSearch(exclude_domains=['reviews.example']), code_execution=True)
-
-print(config.model_dump(by_alias=True, exclude_none=True))
-# => {'codeExecution': True, 'googleSearch': {'excludeDomains': ['reviews.example']}}
+config = GeminiTtsConfig(
+    extra={'generationConfig': {'speechConfig': {'voiceConfig': {'replicatedVoiceConfig': {
+        'mimeType': 'audio/wav',
+        'voiceSampleAudio': sample_b64,
+        'consentAudio': consent_b64,
+    }}}}},
+)
 ```
-
-A `google.genai.types` object passed at runtime (`google_search=types.GoogleSearch(...)`)
-still validates into the Genkit class, but type checkers flag it.
 
 ### Provider fields the plugin doesn't declare
 

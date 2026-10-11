@@ -17,8 +17,8 @@
 """Typed construction of every exported config class, imported from the package root.
 
 This file is the type-checker contract: pyright, pyrefly and ty must accept
-snake_case keyword arguments and typed nested values here with no
-suppressions. The runtime asserts pin the camelCase config dump and the
+the flat snake_case keyword arguments and dict-literal list entries here with
+no suppressions. The runtime asserts pin the camelCase config dump and the
 HTTP body the plugin sends.
 """
 
@@ -31,46 +31,29 @@ import httpx
 import pytest
 from genkit_google_genai import (
     AntigravityConfig,
-    CodeExecution,
     DeepResearchConfig,
-    FileSearchConfig,
-    FunctionCallingConfig,
-    FunctionCallingMode,
     GeminiConfig,
     GeminiImageConfig,
     GeminiTtsConfig,
     GemmaConfig,
     GoogleAI,
-    GoogleSearch,
     HarmBlockMethod,
     HarmBlockThreshold,
     HarmCategory,
     ImageAspectRatio,
-    ImageConfig,
-    ImageOutputOptions,
     ImageResizeMode,
-    ImageSearch,
     ImageSize,
-    Interval,
     LyriaConfig,
     McpServerConfig,
-    MultiSpeakerVoiceConfig,
+    PersonGeneration,
     PhishBlockThreshold,
-    PrebuiltVoiceConfig,
     ProminentPeople,
-    ReplicatedVoiceConfig,
+    ResponseModality,
     SafetySetting,
-    SearchTypes,
-    SpeakerVoiceConfig,
-    SpeechConfig,
-    ThinkingConfig,
+    SearchType,
     ThinkingLevel,
-    UrlContext,
     VeoConfig,
     VideoCompressionQuality,
-    VoiceConfig,
-    VoiceConsentSignature,
-    WebSearch,
 )
 from pydantic import BaseModel, ValidationError
 from typing_extensions import assert_type
@@ -93,31 +76,12 @@ def test_empty_construction() -> None:
         LyriaConfig,
         AntigravityConfig,
         DeepResearchConfig,
-        ThinkingConfig,
-        FunctionCallingConfig,
-        FileSearchConfig,
-        ImageConfig,
-        VoiceConfig,
-        PrebuiltVoiceConfig,
-        SpeakerVoiceConfig,
-        MultiSpeakerVoiceConfig,
-        SpeechConfig,
-        ImageOutputOptions,
-        ReplicatedVoiceConfig,
-        VoiceConsentSignature,
-        CodeExecution,
-        UrlContext,
-        GoogleSearch,
-        SearchTypes,
-        WebSearch,
-        ImageSearch,
-        Interval,
     ):
         assert _wire(cls()) == {}
 
 
-def test_gemini_config_snake_case_kwargs() -> None:
-    """GeminiConfig takes snake_case kwargs and typed nested models; the dump is camelCase."""
+def test_gemini_config_flat_kwargs() -> None:
+    """GeminiConfig takes flat snake_case kwargs; the dump is flat camelCase."""
     config = GeminiConfig(
         version='gemini-2.5-flash-001',
         base_url='https://kitchen.example',
@@ -136,36 +100,23 @@ def test_gemini_config_snake_case_kwargs() -> None:
         logprobs=3,
         response_modalities=['TEXT'],
         context_cache=True,
-        code_execution=CodeExecution(),
-        google_search=GoogleSearch(
-            exclude_domains=['example.com'],
-            blocking_confidence='BLOCK_HIGH_AND_ABOVE',
-            search_types=SearchTypes(web_search=WebSearch(), image_search=ImageSearch()),
-            time_range_filter=Interval(start_time=datetime(2026, 1, 1, tzinfo=timezone.utc)),
-        ),
-        url_context=UrlContext(),
+        code_execution=True,
+        google_search=True,
+        google_search_types=['web', 'image'],
+        google_search_exclude_domains=['example.com'],
+        google_search_blocking_confidence='BLOCK_HIGH_AND_ABOVE',
+        google_search_start_time=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        google_search_end_time=datetime(2026, 2, 1, tzinfo=timezone.utc),
+        url_context=True,
         safety_settings=[
-            SafetySetting(
-                category='HARM_CATEGORY_HATE_SPEECH',
-                threshold='BLOCK_ONLY_HIGH',
-                method='SEVERITY',
-            )
+            {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_ONLY_HIGH', 'method': 'SEVERITY'},
+            SafetySetting(category='HARM_CATEGORY_HARASSMENT', threshold='OFF'),
         ],
-        function_calling_config=FunctionCallingConfig(
-            mode='ANY',
-            allowed_function_names=['order_dish'],
-            stream_function_call_arguments=True,
-        ),
-        file_search=FileSearchConfig(
-            file_search_store_names=['fileSearchStores/menu'],
-            metadata_filter='cuisine=thai',
-            top_k=3,
-        ),
-        thinking_config=ThinkingConfig(
-            include_thoughts=True,
-            thinking_budget=1024,
-            thinking_level='HIGH',
-        ),
+        file_search_store_names=['fileSearchStores/menu'],
+        file_search_metadata_filter='cuisine=thai',
+        file_search_top_k=3,
+        thinking_level='HIGH',
+        include_thoughts=True,
         extra={'labels': {'team': 'kitchen'}},
     )
 
@@ -187,119 +138,58 @@ def test_gemini_config_snake_case_kwargs() -> None:
         'logprobs': 3,
         'responseModalities': ['TEXT'],
         'contextCache': True,
-        'codeExecution': {},
-        'googleSearch': {
-            'excludeDomains': ['example.com'],
-            'blockingConfidence': 'BLOCK_HIGH_AND_ABOVE',
-            'searchTypes': {'webSearch': {}, 'imageSearch': {}},
-            'timeRangeFilter': {'startTime': '2026-01-01T00:00:00Z'},
-        },
-        'urlContext': {},
+        'codeExecution': True,
+        'googleSearch': True,
+        'googleSearchTypes': ['web', 'image'],
+        'googleSearchExcludeDomains': ['example.com'],
+        'googleSearchBlockingConfidence': 'BLOCK_HIGH_AND_ABOVE',
+        'googleSearchStartTime': '2026-01-01T00:00:00Z',
+        'googleSearchEndTime': '2026-02-01T00:00:00Z',
+        'urlContext': True,
         'safetySettings': [
-            {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_ONLY_HIGH', 'method': 'SEVERITY'}
+            {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_ONLY_HIGH', 'method': 'SEVERITY'},
+            {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'OFF'},
         ],
-        'functionCallingConfig': {
-            'mode': 'ANY',
-            'allowedFunctionNames': ['order_dish'],
-            'streamFunctionCallArguments': True,
-        },
-        'fileSearch': {
-            'fileSearchStoreNames': ['fileSearchStores/menu'],
-            'metadataFilter': 'cuisine=thai',
-            'topK': 3,
-        },
-        'thinkingConfig': {'includeThoughts': True, 'thinkingBudget': 1024, 'thinkingLevel': 'HIGH'},
+        'fileSearchStoreNames': ['fileSearchStores/menu'],
+        'fileSearchMetadataFilter': 'cuisine=thai',
+        'fileSearchTopK': 3,
+        'thinkingLevel': 'HIGH',
+        'includeThoughts': True,
         'extra': {'labels': {'team': 'kitchen'}},
     }
-    # Same instance from camelCase wire JSON.
+    # Same instance from camelCase wire JSON, as a .prompt file writes it.
     assert GeminiConfig.model_validate(_wire(config)) == config
 
 
-def test_gemini_tts_config_nested_speech() -> None:
-    """GeminiTtsConfig nests SpeechConfig -> VoiceConfig -> PrebuiltVoiceConfig by field name."""
-    kore = VoiceConfig(prebuilt_voice_config=PrebuiltVoiceConfig(voice_name='Kore'))
-    config = GeminiTtsConfig(
-        temperature=0.3,
-        speech_config=SpeechConfig(
-            language_code='en-US',
-            multi_speaker_voice_config=MultiSpeakerVoiceConfig(
-                speaker_voice_configs=[
-                    SpeakerVoiceConfig(speaker='Chef', voice_config=kore),
-                    SpeakerVoiceConfig(
-                        speaker='Server',
-                        voice_config=VoiceConfig(prebuilt_voice_config=PrebuiltVoiceConfig(voice_name='Puck')),
-                    ),
-                ]
-            ),
-        ),
-    )
+def test_gemini_tts_config_flat_voice() -> None:
+    """GeminiTtsConfig takes a voice name, or speakers mapped to voice names."""
+    single = GeminiTtsConfig(voice='Kore', language_code='en-US')
+    duet = GeminiTtsConfig(temperature=0.3, speakers={'Chef': 'Kore', 'Server': 'Puck'})
 
-    assert _wire(config) == {
-        'temperature': 0.3,
-        'speechConfig': {
-            'languageCode': 'en-US',
-            'multiSpeakerVoiceConfig': {
-                'speakerVoiceConfigs': [
-                    {'speaker': 'Chef', 'voiceConfig': {'prebuiltVoiceConfig': {'voiceName': 'Kore'}}},
-                    {'speaker': 'Server', 'voiceConfig': {'prebuiltVoiceConfig': {'voiceName': 'Puck'}}},
-                ]
-            },
-        },
-    }
-    single = GeminiTtsConfig(speech_config=SpeechConfig(voice_config=kore))
-    assert _wire(single) == {'speechConfig': {'voiceConfig': {'prebuiltVoiceConfig': {'voiceName': 'Kore'}}}}
-
-    # A replicated voice: audio bytes dump as base64, as in the SDK type.
-    cloned = GeminiTtsConfig(
-        speech_config=SpeechConfig(
-            voice_config=VoiceConfig(
-                replicated_voice_config=ReplicatedVoiceConfig(
-                    mime_type='audio/wav',
-                    voice_sample_audio=b'chef',
-                    voice_consent_signature=VoiceConsentSignature(signature='sig-1'),
-                )
-            )
-        )
-    )
-    assert _wire(cloned) == {
-        'speechConfig': {
-            'voiceConfig': {
-                'replicatedVoiceConfig': {
-                    'mimeType': 'audio/wav',
-                    'voiceSampleAudio': 'Y2hlZg==',
-                    'voiceConsentSignature': {'signature': 'sig-1'},
-                }
-            }
-        }
-    }
+    assert _wire(single) == {'voice': 'Kore', 'languageCode': 'en-US'}
+    assert _wire(duet) == {'temperature': 0.3, 'speakers': {'Chef': 'Kore', 'Server': 'Puck'}}
 
 
-def test_gemini_image_config_nested_image() -> None:
-    """GeminiImageConfig nests ImageConfig by field name."""
+def test_gemini_image_config_flat_image() -> None:
+    """GeminiImageConfig takes the image settings as flat fields."""
     config = GeminiImageConfig(
         response_modalities=['TEXT', 'IMAGE'],
-        image_config=ImageConfig(
-            aspect_ratio='16:9',
-            image_size='2K',
-            output_mime_type='image/png',
-            output_compression_quality=80,
-            person_generation='ALLOW_ADULT',
-            prominent_people='BLOCK_PROMINENT_PEOPLE',
-            image_output_options=ImageOutputOptions(mime_type='image/jpeg', compression_quality=75),
-        ),
+        aspect_ratio='16:9',
+        image_size='2K',
+        output_mime_type='image/jpeg',
+        output_compression_quality=80,
+        person_generation='ALLOW_ADULT',
+        prominent_people='BLOCK_PROMINENT_PEOPLE',
     )
 
     assert _wire(config) == {
         'responseModalities': ['TEXT', 'IMAGE'],
-        'imageConfig': {
-            'aspectRatio': '16:9',
-            'imageSize': '2K',
-            'outputMimeType': 'image/png',
-            'outputCompressionQuality': 80,
-            'personGeneration': 'ALLOW_ADULT',
-            'prominentPeople': 'BLOCK_PROMINENT_PEOPLE',
-            'imageOutputOptions': {'mimeType': 'image/jpeg', 'compressionQuality': 75},
-        },
+        'aspectRatio': '16:9',
+        'imageSize': '2K',
+        'outputMimeType': 'image/jpeg',
+        'outputCompressionQuality': 80,
+        'personGeneration': 'ALLOW_ADULT',
+        'prominentPeople': 'BLOCK_PROMINENT_PEOPLE',
     }
 
 
@@ -409,15 +299,18 @@ def test_antigravity_config_snake_case_kwargs() -> None:
     }
 
 
-def test_deep_research_config_nested_kwargs() -> None:
-    """DeepResearchConfig nests FileSearchConfig and McpServerConfig by field name."""
+def test_deep_research_config_flat_kwargs() -> None:
+    """DeepResearchConfig takes flat file search fields and dict-literal MCP servers."""
     config = DeepResearchConfig(
         thinking_summaries='auto',
         previous_interaction_id='int-1',
         collaborative_planning=True,
         google_search=True,
-        file_search=FileSearchConfig(file_search_store_names=['fileSearchStores/menu']),
-        mcp_servers=[McpServerConfig(name='crm', url='https://crm.example/mcp', allowed_tools=['lookup'])],
+        file_search_store_names=['fileSearchStores/menu'],
+        mcp_servers=[
+            {'name': 'crm', 'url': 'https://crm.example/mcp', 'allowed_tools': ['lookup']},
+            McpServerConfig(name='pos', url='https://pos.example/mcp'),
+        ],
     )
 
     assert _wire(config) == {
@@ -425,8 +318,11 @@ def test_deep_research_config_nested_kwargs() -> None:
         'previousInteractionId': 'int-1',
         'collaborativePlanning': True,
         'googleSearch': True,
-        'fileSearch': {'fileSearchStoreNames': ['fileSearchStores/menu']},
-        'mcpServers': [{'name': 'crm', 'url': 'https://crm.example/mcp', 'allowedTools': ['lookup']}],
+        'fileSearchStoreNames': ['fileSearchStores/menu'],
+        'mcpServers': [
+            {'name': 'crm', 'url': 'https://crm.example/mcp', 'allowed_tools': ['lookup']},
+            {'name': 'pos', 'url': 'https://pos.example/mcp'},
+        ],
     }
 
 
@@ -447,8 +343,8 @@ def _fake_gemini_api(bodies: list[dict[str, Any]]) -> Callable[..., Awaitable[ht
 
 
 @pytest.mark.asyncio
-async def test_typed_nested_config_request_body(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A typed nested GeminiConfig reaches the generateContent body.
+async def test_flat_config_request_body(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A flat GeminiConfig reaches the generateContent body in the nested API shape.
 
     google-genai camelCases the fields it types and forwards the nested
     dicts Genkit hands it as-is, so keys inside thinkingConfig and fileSearch
@@ -459,19 +355,14 @@ async def test_typed_nested_config_request_body(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(httpx.AsyncClient, 'send', _fake_gemini_api(bodies))
     ai = Genkit(plugins=[GoogleAI(api_key='fake-key')])
 
-    # 2. Generate with a config built from typed nested models
+    # 2. Generate with a flat config
     config = GeminiConfig(
         temperature=0.4,
         max_output_tokens=500,
-        safety_settings=[
-            SafetySetting(
-                category='HARM_CATEGORY_HATE_SPEECH',
-                threshold='BLOCK_ONLY_HIGH',
-            )
-        ],
-        thinking_config=ThinkingConfig(thinking_budget=1024, thinking_level='HIGH'),
-        function_calling_config=FunctionCallingConfig(mode='AUTO'),
-        file_search=FileSearchConfig(file_search_store_names=['fileSearchStores/menu']),
+        safety_settings=[{'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_ONLY_HIGH'}],
+        thinking_budget=1024,
+        include_thoughts=True,
+        file_search_store_names=['fileSearchStores/menu'],
     )
     response = await ai.generate(model='googleai/gemini-2.5-flash', prompt='Suggest a dish.', config=config)
 
@@ -483,10 +374,9 @@ async def test_typed_nested_config_request_body(monkeypatch: pytest.MonkeyPatch)
             'generationConfig': {
                 'maxOutputTokens': 500,
                 'temperature': 0.4,
-                'thinkingConfig': {'thinking_budget': 1024, 'thinking_level': 'HIGH'},
+                'thinkingConfig': {'include_thoughts': True, 'thinking_budget': 1024},
             },
             'safetySettings': [{'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_ONLY_HIGH'}],
-            'toolConfig': {'functionCallingConfig': {'mode': 'AUTO'}},
             'tools': [{'fileSearch': {'file_search_store_names': ['fileSearchStores/menu']}}],
         }
     ]
@@ -495,71 +385,64 @@ async def test_typed_nested_config_request_body(monkeypatch: pytest.MonkeyPatch)
 def test_choice_fields_are_closed_literals() -> None:
     """Choice fields take plain strings from a closed set.
 
-    assert_type makes pyright, pyrefly and ty check the declared set, so a
-    typed ThinkingConfig(thinking_level='ULTRA') fails all three. Runtime
-    rejects the same value from JSON.
+    assert_type makes pyright, pyrefly and ty check the declared set, so
+    GeminiConfig(thinking_level='ULTRA') fails all three. Runtime rejects the
+    same value from JSON.
     """
     # 1. Static: the field type is the closed Literal, not str
-    assert_type(ThinkingConfig().thinking_level, Literal['MINIMAL', 'LOW', 'MEDIUM', 'HIGH'] | None)
-    assert_type(FunctionCallingConfig().mode, FunctionCallingMode | None)
-    assert_type(ImageConfig().aspect_ratio, ImageAspectRatio | None)
-    assert_type(ImageConfig().image_size, ImageSize | None)
-    assert_type(ImageConfig().prominent_people, ProminentPeople | None)
-    assert_type(GoogleSearch().blocking_confidence, PhishBlockThreshold | None)
+    assert_type(GeminiConfig().thinking_level, Literal['MINIMAL', 'LOW', 'MEDIUM', 'HIGH'] | None)
+    assert_type(GeminiConfig().google_search_blocking_confidence, PhishBlockThreshold | None)
+    assert_type(GeminiConfig().google_search_types, list[SearchType] | None)
+    assert_type(GeminiConfig().response_modalities, list[ResponseModality] | None)
+    assert_type(GeminiConfig().google_search, bool | None)
+    assert_type(GeminiImageConfig().aspect_ratio, ImageAspectRatio | None)
+    assert_type(GeminiImageConfig().image_size, ImageSize | None)
+    assert_type(GeminiImageConfig().person_generation, PersonGeneration | None)
+    assert_type(GeminiImageConfig().prominent_people, ProminentPeople | None)
     assert_type(VeoConfig().compression_quality, VideoCompressionQuality | None)
     assert_type(VeoConfig().resize_mode, ImageResizeMode | None)
-    assert_type(GeminiConfig().google_search, bool | GoogleSearch | None)
-    assert_type(GeminiConfig().code_execution, bool | CodeExecution | None)
-    assert_type(GeminiConfig().url_context, bool | UrlContext | None)
-    assert_type(ImageConfig().image_output_options, ImageOutputOptions | None)
-    assert_type(VoiceConfig().replicated_voice_config, ReplicatedVoiceConfig | None)
-    safety = SafetySetting(category='HARM_CATEGORY_HARASSMENT', threshold='BLOCK_NONE')
-    assert_type(safety.category, HarmCategory)
-    assert_type(safety.threshold, HarmBlockThreshold)
-    assert_type(safety.method, HarmBlockMethod | None)
+    safety = SafetySetting(category='HARM_CATEGORY_HARASSMENT', threshold='BLOCK_NONE', method='SEVERITY')
+    assert_type(safety['category'], HarmCategory)
+    assert_type(safety['threshold'], HarmBlockThreshold)
+    assert_type(safety.get('method'), HarmBlockMethod | None)
 
     # 2. Runtime: an unknown value fails validation
     with pytest.raises(ValidationError, match='thinking_level|thinkingLevel'):
-        ThinkingConfig.model_validate({'thinkingLevel': 'ULTRA'})
+        GeminiConfig.model_validate({'thinkingLevel': 'ULTRA'})
 
 
 def test_exported_literal_aliases_annotate_user_code() -> None:
     """The root Literal aliases type a caller's own helpers; values stay plain strings."""
 
     # 1. A menu helper typed with the exported aliases
-    def plan_config(level: ThinkingLevel, mode: FunctionCallingMode) -> GeminiConfig:
+    def plan_config(level: ThinkingLevel, threshold: HarmBlockThreshold) -> GeminiConfig:
         return GeminiConfig(
-            thinking_config=ThinkingConfig(thinking_level=level),
-            function_calling_config=FunctionCallingConfig(mode=mode),
+            thinking_level=level,
+            safety_settings=[{'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold': threshold}],
         )
 
     # 2. Call it with plain strings
-    config = plan_config('LOW', 'AUTO')
+    config = plan_config('LOW', 'BLOCK_ONLY_HIGH')
 
     # 3. The dump carries the same strings
-    assert _wire(config) == {'thinkingConfig': {'thinkingLevel': 'LOW'}, 'functionCallingConfig': {'mode': 'AUTO'}}
-
-
-def test_deep_research_file_search_uses_the_gemini_class() -> None:
-    """Deep Research shares FileSearchConfig: store names are optional and unknown keys raise."""
-    # 1. Store names are no longer required
-    assert DeepResearchConfig(file_search=FileSearchConfig(top_k=5)).file_search == FileSearchConfig(top_k=5)
-
-    # 2. A typo fails instead of riding to the Interactions API
-    with pytest.raises(ValidationError, match='top_kk'):
-        DeepResearchConfig.model_validate({'file_search': {'file_search_store_names': ['s'], 'top_kk': 5}})
+    assert _wire(config) == {
+        'thinkingLevel': 'LOW',
+        'safetySettings': [{'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold': 'BLOCK_ONLY_HIGH'}],
+    }
 
 
 @pytest.mark.parametrize(
-    ('file_search', 'tool'),
+    ('config', 'tool'),
     [
         (
-            FileSearchConfig(file_search_store_names=['fileSearchStores/menu']),
+            DeepResearchConfig(file_search_store_names=['fileSearchStores/menu']),
             {'type': 'file_search', 'file_search_store_names': ['fileSearchStores/menu']},
         ),
         (
-            FileSearchConfig(
-                file_search_store_names=['fileSearchStores/menu'], top_k=5, metadata_filter='cuisine=thai'
+            DeepResearchConfig(
+                file_search_store_names=['fileSearchStores/menu'],
+                file_search_top_k=5,
+                file_search_metadata_filter='cuisine=thai',
             ),
             {
                 'type': 'file_search',
@@ -573,7 +456,7 @@ def test_deep_research_file_search_uses_the_gemini_class() -> None:
 )
 @pytest.mark.asyncio
 async def test_deep_research_file_search_create_body(
-    monkeypatch: pytest.MonkeyPatch, file_search: FileSearchConfig, tool: dict[str, Any]
+    monkeypatch: pytest.MonkeyPatch, config: DeepResearchConfig, tool: dict[str, Any]
 ) -> None:
     """The Interactions create body carries the file_search tool in snake_case, without unset keys."""
     # 1. Route the Interactions call to a fake API
@@ -592,7 +475,7 @@ async def test_deep_research_file_search_create_body(
     await ai.generate_operation(
         model='googleai/deep-research-pro-preview-12-2025',
         prompt='Research pho shops.',
-        config=DeepResearchConfig(file_search=file_search),
+        config=config,
     )
 
     # 3. Check the create body

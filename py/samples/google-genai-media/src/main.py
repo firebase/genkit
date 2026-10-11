@@ -30,7 +30,7 @@ async def main() -> None:
     voice = await ai.generate(
         model=GoogleAI.gemini_tts_model('gemini-2.5-flash-preview-tts'),
         prompt='Welcome to the Genkit media sample.',
-        config={'speech_config': {'voice_config': {'prebuilt_voice_config': {'voice_name': 'Kore'}}}},
+        config={'voice': 'Kore'},
     )
     print(voice.media[0].url if voice.media else 'no audio')
 
