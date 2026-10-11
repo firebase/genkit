@@ -40,7 +40,6 @@ from genkit._core._error import (
     RuntimeErrorReason,
     StatusCodes,
     StatusName,
-    runtime_error_reason,
 )
 from genkit._core._logger import get_logger
 from genkit._core._model import (
@@ -85,6 +84,18 @@ _NO_REPLY = frozenset({AgentFinishReason.FAILED, AgentFinishReason.ABORTED})
 # A custom agent can return TurnResult(finish_reason=FAILED) without raising.
 # Same fallback JS uses when it raises AgentError for that turn.
 _UNEXPLAINED_FAILURE = GenkitRuntimeError(status='UNKNOWN', message='Agent turn failed.')
+
+
+@dataclass(frozen=True)
+class _TurnCheckpoint:
+    """Chat fields a turn can change, so a raised turn can put them back."""
+
+    messages: list[Message]
+    custom: Any
+    artifacts: list[Artifact]
+    session_id: str | None
+    snapshot_id: str | None
+    resume_snapshot_id: str | None
 
 
 class SessionState(SessionStateVeneer, Generic[StateT]):
@@ -314,38 +325,6 @@ class AgentResponse(Generic[StateT]):
         return agent_interrupts_from_message(self.message)
 
 
-class AgentError(Exception):
-    """Raised when a call never got a turn result.
-
-    A failed turn returns an ``AgentResponse`` (``finish_reason`` failed,
-    ``.error`` set) so the caller still has the last good snapshot or
-    state. This is the connection that dropped, or an init the server
-    rejects as misuse, where there is nothing to return.
-    """
-
-    def __init__(
-        self,
-        *,
-        message: str,
-        status: str,
-        details: Any = None,  # noqa: ANN401
-        state: Any = None,  # noqa: ANN401
-        snapshot_id: str | None = None,
-        response: AgentResponse[Any],
-    ) -> None:
-        super().__init__(message)
-        self.message = message
-        self.status = status
-        self.details = details
-        self.state = state
-        self.snapshot_id = snapshot_id
-        self.response = response
-
-    @property
-    def reason(self) -> RuntimeErrorReason | None:
-        return runtime_error_reason(self.details)
-
-
 HTTP_TO_STATUS: dict[int, StatusName] = {code: name for name, code in _STATUS_CODE_MAP.items()}
 
 
@@ -408,47 +387,20 @@ def error_from_http(*, status_code: int, body: str) -> GenkitError:
 
 
 def error_from_exception(e: Exception) -> GenkitError:
-    """Normalize an arbitrary exception into GenkitError for transport boundaries."""
+    """Normalize an arbitrary exception into GenkitError for transport boundaries.
+
+    A ``GenkitError`` passes through unchanged. A dropped socket is
+    ``UNAVAILABLE``: the server never reported a failure, though the turn
+    may still have run.
+    """
     if isinstance(e, GenkitError):
         return e
+    if isinstance(e, ConnectionError):
+        return GenkitError(status='UNAVAILABLE', message='Connection to the agent was lost', cause=e)
     message = str(e)
     match = re.match(r'^([A-Z_]+):', message)
     status = coerce_status_name(match.group(1) if match else None)
     return GenkitError(status=status, message=message, cause=e)
-
-
-def to_agent_error(
-    e: Exception,
-    *,
-    messages: list[Message],
-    state: Any,  # noqa: ANN401
-    snapshot_id: str | None,
-) -> AgentError:
-    """Wrap a call that never produced a turn result, keeping the last good session."""
-    if isinstance(e, AgentError):
-        return e
-    if isinstance(e, GenkitError):
-        message = e.original_message
-        status = e.status
-        details = e.details
-    else:
-        message = str(e)
-        wrapped = error_from_exception(e)
-        status = wrapped.status
-        details = e
-    raw = AgentOutput(
-        finish_reason=AgentFinishReason.FAILED,
-        error=GenkitRuntimeError(status=status, message=message, details=details),
-    )
-    response = AgentResponse(raw=raw, messages=list(messages), state=state)
-    return AgentError(
-        message=message,
-        status=status,
-        details=details,
-        state=state,
-        snapshot_id=snapshot_id,
-        response=response,
-    )
 
 
 def agent_interrupts_from_message(message: Message | None) -> list[AgentInterrupt[Any, Any]]:
@@ -872,7 +824,7 @@ class TurnDriver(Generic[StateT]):
         commit_output: Callable[[AgentOutput], AgentResponse[StateT]],
         commit_custom_patch: Callable[[Any], StateT | None],
         accumulate_chunk: Callable[[AgentStreamChunk], None] | None = None,
-        on_turn_error: Callable[[Exception], Exception] | None = None,
+        rollback: Callable[[], None] | None = None,
         chunks: CloseableQueue[AgentChunk[StateT] | Exception] | None = None,
     ) -> None:
         self.inp = inp
@@ -881,7 +833,7 @@ class TurnDriver(Generic[StateT]):
         self.commit_output = commit_output
         self.commit_custom_patch = commit_custom_patch
         self.accumulate_chunk = accumulate_chunk
-        self.on_turn_error = on_turn_error
+        self.rollback = rollback
         self.accumulated_text = ''
         self.output: asyncio.Future[AgentResponse[StateT]] = asyncio.get_running_loop().create_future()
         # Only the streaming path needs a caller-facing chunk queue; send() still
@@ -911,6 +863,7 @@ class TurnDriver(Generic[StateT]):
         ``self.output`` is otherwise only touched by ``abort()``, so the
         ``done()`` guards let abort win a race without the result being set twice.
         """
+        output: Awaitable[AgentOutput] | None = None
         try:
             stream, output = await self.run_turn(agent_input=self.inp, init=self.init)
             async for chunk in stream:
@@ -927,13 +880,25 @@ class TurnDriver(Generic[StateT]):
                 self.output.cancel()
             raise
         except Exception as e:
-            wrapped = self.on_turn_error(e) if self.on_turn_error is not None else e
+            # Transports fail the stream and the output future together. We
+            # raise from the stream, so mark the future's copy as seen or
+            # asyncio logs "Future exception was never retrieved".
+            if isinstance(output, asyncio.Future) and output.done() and not output.cancelled():
+                output.exception()
+            # No turn result: undo local changes, then raise one type for every
+            # transport. GenkitError passes through as-is (AgentInitError stays
+            # AgentInitError); anything else is wrapped with cause=e.
+            if self.rollback is not None:
+                self.rollback()
+            wrapped = error_from_exception(e)
             if self.chunks is not None:
                 # Streaming path: callers retrieve the error via turn.response / stream.
                 # send() never exposes self.output, so leave it untouched and re-raise.
                 if not self.output.done():
                     self.output.set_exception(wrapped)
                 self.chunks.put_nowait(wrapped)
+            if wrapped is e:
+                raise
             raise wrapped from e
         finally:
             # Closing wakes the stream consumer once buffered chunks drain, so the
@@ -958,7 +923,7 @@ class TurnDriver(Generic[StateT]):
             await self.run()
         except Exception as e:
             # Normal turn failures already resolve ``self.output`` inside ``run``.
-            # If ``on_turn_error`` (or anything else) blows up before that, resolve
+            # If ``rollback`` (or anything else) blows up before that, resolve
             # here so ``await turn.response`` can't hang forever with an empty log.
             if not self.output.done():
                 logger.exception('TurnDriver background run failed without resolving output')
@@ -1002,6 +967,10 @@ class TurnDriver(Generic[StateT]):
             raise RuntimeError('TurnDriver.stream() requires a chunks queue')
         async for item in chunks:
             if isinstance(item, Exception):
+                # The caller saw the error here. If they never await
+                # .response, asyncio would log its copy as never retrieved.
+                if self.output.done() and not self.output.cancelled():
+                    self.output.exception()
                 raise item
             yield item
 
@@ -1142,8 +1111,14 @@ class AgentChat(Generic[StateT]):
         """Runs a turn and returns the completed response.
 
         A turn that finishes failed still returns: ``finish_reason`` is
-        ``failed`` and ``.error`` says why. ``AgentError`` is only when the
-        call never got a turn result. Pumps the transport so custom-state
+        ``failed`` and ``.error`` says why. It raises ``GenkitError`` only
+        when the call never got a turn result (dropped connection, init
+        misuse), and puts the chat back where it was before the send. A
+        dropped connection may still have run the turn server-side, so
+        reload with ``chat(session_id=...)`` before resending a turn whose
+        tools have side effects. Cancelling or timing out the call is a
+        client-side detach instead: it raises ``CancelledError`` /
+        ``TimeoutError`` and keeps the prompt. Pumps the transport so custom-state
         patches and message stitching still apply; does not expose a chunk
         stream. For incremental chunks use :meth:`send_stream`.
         """
@@ -1179,6 +1154,8 @@ class AgentChat(Generic[StateT]):
         # records it there, so a client-managed payload that also bundled it would
         # land the same message in history twice.
         init = self._wire_init()
+        # If the turn raises, put back everything below (see _restore).
+        checkpoint = self._checkpoint()
         # Optimistically append the user message so it shows immediately; remember
         # the prior length so a turn that lands no reply (server-side failed/aborted)
         # can roll it back. This length-based rollback assumes turns are single-flight
@@ -1186,7 +1163,7 @@ class AgentChat(Generic[StateT]):
         message_count_before = len(self.messages)
         # Streamed custom patches land on _custom as they arrive. Keep the
         # pre-turn value so a turn that lands no reply can undo them.
-        custom_before = copy.deepcopy(self._custom)
+        custom_before = checkpoint.custom
         if inp.message:
             self.messages.append(inp.message)
 
@@ -1200,7 +1177,7 @@ class AgentChat(Generic[StateT]):
             ),
             commit_custom_patch=self._commit_custom_patch,
             accumulate_chunk=self._turn_accumulator.add,
-            on_turn_error=self._on_turn_error,
+            rollback=lambda: self._restore(checkpoint),
             chunks=chunks,
         )
 
@@ -1405,13 +1382,33 @@ class AgentChat(Generic[StateT]):
                 raise
             return None
 
-    def _on_turn_error(self, e: Exception) -> Exception:
-        return to_agent_error(
-            e,
-            messages=self.messages,
-            state=self.state,
+    def _checkpoint(self) -> _TurnCheckpoint:
+        """Everything a turn can change on the chat, taken before ``send`` touches it."""
+        return _TurnCheckpoint(
+            messages=list(self._messages),
+            custom=copy.deepcopy(self._custom),
+            artifacts=list(self._artifacts),
+            session_id=self._session_id,
             snapshot_id=self._snapshot_id,
+            resume_snapshot_id=self._resume_snapshot_id,
         )
+
+    def _restore(self, checkpoint: _TurnCheckpoint) -> None:
+        """Put the chat back where it was before a turn that raised.
+
+        Usually the raise comes before any output, so only the optimistic
+        prompt and streamed patches need undoing. But ``commit_output`` can
+        also raise after the output was folded in (e.g. the final custom
+        state fails ``state_schema``), so every field goes back, or the next
+        send would resume from a snapshot the local history doesn't have.
+        """
+        # In place: callers may hold a reference to chat.messages.
+        self._messages[:] = checkpoint.messages
+        self._custom = checkpoint.custom
+        self._artifacts = checkpoint.artifacts
+        self._session_id = checkpoint.session_id
+        self._snapshot_id = checkpoint.snapshot_id
+        self._resume_snapshot_id = checkpoint.resume_snapshot_id
 
     def _commit_custom_patch(self, patch: Any) -> StateT | None:  # noqa: ANN401
         """Applies a streamed custom-state patch and returns the new custom state."""

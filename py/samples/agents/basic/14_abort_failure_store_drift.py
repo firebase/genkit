@@ -39,8 +39,8 @@ store, which is the source of truth:
      the turn with res.error set, the optimistic prompt is rolled back, and
      the resume handle stays pinned to the last good turn, so the next send
      picks up from there. A call that never produces a turn result (e.g. a
-     dropped connection or an invalid init) raises AgentError, so wrap send
-     in try/except AgentError for those.
+     dropped connection or an invalid init) raises GenkitError, so wrap send
+     in try/except GenkitError for those.
 
 And a fourth, related point: a detached turn that *succeeds* still never streams
 its reply back to your in-memory chat, so before continuing you reload from the
@@ -60,7 +60,6 @@ from genkit import ActionRunContext, GenkitError, Message, Part
 from genkit.exp import Genkit
 from genkit.exp.agent import (
     AgentChat,
-    AgentError,
     AgentFinishReason,
     AgentInput,
     AgentResult,
@@ -165,8 +164,8 @@ async def server_side_failure() -> None:
         assert failed.finish_reason == AgentFinishReason.FAILED
         assert failed.error is not None
         assert 'model exhausted' in failed.error.message
-    except AgentError as err:
-        raise AssertionError('turn ran, expected res.error rather than AgentError') from err
+    except GenkitError as err:
+        raise AssertionError('turn ran, expected res.error rather than a raise') from err
 
     # No reply landed, so the prompt is dropped and the resume handle holds.
     assert turns(chat) == ['b1/user', 'reply/model']

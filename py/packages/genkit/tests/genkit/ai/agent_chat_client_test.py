@@ -26,7 +26,6 @@ from genkit._ai._agents._base import Agent, define_custom_agent
 from genkit._ai._agents._client import (
     AgentChat,
     AgentClient,
-    AgentError,
     AgentInterrupt,
     AgentTransport,
     DetachedTask,
@@ -44,6 +43,7 @@ from genkit._core._model import (
     AgentOutput,
     AgentResult,
     AgentStreamChunk,
+    Artifact,
     Message,
     ModelResponse,
     ModelResponseChunk,
@@ -1285,8 +1285,8 @@ async def test_agent_turn_stream_and_response_accessors() -> None:
 
 
 @pytest.mark.asyncio
-async def test_run_background_resolves_output_when_on_turn_error_raises() -> None:
-    """If ``on_turn_error`` itself raises, ``await turn.response`` must not hang."""
+async def test_run_background_resolves_output_when_rollback_raises() -> None:
+    """If ``rollback`` itself raises, ``await turn.response`` must not hang."""
 
     async def boom_run_turn(
         *,
@@ -1295,8 +1295,8 @@ async def test_run_background_resolves_output_when_on_turn_error_raises() -> Non
     ) -> tuple[AsyncIterable[AgentStreamChunk], Awaitable[AgentOutput]]:
         raise RuntimeError('transport failed')
 
-    def broken_on_turn_error(e: Exception) -> Exception:
-        raise RuntimeError('on_turn_error failed') from e
+    def broken_rollback() -> None:
+        raise RuntimeError('rollback failed')
 
     driver = TurnDriver(
         inp=AgentInput(),
@@ -1304,12 +1304,12 @@ async def test_run_background_resolves_output_when_on_turn_error_raises() -> Non
         run_turn=boom_run_turn,
         commit_output=lambda _raw: (_ for _ in ()).throw(AssertionError('commit_output should not run')),
         commit_custom_patch=lambda _patch: None,
-        on_turn_error=broken_on_turn_error,
+        rollback=broken_rollback,
         chunks=CloseableQueue(),
     )
     turn = driver.start()
 
-    with pytest.raises(RuntimeError, match='on_turn_error failed'):
+    with pytest.raises(RuntimeError, match='rollback failed'):
         await asyncio.wait_for(turn.response, timeout=1.0)
 
 
@@ -1678,6 +1678,29 @@ class _DroppingTransport(AgentTransport[Any]):
         return None
 
 
+class _MidStreamDropTransport(_DroppingTransport):
+    """Streams a reply chunk and a custom patch, then the connection dies."""
+
+    async def run_turn(
+        self,
+        *,
+        agent_input: AgentInput,
+        init: AgentInit,
+    ) -> tuple[AsyncIterable[Any], Awaitable[AgentOutput]]:
+        del agent_input, init
+
+        async def chunks() -> AsyncIterator[AgentStreamChunk]:
+            yield AgentStreamChunk(model_chunk=ModelResponseChunk(content=[Part.from_text('Booking for ')]))
+            yield AgentStreamChunk(
+                custom_patch=JsonPatch(root=[JsonPatchOperation(op=JsonPatchOp.REPLACE, path='/n', value=99)])
+            )
+            raise ConnectionError('socket closed mid-turn')
+
+        # Never resolves: the stream dies before a turn result exists.
+        output: asyncio.Future[AgentOutput] = asyncio.get_running_loop().create_future()
+        return chunks(), output
+
+
 @pytest.mark.asyncio
 async def test_send_on_failed_turn_with_reason_reads_reason() -> None:
     """A failed turn whose error carries a reason exposes it on res.error.reason."""
@@ -1815,39 +1838,147 @@ async def test_send_on_blocked_turn_returns_blocked_without_raising() -> None:
 
 
 @pytest.mark.asyncio
-async def test_send_with_snapshot_id_on_agent_without_store_raises_agent_error() -> None:
-    """An init the server rejects as misuse still raises AgentError with FAILED_PRECONDITION."""
+async def test_send_with_snapshot_id_on_agent_without_store_raises_genkit_error() -> None:
+    """An init the server rejects as misuse raises GenkitError with FAILED_PRECONDITION."""
 
     async def handle(session_runner: SessionRunner, inp: AgentInput) -> TurnResult | None:
         del session_runner, inp
         return TurnResult(finish_reason=AgentFinishReason.STOP)
 
     agent = _define_turns(Registry(), 'noStore', handle, store=None)
-    with pytest.raises(AgentError) as exc:
-        await agent.chat(snapshot_id='snap-1').send('hi')
+    chat = agent.chat(snapshot_id='snap-1')
+    with pytest.raises(GenkitError) as exc:
+        await chat.send('hi')
     assert exc.value.status == 'FAILED_PRECONDITION'
     assert exc.value.reason is RuntimeErrorReason.SESSION_STORE_NOT_CONFIGURED
+    # Same type the client raises for client-side misuse; no wrapper in between.
+    assert isinstance(exc.value, AgentInitError)
+    assert chat.messages == []
 
 
-@pytest.mark.asyncio
-async def test_send_over_dropped_connection_raises_agent_error() -> None:
-    """A transport that fails before any turn result raises AgentError with the last good state."""
-
+async def _chat_after_one_good_turn(name: str) -> AgentChat[Any]:
     async def handle(session_runner: SessionRunner, inp: AgentInput) -> TurnResult | None:
         del inp
         await session_runner.update_custom(lambda _prev: {'n': 1})
         await session_runner.add_messages([_ok_message()])
         return TurnResult(finish_reason=AgentFinishReason.STOP)
 
-    agent = _define_turns(Registry(), 'dropConn', handle, store=None)
+    agent = _define_turns(Registry(), name, handle, store=None)
     chat = agent.chat(state={'n': 0})
     ok = await chat.send('hello')
     assert ok.state == {'n': 1}
+    return chat
+
+
+@pytest.mark.asyncio
+async def test_send_over_dropped_connection_raises_unavailable_and_keeps_last_good_state() -> None:
+    """No turn result: GenkitError(UNAVAILABLE), and the chat stays at the last good turn."""
+    chat = await _chat_after_one_good_turn('dropConn')
+    messages_before = list(chat.messages)
 
     chat._transport = _DroppingTransport()  # noqa: SLF001
-    with pytest.raises(AgentError) as exc:
+    with pytest.raises(GenkitError) as exc:
         await chat.send('next')
-    assert exc.value.state == {'n': 1}
+    assert exc.value.status == 'UNAVAILABLE'
+    assert isinstance(exc.value.cause, ConnectionError)
+    assert chat.state == {'n': 1}
+    assert chat.messages == messages_before
+
+
+@pytest.mark.asyncio
+async def test_send_mid_stream_drop_rolls_back_prompt_and_streamed_patch() -> None:
+    """A drop after a streamed patch undoes the patch and the unanswered prompt."""
+    chat = await _chat_after_one_good_turn('midDrop')
+    messages_before = list(chat.messages)
+
+    chat._transport = _MidStreamDropTransport()  # noqa: SLF001
+    with pytest.raises(GenkitError) as exc:
+        await chat.send('book a table for 4')
+    assert exc.value.status == 'UNAVAILABLE'
+    assert chat.state == {'n': 1}
+    assert chat.messages == messages_before
+
+
+@pytest.mark.asyncio
+async def test_send_stream_mid_stream_drop_raises_genkit_error_on_stream_and_response() -> None:
+    """Streaming surfaces the same GenkitError on .stream and .response, with the same rollback."""
+    chat = await _chat_after_one_good_turn('midDropStream')
+    messages_before = list(chat.messages)
+
+    chat._transport = _MidStreamDropTransport()  # noqa: SLF001
+    turn = chat.send_stream('book a table for 4')
+    seen: list[str] = []
+    with pytest.raises(GenkitError) as stream_exc:
+        async for chunk in turn.stream:
+            seen.append(chunk.text or '')
+    with pytest.raises(GenkitError) as response_exc:
+        await turn.response
+    assert seen[0] == 'Booking for '
+    assert stream_exc.value is response_exc.value
+    assert response_exc.value.status == 'UNAVAILABLE'
+    assert chat.state == {'n': 1}
+    assert chat.messages == messages_before
+
+
+class _BadFinalStateTransport(_DroppingTransport):
+    """Completes the turn, but the final custom state fails the chat's schema."""
+
+    async def run_turn(
+        self,
+        *,
+        agent_input: AgentInput,
+        init: AgentInit,
+    ) -> tuple[AsyncIterable[Any], Awaitable[AgentOutput]]:
+        del agent_input, init
+
+        async def no_chunks() -> AsyncIterator[AgentStreamChunk]:
+            empty: list[AgentStreamChunk] = []
+            for chunk in empty:
+                yield chunk
+
+        output: asyncio.Future[AgentOutput] = asyncio.get_running_loop().create_future()
+        output.set_result(
+            AgentOutput(
+                finish_reason=AgentFinishReason.STOP,
+                snapshot_id='snap-2',
+                message=_ok_message(),
+                state=SessionState(
+                    session_id='sess-2',
+                    custom={'title': 'Dinner for 4', 'done': 'not-a-bool'},
+                    artifacts=[Artifact(name='receipt', parts=[Part.from_text('total: $80')])],
+                ),
+            )
+        )
+        return no_chunks(), output
+
+
+@pytest.mark.asyncio
+async def test_send_when_final_state_fails_schema_restores_every_field() -> None:
+    """commit_output raises after folding in the output; the chat still goes fully back.
+
+    Restoring only messages and custom would leave snapshot_id, session_id,
+    and artifacts on the new turn, so the next send would resume from a
+    snapshot the local history doesn't have.
+    """
+    chat = AgentChat(
+        _BadFinalStateTransport(),
+        AgentInit(state=SessionState(session_id='sess-1', custom={'title': 'Dinner for 2'})),
+        state_schema=_TaskState,
+    )
+    chat._snapshot_id = 'snap-1'  # noqa: SLF001
+    chat._resume_snapshot_id = 'snap-1'  # noqa: SLF001
+    messages = chat.messages
+
+    with pytest.raises(GenkitError):
+        await chat.send('make it 4')
+
+    assert chat.messages == []
+    assert chat.messages is messages
+    assert chat.state == _TaskState(title='Dinner for 2')
+    assert chat.session_id == 'sess-1'
+    assert chat.snapshot_id == 'snap-1'
+    assert chat._resume_snapshot_id == 'snap-1'  # noqa: SLF001
+    assert chat.artifacts == []
 
 
 @pytest.mark.asyncio

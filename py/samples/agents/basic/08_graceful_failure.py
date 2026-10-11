@@ -24,9 +24,9 @@ pinned to the last successful snapshot — so the next send picks up from
 that last good parent. The failure is a dead end, not a new branch point.
 
 A call that never produces a turn result (a dropped connection, or an init
-the server rejects as misuse) raises AgentError. Production code wraps
-chat.send() in try/except AgentError for those, and checks res.error for
-failures inside the turn.
+the server rejects as misuse) raises GenkitError, the same as ai.generate.
+Production code wraps chat.send() in try/except GenkitError for those, and
+checks res.error for failures inside the turn.
 """
 
 from __future__ import annotations
@@ -36,7 +36,6 @@ from genkit_google_genai import GoogleAI
 from genkit import ActionRunContext, GenkitError, Message, Part
 from genkit.exp import Genkit
 from genkit.exp.agent import (
-    AgentError,
     AgentFinishReason,
     AgentInput,
     AgentResult,
@@ -96,13 +95,13 @@ async def main() -> None:
     assert out_ok2.finish_reason == AgentFinishReason.STOP
 
     # 4. Pre-turn failure: a call that never produces a turn result (such as
-    # passing a snapshot_id to an agent with no store) raises AgentError.
+    # passing a snapshot_id to an agent with no store) raises GenkitError.
     client_agent = ai.define_custom_agent(name='clientAgent', fn=flaky_fn, store=None)
     bad_chat = client_agent.chat(snapshot_id='unsupported')
     try:
         await bad_chat.send('hi')
-        raise AssertionError('expected AgentError for pre-turn misuse')
-    except AgentError as err:
+        raise AssertionError('expected GenkitError for pre-turn misuse')
+    except GenkitError as err:
         assert err.status == 'FAILED_PRECONDITION'
 
 
