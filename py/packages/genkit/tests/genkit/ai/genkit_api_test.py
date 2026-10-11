@@ -218,13 +218,13 @@ async def test_genkit_check_operation() -> None:
 
     op = Operation(id='123', done=False, action='/background-model/test_action')
 
-    # Create mock background action with check method
+    # Create mock background model with check method
     mock_background_action = MagicMock()
     mock_background_action.check = AsyncMock(return_value=Operation(id='123', done=True, output='result'))
 
-    # Patch lookup_background_action to return our mock
+    # Patch lookup_background_model to return our mock
     with mock.patch(
-        'genkit._core._background.lookup_background_action',
+        'genkit._core._background.lookup_background_model',
         new=AsyncMock(return_value=mock_background_action),
     ) as mock_lookup:
         updated_op = await ai.check_operation(op)
@@ -254,7 +254,7 @@ async def test_genkit_check_operation_malformed_key_is_invalid_argument() -> Non
     op = Operation(id='123', done=False, action='missing')
 
     with pytest.raises(
-        GenkitError, match='Failed to resolve background action from original request: missing'
+        GenkitError, match='Failed to resolve background model from original request: missing'
     ) as exc_info:
         await ai.check_operation(op)
     assert exc_info.value.status == 'INVALID_ARGUMENT'
@@ -267,7 +267,7 @@ async def test_genkit_check_operation_not_found() -> None:
     op = Operation(id='123', done=False, action='/background-model/nope')
 
     with pytest.raises(
-        GenkitError, match='Failed to resolve background action from original request: /background-model/nope'
+        GenkitError, match='Failed to resolve background model from original request: /background-model/nope'
     ) as exc_info:
         await ai.check_operation(op)
     assert exc_info.value.status == 'INVALID_ARGUMENT'
@@ -396,7 +396,7 @@ async def test_cancel_operation_without_cancel_is_unimplemented() -> None:
 
 @pytest.mark.asyncio
 async def test_background_action_cancel_without_fn_is_unimplemented() -> None:
-    """A real no-cancel BackgroundAction raises UNIMPLEMENTED from .cancel."""
+    """A real no-cancel BackgroundModel raises UNIMPLEMENTED from .cancel."""
 
     async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
         return Operation(id='1', done=False)
@@ -417,7 +417,7 @@ async def test_background_action_cancel_without_fn_is_unimplemented() -> None:
 
 @pytest.mark.asyncio
 async def test_background_action_check_rejects_non_operation() -> None:
-    """BackgroundAction.check uses the same require_operation gate as the veneer."""
+    """BackgroundModel.check uses the same require_operation gate as the veneer."""
 
     async def start(_request: ModelRequest, _ctx: ActionRunContext) -> Operation:
         return Operation(id='1', done=False)

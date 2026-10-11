@@ -31,7 +31,7 @@ from genkit._core._action import (
     ActionRunContext,
     get_func_description,
 )
-from genkit._core._background import BackgroundAction
+from genkit._core._background import BackgroundModel
 from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._logger import get_logger
 from genkit._core._model import (
@@ -174,7 +174,7 @@ def _registered_action_name(*, action: Action, kind: ActionKind, registry: Regis
 
 def _model_action_name(*, model: object, registry: Registry) -> str | None:
     """Name of a define_model action registered here; None if not an action."""
-    if isinstance(model, BackgroundAction):
+    if isinstance(model, BackgroundModel):
         raise GenkitError(
             status='INVALID_ARGUMENT',
             message=f"model is background model '{model.name}'. Pass it to generate_operation.",
@@ -191,7 +191,7 @@ def _model_action_name(*, model: object, registry: Registry) -> str | None:
     return _registered_action_name(action=model, kind=ActionKind.MODEL, registry=registry)
 
 
-def background_model_name(*, model: BackgroundAction, registry: Registry) -> str:
+def background_model_name(*, model: BackgroundModel, registry: Registry) -> str:
     """Name of a define_background_model result registered on this registry."""
     return _registered_action_name(action=model.start_action, kind=ActionKind.BACKGROUND_MODEL, registry=registry)
 

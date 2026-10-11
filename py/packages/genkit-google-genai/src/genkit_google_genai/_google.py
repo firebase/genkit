@@ -66,7 +66,7 @@ from genkit import ActionRunContext, GenkitError, ModelResponse, Operation
 from genkit.embedder import EmbedderRef, embedder, embedder_action_metadata
 from genkit.evaluator import evaluator_action_metadata
 from genkit.model import (
-    BackgroundAction,
+    BackgroundModel,
     ModelInfo,
     ModelRef,
     ModelRequest,
@@ -346,7 +346,7 @@ def _create_veo_background_action(
     client_getter: Callable[[], genai.Client],
     plugin_name: str,
     client_kwargs: dict[str, Any] | None = None,
-) -> BackgroundAction:
+) -> BackgroundModel:
     """Create the start/check action pair for a Veo video generation model.
 
     Veo runs as a background operation: callers start a generation and poll
@@ -362,7 +362,7 @@ def _create_veo_background_action(
             overrides the key or endpoint.
 
     Returns:
-        BackgroundAction pairing the start and check actions.
+        BackgroundModel pairing the start and check actions.
     """
     full_name = f'{plugin_name}/{name}'
 
@@ -740,20 +740,20 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         if action_type == ActionKind.MODEL:
             return self._resolve_model(name)
         if action_type == ActionKind.BACKGROUND_MODEL:
-            bg = self._resolve_background_action(name)
+            bg = self._resolve_background_model(name)
             return bg.start_action if bg else None
         if action_type == ActionKind.CHECK_OPERATION and name.endswith('/check'):
-            bg = self._resolve_background_action(name.removesuffix('/check'))
+            bg = self._resolve_background_model(name.removesuffix('/check'))
             return bg.check_action if bg else None
         if action_type == ActionKind.CANCEL_OPERATION and name.endswith('/cancel'):
-            bg = self._resolve_background_action(name.removesuffix('/cancel'))
+            bg = self._resolve_background_model(name.removesuffix('/cancel'))
             return bg.cancel_action if bg else None
         if action_type == ActionKind.EMBEDDER:
             return self._resolve_embedder(name)
         return None
 
-    def _resolve_background_action(self, name: str) -> BackgroundAction | None:
-        """Resolve a background action for Veo or Deep Research."""
+    def _resolve_background_model(self, name: str) -> BackgroundModel | None:
+        """Resolve a background model for Veo or Deep Research."""
         if is_veo_model(name):
             return self._resolve_veo_model(name)
         if is_deep_research_model_name(name):
@@ -764,14 +764,14 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
             )
         return None
 
-    def _resolve_veo_model(self, name: str) -> BackgroundAction:
-        """Create a BackgroundAction for a Veo video generation model.
+    def _resolve_veo_model(self, name: str) -> BackgroundModel:
+        """Create a BackgroundModel for a Veo video generation model.
 
         Args:
             name: The model id without the ``googleai/`` prefix.
 
         Returns:
-            BackgroundAction for the Veo model.
+            BackgroundModel for the Veo model.
         """
         return _create_veo_background_action(name, self._runtime_client, GOOGLEAI_PLUGIN_NAME, self._client_kwargs)
 
@@ -1141,14 +1141,14 @@ class VertexAI(GoogleFamilyRefs, Plugin):
             return self._resolve_evaluator(name)
         return None
 
-    def _resolve_veo_model(self, name: str) -> BackgroundAction:
-        """Create a BackgroundAction for a Veo video generation model.
+    def _resolve_veo_model(self, name: str) -> BackgroundModel:
+        """Create a BackgroundModel for a Veo video generation model.
 
         Args:
             name: The model id without the ``vertexai/`` prefix.
 
         Returns:
-            BackgroundAction for the Veo model.
+            BackgroundModel for the Veo model.
         """
         return _create_veo_background_action(name, self._runtime_client, VERTEXAI_PLUGIN_NAME, self._client_kwargs)
 
