@@ -83,11 +83,11 @@ from genkit.plugin_api import (
     to_json_schema,
 )
 from genkit_google_genai._auth import GOOGLE_AUTH_ERRORS, raise_auth_error
-from genkit_google_genai._evaluators import (
+from genkit_google_genai._evaluators._evaluation import (
     VertexAIEvaluationMetricType,
     create_vertex_evaluators,
+    vertex_evaluator_action_metadata,
 )
-from genkit_google_genai._evaluators._evaluation import vertex_evaluator_action_metadata
 from genkit_google_genai._interactions._options import ClientOptions
 from genkit_google_genai._models._antigravity import AntigravityConfig, create_antigravity_action
 from genkit_google_genai._models._deep_research import (
@@ -375,8 +375,8 @@ def _create_veo_background_action(
 
     return background_model(
         full_name,
-        _start,
-        _check,
+        start=_start,
+        check=_check,
         config_schema=VeoConfig,
         info=veo_model_info(name),
         metadata={'type': 'background-model'},

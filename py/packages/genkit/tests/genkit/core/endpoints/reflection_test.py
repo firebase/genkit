@@ -164,7 +164,7 @@ async def test_run_action_standard(asgi_client: AsyncClient, mock_registry: Magi
 
     mock_registry.resolve_action_by_key = mock_resolve_action_by_key
 
-    response = await asgi_client.post('/api/runAction', json={'key': 'test_action', 'input': {'data': 'test'}})
+    response = await asgi_client.post('/api/runAction', json={'key': '/custom/test_action', 'input': {'data': 'test'}})
 
     assert response.status_code == 200
     response_data = response.json()
@@ -198,7 +198,7 @@ async def test_run_action_context_reaches_flow_and_subflow() -> None:
     async def order_dish(dish: str, ctx: ActionRunContext) -> dict[str, Any]:
         return {'flow': dict(ctx.context), 'subflow': await allergy_check(dish)}
 
-    app = create_reflection_asgi_app(ai.registry)
+    app = create_reflection_asgi_app(ai._registry)
     async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
         response = await client.post(
             '/api/runAction',
@@ -221,7 +221,7 @@ async def test_run_action_rejects_non_object_context() -> None:
         calls += 1
         return dish
 
-    app = create_reflection_asgi_app(ai.registry)
+    app = create_reflection_asgi_app(ai._registry)
     async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
         response = await client.post(
             '/api/runAction',
@@ -265,7 +265,7 @@ async def test_run_action_streaming(
 
     response = await asgi_client.post(
         '/api/runAction?stream=true',
-        json={'key': 'test_action', 'input': {'data': 'test'}},
+        json={'key': '/custom/test_action', 'input': {'data': 'test'}},
     )
 
     assert response.status_code == 200
@@ -318,7 +318,7 @@ async def test_run_action_streaming_primitive_types(
 
     response = await asgi_client.post(
         '/api/runAction?stream=true',
-        json={'key': 'test_action', 'input': {'data': 'test'}},
+        json={'key': '/custom/test_action', 'input': {'data': 'test'}},
     )
 
     assert response.status_code == 200
@@ -363,7 +363,7 @@ async def test_values_middleware_includes_derived_config_schema() -> None:
     class _Fallback(BaseMiddleware[_FallbackConfig]):
         pass
 
-    client = await _registry_asgi_client(ai.registry)
+    client = await _registry_asgi_client(ai._registry)
     try:
         response = await client.get('/api/values?type=middleware')
         assert response.status_code == 200
@@ -397,7 +397,7 @@ async def test_values_middleware_uses_class_docstring_as_description_fallback() 
         Extra paragraphs end up in the description verbatim.
         """
 
-    client = await _registry_asgi_client(ai.registry)
+    client = await _registry_asgi_client(ai._registry)
     try:
         response = await client.get('/api/values?type=middleware')
         assert response.status_code == 200
@@ -422,7 +422,7 @@ async def test_values_middleware_empty_config_schema_for_no_op() -> None:
     class _NoOp(BaseMiddleware):
         pass
 
-    client = await _registry_asgi_client(ai.registry)
+    client = await _registry_asgi_client(ai._registry)
     try:
         response = await client.get('/api/values?type=middleware')
         assert response.status_code == 200
@@ -518,7 +518,7 @@ async def test_reflection_run_evaluator_returns_json_array_of_rows(evaluator: st
     """Per-row and batch evaluators run through /api/runAction both return a JSON array of rows."""
     ai = Genkit()
     _define_always_true_evaluators(ai)
-    client = await _registry_asgi_client(ai.registry)
+    client = await _registry_asgi_client(ai._registry)
     body = {
         'key': f'/evaluator/{evaluator}',
         'input': {
@@ -540,6 +540,40 @@ async def test_reflection_run_evaluator_returns_json_array_of_rows(evaluator: st
     assert [row['evaluation'] for row in result] == [[{'score': True}], [{'score': True}]]
 
 
+@pytest.mark.asyncio
+async def test_reflection_run_slash_retriever_key_returns_404() -> None:
+    """Running '/retriever/x' from the Dev UI gets a 404 'Action not found', not a server error."""
+    ai = Genkit()
+    client = await _registry_asgi_client(ai._registry)
+    try:
+        response = await client.post('/api/runAction', json={'key': '/retriever/x', 'input': 'q'})
+    finally:
+        await client.aclose()
+
+    assert response.status_code == 404
+    assert response.json() == {'error': 'Action not found: /retriever/x'}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('key', ['/tool/x', '/bogus/x', 'no-slashes'])
+async def test_reflection_run_unparseable_key_returns_404(key: str) -> None:
+    """Running a key that doesn't parse (like '/tool/x') gets a 404 'Action not found', not a server error."""
+    ai = Genkit()
+
+    @ai.tool()
+    async def x() -> str:
+        return 'ok'
+
+    client = await _registry_asgi_client(ai._registry)
+    try:
+        response = await client.post('/api/runAction', json={'key': key, 'input': None})
+    finally:
+        await client.aclose()
+
+    assert response.status_code == 404
+    assert response.json() == {'error': f'Action not found: {key}'}
+
+
 def _define_missing(ai: Genkit):  # noqa: ANN202
     @ai.flow()
     async def missing(account: str) -> str:
@@ -553,7 +587,7 @@ async def test_dev_ui_run_of_failing_flow_returns_message_and_trace_id(hex_ids: 
     """A Dev UI runAction of `missing` returns the body's message, code INTERNAL, and the run's trace id."""
     ai = Genkit()
     _define_missing(ai)
-    app = create_reflection_asgi_app(ai.registry)
+    app = create_reflection_asgi_app(ai._registry)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
         response = await client.post('/api/runAction', json={'key': '/flow/missing', 'input': 'acme'})
@@ -574,7 +608,7 @@ async def test_dev_ui_run_of_public_error_flow_returns_its_status_and_trace_id(h
     async def order(order_id: str) -> str:
         raise PublicError('NOT_FOUND', f'no order {order_id}')
 
-    app = create_reflection_asgi_app(ai.registry)
+    app = create_reflection_asgi_app(ai._registry)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
         response = await client.post('/api/runAction', json={'key': '/flow/order', 'input': '99'})
