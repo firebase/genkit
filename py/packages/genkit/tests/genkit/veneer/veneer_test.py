@@ -2156,7 +2156,7 @@ async def test_evaluator_action_run_with_none_options_passes_empty_dict(setup_te
     ai, *_ = setup_test
     define = _define_recording_batch_evaluator if batch else _define_recording_evaluator
     seen = define(ai, 'wire_none_eval')
-    action = await ai.registry.resolve_evaluator('wire_none_eval')
+    action = await ai._registry.resolve_evaluator('wire_none_eval')
     assert action is not None
 
     await action.run(EvalRequest(dataset=_one_row(), eval_run_id='run1', options=None))  # type: ignore[arg-type] - wire null
@@ -2204,7 +2204,7 @@ async def test_evaluator_action_run_with_non_mapping_options_raises_invalid_argu
     ai, *_ = setup_test
     define = _define_recording_batch_evaluator if batch else _define_recording_evaluator
     seen = define(ai, 'wire_bad_eval')
-    action = await ai.registry.resolve_evaluator('wire_bad_eval')
+    action = await ai._registry.resolve_evaluator('wire_bad_eval')
     assert action is not None
 
     wire = {'dataset': [row.model_dump(by_alias=True) for row in _one_row()], 'evalRunId': 'run1', 'options': []}
@@ -2796,7 +2796,7 @@ async def test_evaluator_action_run_with_basemodel_options_matches_ai_evaluate(
     ai, *_ = setup_test
     define = _define_recording_batch_evaluator if batch else _define_recording_evaluator
     seen = define(ai, 'action_cfg_eval')
-    action = await ai.registry.resolve_evaluator('action_cfg_eval')
+    action = await ai._registry.resolve_evaluator('action_cfg_eval')
     assert action is not None
 
     await action.run(EvalRequest(dataset=_one_row(), eval_run_id='run1', options=_AllergyCheckConfig(strict=True)))  # type: ignore[arg-type]

@@ -753,7 +753,6 @@ def test_resolve_embedder_name_with_embedder_ref() -> None:
     assert result == 'ref-embedder'
 
 
-
 class _CrmEmbedConfig(BaseModel):
     dimensions: int = 768
     task_type: str = 'RETRIEVAL_DOCUMENT'
@@ -794,7 +793,7 @@ async def test_embed_ref_config_survives_unset_basemodel_field() -> None:
     ai = Genkit()
     seen: list[dict[str, Any]] = []
     _recording_embedder(ai, seen)
-    ref = create_embedder_ref('crm-embedder', config={'dimensions': 256})
+    ref = EmbedderRef(name='crm-embedder', config={'dimensions': 256})
 
     await ai.embed(embedder=ref, content='hi', config=_CrmEmbedConfig(task_type='QUESTION_ANSWERING'))  # type: ignore[arg-type]
 
