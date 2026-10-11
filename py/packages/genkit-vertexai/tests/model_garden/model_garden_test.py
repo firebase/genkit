@@ -161,7 +161,7 @@ async def test_generate_model_garden_claude_drops_part_with_only_signature_key()
     reply.usage = MagicMock(input_tokens=1, output_tokens=1)
     reply.stop_reason = 'end_turn'
 
-    with patch('genkit_vertexai.model_garden.anthropic.AsyncAnthropicVertex') as client_ctor:
+    with patch('genkit_vertexai._model_garden._anthropic.AsyncAnthropicVertex') as client_ctor:
         client = client_ctor.return_value
         client.messages.create = AsyncMock(return_value=reply)
         client.beta.messages.create = AsyncMock(return_value=reply)
