@@ -2016,3 +2016,26 @@ async def test_request_client_unknown_failure_stays_raw() -> None:
             )
 
     assert raised.value is boom
+
+
+@pytest.mark.parametrize(
+    ('cache', 'expected'),
+    [
+        (True, _gemini.DEFAULT_TTL),
+        ({}, _gemini.DEFAULT_TTL),
+        ({'ttlSeconds': 600}, 600.0),
+        ({'ttl_seconds': 600}, 600.0),
+    ],
+    ids=['true', 'empty', 'camel', 'snake'],
+)
+def test_cache_metadata_ttl(cache: object, expected: float) -> None:
+    """`metadata.cache` takes `true` or the JS `{ttlSeconds: N}`; snake_case also works."""
+    assert _gemini._cache_ttl_seconds(cache) == expected
+
+
+def test_cache_metadata_of_wrong_type_is_invalid_argument() -> None:
+    """A cache value that is neither true nor a map names the accepted shapes."""
+    with pytest.raises(GenkitError) as raised:
+        _gemini._cache_ttl_seconds(600)
+
+    assert raised.value.status == 'INVALID_ARGUMENT'

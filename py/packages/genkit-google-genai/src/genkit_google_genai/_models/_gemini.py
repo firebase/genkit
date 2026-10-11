@@ -122,6 +122,23 @@ def _to_float(obj: Any, attr: str) -> float | None:  # noqa: ANN401
     return float(val) if val is not None else None
 
 
+def _cache_ttl_seconds(cache: object) -> float:
+    """TTL for a message's ``metadata['cache']``: ``True`` or ``{'ttlSeconds': N}``.
+
+    The JS spelling is ``ttlSeconds``; ``ttl_seconds`` is accepted too.
+    """
+    if cache is True:
+        return DEFAULT_TTL
+    if not isinstance(cache, Mapping):
+        raise GenkitError(
+            status='INVALID_ARGUMENT',
+            message=f"metadata.cache must be true or {{'ttlSeconds': N}}, got {type(cache).__name__}",
+        )
+    options = cast(Mapping[str, Any], cache)
+    ttl = options.get('ttlSeconds', options.get('ttl_seconds'))
+    return DEFAULT_TTL if ttl is None else float(ttl)
+
+
 def _usage_from_metadata(usage_metadata: Any) -> ModelUsage:  # noqa: ANN401
     """Build ModelUsage from a google-genai usage_metadata block."""
     if usage_metadata is None:
@@ -1487,19 +1504,19 @@ class GeminiModel:
         self,
         request: ModelRequest,
         model_name: str,
-        cache_config: dict,
+        cache_config: object,
         contents: list[genai_types.Content],
         client: genai.Client | None = None,
     ) -> genai_types.CachedContent:
         """Retrieves cached content from the Google API if exists.
 
-        If content is present - increases storage ttl based on the configured `ttl_seconds`
+        If content is present - increases storage ttl based on the configured `ttlSeconds`
         If content is not present - creates it and returns creates instance.
 
         Args:
             request: incoming generation instance
             model_name: name of the generation model to use
-            cache_config: user-defined cache configuration (e.g. ttl_seconds)
+            cache_config: the message's ``metadata['cache']``: ``True`` or ``{'ttlSeconds': N}``
             contents: content to submit for cached context creation
             client: client to use for cache operations. Defaults to the
                 plugin-configured client.
@@ -1510,8 +1527,7 @@ class GeminiModel:
         validate_context_cache_request(request=request, model_name=model_name)
         cache_client = client if client is not None else self._client
 
-        ttl_value = cache_config.get('ttl_seconds', DEFAULT_TTL)
-        ttl: float = float(ttl_value) if ttl_value is not None else DEFAULT_TTL
+        ttl = _cache_ttl_seconds(cache_config)
         cache_key = generate_cache_key(contents=contents, model_name=model_name)
 
         iterator_config = genai_types.ListCachedContentsConfig()
