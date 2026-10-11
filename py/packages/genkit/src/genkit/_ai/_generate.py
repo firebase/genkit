@@ -314,7 +314,8 @@ def register_middleware(
                     reg_name,
                     GenerateMiddleware(cls=mw_cls, name=reg_name),
                 )
-            config = cast(BaseModel, entry.config).model_dump(exclude_none=True, mode='json') or None
+            # by_alias: the ref keys match the schema the Dev UI renders (camelCase for GenkitConfig).
+            config = cast(BaseModel, entry.config).model_dump(exclude_none=True, by_alias=True, mode='json') or None
             refs.append(MiddlewareRef(name=reg_name, config=config))
         else:
             refs.append(entry)
