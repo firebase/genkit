@@ -55,6 +55,7 @@ from genkit._ai._model import (
     assert_correct_config_class,
     check_call_config,
     check_config_dict,
+    config_class_for_generate,
     config_field_names,
     config_schema_at_define,
     fold_config_aliases,
@@ -394,9 +395,8 @@ class Prompt(Generic[InputT, OutputT]):
             override = normalize_config(config=override_config)
             # `maxOutputTokens` in the prompt and `max_output_tokens` in the
             # call are one setting: fold both to field names so the call wins.
-            schema = (
-                await resolve_for_generate(model=model, registry=self._ai._registry, check_config=False)
-            ).config_schema
+            # A model typed only by its ModelRequest[...] annotation folds too.
+            schema = await config_class_for_generate(model=model, registry=self._ai._registry)
             if schema is not None:
                 base = fold_config_aliases(config=base, schema=schema)
                 override = fold_config_aliases(config=override, schema=schema)

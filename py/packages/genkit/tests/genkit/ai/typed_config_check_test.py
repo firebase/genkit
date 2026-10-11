@@ -15,15 +15,18 @@ from collections.abc import Awaitable, Callable
 from typing import Literal
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 from genkit import Genkit, Part
 from genkit._core._action import ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._model import Message, ModelRequest, ModelResponse
 from genkit._core._typing import Role
+from genkit.model import GenerateActionOptions
+from genkit.plugin_api import ActionKind
 
-QUALITY_SCHEMA = {
+QUALITY_SCHEMA: dict[str, object] = {
     'type': 'object',
     'properties': {'quality': {'type': 'string', 'enum': ['low', 'high']}},
 }
@@ -162,3 +165,52 @@ async def test_config_schema_class_still_wins_over_annotation() -> None:
 
     assert exc_info.value.status == 'INVALID_ARGUMENT'
     assert configs == []
+
+
+@pytest.mark.asyncio
+async def test_util_generate_with_bad_config_raises_invalid_argument() -> None:
+    """/util/generate (Dev UI, reflection) skips the veneer and still raises before the model runs."""
+    ai = Genkit()
+    sketch, configs = sketch_model()
+    ai.define_model('acme/sketch', sketch)
+    util = await ai._registry.resolve_action(ActionKind.UTIL, 'generate')  # pyright: ignore[reportPrivateUsage]
+    assert util is not None
+
+    with pytest.raises(GenkitError) as exc_info:
+        await util.run(
+            GenerateActionOptions(
+                model='acme/sketch',
+                messages=[Message(role=Role.USER, content=[Part.from_text('a lighthouse')])],
+                config={'quality': 'ultra'},
+            )
+        )
+
+    assert exc_info.value.status == 'INVALID_ARGUMENT'
+    assert "config 'quality'" in str(exc_info.value)
+    assert configs == []
+
+
+class TokenBudgetConfig(BaseModel):
+    """Camel-case aliases and no extra keys, like most provider configs."""
+
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, extra='forbid')
+
+    max_output_tokens: int | None = None
+
+
+@pytest.mark.asyncio
+async def test_prompt_folds_aliases_with_annotation_class() -> None:
+    """The prompt's maxOutputTokens and the call's max_output_tokens are one setting; the call wins."""
+    ai = Genkit()
+    configs: list[object] = []
+
+    async def summarize(request: ModelRequest[TokenBudgetConfig], ctx: ActionRunContext) -> ModelResponse:
+        configs.append(request.config)
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('summary')]))
+
+    ai.define_model('acme/summarize', summarize)
+    digest = ai.define_prompt(model='acme/summarize', prompt='Summarize the menu.', config={'maxOutputTokens': 10})
+
+    await digest(config={'max_output_tokens': 20})
+
+    assert configs == [TokenBudgetConfig(max_output_tokens=20)]

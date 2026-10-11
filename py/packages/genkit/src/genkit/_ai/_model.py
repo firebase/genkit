@@ -294,37 +294,45 @@ async def resolve_for_generate(
     config: object = None,
     registry: Registry,
     message: str = 'No model configured.',
-    check_config: bool = True,
 ) -> ResolvedModel:
     """Name, config bag, and the config class this generate will check against.
 
     A plugin class on a ModelRef is the class this call checks. Plain
     ``ModelConfig`` on a ref means the same as the model name: check
     against the class the model registered.
-
-    Pass ``check_config=False`` when only the class is wanted and ``config``
-    isn't the bag the call will send.
     """
     resolved = resolve_call_model(model=model, config=config, registry=registry, message=message)
     reject_config_api_key(resolved.config)
     if resolved.config_schema is not None and not ref_defers_to_registered_class(resolved.config_schema):
         return resolved
     action = await registry.resolve_model(resolved.name)
-    declared = python_config_schema(getattr(action, '_config_schema', None) if action is not None else None)
-    if declared is None and check_config:
-        # The model fn's ModelRequest[Cfg] coerces config into Cfg once the
-        # turn starts. Check the merged bag against Cfg here so a value it
-        # can't take raises before the turn, like a config_schema= class does.
-        # Every layer is already merged in, so a missing required field is
-        # missing for real. A foreign config object is already dumped into
-        # the bag, so it still converts.
-        check_config_dict(
-            config=resolved.config,
-            schema=annotated_config_class(action),
-            model=resolved.name,
-            whole=True,
-        )
-    return replace(resolved, config_schema=declared)
+    raw = getattr(action, '_config_schema', None) if action is not None else None
+    return replace(resolved, config_schema=python_config_schema(raw))
+
+
+async def config_class_for_generate(*, model: object | None, registry: Registry) -> type[BaseModel] | None:
+    """The config class a generate call to ``model`` folds and checks against.
+
+    The ``config_schema=`` class (or a ref's plugin class) when there is
+    one, else the class on the model function's ``ModelRequest[...]``.
+    """
+    resolved = await resolve_for_generate(model=model, registry=registry)
+    if resolved.config_schema is not None:
+        return resolved.config_schema
+    return annotated_config_class(await registry.resolve_model(resolved.name))
+
+
+async def check_annotated_config(*, model: str, config: object, registry: Registry) -> None:
+    """Raise before the turn when ``config`` can't become the model function's config class.
+
+    The model action coerces ``request.config`` into the class on its
+    ``ModelRequest[...]`` annotation, so a value that class rejects was
+    going to fail anyway; this raises it before middleware or the model
+    run. A missing top-level field passes: ``wrap_model`` middleware can
+    still fill it, and the model action reports it if nothing does.
+    """
+    schema = annotated_config_class(await registry.resolve_model(model))
+    check_config_dict(config=config, schema=schema, model=model)
 
 
 def config_schema_at_define(*, model: object | None, registry: Registry) -> tuple[str | None, type[BaseModel] | None]:
@@ -546,14 +554,13 @@ def assert_correct_config_class(
     )
 
 
-def check_config_dict(*, config: object, schema: type[BaseModel] | None, model: str, whole: bool = False) -> None:
+def check_config_dict(*, config: object, schema: type[BaseModel] | None, model: str) -> None:
     """A dict config has to fit the model's class before anything is sent.
 
     Layers merge by top-level key, so a missing top-level field is fine
     here — another layer may supply it. A nested object is sent whole, so
     a missing field inside one raises. ``None`` means "clear the default"
-    and isn't checked. ``whole=True`` means every layer is already merged
-    in, so a missing top-level field raises too.
+    and isn't checked.
     """
     if schema is None or not isinstance(config, Mapping):
         return
@@ -561,7 +568,7 @@ def check_config_dict(*, config: object, schema: type[BaseModel] | None, model: 
     try:
         schema.model_validate(layer)
     except ValidationError as e:
-        problems = [err for err in e.errors() if whole or not (err['type'] == 'missing' and len(err['loc']) == 1)]
+        problems = [err for err in e.errors() if not (err['type'] == 'missing' and len(err['loc']) == 1)]
         if not problems:
             return
         raise GenkitError(
