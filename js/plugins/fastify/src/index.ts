@@ -136,8 +136,15 @@ export function fastifyHandler<
     }
 
     const abortController = new AbortController();
-    request.raw.on('close', () => {
-      abortController.abort();
+    // Listen on the response, not the request: since Node 16 the request
+    // (IncomingMessage) emits 'close' as soon as its body has been consumed,
+    // which is long before the client disconnects. The response emits 'close'
+    // either after it finished or when the underlying connection was terminated
+    // early, so only abort in the latter case.
+    reply.raw.on('close', () => {
+      if (!reply.raw.writableFinished) {
+        abortController.abort();
+      }
     });
     // When/if a request timeout is configured, the socket emits 'timeout'.
     request.raw.on('timeout', () => {
