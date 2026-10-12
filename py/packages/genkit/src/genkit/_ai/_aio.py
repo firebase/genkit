@@ -2081,6 +2081,7 @@ class Genkit:
             raise GenkitError(
                 status=cast(StatusName, response.error.status or 'INTERNAL'),
                 message=response.error.message,
+                details=response.error.details,
                 reason=response.error.reason,
             )
         if not response.operation:

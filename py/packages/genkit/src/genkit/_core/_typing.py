@@ -536,7 +536,6 @@ class ModelInfo(GenkitModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     versions: list[str] | None = None
     label: str | None = None
-    config_schema: ConfigSchema | None = None
     supports: Supports | None = None
     stage: Stage | None = None
 
