@@ -152,8 +152,8 @@ def test_evaluator_and_metadata_agree_for_same_args(config_schema: type[BaseMode
 
     assert listing.metadata is not None
     assert action.metadata['evaluator'] == listing.metadata['evaluator']
-    assert listing.input_json_schema == action.input_schema
-    assert listing.output_json_schema == action.output_schema
+    assert listing.input_schema == action.input_schema
+    assert listing.output_schema == action.output_schema
 
 
 @pytest.mark.asyncio
@@ -222,8 +222,8 @@ def test_batch_evaluator_and_metadata_agree_for_same_args() -> None:
 
     assert listing.metadata is not None
     assert action.metadata['evaluator'] == listing.metadata['evaluator']
-    assert listing.input_json_schema == action.input_schema
-    assert listing.output_json_schema == action.output_schema
+    assert listing.input_schema == action.input_schema
+    assert listing.output_schema == action.output_schema
 
 
 @pytest.mark.asyncio

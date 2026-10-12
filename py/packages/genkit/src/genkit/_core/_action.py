@@ -837,8 +837,8 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
             action_type=self._kind,
             name=self._name,
             description=self._description,
-            input_json_schema=self._input_schema,
-            output_json_schema=self._output_schema,
+            input_schema=self._input_schema,
+            output_schema=self._output_schema,
             metadata=self._metadata,
         )
 
