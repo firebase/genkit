@@ -41,7 +41,6 @@ from genkit_google_genai._models._interactions_utils import (
 from genkit_google_genai._models._secrets import reject_request_config_api_key
 from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic.alias_generators import to_camel
-from typing_extensions import Never
 
 from genkit import ActionRunContext, ModelResponse
 from genkit.model import Model, ModelRequest

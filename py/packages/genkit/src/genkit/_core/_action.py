@@ -830,8 +830,8 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
     def metadata(self) -> dict[str, object]:
         return self._metadata
 
-    def action_metadata(self) -> ActionMetadata:
-        """Return the ActionMetadata descriptor for Plugin.list_actions()."""
+    def _action_metadata(self) -> ActionMetadata:
+        """Return the ActionMetadata descriptor for Registry.list_actions()."""
         meta = {
             k: v
             for k, v in self._metadata.items()

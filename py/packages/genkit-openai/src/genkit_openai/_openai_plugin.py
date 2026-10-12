@@ -43,7 +43,6 @@ from genkit.model import (
 from genkit.plugin_api import (
     Action,
     ActionKind,
-    ActionMetadata,
     Plugin,
     loop_local_client,
     to_json_schema,
@@ -300,7 +299,7 @@ class OpenAI(Plugin):
         plugin_headers: dict[str, str] = dict(openai_params.get('default_headers') or {})
         self._tenant_headers = {k: v for k, v in plugin_headers.items() if k.lower() not in _PLUGIN_ACCOUNT_HEADERS}
         self._pins_authorization = any(k.lower() == 'authorization' for k in plugin_headers)
-        self._list_actions_cache: list[ActionMetadata] | None = None
+        self._list_actions_cache: list[Action] | None = None
 
     def _has_plugin_key(self) -> bool:
         return bool(self._openai_params.get('api_key') or os.environ.get('OPENAI_API_KEY'))
@@ -600,14 +599,14 @@ class OpenAI(Plugin):
             ),
         )
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[Action]:
         """Generate a list of available actions or models.
 
         Uses pattern matching on model names (mirroring the JS implementation)
         to categorize models as embedders, image generators, TTS, STT, or chat.
 
         Returns:
-            list[ActionMetadata]: A list of ActionMetadata objects. Empty for a
+            list[Action]: A list of Action objects. Empty for a
             plugin without its own key: listing models needs one, and the
             built-in catalog ``init`` registers is already in the Dev UI.
         """
@@ -616,7 +615,7 @@ class OpenAI(Plugin):
         if self._list_actions_cache is not None:
             return self._list_actions_cache
 
-        actions: list[ActionMetadata] = []
+        actions: list[Action] = []
         try:
             models_ = await self._runtime_client().models.list()
         except APIError as e:
@@ -628,14 +627,12 @@ class OpenAI(Plugin):
                 continue
             model_type = _classify_model(name)
             if model_type == _ModelType.EMBEDDER:
-                actions.append(self._create_embedder_action(name).action_metadata())
+                actions.append(self._create_embedder_action(name))
             elif model_type in _DEFAULT_SUPPORTS:
                 model_class, supported_models = _MULTIMODAL_CONFIG[model_type]
-                actions.append(
-                    self._create_multimodal_action(name, model_class, supported_models, model_type).action_metadata()
-                )
+                actions.append(self._create_multimodal_action(name, model_class, supported_models, model_type))
             else:
-                actions.append(self._create_model_action(name).action_metadata())
+                actions.append(self._create_model_action(name))
         self._list_actions_cache = actions
         return actions
 

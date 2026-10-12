@@ -41,13 +41,13 @@ async def _noop_embedder(request: EmbedRequest) -> EmbedResponse:
 
 
 def test_embedder_action_metadata() -> None:
-    """Test Embedder.action_metadata() with a catalog card."""
+    """Test Embedder._action_metadata() with a catalog card."""
     info = EmbedderInfo(label='Test Embedder', dimensions=128)
     action_metadata = Embedder(
         name='test_model',
         fn=_noop_embedder,
         info=info,
-    ).action_metadata()
+    )._action_metadata()
 
     assert isinstance(action_metadata, ActionMetadata)
     assert action_metadata.input_schema is not None
@@ -62,7 +62,7 @@ def test_embedder_action_metadata() -> None:
 
 
 def test_embedder_action_metadata_with_supports_and_config_schema() -> None:
-    """Test Embedder.action_metadata() with supports and config_schema."""
+    """Test Embedder._action_metadata() with supports and config_schema."""
 
     class CustomConfig(BaseModel):
         param1: str
@@ -78,7 +78,7 @@ def test_embedder_action_metadata_with_supports_and_config_schema() -> None:
         name='advanced_model',
         fn=_noop_embedder,
         info=info,
-    ).action_metadata()
+    )._action_metadata()
     assert isinstance(action_metadata, ActionMetadata)
     assert action_metadata.metadata is not None
     metadata = action_metadata.metadata
@@ -100,8 +100,8 @@ def test_embedder_action_metadata_with_supports_and_config_schema() -> None:
 
 
 def test_embedder_action_metadata_no_options() -> None:
-    """Test Embedder.action_metadata() when no options are provided."""
-    action_metadata = Embedder(name='default_model', fn=_noop_embedder).action_metadata()
+    """Test Embedder._action_metadata() when no options are provided."""
+    action_metadata = Embedder(name='default_model', fn=_noop_embedder)._action_metadata()
     assert isinstance(action_metadata, ActionMetadata)
     assert action_metadata.metadata == {
         'embedder': {

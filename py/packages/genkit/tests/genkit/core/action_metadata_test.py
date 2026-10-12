@@ -24,14 +24,18 @@ from pydantic import BaseModel, ValidationError
 
 from genkit import ActionRunContext, Genkit, Message, ModelResponse, Part, Role
 from genkit._core._reflection import create_reflection_asgi_app
-from genkit._core._typing import EvalResponse
+from genkit._core._typing import ActionMetadata, EvalResponse
 from genkit.embedder import Embedder, EmbedRequest, EmbedResponse
 from genkit.evaluator import BaseDataPoint, EvalFnResponse, EvalRequest, Evaluator, Score
 from genkit.model import Model, ModelRequest
-from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin, to_json_schema
+from genkit.plugin_api import Action, ActionKind, Plugin, to_json_schema
 
-REQUEST_SCHEMA = {'type': 'object', 'properties': {'prompt': {'type': 'string'}}, 'required': ['prompt']}
-RESPONSE_SCHEMA = {'type': 'object', 'properties': {'text': {'type': 'string'}}}
+REQUEST_SCHEMA: dict[str, Any] = {
+    'type': 'object',
+    'properties': {'prompt': {'type': 'string'}},
+    'required': ['prompt'],
+}
+RESPONSE_SCHEMA: dict[str, Any] = {'type': 'object', 'properties': {'text': {'type': 'string'}}}
 
 
 class ListingPlugin(Plugin):
@@ -39,7 +43,7 @@ class ListingPlugin(Plugin):
 
     name = 'acme'
 
-    def __init__(self, rows: list[ActionMetadata]) -> None:
+    def __init__(self, rows: list[Action]) -> None:
         self.rows = rows
 
     async def init(self) -> list[Action]:
@@ -48,7 +52,7 @@ class ListingPlugin(Plugin):
     async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         return None
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[Action]:
         return self.rows
 
 
@@ -63,7 +67,12 @@ async def api_actions(ai: Genkit) -> dict[str, Any]:
 @pytest.mark.asyncio
 async def test_action_metadata_input_schema_is_what_reflection_lists() -> None:
     """A plugin row with `input_schema=S` shows `inputSchema == S` in /api/actions."""
-    row = ActionMetadata(action_type=ActionKind.MODEL, name='acme/m', input_schema=REQUEST_SCHEMA)
+
+    async def fn():  # noqa: ANN202 - no return annotation so output_schema is empty
+        pass
+
+    row = Action(kind=ActionKind.MODEL, name='acme/m', fn=fn)
+    row.input_schema = REQUEST_SCHEMA
 
     listed = await api_actions(Genkit(plugins=[ListingPlugin([row])]))
 
@@ -74,7 +83,12 @@ async def test_action_metadata_input_schema_is_what_reflection_lists() -> None:
 @pytest.mark.asyncio
 async def test_action_metadata_output_schema_is_what_reflection_lists() -> None:
     """A plugin row with `output_schema=O` shows `outputSchema == O` in /api/actions."""
-    row = ActionMetadata(action_type=ActionKind.MODEL, name='acme/m', output_schema=RESPONSE_SCHEMA)
+
+    async def fn():  # noqa: ANN202 - no return annotation so input_schema is empty
+        pass
+
+    row = Action(kind=ActionKind.MODEL, name='acme/m', fn=fn)
+    row.output_schema = RESPONSE_SCHEMA
 
     listed = await api_actions(Genkit(plugins=[ListingPlugin([row])]))
 
@@ -110,7 +124,7 @@ def test_action_metadata_input_schema_class_raises_validation_error() -> None:
 
 @pytest.mark.asyncio
 async def test_listed_model_embedder_evaluator_send_request_schema() -> None:
-    """Rows from Model/Embedder/Evaluator.action_metadata() carry their request schema to /api/actions."""
+    """Rows from Model/Embedder/Evaluator carry their request schema to /api/actions."""
 
     async def generate_row(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('ok')]))
@@ -121,26 +135,24 @@ async def test_listed_model_embedder_evaluator_send_request_schema() -> None:
     async def score_row(datapoint: BaseDataPoint, _options: object | None = None) -> EvalFnResponse:
         return EvalFnResponse(test_case_id=datapoint.test_case_id or '', evaluation=[Score(score=True)])
 
-    model_row = Model('acme/m', generate_row).action_metadata()
-    embedder_row = Embedder('acme/e', embed_row).action_metadata()
-    evaluator_row = Evaluator(
-        'acme/ev', score_row, display_name='Acme', definition='Scores acme rows.'
-    ).action_metadata()
+    model_row = Model('acme/m', generate_row)
+    embedder_row = Embedder('acme/e', embed_row)
+    evaluator_row = Evaluator('acme/ev', score_row, display_name='Acme', definition='Scores acme rows.')
 
     listed = await api_actions(Genkit(plugins=[ListingPlugin([model_row, embedder_row, evaluator_row])]))
 
-    assert model_row.input_schema == to_json_schema(ModelRequest)
-    assert model_row.output_schema == to_json_schema(ModelResponse)
+    assert model_row._action_metadata().input_schema == to_json_schema(ModelRequest)
+    assert model_row._action_metadata().output_schema == to_json_schema(ModelResponse)
     assert listed['/model/acme/m']['inputSchema'] == to_json_schema(ModelRequest)
     assert listed['/model/acme/m']['outputSchema'] == to_json_schema(ModelResponse)
 
-    assert embedder_row.input_schema == to_json_schema(EmbedRequest)
-    assert embedder_row.output_schema == to_json_schema(EmbedResponse)
+    assert embedder_row._action_metadata().input_schema == to_json_schema(EmbedRequest)
+    assert embedder_row._action_metadata().output_schema == to_json_schema(EmbedResponse)
     assert listed['/embedder/acme/e']['inputSchema'] == to_json_schema(EmbedRequest)
     assert listed['/embedder/acme/e']['outputSchema'] == to_json_schema(EmbedResponse)
 
-    assert evaluator_row.input_schema == to_json_schema(EvalRequest)
-    assert evaluator_row.output_schema == to_json_schema(EvalResponse)
+    assert evaluator_row._action_metadata().input_schema == to_json_schema(EvalRequest)
+    assert evaluator_row._action_metadata().output_schema == to_json_schema(EvalResponse)
     assert listed['/evaluator/acme/ev']['inputSchema'] == to_json_schema(EvalRequest)
     assert listed['/evaluator/acme/ev']['outputSchema'] == to_json_schema(EvalResponse)
 

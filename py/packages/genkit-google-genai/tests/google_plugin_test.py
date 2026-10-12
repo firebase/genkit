@@ -159,15 +159,15 @@ async def test_googleai_initialize(mock_client_cls: MagicMock) -> None:
 
     # init returns known models and embedders
     assert len(result) > 0, 'Should initialize with known models and embedders'
-    assert all(action.action_type is not None for action in result), 'All actions should have an action_type'
+    assert all(action.kind is not None for action in result), 'All actions should have a kind'
     assert all(hasattr(action, 'name') for action in result), 'All actions should have a name'
     assert all(action.name.startswith('googleai/') for action in result), (
         "All actions should be namespaced with 'googleai/'"
     )
 
     # Verify we have both models and embedders
-    model_actions = [a for a in result if a.action_type == ActionKind.MODEL]
-    embedder_actions = [a for a in result if a.action_type == ActionKind.EMBEDDER]
+    model_actions = [a for a in result if a.kind == ActionKind.MODEL]
+    embedder_actions = [a for a in result if a.kind == ActionKind.EMBEDDER]
     assert len(model_actions) > 0, 'Should have at least one model'
     assert len(embedder_actions) > 0, 'Should have at least one embedder'
 
@@ -344,24 +344,27 @@ async def test_googleai_list_actions(googleai_plugin_instance: GoogleAI) -> None
     # Check Embedder
     action2 = next(a for a in result if a.name == googleai_name('gemini-embedding-001'))
     assert action2 is not None
-    assert action2.action_type == ActionKind.EMBEDDER
+    assert action2.kind == ActionKind.EMBEDDER
     assert action2.metadata is not None
-    assert action2.metadata['embedder']['dimensions'] == 3072
-    assert action2.metadata['embedder']['supports']['input'] == ['text']
+    embedder2_meta = cast(dict[str, Any], action2.metadata['embedder'])
+    assert embedder2_meta['dimensions'] == 3072
+    assert embedder2_meta['supports']['input'] == ['text']
 
     action2b = next(a for a in result if a.name == googleai_name('gemini-embedding-2'))
     assert action2b is not None
-    assert action2b.action_type == ActionKind.EMBEDDER
+    assert action2b.kind == ActionKind.EMBEDDER
     assert action2b.metadata is not None
-    assert action2b.metadata['embedder']['dimensions'] == 3072
-    assert action2b.metadata['embedder']['supports']['input'] == ['text', 'image', 'video']
+    embedder2b_meta = cast(dict[str, Any], action2b.metadata['embedder'])
+    assert embedder2b_meta['dimensions'] == 3072
+    assert embedder2b_meta['supports']['input'] == ['text', 'image', 'video']
 
     action2c = next(a for a in result if a.name == googleai_name('gemini-embedding-2-preview'))
     assert action2c is not None
-    assert action2c.action_type == ActionKind.EMBEDDER
+    assert action2c.kind == ActionKind.EMBEDDER
     assert action2c.metadata is not None
-    assert action2c.metadata['embedder']['dimensions'] == 3072
-    assert action2c.metadata['embedder']['supports']['input'] == ['text', 'image', 'video']
+    embedder2c_meta = cast(dict[str, Any], action2c.metadata['embedder'])
+    assert embedder2c_meta['dimensions'] == 3072
+    assert embedder2c_meta['supports']['input'] == ['text', 'image', 'video']
 
     # Check TTS
     action3 = next(a for a in result if a.name == googleai_name('gemini-2.0-flash-tts'))
@@ -373,7 +376,7 @@ async def test_googleai_list_actions(googleai_plugin_instance: GoogleAI) -> None
     # Check Veo
     action4 = next((a for a in result if a.name == googleai_name('veo-2.0-generate-001')), None)
     assert action4 is not None
-    assert action4.action_type == ActionKind.BACKGROUND_MODEL
+    assert action4.kind == ActionKind.BACKGROUND_MODEL
 
 
 @pytest.mark.parametrize(
@@ -591,7 +594,7 @@ async def test_vertexai_initialize(vertexai_plugin_instance: VertexAI) -> None:
     result = await plugin.list_actions()
 
     assert len(result) > 0, 'Should initialize with known models and embedders'
-    assert all(action.action_type is not None for action in result), 'All actions should have an action_type'
+    assert all(action.kind is not None for action in result), 'All actions should have a kind'
 
     # ... (rest of test unchanged)
 
@@ -601,8 +604,8 @@ async def test_vertexai_initialize(vertexai_plugin_instance: VertexAI) -> None:
     )
 
     # Verify we have both models and embedders
-    model_actions = [a for a in result if a.action_type == ActionKind.MODEL]
-    embedder_actions = [a for a in result if a.action_type == ActionKind.EMBEDDER]
+    model_actions = [a for a in result if a.kind == ActionKind.MODEL]
+    embedder_actions = [a for a in result if a.kind == ActionKind.EMBEDDER]
     assert len(model_actions) > 0, 'Should have at least one model'
     assert len(embedder_actions) > 0, 'Should have at least one embedder'
 
@@ -809,7 +812,7 @@ async def test_vertexai_list_actions_without_supported_actions(vertexai_plugin_i
 
     # gemini-embedding-001 is registered as an embedder, not a gemini model.
     embedder = next(a for a in result if a.name == vertexai_name('gemini-embedding-001'))
-    assert embedder.action_type == ActionKind.EMBEDDER
+    assert embedder.kind == ActionKind.EMBEDDER
     # Non-callable embedders over-listed by the catalog must not leak into Gemini text models.
     assert vertexai_name('gemini-embedding-2') not in names
 
@@ -873,7 +876,7 @@ async def test_vertexai_listed_evaluator_metadata_matches_resolved(vertexai_plug
     _set_async_model_list(mock_client, [])
     plugin._runtime_client = lambda: mock_client
 
-    listed = {a.name: a for a in await plugin.list_actions() if a.action_type == ActionKind.EVALUATOR}
+    listed = {a.name: a for a in await plugin.list_actions() if a.kind == ActionKind.EVALUATOR}
 
     assert sorted(listed) == sorted(vertexai_name(m.lower()) for m in VertexAIEvaluationMetricType)
     for name, meta in listed.items():
@@ -881,13 +884,11 @@ async def test_vertexai_listed_evaluator_metadata_matches_resolved(vertexai_plug
         assert action is not None
         assert meta.metadata is not None
         assert meta.metadata['evaluator'] == action.metadata['evaluator']
-    assert listed[vertexai_name('fluency')].metadata == {
-        'evaluator': {
-            'evaluatorDefinition': 'Assesses the language mastery of an output',
-            'evaluatorDisplayName': 'Fluency',
-            'evaluatorIsBilled': True,
-            'label': vertexai_name('fluency'),
-        }
+    assert listed[vertexai_name('fluency')].metadata['evaluator'] == {
+        'evaluatorDefinition': 'Assesses the language mastery of an output',
+        'evaluatorDisplayName': 'Fluency',
+        'evaluatorIsBilled': True,
+        'label': vertexai_name('fluency'),
     }
 
 

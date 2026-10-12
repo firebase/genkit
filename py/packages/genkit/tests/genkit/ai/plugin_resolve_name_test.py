@@ -28,11 +28,11 @@ import pytest
 from genkit import ActionRunContext, Genkit, GenkitError, Message, ModelResponse, Operation, Part, Role
 from genkit.embedder import Embedder, EmbedRequest, EmbedResponse
 from genkit.model import BackgroundModel, Model, ModelRequest
-from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin
+from genkit.plugin_api import Action, ActionKind, Plugin
 
 
 def _answering_model(name: str, text: str) -> Action:
-    async def fn(request: ModelRequest) -> ModelResponse:
+    async def fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text(text)]))
 
     return Model(name, fn)
@@ -64,7 +64,7 @@ class RecordingPlugin(Plugin):
             return None
         return _answering_model(self.build(name), f'resolved {name}')
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[Action]:
         return []
 
 
@@ -101,7 +101,7 @@ class VideoPlugin(Plugin):
             return self._video('veo-x').cancel_action
         return None
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[Action]:
         return []
 
 
@@ -276,7 +276,7 @@ async def test_plugin_embedder_helper_returns_action_named_with_plugin_prefix() 
 
             return Embedder(name, fn)
 
-        async def list_actions(self) -> list[ActionMetadata]:
+        async def list_actions(self) -> list[Action]:
             return []
 
     action = await EmbedPlugin().embedder('embed-1')

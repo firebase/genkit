@@ -38,7 +38,7 @@ from google.auth.exceptions import DefaultCredentialsError
 
 from genkit import ActionRunContext, GenkitError, ModelResponse
 from genkit.model import Model, ModelInfo, ModelRequest
-from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin, loop_local_client
+from genkit.plugin_api import Action, ActionKind, Plugin, loop_local_client
 
 if TYPE_CHECKING:
     from genkit_vertexai._model_garden._client import CachedOpenAI
@@ -338,23 +338,14 @@ class ModelGarden(Plugin):
             info=_openai_compat_model_info(name),
         )
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[Action]:
         """Generate a list of available actions or models.
 
         Returns:
-            list[ActionMetadata]: A list of ActionMetadata objects, each with the following attributes:
-                - name (str): The name of the action or model.
-                - kind (ActionKind): The type or category of the action.
-                - info (dict): The metadata dictionary describing the model configuration and properties.
-                - config_schema (type): The schema class used for validating the model's configuration.
+            list[Action]: A list of Action objects.
             Empty when the ``openai`` extra isn't installed, so the Dev UI only lists models that can run.
         """
         try:
-            with _requires_extra(_OPENAI_EXTRA):
-                from genkit_openai import OpenAIConfig
+            return [await self._create_model_action(model) for model in SUPPORTED_OPENAI_COMPAT_MODELS]
         except GenkitError:
             return []
-
-        return [
-            (await self._create_model_action(model)).action_metadata() for model in SUPPORTED_OPENAI_COMPAT_MODELS
-        ]

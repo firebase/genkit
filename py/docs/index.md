@@ -119,8 +119,6 @@
 
 ::: genkit.plugin_api.Action
 
-::: genkit.plugin_api.ActionMetadata
-
 ::: genkit.plugin_api.ActionKind
 
 ::: genkit.plugin_api.StatusName

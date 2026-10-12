@@ -25,14 +25,12 @@ from genkit._core._error import StatusName, provider_error
 from genkit._core._loop_cache import loop_local_client
 from genkit._core._plugin import MiddlewarePlugin, Plugin
 from genkit._core._schema import to_json_schema
-from genkit._core._typing import ActionMetadata
 
 __all__ = [
     # Base class and framework primitives
     'MiddlewarePlugin',
     'Plugin',
     'Action',
-    'ActionMetadata',
     'ActionKind',
     'StatusName',
     # String enum that behaves the same on Python 3.10 through 3.14

@@ -75,16 +75,13 @@ from genkit.plugin_api import (
     GENKIT_CLIENT_HEADER,
     Action,
     ActionKind,
-    ActionMetadata,
     Plugin,
     loop_local_client,
-    to_json_schema,
 )
 from genkit_google_genai._auth import GOOGLE_AUTH_ERRORS, raise_auth_error
 from genkit_google_genai._evaluators._evaluation import (
     VertexAIEvaluationMetricType,
     create_vertex_evaluators,
-    vertex_evaluator_action_metadata,
 )
 from genkit_google_genai._interactions._options import ClientOptions
 from genkit_google_genai._models._antigravity import AntigravityConfig, create_antigravity_action
@@ -109,7 +106,6 @@ from genkit_google_genai._models._gemini import (
     KnownGeminiImage,
     KnownGeminiTts,
     KnownGemma,
-    get_model_config_schema,
     google_model_info,
     is_gemma_model,
     is_image_model,
@@ -122,7 +118,6 @@ from genkit_google_genai._models._interactions_lyria import (
 )
 from genkit_google_genai._models._interactions_registry import (
     KnownLyria,
-    antigravity_model_info,
     deep_research_model_info,
     is_antigravity_model_name,
     is_deep_research_model_name,
@@ -130,7 +125,6 @@ from genkit_google_genai._models._interactions_registry import (
     list_known_antigravity_models,
     list_known_deep_research_models,
     list_known_lyria_models,
-    lyria_model_info,
 )
 from genkit_google_genai._models._model_refs import (
     family_embedder_ref,
@@ -619,7 +613,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         self._base_url_pinned = bool(self._client_kwargs['http_options'].base_url)
         # Single loop-local client accessor used everywhere in plugin runtime paths.
         self._runtime_client = loop_local_client(lambda: _plugin_client(self._client_kwargs))
-        self._list_actions_cache: list[ActionMetadata] | None = None
+        self._list_actions_cache: list[Action | BackgroundModel] | None = None
 
     def _interactions_client_options(self) -> ClientOptions:
         """Plugin-level transport knobs for Interactions models.
@@ -814,24 +808,20 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         """
         return _create_embedder_action(name, self._runtime_client, GOOGLEAI_PLUGIN_NAME)
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[Action | BackgroundModel]:
         """Generate a list of available actions or models.
 
         Returns:
-            list[ActionMetadata]: A list of ActionMetadata objects, each with the following attributes:
-                - name (str): The name of the action or model.
-                - kind (ActionKind): The type or category of the action.
-                - info (dict): The metadata dictionary describing the model configuration and properties.
-                - config_schema (type): The schema class used for validating the model's configuration.
+            list[Action | BackgroundModel]: A list of Action and BackgroundModel objects.
         """
         if self._list_actions_cache is not None:
             return self._list_actions_cache
         genai_models = await _list_genai_models(self._runtime_client(), is_vertex=False)
-        actions_list = []
+        actions_list: list[Action | BackgroundModel] = []
 
         for name in genai_models.gemini:
             if (model_action := self._resolve_model(name)) is not None:
-                actions_list.append(model_action.action_metadata())
+                actions_list.append(model_action)
 
         for name in genai_models.veo:
             actions_list.append(
@@ -840,7 +830,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
                     self._runtime_client,
                     GOOGLEAI_PLUGIN_NAME,
                     client_kwargs=self._client_kwargs,
-                ).action_metadata()
+                )
             )
 
         for name in list_known_deep_research_models():
@@ -849,19 +839,17 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
                     googleai_name(name),
                     plugin_api_key=self._plugin_api_key(),
                     client_options=self._interactions_client_options(),
-                ).action_metadata()
+                )
             )
         for name in list_known_antigravity_models():
             if (model_action := self._resolve_model(name)) is not None:
-                actions_list.append(model_action.action_metadata())
+                actions_list.append(model_action)
         for name in list_known_lyria_models():
             if (model_action := self._resolve_model(name)) is not None:
-                actions_list.append(model_action.action_metadata())
+                actions_list.append(model_action)
 
         for name in genai_models.embedders:
-            actions_list.append(
-                _create_embedder_action(name, self._runtime_client, GOOGLEAI_PLUGIN_NAME).action_metadata()
-            )
+            actions_list.append(_create_embedder_action(name, self._runtime_client, GOOGLEAI_PLUGIN_NAME))
 
         self._list_actions_cache = actions_list
         return actions_list
@@ -999,7 +987,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
         }
         # Single loop-local client accessor used everywhere in plugin runtime paths.
         self._runtime_client = loop_local_client(lambda: _plugin_client(self._client_kwargs))
-        self._list_actions_cache: list[ActionMetadata] | None = None
+        self._list_actions_cache: list[Action | BackgroundModel] | None = None
 
     async def init(self) -> list[Action]:
         """Initialize the plugin.
@@ -1196,24 +1184,20 @@ class VertexAI(GoogleFamilyRefs, Plugin):
         """
         return _create_embedder_action(name, self._runtime_client, VERTEXAI_PLUGIN_NAME)
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[Action | BackgroundModel]:
         """Generate a list of available actions or models.
 
         Returns:
-            list[ActionMetadata]: A list of ActionMetadata objects, each with the following attributes:
-                - name (str): The name of the action or model.
-                - kind (ActionKind): The type or category of the action.
-                - info (dict): The metadata dictionary describing the model configuration and properties.
-                - config_schema (type): The schema class used for validating the model's configuration.
+            list[Action | BackgroundModel]: A list of Action and BackgroundModel objects.
         """
         if self._list_actions_cache is not None:
             return self._list_actions_cache
         genai_models = await _list_genai_models(self._runtime_client(), is_vertex=True)
-        actions_list = []
+        actions_list: list[Action | BackgroundModel] = []
 
         for name in genai_models.gemini:
             if (model_action := self._resolve_model(name)) is not None:
-                actions_list.append(model_action.action_metadata())
+                actions_list.append(model_action)
 
         for name in genai_models.veo:
             actions_list.append(
@@ -1222,17 +1206,20 @@ class VertexAI(GoogleFamilyRefs, Plugin):
                     self._runtime_client,
                     VERTEXAI_PLUGIN_NAME,
                     client_kwargs=self._client_kwargs,
-                ).action_metadata()
+                )
             )
 
         for name in VERTEX_KNOWN_EMBEDDERS:
-            actions_list.append(
-                _create_embedder_action(name, self._runtime_client, VERTEXAI_PLUGIN_NAME).action_metadata()
-            )
+            actions_list.append(_create_embedder_action(name, self._runtime_client, VERTEXAI_PLUGIN_NAME))
 
         if self._project:
-            for metric in VertexAIEvaluationMetricType:
-                actions_list.append(vertex_evaluator_action_metadata(metric))
+            actions_list.extend(
+                create_vertex_evaluators(
+                    list(VertexAIEvaluationMetricType),
+                    project=self._project,
+                    location=self._location,
+                )
+            )
 
         self._list_actions_cache = actions_list
         return actions_list

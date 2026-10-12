@@ -59,7 +59,7 @@ from genkit._core._model import (
 )
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
-from genkit._core._typing import ActionMetadata, GenerationCommonConfig, ModelInfo
+from genkit._core._typing import GenerationCommonConfig, ModelInfo
 
 # Type alias for model functions (must be async)
 # Use ctx.send_chunk() for streaming
@@ -438,10 +438,10 @@ def claims_long_running(*, model_options: dict[str, object]) -> bool:
 
 
 class Model(Action[ModelRequest, ModelResponse, ModelResponseChunk]):
-    """A model action returned from a plugin's ``init`` / ``resolve`` or ``define_model``.
+    """A model action returned from a plugin's ``init`` / ``resolve`` / ``list_actions`` or ``define_model``.
 
-    Plugin ``init`` / ``resolve`` return this without registering it;
-    ``list_actions`` returns ``self.action_metadata()``; ``define_model`` registers it.
+    Plugin ``init`` / ``resolve`` / ``list_actions`` return this without registering it;
+    ``define_model`` registers it.
     The config class stays on the action so ``generate(model='name', config=...)``
     can ``isinstance``-check a Pydantic instance against a string model name.
     """

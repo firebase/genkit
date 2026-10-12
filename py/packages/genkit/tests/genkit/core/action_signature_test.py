@@ -14,7 +14,7 @@ from pydantic import TypeAdapter
 from genkit import ActionRunContext, Document, Genkit, GenkitError, Message, ModelResponse, Operation, Part
 from genkit._core._action import Action, ActionKind
 from genkit._core._background import CheckModelOpFn, StartModelOpFn
-from genkit._core._typing import ActionMetadata, Role
+from genkit._core._typing import Role
 from genkit.model import ModelRequest
 from genkit.plugin_api import Plugin
 
@@ -366,7 +366,7 @@ class _KitchenPlugin(Plugin):
             return Action(kind=ActionKind.EMBEDDER, name=name, fn=self._fn)
         return None
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[Action]:
         return []
 
 

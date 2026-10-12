@@ -41,7 +41,7 @@ from google.auth.transport.requests import Request
 
 from genkit import GenkitError
 from genkit.evaluator import BaseDataPoint, EvalFnResponse, Evaluator, Score, ScoreDetails
-from genkit.plugin_api import GENKIT_CLIENT_HEADER, Action, ActionMetadata, StrEnum, loop_local_client, provider_error
+from genkit.plugin_api import GENKIT_CLIENT_HEADER, Action, StrEnum, loop_local_client, provider_error
 
 
 @loop_local_client
@@ -401,14 +401,6 @@ METRIC_CONFIGS: dict[VertexAIEvaluationMetricType, dict[str, Any]] = {
 def vertex_evaluator_name(metric_type: VertexAIEvaluationMetricType) -> str:
     """Action name for a Vertex metric, e.g. ``vertexai/fluency``."""
     return f'vertexai/{metric_type.lower()}'
-
-
-def vertex_evaluator_action_metadata(metric_type: VertexAIEvaluationMetricType) -> ActionMetadata:
-    """Listing entry for a Vertex metric."""
-    return _create_evaluator_for_metric(
-        factory=EvaluatorFactory('', ''),
-        metric_type=metric_type,
-    ).action_metadata()
 
 
 def create_vertex_evaluators(

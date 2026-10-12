@@ -116,8 +116,6 @@ Types exported from genkit, genkit.model, genkit.embedder, genkit.plugin_api, ge
 
 ::: genkit.plugin_api.Action
 
-::: genkit.plugin_api.ActionMetadata
-
 ::: genkit.plugin_api.ActionKind
 
 ::: genkit.plugin_api.StatusName

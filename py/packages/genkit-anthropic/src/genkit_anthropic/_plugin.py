@@ -26,7 +26,6 @@ from genkit.model import Model, ModelRef, ModelRequest
 from genkit.plugin_api import (
     Action,
     ActionKind,
-    ActionMetadata,
     Plugin,
     loop_local_client,
     to_json_schema,
@@ -143,7 +142,7 @@ class Anthropic(Plugin):
         self._default_api_version: Literal['stable', 'beta'] | None = api_version
         self._anthropic_params = anthropic_params
         self._runtime_client = loop_local_client(lambda: AsyncAnthropic(**cast(dict[str, Any], self._anthropic_params)))
-        self._list_actions_cache: list[ActionMetadata] | None = None
+        self._list_actions_cache: list[Action] | None = None
 
     async def init(self) -> list[Action]:
         """Initialize plugin.
@@ -208,18 +207,6 @@ class Anthropic(Plugin):
             },
         )
 
-    def _model_metadata(self, model_id: str) -> ActionMetadata:
-        """Build ActionMetadata for a single (bare, unprefixed) Anthropic model id.
-
-        Args:
-            model_id: Bare model id (no ``anthropic/`` prefix).
-
-        Returns:
-            ActionMetadata for the model, using curated info if known, else a
-            generic fallback.
-        """
-        return self._create_model_action(model_id).action_metadata()
-
     async def _fetch_dynamic_model_ids(self) -> list[str]:
         """Fetch all available model ids from the Anthropic API.
 
@@ -236,7 +223,7 @@ class Anthropic(Plugin):
                 model_ids.append(model.id)
         return model_ids
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[Action]:
         """List available Anthropic models.
 
         Queries the Anthropic API for currently available models and returns
@@ -249,7 +236,7 @@ class Anthropic(Plugin):
         API.
 
         Returns:
-            List of ActionMetadata for all discovered/supported models.
+            List of Action objects for all discovered/supported models.
         """
         if self._list_actions_cache is not None:
             return self._list_actions_cache
@@ -258,7 +245,7 @@ class Anthropic(Plugin):
             model_ids = await self._fetch_dynamic_model_ids()
         except Exception as e:
             logger.warning('Failed to list Anthropic models from API, using static model list', error=str(e))
-            return [self._model_metadata(model_id) for model_id in SUPPORTED_ANTHROPIC_MODELS]
+            return [self._create_model_action(model_id) for model_id in SUPPORTED_ANTHROPIC_MODELS]
 
         seen: set[str] = set()
         ordered_ids: list[str] = []
@@ -271,6 +258,6 @@ class Anthropic(Plugin):
                 seen.add(model_id)
                 ordered_ids.append(model_id)
 
-        actions = [self._model_metadata(model_id) for model_id in ordered_ids]
+        actions = [self._create_model_action(model_id) for model_id in ordered_ids]
         self._list_actions_cache = actions
         return actions

@@ -364,7 +364,7 @@ def test_response_wrapper_interrupts() -> None:
 
 
 def test_model_action_metadata() -> None:
-    """Test for Model(...).action_metadata()."""
+    """Test for Model(...)._action_metadata()."""
 
     async def fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('ok')]))
@@ -374,7 +374,7 @@ def test_model_action_metadata() -> None:
         fn,
         info=ModelInfo(label='test_label'),
         config_schema=None,
-    ).action_metadata()
+    )._action_metadata()
 
     assert isinstance(action_metadata, ActionMetadata)
     assert action_metadata.input_schema is not None
@@ -388,7 +388,7 @@ def test_model_action_metadata_label_defaults_to_name() -> None:
     async def fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('ok')]))
 
-    action_metadata = Model('bistro/menu-writer', fn).action_metadata()
+    action_metadata = Model('bistro/menu-writer', fn)._action_metadata()
 
     assert action_metadata.metadata == {'model': {'label': 'bistro/menu-writer'}}
 
@@ -408,13 +408,13 @@ def test_model_action_metadata_label_defaults_to_name() -> None:
 )
 @pytest.mark.parametrize('config_schema', [None, PluginConfig])
 def test_model_action_metadata_matches_model(info: ModelInfo | None, config_schema: type[BaseModel] | None) -> None:
-    """Model(...).action_metadata() carries identical metadata and schemas to the Model instance."""
+    """Model(...)._action_metadata() carries identical metadata and schemas to the Model instance."""
 
     async def menu_writer(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('Smoked Salmon Tartine')]))
 
     resolved = Model('bistro/menu-writer', menu_writer, info=info, config_schema=config_schema)
-    listed = resolved.action_metadata()
+    listed = resolved._action_metadata()
 
     assert isinstance(resolved, Model)
     assert listed.metadata == {'model': resolved.metadata['model']}

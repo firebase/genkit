@@ -45,7 +45,6 @@ from genkit.model import (
 from genkit.plugin_api import (
     Action,
     ActionKind,
-    ActionMetadata,
     Plugin,
     loop_local_client,
     provider_error,
@@ -402,7 +401,7 @@ class Ollama(Plugin):
             ),
         )
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[Action]:
         """List the models and embedders the server has pulled.
 
         Reads ``/api/tags``, then probes each model's ``/api/show``
@@ -412,7 +411,7 @@ class Ollama(Plugin):
         Names containing ``embed`` are listed as embedders, as in JS and Go.
 
         Returns:
-            ActionMetadata for each model and embedder.
+            Action for each model and embedder.
         """
         async with wrap_connection_errors(self.server_address):
             try:
@@ -440,8 +439,6 @@ class Ollama(Plugin):
 
         definitions = await asyncio.gather(*(describe(name, digest) for name, digest in model_rows))
 
-        actions: list[ActionMetadata] = [
-            self._create_model_action(definition).action_metadata() for definition in definitions
-        ]
-        actions.extend(self._create_embedder_action(name).action_metadata() for name in embedder_names)
+        actions: list[Action] = [self._create_model_action(definition) for definition in definitions]
+        actions.extend(self._create_embedder_action(name) for name in embedder_names)
         return actions

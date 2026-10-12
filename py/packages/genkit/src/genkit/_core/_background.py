@@ -273,6 +273,26 @@ class BackgroundModel:
         return self.start_action.name
 
     @property
+    def kind(self) -> ActionKind:
+        """The action kind of the background model."""
+        return self.start_action.kind
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """The metadata dictionary of the background model's start action."""
+        return self.start_action.metadata
+
+    @property
+    def input_schema(self) -> dict[str, Any] | None:
+        """The input JSON schema of the background model's start action."""
+        return self.start_action.input_schema
+
+    @property
+    def output_schema(self) -> dict[str, Any] | None:
+        """The output JSON schema of the background model's start action."""
+        return self.start_action.output_schema
+
+    @property
     def supports_cancel(self) -> bool:
         """Whether this background model supports cancellation."""
         return self.cancel_action is not None
@@ -289,9 +309,9 @@ class BackgroundModel:
             actions.append(self.cancel_action)
         return actions
 
-    def action_metadata(self) -> ActionMetadata:
-        """Return the ActionMetadata descriptor for Plugin.list_actions()."""
-        return self.start_action.action_metadata()
+    def _action_metadata(self) -> ActionMetadata:
+        """Return the ActionMetadata descriptor for Registry.list_actions()."""
+        return self.start_action._action_metadata()
 
     async def start(
         self,

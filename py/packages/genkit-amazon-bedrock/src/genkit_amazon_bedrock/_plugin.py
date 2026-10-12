@@ -32,7 +32,6 @@ from genkit.model import Model, ModelRequest
 from genkit.plugin_api import (
     Action,
     ActionKind,
-    ActionMetadata,
     Plugin,
     to_json_schema,
 )
@@ -242,7 +241,7 @@ class Bedrock(Plugin):
             info=get_embedder_info(model_id),
         )
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[Action]:
         """List configured Bedrock models and embedders.
 
         Only explicitly configured entries are listed, and only those this
@@ -254,19 +253,17 @@ class Bedrock(Plugin):
         read.
 
         Returns:
-            ActionMetadata for each configured model and embedder.
+            Action for each configured model and embedder.
         """
-        actions: list[ActionMetadata] = []
+        actions: list[Action] = []
         for model_id in self.models:
             if looks_like_embedding_model(model_id) or is_rerank_model(model_id):
                 continue
             model_type = _model_type(model_id)
-            actions.append(self._create_model_action(model_id, model_type).action_metadata())
+            actions.append(self._create_model_action(model_id, model_type))
         models = len(actions)
         actions.extend(
-            self._create_embedder_action(model_id).action_metadata()
-            for model_id in self.embedders
-            if is_embedding_model(model_id)
+            self._create_embedder_action(model_id) for model_id in self.embedders if is_embedding_model(model_id)
         )
         logger.debug(
             'Bedrock actions listed',

@@ -19,11 +19,14 @@
 from __future__ import annotations
 
 import abc
-from typing import ClassVar
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, ClassVar
 
 from genkit._core._action import Action, ActionKind, set_action_name
 from genkit._core._middleware import GenerateMiddleware
-from genkit._core._typing import ActionMetadata
+
+if TYPE_CHECKING:
+    from genkit._core._background import BackgroundModel
 
 
 def resolved_action_name(*, plugin: str, requested_id: str) -> str:
@@ -92,11 +95,10 @@ class Plugin(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> Sequence[Action | BackgroundModel]:
         """Return advertised actions for dev UI/reflection listing.
 
-        ``ActionMetadata.action_type`` must be set (typically ``ActionKind.*``) and
-        ``ActionMetadata.name`` must match resolution keys (typically
+        Each returned action's ``name`` must match resolution keys (typically
         ``{plugin.name}/localName`` for plugin-backed actions).
         """
         ...
@@ -185,7 +187,7 @@ class MiddlewarePlugin(Plugin):
     async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         return None
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> Sequence[Action | BackgroundModel]:
         return []
 
     def list_middleware(self) -> list[GenerateMiddleware]:

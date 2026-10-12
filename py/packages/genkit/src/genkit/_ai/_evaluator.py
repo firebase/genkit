@@ -103,8 +103,7 @@ def _get_func_description(func: Callable[..., Any], description: str | None = No
 class Evaluator(Action[EvalRequest, EvalResponse, Never]):
     """Evaluator action that runs ``fn`` on each dataset sample, without registering it.
 
-    Plugin ``init`` / ``resolve`` return this; ``list_actions`` returns ``self.action_metadata()``.
-    ``define_evaluator`` registers it.
+    Plugin ``init`` / ``resolve`` / ``list_actions`` return this; ``define_evaluator`` registers it.
     """
 
     def __init__(

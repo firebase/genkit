@@ -128,9 +128,9 @@ class Tool:
         """Return the underlying :class:`~genkit._core._action.Action` registered for this tool."""
         return self._action
 
-    def action_metadata(self) -> ActionMetadata:
+    def _action_metadata(self) -> ActionMetadata:
         """Return reflection metadata for the underlying tool :class:`~genkit._core._action.Action`."""
-        return self._action.action_metadata()
+        return self._action._action_metadata()
 
     async def __call__(self, *args: Any, **kwargs: Any) -> MultipartToolResponse:  # noqa: ANN401
         """Run the tool and return the envelope (structured output plus optional media)."""
