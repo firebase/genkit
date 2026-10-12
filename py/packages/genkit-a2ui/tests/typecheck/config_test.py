@@ -26,12 +26,12 @@ from pydantic import ValidationError
 
 
 def test_surfaces_config_snake_case_kwargs() -> None:
-    """Field names type-check as kwargs; the wire dump is camelCase."""
+    """Field names type-check as kwargs; the wire dump keeps validate and surfaceId."""
     config = SurfacesConfig(instructions='none', validation='strict', surface_id='order-card', catalog='menu')
 
     assert config.model_dump(by_alias=True, exclude_none=True, mode='json') == {
         'instructions': 'none',
-        'validation': 'strict',
+        'validate': 'strict',
         'surfaceId': 'order-card',
         'catalog': 'menu',
         'version': config.version,
@@ -39,17 +39,16 @@ def test_surfaces_config_snake_case_kwargs() -> None:
 
 
 def test_surfaces_config_accepts_wire_names() -> None:
-    """The camelCase surfaceId key builds the same config as the field name."""
+    """The validate and surfaceId JSON keys build the same config as the field names."""
     typed = SurfacesConfig(validation='off', surface_id='order-card')
 
+    assert SurfacesConfig.model_validate({'validate': 'off', 'surfaceId': 'order-card'}) == typed
     assert SurfacesConfig.model_validate({'validation': 'off', 'surfaceId': 'order-card'}) == typed
     assert Surfaces(validation='off', surface_id='order-card').config == typed
     assert Surfaces(config=typed).config.validation == 'off'
 
 
-def test_surfaces_config_rejects_validate() -> None:
-    """validate= is JS's option name; in Python it is a typo and raises."""
+def test_surfaces_config_rejects_duplicate_spellings() -> None:
+    """Passing both validate and validation in the same dict raises."""
     with pytest.raises(ValidationError):
-        Surfaces(validate='strict')
-    with pytest.raises(ValidationError):
-        SurfacesConfig.model_validate({'validate': 'strict'})
+        SurfacesConfig.model_validate({'validate': 'strict', 'validation': 'off'})

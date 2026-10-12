@@ -116,3 +116,43 @@ def test_genkit_config_schema_and_ref_use_one_spelling() -> None:
     assert ref == MiddlewareRef(name='budget', config={'maxSpendCents': 100})
     [rebuilt] = resolve_middleware_from_use(registry, [ref])
     assert rebuilt.config == BudgetConfig(max_spend_cents=100)
+
+
+def test_inline_middleware_with_serialization_alias_and_computed_field_round_trips() -> None:
+    """Output-only serialization_alias and @computed_field do not break inline use=[Mw(...)]."""
+    from pydantic import Field, computed_field
+
+    class Cfg(BaseModel):
+        max_warnings: int = Field(3, serialization_alias='maxWarnings')
+
+        @computed_field  # type: ignore[prop-decorator]
+        @property
+        def doubled(self) -> int:
+            return self.max_warnings * 2
+
+    class Mw(BaseMiddleware[Cfg]):
+        pass
+
+    ai = Genkit()
+    registry: Any = ai._registry
+    [ref] = register_middleware(registry, [Mw(max_warnings=1)]) or []
+    assert ref.config == {'max_warnings': 1}
+    [rebuilt] = resolve_middleware_from_use(registry, [ref])
+    assert rebuilt.config.max_warnings == 1
+
+
+def test_alias_without_validate_by_name_rejects_field_name_in_ref() -> None:
+    """When a BaseModel field has alias='maxWarnings' and no validate_by_name, 'max_warnings' is rejected."""
+    from pydantic import Field
+
+    class Cfg(BaseModel):
+        max_warnings: int = Field(3, alias='maxWarnings')
+
+    class Mw(BaseMiddleware[Cfg]):
+        pass
+
+    with pytest.raises(GenkitError) as raised:
+        _definition(Mw, 'mw').instantiate({'max_warnings': 1})
+    assert raised.value.status == 'INVALID_ARGUMENT'
+    assert 'accepted keys: maxWarnings' in raised.value.original_message
+    assert _definition(Mw, 'mw').instantiate({'maxWarnings': 1}).config.max_warnings == 1
