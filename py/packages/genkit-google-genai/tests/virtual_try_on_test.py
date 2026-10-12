@@ -648,6 +648,22 @@ class TestFailureModes:
         assert missing in str(exc_info.value)
 
     @pytest.mark.asyncio
+    async def test_two_person_images_are_refused(self) -> None:
+        """A request dresses one person; a second personImage part is an error, not silently dropped."""
+        client = _client()
+        parts = [
+            _media_part(PERSON_URL, 'personImage'),
+            _media_part('gs://bucket/second.png', 'personImage'),
+            _media_part(PRODUCT_URL, 'productImage'),
+        ]
+
+        with pytest.raises(GenkitError) as exc_info:
+            await _generate(VirtualTryOnModel('virtual-try-on-001', client), _request(parts=parts))
+        assert exc_info.value.status == 'INVALID_ARGUMENT'
+        assert 'got 2' in str(exc_info.value)
+        client.aio.models.recontext_image.assert_not_called()
+
+    @pytest.mark.asyncio
     @pytest.mark.parametrize('url', ['https://example.com/x.png', 'http://example.com/x.png'])
     async def test_http_urls_are_refused(self, url: str) -> None:
         """http(s) images are not fetched; the caller is pointed at Cloud Storage."""

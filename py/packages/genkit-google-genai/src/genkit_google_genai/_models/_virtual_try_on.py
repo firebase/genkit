@@ -236,6 +236,14 @@ def _to_source(request: ModelRequest) -> genai_types.RecontextImageSource:
     product_urls = _tagged_media_urls(request, PRODUCT_IMAGE_TYPE)
     if not person_urls:
         raise _missing_media_error(PERSON_IMAGE_TYPE)
+    if len(person_urls) > 1:
+        raise GenkitError(
+            status='INVALID_ARGUMENT',
+            message=(
+                f"Virtual Try-On takes one media part tagged metadata={{'type': '{PERSON_IMAGE_TYPE}'}}; "
+                f'got {len(person_urls)}.'
+            ),
+        )
     if not product_urls:
         raise _missing_media_error(PRODUCT_IMAGE_TYPE)
     return genai_types.RecontextImageSource(
