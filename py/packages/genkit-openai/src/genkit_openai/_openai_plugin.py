@@ -45,7 +45,6 @@ from genkit.plugin_api import (
     ActionKind,
     Plugin,
     loop_local_client,
-    to_json_schema,
 )
 from genkit_openai._models._audio import (
     SUPPORTED_STT_MODELS,
@@ -470,12 +469,7 @@ class OpenAI(Plugin):
             open_ai_name(name),
             _generate,
             config_schema=OpenAIConfig,
-            metadata={
-                'model': {
-                    **model_info,
-                    'customOptions': to_json_schema(OpenAIConfig),
-                },
-            },
+            metadata={'model': model_info},
         )
 
     def _create_multimodal_action(

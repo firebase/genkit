@@ -24,7 +24,6 @@ from genkit._core._environment import is_dev_environment
 from genkit._core._error import StatusName, provider_error
 from genkit._core._loop_cache import loop_local_client
 from genkit._core._plugin import MiddlewarePlugin, Plugin
-from genkit._core._schema import to_json_schema
 
 __all__ = [
     # Base class and framework primitives
@@ -43,6 +42,4 @@ __all__ = [
     'loop_local_client',
     # Environment detection
     'is_dev_environment',
-    # Schema utilities
-    'to_json_schema',
 ]

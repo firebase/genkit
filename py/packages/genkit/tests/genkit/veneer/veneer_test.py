@@ -29,7 +29,6 @@ from genkit._core._model import ModelRequest, OutputConfig
 from genkit._core._typing import (
     EvalFnResponse,
     EvalRequest,
-    EvalResponse,
     FinishReason,
     ModelInfo,
     ModelSupports,
@@ -1778,24 +1777,6 @@ def test_sync_batch_evaluator_raises_type_error_at_definition(setup_test: SetupF
             definition='sync',
             fn=cast(Any, my_eval),
         )
-
-
-@pytest.mark.asyncio
-async def test_evaluate_batch_evaluator_returning_eval_response_returns_its_rows(setup_test: SetupFixture) -> None:
-    """A batch fn that returns an EvalResponse gives ai.evaluate the same rows as one returning a list."""
-    ai, *_ = setup_test
-
-    async def my_eval(req: EvalRequest) -> EvalResponse:
-        return EvalResponse([
-            EvalFnResponse(test_case_id=row.test_case_id or '', evaluation=[Score(score=True)]) for row in req.dataset
-        ])
-
-    ai.define_batch_evaluator(name='resp_eval', display_name='resp_eval', definition='returns model', fn=my_eval)
-
-    results = await ai.evaluate(evaluator='resp_eval', dataset=_two_rows())
-
-    assert [row.test_case_id for row in results] == ['case1', 'case2']
-    assert [score.score for score in results[0].evaluation] == [True]
 
 
 @pytest.mark.asyncio

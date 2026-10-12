@@ -48,7 +48,6 @@ from genkit.plugin_api import (
     Plugin,
     loop_local_client,
     provider_error,
-    to_json_schema,
 )
 from genkit_ollama._constants import DEFAULT_OLLAMA_SERVER_URL
 from genkit_ollama._embedders import OllamaEmbedder
@@ -394,10 +393,10 @@ class Ollama(Plugin):
         return Embedder(
             ollama_name(name),
             _run,
+            config_schema=ollama_api.Options,
             info=EmbedderInfo(
                 label=f'Ollama Embedding - {name}',
                 supports=EmbedderSupports(input=['text']),
-                config_schema=to_json_schema(ollama_api.Options),
             ),
         )
 

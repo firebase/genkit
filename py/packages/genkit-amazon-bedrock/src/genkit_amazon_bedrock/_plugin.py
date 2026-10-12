@@ -33,7 +33,6 @@ from genkit.plugin_api import (
     Action,
     ActionKind,
     Plugin,
-    to_json_schema,
 )
 from genkit_amazon_bedrock._config import (
     DEFAULT_TOTAL_TIMEOUT,
@@ -225,7 +224,6 @@ class Bedrock(Plugin):
                     'supports': (
                         model_info.supports.model_dump(by_alias=True, exclude_none=True) if model_info.supports else {}
                     ),
-                    'customOptions': to_json_schema(config_schema),
                 },
             },
         )
