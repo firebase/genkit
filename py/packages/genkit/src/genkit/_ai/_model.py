@@ -311,7 +311,7 @@ async def config_class_for_generate(*, model: object | None, registry: Registry)
     return annotated_config_class(await registry.resolve_model(resolved.name))
 
 
-async def check_config_before_turn(*, model: str, config: object, registry: Registry) -> None:
+async def check_config_before_turn(*, model: ModelArg, config: object, registry: Registry) -> None:
     """Raise before the turn when a value in ``config`` can't reach the model.
 
     Covers the two schemas the call-time check doesn't see: the class on the
@@ -320,11 +320,12 @@ async def check_config_before_turn(*, model: str, config: object, registry: Regi
     ``wrap_model`` middleware can still fill it, and the model action reports
     it if nothing does.
     """
-    action = await registry.resolve_model(model)
-    check_config_values(config=config, schema=annotated_config_class(action), model=model)
+    model_name = model.name if isinstance(model, ModelRef) else model
+    action = await registry.resolve_model(model_name)
+    check_config_values(config=config, schema=annotated_config_class(action), model=model_name)
     declared = getattr(action, '_config_schema', None) if action is not None else None
     if isinstance(declared, dict):
-        check_config_values(config=config, schema=cast(dict[str, Any], declared), model=model)
+        check_config_values(config=config, schema=cast(dict[str, Any], declared), model=model_name)
 
 
 def config_schema_at_define(*, model: object | None, registry: Registry) -> tuple[str | None, type[BaseModel] | None]:
@@ -480,7 +481,7 @@ class Model(Action[ModelRequest, ModelResponse, ModelResponseChunk]):
             check_config_json_schema(schema, model=name)
 
         @functools.wraps(fn)
-        async def run_with_config_check(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse[Any]:
+        async def run_with_config_check(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
             # Runs inside the model action, after every middleware, so a required
             # field no layer filled is reported here. generate returns it as the
             # turn's error. Go checks config at the same point.
