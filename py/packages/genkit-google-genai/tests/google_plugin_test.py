@@ -328,7 +328,7 @@ async def test_googleai_list_actions(googleai_plugin_instance: GoogleAI) -> None
         MockModel(supported_actions=['embedContent'], name='models/gemini-embedding-2-preview'),
         MockModel(supported_actions=['embedContent'], name='models/gemini-embedding-001'),
         MockModel(supported_actions=['generateContent'], name='models/gemini-2.0-flash-tts'),  # TTS
-        MockModel(supported_actions=['generateVideos'], name='models/veo-2.0-generate-001'),  # Veo
+        MockModel(supported_actions=['generateVideos'], name='models/veo-3.1-generate-preview'),  # Veo
     ]
 
     mock_client = MagicMock()
@@ -371,7 +371,7 @@ async def test_googleai_list_actions(googleai_plugin_instance: GoogleAI) -> None
     # assert action1.config_schema == GeminiConfig
 
     # Check Veo
-    action4 = next((a for a in result if a.name == googleai_name('veo-2.0-generate-001')), None)
+    action4 = next((a for a in result if a.name == googleai_name('veo-3.1-generate-preview')), None)
     assert action4 is not None
     assert action4.action_type == ActionKind.BACKGROUND_MODEL
 
@@ -478,6 +478,13 @@ async def test_googleai_list_actions(googleai_plugin_instance: GoogleAI) -> None
                 'one': '1',
                 'x-goog-api-client': GENKIT_USER_AGENT,
                 'user-agent': GENKIT_USER_AGENT,
+            },
+        ),
+        (
+            HttpOptions(headers={'X-Goog-Api-Client': 'custom-client', 'User-Agent': 'custom-agent'}),
+            {
+                'X-Goog-Api-Client': f'custom-client {GENKIT_USER_AGENT}',
+                'User-Agent': f'custom-agent {GENKIT_USER_AGENT}',
             },
         ),
     ],
@@ -744,7 +751,7 @@ async def test_vertexai_list_actions(vertexai_plugin_instance: VertexAI) -> None
     m3.description = 'Imagen'
 
     m4 = MagicMock()
-    m4.name = 'publishers/google/models/veo-2.0-generate-001'
+    m4.name = 'publishers/google/models/veo-3.1-generate-001'
     m4.supported_actions = ['generateVideos']  # Veo uses generateVideos
     m4.description = 'Veo'
 
@@ -765,7 +772,7 @@ async def test_vertexai_list_actions(vertexai_plugin_instance: VertexAI) -> None
     assert not any(a.name == vertexai_name('imagen-3.0-generate-001') for a in result)
 
     # Verify Veo
-    action4 = next(a for a in result if a.name == vertexai_name('veo-2.0-generate-001'))
+    action4 = next(a for a in result if a.name == vertexai_name('veo-3.1-generate-001'))
     assert action4 is not None
     # from genkit_google_genai._models._veo import VeoConfigSchema
     # assert action4.config_schema == VeoConfigSchema
@@ -795,7 +802,7 @@ async def test_vertexai_list_actions_without_supported_actions(vertexai_plugin_i
             mock_model('publishers/google/models/gemini-embedding-001'),
             mock_model('publishers/google/models/gemini-embedding-2'),
             mock_model('publishers/google/models/imagen-3.0-generate-002'),
-            mock_model('publishers/google/models/veo-2.0-generate-001'),
+            mock_model('publishers/google/models/veo-3.1-generate-001'),
         ],
     )
     vertexai_plugin_instance._runtime_client = lambda: mock_client
@@ -806,7 +813,7 @@ async def test_vertexai_list_actions_without_supported_actions(vertexai_plugin_i
     # Gemini text model discovered despite supported_actions=None.
     assert vertexai_name('gemini-2.5-pro') in names
     # Veo discovered; Imagen is not advertised.
-    assert vertexai_name('veo-2.0-generate-001') in names
+    assert vertexai_name('veo-3.1-generate-001') in names
     assert vertexai_name('imagen-3.0-generate-002') not in names
 
     # gemini-embedding-001 is registered as an embedder, not a gemini model.
@@ -822,10 +829,10 @@ async def test_googleai_resolve_background_model(googleai_plugin_instance: Googl
     """Test resolve action for background model."""
     plugin = googleai_plugin_instance
 
-    action = await plugin.resolve(action_type=ActionKind.BACKGROUND_MODEL, name='veo-2.0-generate-001')
+    action = await plugin.resolve(action_type=ActionKind.BACKGROUND_MODEL, name='veo-3.1-generate-preview')
     assert action is not None
     assert action.kind == ActionKind.BACKGROUND_MODEL
-    assert action.name == googleai_name('veo-2.0-generate-001')
+    assert action.name == googleai_name('veo-3.1-generate-preview')
 
 
 @pytest.mark.asyncio
@@ -833,10 +840,10 @@ async def test_googleai_resolve_check_operation(googleai_plugin_instance: Google
     """Test resolve action for check operation."""
     plugin = googleai_plugin_instance
 
-    action = await plugin.resolve(action_type=ActionKind.CHECK_OPERATION, name='veo-2.0-generate-001/check')
+    action = await plugin.resolve(action_type=ActionKind.CHECK_OPERATION, name='veo-3.1-generate-preview/check')
     assert action is not None
     assert action.kind == ActionKind.CHECK_OPERATION
-    assert action.name == googleai_name('veo-2.0-generate-001/check')
+    assert action.name == googleai_name('veo-3.1-generate-preview/check')
 
 
 @pytest.mark.asyncio
