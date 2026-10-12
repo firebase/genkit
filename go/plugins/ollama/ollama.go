@@ -18,6 +18,7 @@ package ollama
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -108,19 +109,7 @@ func (o *Ollama) getModelCapabilities(ctx context.Context, modelName string) ([]
 		return nil, fmt.Errorf("failed to create /api/show request for %q: %w", modelName, err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	headers, err := o.resolveHeaders(ctx, HeaderParams{
-		ServerAddress: o.ServerAddress,
-		Model:         &ModelDefinition{Name: modelName},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve request headers: %w", err)
-	}
-	applyHeaders(req, headers)
-	client := o.client
-	if client == nil {
-		client = http.DefaultClient
-	}
-	resp, err := client.Do(req)
+	resp, err := send(o.client, req, o.Headers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query capabilities for %q: %w", modelName, err)
 	}
@@ -136,6 +125,15 @@ func (o *Ollama) getModelCapabilities(ctx context.Context, modelName string) ([]
 		return nil, fmt.Errorf("ollama /api/show response for %q omitted capabilities", modelName)
 	}
 	return showResp.Capabilities, nil
+}
+
+// send sets headers over the ones req already has and sends it with client,
+// or http.DefaultClient when client is nil.
+func send(client *http.Client, req *http.Request, headers http.Header) (*http.Response, error) {
+	for k, v := range headers {
+		req.Header[http.CanonicalHeaderKey(k)] = slices.Clone(v)
+	}
+	return cmp.Or(client, http.DefaultClient).Do(req)
 }
 
 func (o *Ollama) endpoint(path string) string {
@@ -181,12 +179,7 @@ func (o *Ollama) listLocalModels(ctx context.Context) ([]ollamaLocalModel, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	headers, err := o.resolveHeaders(ctx, HeaderParams{ServerAddress: o.ServerAddress})
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve request headers: %w", err)
-	}
-	applyHeaders(req, headers)
-	resp, err := o.client.Do(req)
+	resp, err := send(o.client, req, o.Headers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch local models from Ollama: %w", err)
 	}
@@ -240,11 +233,11 @@ func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, opts *ai.M
 		ConfigSchema: core.InferSchemaMap(GenerateContentConfig{}),
 	}
 	gen := &generator{
-		model:             model,
-		serverAddress:     o.ServerAddress,
-		timeout:           o.Timeout,
-		requestHeaders:    o.RequestHeaders,
-		requestHeaderFunc: o.RequestHeaderFunc,
+		model:         model,
+		serverAddress: o.ServerAddress,
+		timeout:       o.Timeout,
+		client:        o.client,
+		headers:       o.Headers,
 	}
 	return genkit.DefineModel(g, api.NewName(provider, model.Name), meta, gen.generate)
 }
@@ -267,11 +260,11 @@ type ModelDefinition struct {
 }
 
 type generator struct {
-	model             ModelDefinition
-	serverAddress     string
-	timeout           int
-	requestHeaders    map[string]string
-	requestHeaderFunc RequestHeaderFunc
+	model         ModelDefinition
+	serverAddress string
+	timeout       int
+	client        *http.Client
+	headers       http.Header
 }
 
 type ollamaMessage struct {
@@ -452,17 +445,19 @@ type Ollama struct {
 	ServerAddress string // Server address of oLLama.
 	Timeout       int    // Response timeout in seconds (defaulted to 30 seconds)
 
-	// RequestHeaders are static headers applied to every Ollama HTTP request
-	// (model generate, embed, /api/tags, and /api/show). Useful for authenticating
-	// against hosted or proxied Ollama deployments.
-	RequestHeaders map[string]string
-	// RequestHeaderFunc, when set, is called per request to produce headers and
-	// takes precedence over RequestHeaders (matching the JS static-or-function API).
-	RequestHeaderFunc RequestHeaderFunc
+	// Headers are additional HTTP headers to send with every request, such as
+	// the Authorization header a hosted or proxied server needs. A header set
+	// here wins over the plugin's own. Optional.
+	Headers http.Header
+	// HTTPClient overrides the HTTP client used for every request. Supply a
+	// custom client to configure proxies or TLS, or authentication that
+	// changes per request, such as an oauth2.Transport that refreshes a
+	// short-lived token. Timeout still bounds each generate request. Optional.
+	HTTPClient *http.Client
 
 	mu      sync.Mutex   // Guards the plugin's own state below.
 	initted bool         // Whether the plugin has been initialized.
-	client  *http.Client // Shared HTTP client for API calls (e.g., /api/tags).
+	client  *http.Client // HTTPClient, or a default client when it is nil.
 
 	// The capabilities cache has its own lock: the discovery goroutines write
 	// to it while DefineModel reads it holding mu, so sharing one lock would
@@ -503,7 +498,7 @@ func (o *Ollama) Init(ctx context.Context) []api.Action {
 	if o.Timeout == 0 {
 		o.Timeout = 30
 	}
-	o.client = &http.Client{}
+	o.client = cmp.Or(o.HTTPClient, &http.Client{})
 	o.capabilitiesCache = make(map[string]modelCapabilitiesCacheEntry)
 	return []api.Action{}
 }
@@ -565,11 +560,11 @@ func (o *Ollama) newModel(name string, opts ai.ModelOptions) ai.Model {
 		ConfigSchema: core.InferSchemaMap(GenerateContentConfig{}),
 	}
 	gen := &generator{
-		model:             ModelDefinition{Name: name, Type: "chat"},
-		serverAddress:     o.ServerAddress,
-		timeout:           o.Timeout,
-		requestHeaders:    o.RequestHeaders,
-		requestHeaderFunc: o.RequestHeaderFunc,
+		model:         ModelDefinition{Name: name, Type: "chat"},
+		serverAddress: o.ServerAddress,
+		timeout:       o.Timeout,
+		client:        o.client,
+		headers:       o.Headers,
 	}
 	return ai.NewModel(api.NewName(provider, name), meta, gen.generate)
 }
@@ -718,7 +713,6 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 		payload = chatReq
 	}
 
-	client := &http.Client{Timeout: time.Duration(g.timeout) * time.Second}
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
@@ -730,26 +724,22 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 		endpoint = g.serverAddress + "/api/generate"
 	}
 
-	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(payloadBytes))
+	// The timeout covers reading the body, as http.Client.Timeout does, and
+	// leaves any timeout on a caller-supplied client in force.
+	if g.timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(g.timeout)*time.Second)
+		defer cancel()
+	}
+	req, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(payloadBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	modelCopy := g.model
-	headers, err := g.resolveHeaders(ctx, HeaderParams{
-		ServerAddress: g.serverAddress,
-		Model:         &modelCopy,
-		ModelRequest:  input,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve request headers: %w", err)
-	}
-	applyHeaders(req, headers)
-	req = req.WithContext(ctx)
 
-	resp, err := client.Do(req)
+	resp, err := send(g.client, req, g.headers)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %v", err)
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -770,10 +760,10 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 		} else {
 			response, err = translateModelResponse(body)
 		}
-		response.Request = input
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse response: %v", err)
 		}
+		response.Request = input
 		return response, nil
 	} else {
 		var chunks []*ai.ModelResponseChunk

@@ -50,25 +50,17 @@ func main() {
 }
 ```
 
-Hosted or proxied Ollama servers can send extra headers on every request
-(`/api/chat`, `/api/generate`, `/api/embed`, `/api/tags`, and `/api/show`):
+A hosted or proxied Ollama server that needs authentication takes `Headers`,
+which go on every request. For credentials that change per request, such as a
+short-lived token, supply an `HTTPClient` whose transport adds them (for
+example `oauth2.NewClient`):
 
 ```go
 o := &ollama.Ollama{
  ServerAddress: "https://ollama.example.com",
- RequestHeaders: map[string]string{
-  "Authorization": "Bearer <token>",
- },
-}
-
-// Or generate headers per request (takes precedence over RequestHeaders):
-o.RequestHeaderFunc = func(ctx context.Context, params ollama.HeaderParams) (map[string]string, error) {
- return map[string]string{"Authorization": "Bearer <token>"}, nil
+ Headers:       http.Header{"Authorization": {"Bearer " + os.Getenv("OLLAMA_API_KEY")}},
 }
 ```
-
-`HeaderParams` fields other than `ServerAddress` may be nil depending on the
-call site (for example `/api/tags` has no model).
 
 ## Language Models
 
