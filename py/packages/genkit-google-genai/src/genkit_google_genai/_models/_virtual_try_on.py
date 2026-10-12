@@ -38,8 +38,11 @@ from typing import Any, Literal, TypeAlias, get_args
 from genkit_google_genai._auth import GOOGLE_AUTH_ERRORS, raise_auth_error
 from genkit_google_genai._constants import is_multi_regional_location, multi_regional_base_url
 from genkit_google_genai._models._sdk_config import (
+    VIRTUAL_TRY_ON_MANAGED_BODY_FIELDS,
+    attach_config_extra,
     attach_leftovers,
     dump_family_config,
+    keep_client_extra_body,
     sdk_config_error,
     split_sdk_fields,
 )
@@ -80,7 +83,7 @@ def is_virtual_try_on_model(name: str) -> bool:
 class VirtualTryOnConfig(BaseModel):
     """Virtual Try-On Config Schema."""
 
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     sample_count: int | None = Field(
         default=None, alias='sampleCount', ge=1, description='Number of images to generate.'
     )
@@ -116,6 +119,14 @@ class VirtualTryOnConfig(BaseModel):
         default=None, alias='apiVersion', description='Override the API version for this call.'
     )
     location: str | None = Field(default=None, description='Override the Vertex AI location for this call.')
+    extra: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            'Provider fields this class does not declare, in API wire names, merged into the top level of the '
+            "request body after everything else (for example {'parameters': {...}}). Nested objects merge key "
+            'by key. Not checked; do not put API keys here.'
+        ),
+    )
 
 
 DEFAULT_VIRTUAL_TRY_ON_SUPPORT = Supports(
@@ -233,13 +244,19 @@ def _to_source(request: ModelRequest) -> genai_types.RecontextImageSource:
     )
 
 
-def _to_sdk_config(dumped: dict[str, Any] | None, *, action_name: str) -> genai_types.RecontextImageConfig | None:
+def _to_sdk_config(
+    dumped: dict[str, Any] | None,
+    *,
+    action_name: str,
+    client_http_options: object,
+) -> genai_types.RecontextImageConfig | None:
     """Map the dumped family config onto the typed SDK request config."""
     if not dumped:
         return None
     dumped = {key: value for key, value in dumped.items() if key not in _CLIENT_OPTION_KEYS}
     if not dumped:
         return None
+    extra = dumped.pop('extra', None)
 
     for key, renamed in (*_SDK_FIELD_NAMES.items(), *_VERBATIM_FIELD_NAMES.items()):
         if key in dumped:
@@ -250,7 +267,11 @@ def _to_sdk_config(dumped: dict[str, Any] | None, *, action_name: str) -> genai_
         cfg = genai_types.RecontextImageConfig(**known)
     except ValidationError as e:
         raise sdk_config_error(action_name=action_name, error=e) from e
-    return attach_leftovers(cfg, leftovers, nest='parameters')
+    cfg = attach_leftovers(cfg, leftovers, nest='parameters')
+    cfg = attach_config_extra(
+        cfg, extra, action_name=action_name, managed_body_fields=VIRTUAL_TRY_ON_MANAGED_BODY_FIELDS
+    )
+    return keep_client_extra_body(cfg, client_http_options)
 
 
 def _media_part(image: genai_types.Image | None) -> Part | None:
@@ -422,7 +443,11 @@ class VirtualTryOnModel:
         source = _to_source(request)
         dumped = dump_family_config(config=request.config, expected_type=VirtualTryOnConfig, action_name=self._name)
         client = self._client_for_context(ctx, config=dumped)
-        config = _to_sdk_config(dumped, action_name=self._name)
+        config = _to_sdk_config(
+            dumped,
+            action_name=self._name,
+            client_http_options=(self._client_kwargs or {}).get('http_options'),
+        )
         try:
             response = await client.aio.models.recontext_image(
                 model=self._model_id,

@@ -280,28 +280,63 @@ class TestRequestShape:
             },
         }
 
+    def test_unknown_config_key_raises(self) -> None:
+        """A key the schema does not declare fails validation instead of riding to parameters."""
+        with pytest.raises(ValidationError):
+            VirtualTryOnConfig.model_validate({'sampleCount': 1, 'addWatermark': True})
+
     @pytest.mark.asyncio
-    async def test_extra_config_keys_reach_the_wire(self) -> None:
-        """A key the schema does not declare rides to parameters rather than being dropped."""
+    async def test_extra_reaches_the_wire(self) -> None:
+        """A provider field the schema does not declare goes through extra, beside the declared ones."""
         client = _client()
-        config = VirtualTryOnConfig.model_validate({'sampleCount': 1, 'addWatermark': True})
+        config = VirtualTryOnConfig.model_validate({
+            'sampleCount': 1,
+            'personGeneration': 'allow_adult',
+            'extra': {'parameters': {'addWatermark': True}},
+        })
         await _generate(VirtualTryOnModel('virtual-try-on-001', client), _request(config=config))
 
         body = _wire_body(client.aio.models.recontext_image.await_args.kwargs)
-        assert body['parameters'] == {'sampleCount': 1, 'addWatermark': True}
+        assert body['parameters'] == {'sampleCount': 1, 'personGeneration': 'allow_adult', 'addWatermark': True}
 
     @pytest.mark.asyncio
     async def test_extra_output_option_lands_beside_the_declared_ones(self) -> None:
-        """An undeclared outputOptions key merges with the declared output fields."""
+        """An outputOptions key in extra merges with the declared output fields."""
         client = _client()
         config = VirtualTryOnConfig.model_validate({
             'outputMimeType': 'image/jpeg',
-            'outputOptions': {'lossless': False},
+            'extra': {'parameters': {'outputOptions': {'lossless': False}}},
         })
         await _generate(VirtualTryOnModel('virtual-try-on-001', client), _request(config=config))
 
         body = _wire_body(client.aio.models.recontext_image.await_args.kwargs)
         assert body['parameters']['outputOptions'] == {'mimeType': 'image/jpeg', 'lossless': False}
+
+    @pytest.mark.asyncio
+    async def test_extra_cannot_replace_the_images(self) -> None:
+        """instances is built from the tagged media, so extra may not set it."""
+        client = _client()
+        config = VirtualTryOnConfig.model_validate({'extra': {'instances': []}})
+
+        with pytest.raises(GenkitError) as exc_info:
+            await _generate(VirtualTryOnModel('virtual-try-on-001', client), _request(config=config))
+        assert exc_info.value.status == 'INVALID_ARGUMENT'
+        assert "'instances'" in str(exc_info.value)
+        client.aio.models.recontext_image.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_request_extra_body_keeps_the_plugin_one(self) -> None:
+        """The plugin's http_options.extra_body still reaches the wire when the request adds its own."""
+        client = _client()
+        plugin_options = genai_types.HttpOptions(extra_body={'parameters': {'enhancePrompt': True}})
+        model = VirtualTryOnModel('virtual-try-on-001', client, client_kwargs={'http_options': plugin_options})
+        config = VirtualTryOnConfig.model_validate({'personGeneration': 'allow_adult'})
+        await _generate(model, _request(config=config))
+
+        sent = client.aio.models.recontext_image.await_args.kwargs['config']
+        assert sent.http_options.extra_body == {
+            'parameters': {'enhancePrompt': True, 'personGeneration': 'allow_adult'}
+        }
 
     @pytest.mark.asyncio
     async def test_no_config_sends_no_config(self) -> None:
@@ -634,9 +669,9 @@ class TestFailureModes:
 
     @pytest.mark.asyncio
     async def test_api_key_on_config_is_refused(self) -> None:
-        """A tenant key belongs on context.secrets."""
+        """A tenant key belongs on context.secrets, not in extra."""
         model = VirtualTryOnModel('virtual-try-on-001', _client())
-        config = VirtualTryOnConfig.model_validate({'apiKey': 'tenant-key'})
+        config = VirtualTryOnConfig.model_validate({'extra': {'apiKey': 'tenant-key'}})
 
         with pytest.raises(GenkitError) as exc_info:
             await _generate(model, _request(config=config))
