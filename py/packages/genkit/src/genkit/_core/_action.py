@@ -50,7 +50,7 @@ from genkit._core._compat import StrEnum
 from genkit._core._error import GenkitError, Interrupt, RuntimeErrorReason, mark_request_error
 from genkit._core._model import (
     EmbedRequest,
-    EvalRequest,
+    EvaluatorRequest,
     ModelRequest,
     ModelResponse,
     config_default_fields,
@@ -70,7 +70,14 @@ from genkit._core._telemetry._instrumentation import (
     run_in_new_span,
     to_json_attr,
 )
-from genkit._core._typing import BaseDataPoint, EmbedResponse, EvalFnResponse, EvalResponse, Operation
+from genkit._core._typing import (
+    ActionMetadata,
+    BaseDataPoint,
+    EmbedResponse,
+    EvalResponse,
+    EvaluatorResponse,
+    Operation,
+)
 
 # =============================================================================
 # Span attribute types and tracing helpers
@@ -414,9 +421,9 @@ def known_annotation_names(kind: ActionKind) -> dict[str, object]:
         return {'EmbedRequest': EmbedRequest, 'EmbedResponse': EmbedResponse}
     if kind == ActionKind.EVALUATOR:
         return {
-            'EvalRequest': EvalRequest,
+            'EvaluatorRequest': EvaluatorRequest,
             'EvalResponse': EvalResponse,
-            'EvalFnResponse': EvalFnResponse,
+            'EvaluatorResponse': EvaluatorResponse,
             'BaseDataPoint': BaseDataPoint,
         }
     return {}
@@ -920,6 +927,23 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
     @property
     def metadata(self) -> dict[str, object]:
         return self._metadata
+
+    def _action_metadata(self) -> ActionMetadata:
+        """Return the internal ActionMetadata descriptor for the Dev UI catalog."""
+        meta = {
+            k: v
+            for k, v in self._metadata.items()
+            if k not in (ActionMetadataKey.INPUT_KEY, ActionMetadataKey.OUTPUT_KEY)
+        }
+        return ActionMetadata(
+            key=create_action_key(self._kind, self._name),
+            action_type=self._kind,
+            name=self._name,
+            description=self._description,
+            input_schema=self._input_schema,
+            output_schema=self._output_schema,
+            metadata=meta or None,
+        )
 
     @property
     def input_type(self) -> TypeAdapter[InputT] | None:

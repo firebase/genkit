@@ -23,7 +23,7 @@ from typing import Any
 from genkit import Genkit
 from genkit.evaluator import (
     BaseDataPoint,
-    EvalFnResponse,
+    EvaluatorResponse,
     Score,
     ScoreStatus,
 )
@@ -41,7 +41,7 @@ def genkit_eval_name(local: str) -> str:
     return f'{PROVIDER}/{local}'
 
 
-async def _regex_impl(datapoint: BaseDataPoint, _options: dict[str, Any]) -> EvalFnResponse:
+async def _regex_impl(datapoint: BaseDataPoint, _options: dict[str, Any]) -> EvaluatorResponse:
     """Regex evaluator: reference must be a regex string; output tested against it."""
     if datapoint.output is None:
         raise ValueError('output was not provided')
@@ -52,13 +52,13 @@ async def _regex_impl(datapoint: BaseDataPoint, _options: dict[str, Any]) -> Eva
     output_str = datapoint.output if isinstance(datapoint.output, str) else json.dumps(datapoint.output)
     match = bool(re.search(datapoint.reference, output_str))
     status = ScoreStatus.PASS if match else ScoreStatus.FAIL
-    return EvalFnResponse(
+    return EvaluatorResponse(
         test_case_id=datapoint.test_case_id or '',
         evaluation=[Score(score=match, status=status)],
     )
 
 
-async def _deep_equal_impl(datapoint: BaseDataPoint, _options: dict[str, Any]) -> EvalFnResponse:
+async def _deep_equal_impl(datapoint: BaseDataPoint, _options: dict[str, Any]) -> EvaluatorResponse:
     """Deep equal evaluator: output must equal reference."""
     if datapoint.output is None:
         raise ValueError('output was not provided')
@@ -66,13 +66,13 @@ async def _deep_equal_impl(datapoint: BaseDataPoint, _options: dict[str, Any]) -
         raise ValueError('reference was not provided')
     equal = datapoint.output == datapoint.reference
     status = ScoreStatus.PASS if equal else ScoreStatus.FAIL
-    return EvalFnResponse(
+    return EvaluatorResponse(
         test_case_id=datapoint.test_case_id or '',
         evaluation=[Score(score=equal, status=status)],
     )
 
 
-async def _jsonata_impl(datapoint: BaseDataPoint, _options: dict[str, Any]) -> EvalFnResponse:
+async def _jsonata_impl(datapoint: BaseDataPoint, _options: dict[str, Any]) -> EvaluatorResponse:
     """JSONata evaluator: reference is a JSONata expression; evaluated against output."""
     if datapoint.output is None:
         raise ValueError('output was not provided')
@@ -86,7 +86,7 @@ async def _jsonata_impl(datapoint: BaseDataPoint, _options: dict[str, Any]) -> E
     result = expr.evaluate(datapoint.output)
     passed = result not in (False, '', None)
     status = ScoreStatus.PASS if passed else ScoreStatus.FAIL
-    return EvalFnResponse(
+    return EvaluatorResponse(
         test_case_id=datapoint.test_case_id or '',
         evaluation=[Score(score=result, status=status)],
     )

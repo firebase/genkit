@@ -33,17 +33,17 @@ from pydantic.alias_generators import to_camel
 
 from genkit import Genkit, GenkitError
 from genkit._ai._embedding import EmbedderInfo, EmbedderRef, create_embedder_ref
-from genkit._ai._evaluator import EvaluatorRef, evaluator_ref
+from genkit._ai._evaluator import EvaluatorRef
 from genkit._ai._model import model_ref
 from genkit._core._action import ActionRunContext
 from genkit._core._middleware import BaseMiddleware
-from genkit._core._model import EmbedRequest, EvalRequest, Message, ModelConfig, ModelRequest, ModelResponse, Part
+from genkit._core._model import EmbedRequest, EvaluatorRequest, Message, ModelConfig, ModelRequest, ModelResponse, Part
 from genkit._core._typing import (
     BaseDataPoint,
     Embedding,
     EmbedResponse,
-    EvalFnResponse,
     EvalResponse,
+    EvaluatorResponse,
     Operation,
     Role,
     Score,
@@ -84,8 +84,8 @@ def _ok() -> ModelResponse:
     return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('ok')]))
 
 
-def _score() -> EvalFnResponse:
-    return EvalFnResponse(test_case_id='row-1', evaluation=[Score(score=1)])
+def _score() -> EvaluatorResponse:
+    return EvaluatorResponse(test_case_id='row-1', evaluation=[Score(score=1)])
 
 
 def _embedding() -> EmbedResponse:
@@ -133,7 +133,7 @@ def test_embedder_annotation_and_config_schema_must_agree() -> None:
 def test_per_row_evaluator_annotation_and_config_schema_must_agree() -> None:
     ai = Genkit()
 
-    async def allergy_check(datapoint: BaseDataPoint, options: AllergyJudgeConfig) -> EvalFnResponse:
+    async def allergy_check(datapoint: BaseDataPoint, options: AllergyJudgeConfig) -> EvaluatorResponse:
         return _score()
 
     with pytest.raises(GenkitError, match=r"evaluator 'allergy': config_schema is .*MenuOnlyConfig"):
@@ -149,7 +149,7 @@ def test_per_row_evaluator_annotation_and_config_schema_must_agree() -> None:
 def test_batch_evaluator_annotation_and_config_schema_must_agree() -> None:
     ai = Genkit()
 
-    async def allergy_batch(request: EvalRequest[AllergyJudgeConfig]) -> list[EvalFnResponse]:
+    async def allergy_batch(request: EvaluatorRequest[AllergyJudgeConfig]) -> list[EvaluatorResponse]:
         return [_score()]
 
     with pytest.raises(GenkitError, match=r"evaluator 'allergy': config_schema is .*MenuOnlyConfig"):
@@ -182,10 +182,10 @@ def test_annotation_alone_sets_config_schema_and_dev_ui_form() -> None:
     async def crm_search(request: EmbedRequest[CrmEmbedConfig]) -> EmbedResponse:
         return _embedding()
 
-    async def allergy_check(datapoint: BaseDataPoint, options: AllergyJudgeConfig) -> EvalFnResponse:
+    async def allergy_check(datapoint: BaseDataPoint, options: AllergyJudgeConfig) -> EvaluatorResponse:
         return _score()
 
-    async def allergy_batch(request: EvalRequest[AllergyJudgeConfig]) -> list[EvalFnResponse]:
+    async def allergy_batch(request: EvaluatorRequest[AllergyJudgeConfig]) -> list[EvaluatorResponse]:
         return [_score()]
 
     model = ai.define_model(name='bistro', fn=bistro)
@@ -247,9 +247,9 @@ async def test_unannotated_batch_evaluator_gets_a_request_from_a_raw_run() -> No
         return [_score()]
 
     action = ai.define_batch_evaluator(name='allergy', display_name='Allergy', definition='d', fn=allergy_batch)
-    response = await action.run({'dataset': [{'input': 'satay'}], 'evalRunId': 'run-1', 'options': None})
+    response = await action.run({'dataset': [{'input': 'satay'}], 'evalRunId': 'run-1', 'options': None})  # type: ignore[arg-type]  # pyrefly: ignore[bad-argument-type] - raw wire JSON, as the Dev UI sends
 
-    assert isinstance(seen['request'], EvalRequest)
+    assert isinstance(seen['request'], EvaluatorRequest)
     assert seen['request'].options == {}
     assert isinstance(response.response, EvalResponse)
 
@@ -259,12 +259,12 @@ async def test_typed_per_row_evaluator_gets_its_options_class() -> None:
     ai = Genkit()
     seen: dict[str, Any] = {}
 
-    async def allergy_check(datapoint: BaseDataPoint, options: AllergyJudgeConfig) -> EvalFnResponse:
+    async def allergy_check(datapoint: BaseDataPoint, options: AllergyJudgeConfig) -> EvaluatorResponse:
         seen['options'] = options
         return _score()
 
     action = ai.define_evaluator(name='allergy', display_name='Allergy', definition='d', fn=allergy_check)
-    await action.run({'dataset': [{'input': 'satay'}], 'evalRunId': 'run-1', 'options': {'strict': False}})
+    await action.run({'dataset': [{'input': 'satay'}], 'evalRunId': 'run-1', 'options': {'strict': False}})  # type: ignore[arg-type]  # pyrefly: ignore[bad-argument-type] - raw wire JSON, as the Dev UI sends
 
     assert seen['options'] == AllergyJudgeConfig(strict=False, allergens=['peanut'])
 
@@ -294,11 +294,11 @@ def _pipeline_app(config_schema: type[BaseModel] = TableConfig) -> tuple[Genkit,
         seen['embedder'] = request.options
         return _embedding()
 
-    async def allergy_check(datapoint: BaseDataPoint, options: dict[str, Any]) -> EvalFnResponse:
+    async def allergy_check(datapoint: BaseDataPoint, options: dict[str, Any]) -> EvaluatorResponse:
         seen['per_row'] = options
         return _score()
 
-    async def allergy_batch(request: EvalRequest) -> list[EvalFnResponse]:
+    async def allergy_batch(request: EvaluatorRequest) -> list[EvaluatorResponse]:
         seen['batch'] = request.options
         return [_score()]
 
@@ -388,7 +388,7 @@ async def test_typed_fns_see_the_class_with_defaults() -> None:
         seen['model'] = request.config
         return _ok()
 
-    async def allergy_check(datapoint: BaseDataPoint, options: AllergyJudgeConfig) -> EvalFnResponse:
+    async def allergy_check(datapoint: BaseDataPoint, options: AllergyJudgeConfig) -> EvaluatorResponse:
         seen['per_row'] = options
         return _score()
 
@@ -551,7 +551,7 @@ def test_typed_embedder_ref_checks_and_copies_config() -> None:
 def test_untyped_refs_take_a_mapping_and_copy_it() -> None:
     options: dict[str, Any] = {'allergens': ['peanut']}
     embedder = EmbedderRef(name='crm', config=options)
-    evaluator = evaluator_ref('allergy', config=options)
+    evaluator = EvaluatorRef(name='allergy', config=options)
     options['allergens'].append('shellfish')
 
     assert embedder.config == {'allergens': ['peanut']}
@@ -561,12 +561,12 @@ def test_untyped_refs_take_a_mapping_and_copy_it() -> None:
 
 
 def test_typed_evaluator_ref_checks_config() -> None:
-    ref = evaluator_ref('allergy', config_schema=AllergyJudgeConfig, config=AllergyJudgeConfig(strict=False))
+    ref = EvaluatorRef(name='allergy', config_schema=AllergyJudgeConfig, config=AllergyJudgeConfig(strict=False))
 
     assert ref.config == AllergyJudgeConfig(strict=False)
     assert ref.config_schema is AllergyJudgeConfig
     with pytest.raises(GenkitError, match='config must be an instance of'):
-        evaluator_ref('allergy', config_schema=AllergyJudgeConfig, config=cast(Any, {'strict': False}))
+        EvaluatorRef(name='allergy', config_schema=AllergyJudgeConfig, config=cast(Any, {'strict': False}))
 
 
 # -----------------------------------------------------------------------------
@@ -587,11 +587,11 @@ def _typed_app() -> tuple[Genkit, dict[str, Any]]:
         seen['embedder'] = request.options
         return _embedding()
 
-    async def allergy_check(datapoint: BaseDataPoint, options: TableConfig) -> EvalFnResponse:
+    async def allergy_check(datapoint: BaseDataPoint, options: TableConfig) -> EvaluatorResponse:
         seen['per_row'] = options
         return _score()
 
-    async def allergy_batch(request: EvalRequest[TableConfig]) -> list[EvalFnResponse]:
+    async def allergy_batch(request: EvaluatorRequest[TableConfig]) -> list[EvaluatorResponse]:
         seen['batch'] = request.options
         return [_score()]
 
@@ -618,7 +618,7 @@ async def test_ref_config_survives_unset_call_fields_and_call_wins_per_field() -
     )
     for name in ('row', 'batch'):
         await ai.evaluate(
-            evaluator=evaluator_ref(name, config_schema=TableConfig, config=ref_config),
+            evaluator=EvaluatorRef(name=name, config_schema=TableConfig, config=ref_config),
             dataset=ROWS,
             config=call_config,
         )
@@ -636,7 +636,7 @@ async def test_untyped_fns_get_ref_and_call_layers_over_defaults() -> None:
         content='acme corp',
         config={'allergens': ['shellfish']},
     )
-    await ai.evaluate(evaluator=evaluator_ref('row', config={'temperature': 0.1}), dataset=ROWS)
+    await ai.evaluate(evaluator=EvaluatorRef(name='row', config={'temperature': 0.1}), dataset=ROWS)
 
     assert seen['embedder'] == {'temperature': 0.1, 'allergens': ['shellfish'], 'region': 'emea'}
     assert seen['per_row'] == {'temperature': 0.1, 'allergens': ['peanut']}
@@ -651,7 +651,7 @@ async def test_ref_with_a_foreign_config_schema_raises_at_call_time() -> None:
     with pytest.raises(GenkitError, match=r"embedder 'crm' takes config .*TableConfig, but the ref's config_schema"):
         await ai.embed(embedder=create_embedder_ref('crm', config_schema=MenuOnlyConfig), content='acme corp')
     with pytest.raises(GenkitError, match=r"evaluator 'row' takes config .*TableConfig, but the ref's config_schema"):
-        await ai.evaluate(evaluator=evaluator_ref('row', config_schema=MenuOnlyConfig), dataset=ROWS)
+        await ai.evaluate(evaluator=EvaluatorRef(name='row', config_schema=MenuOnlyConfig), dataset=ROWS)
     assert seen == {}
 
 
@@ -852,7 +852,7 @@ async def test_fn_mutating_options_does_not_leak_into_the_ref_or_next_call() -> 
         request.options['allergens'].append('shellfish')
         return _embedding()
 
-    async def allergy_check(datapoint: BaseDataPoint, options: dict[str, Any]) -> EvalFnResponse:
+    async def allergy_check(datapoint: BaseDataPoint, options: dict[str, Any]) -> EvaluatorResponse:
         calls.append(copy.deepcopy(options))
         options['allergens'].append('shellfish')
         return _score()
@@ -860,7 +860,7 @@ async def test_fn_mutating_options_does_not_leak_into_the_ref_or_next_call() -> 
     ai.define_embedder('crm', crm_search)
     ai.define_evaluator(name='row', display_name='Row', definition='d', fn=allergy_check)
     embedder = create_embedder_ref('crm', config={'allergens': ['peanut']})
-    evaluator = evaluator_ref('row', config={'allergens': ['peanut']})
+    evaluator = EvaluatorRef(name='row', config={'allergens': ['peanut']})
 
     for _ in range(2):
         await ai.embed(embedder=embedder, content='acme corp')

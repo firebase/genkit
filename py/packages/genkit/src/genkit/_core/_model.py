@@ -219,7 +219,7 @@ ConfigT = TypeVar('ConfigT', bound=ModelConfig, default=ModelConfig)
 # Bound to BaseModel so ModelRef is always parameterized with a concrete Pydantic config schema.
 # Covariant so ModelRef[GeminiConfig] is assignable to ModelRef[BaseModel] or ModelRef[Any].
 ModelRefConfigT = TypeVar('ModelRefConfigT', bound=BaseModel, covariant=True)
-# ModelRequest[X], EmbedRequest[X] and EvalRequest[X] take a pydantic model
+# ModelRequest[X], EmbedRequest[X] and EvaluatorRequest[X] take a pydantic model
 # class; __class_getitem__ rejects the rest. Not bound to BaseModel: type
 # checkers would then reject the common bare ModelRequest(config={...}), where
 # the config is solved as a dict. Invariant: config is writable, so
@@ -228,14 +228,14 @@ ModelRefConfigT = TypeVar('ModelRefConfigT', bound=BaseModel, covariant=True)
 # ModelRequest[Any], and Callable[[ModelRequest], ...] accepts a fn typed
 # ModelRequest[GeminiConfig].
 ModelRequestConfigT = TypeVar('ModelRequestConfigT', default=Any)
-# Bare EmbedRequest / EvalRequest options are always a dict at runtime, so the
-# default says so. Fn aliases take EmbedRequest[Any] / EvalRequest[Any] so a fn
+# Bare EmbedRequest / EvaluatorRequest options are always a dict at runtime, so the
+# default says so. Fn aliases take EmbedRequest[Any] / EvaluatorRequest[Any] so a fn
 # typed EmbedRequest[CrmEmbedConfig] still fits them.
 RequestOptionsT = TypeVar('RequestOptionsT', default=dict[str, Any])
 
 
 def declared_config_type(cls: type) -> type[BaseModel] | None:
-    """The config class on ``ModelRequest[ThatClass]`` (or Embed/EvalRequest), else None.
+    """The config class on ``ModelRequest[ThatClass]`` (or Embed/EvaluatorRequest), else None.
 
     None when unparametrized or ``Any``.
     """
@@ -250,7 +250,7 @@ def declared_config_type(cls: type) -> type[BaseModel] | None:
 
 
 def check_config_type_arg(*, request: str, field: str, typevar_values: object) -> None:
-    """Reject ``ModelRequest[X]`` / ``EmbedRequest[X]`` / ``EvalRequest[X]`` unless X is a model class.
+    """Reject ``ModelRequest[X]`` / ``EmbedRequest[X]`` / ``EvaluatorRequest[X]`` unless X is a model class.
 
     Runs where the annotation is evaluated, so a TypedDict or dict config
     fails when the fn is defined, with the same error on every Python version.
@@ -599,7 +599,8 @@ def _raise_config_problems(
     problems: list[Mapping[str, Any]] = []
     cause: ValidationError | None = None
     to_validate = {
-        k: v for k, v in fold_config_aliases(config=dict(config), schema=schema).items()
+        k: v
+        for k, v in fold_config_aliases(config=dict(config), schema=schema).items()
         if k != 'version' or 'version' in declared
     }
     try:
@@ -1249,7 +1250,7 @@ def options_dict(value: object) -> dict[str, Any]:
 
 
 def check_options_value(cls: type, value: object) -> object:
-    """The before-validator for ``options`` on EmbedRequest and EvalRequest.
+    """The before-validator for ``options`` on EmbedRequest and EvaluatorRequest.
 
     Untyped, options is always a dict (see options_dict). Typed, it follows
     ModelRequest's config rule, and ``None`` is ``{}`` so the fn gets the
@@ -1299,12 +1300,12 @@ class EmbedRequest(GenkitModel, Generic[RequestOptionsT]):
         return check_options_value(cls, v)
 
 
-class EvalRequest(GenkitModel, Generic[RequestOptionsT]):
+class EvaluatorRequest(GenkitModel, Generic[RequestOptionsT]):
     """Evaluator request whose options are a dict or the evaluator's options class.
 
-    Same fields as the wire ``EvalRequest``. Bare ``EvalRequest`` has
+    Same fields as the wire ``EvaluatorRequest``. Bare ``EvaluatorRequest`` has
     ``options`` as ``dict[str, Any]`` instead of ``Any | None`` so evaluators
-    read it without a None guard. ``EvalRequest[JudgeConfig]`` validates it
+    read it without a None guard. ``EvaluatorRequest[JudgeConfig]`` validates it
     into ``JudgeConfig``.
     """
 
@@ -1314,8 +1315,8 @@ class EvalRequest(GenkitModel, Generic[RequestOptionsT]):
     options: RequestOptionsT = Field(default_factory=dict, validate_default=True)
 
     def __class_getitem__(cls, typevar_values: type[Any] | tuple[type[Any], ...]) -> Any:  # noqa: ANN401
-        """``EvalRequest[Cfg]``, where ``Cfg`` must be a pydantic model class."""
-        check_config_type_arg(request='EvalRequest', field='options', typevar_values=typevar_values)
+        """``EvaluatorRequest[Cfg]``, where ``Cfg`` must be a pydantic model class."""
+        check_config_type_arg(request='EvaluatorRequest', field='options', typevar_values=typevar_values)
         return super().__class_getitem__(typevar_values)
 
     @field_validator('options', mode='before')

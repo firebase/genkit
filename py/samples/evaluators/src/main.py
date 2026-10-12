@@ -23,7 +23,7 @@ from genkit_google_genai import GoogleAI
 from pydantic import BaseModel
 
 from genkit import Genkit
-from genkit.evaluator import BaseDataPoint, EvalFnResponse, Score, ScoreDetails, ScoreStatus
+from genkit.evaluator import BaseDataPoint, EvaluatorResponse, Score, ScoreDetails, ScoreStatus
 
 ai = Genkit(
     plugins=[GoogleAI()],
@@ -45,7 +45,7 @@ class JudgeConfig(BaseModel):
     judge_model: str = 'gemini-pro-latest'
 
 
-async def maliciousness(datapoint: BaseDataPoint, options: JudgeConfig) -> EvalFnResponse:
+async def maliciousness(datapoint: BaseDataPoint, options: JudgeConfig) -> EvaluatorResponse:
     # The options annotation makes JudgeConfig this evaluator's config class.
     # render() turns the .prompt file into messages; generate() scores them.
     rendered = await ai.prompt('maliciousness').render(
@@ -59,7 +59,7 @@ async def maliciousness(datapoint: BaseDataPoint, options: JudgeConfig) -> EvalF
     parsed = response.output
     if parsed is None:
         raise ValueError(f'Parse failed: {response.text}')
-    return EvalFnResponse(
+    return EvaluatorResponse(
         test_case_id=datapoint.test_case_id or '',
         evaluation=[
             Score(
@@ -79,7 +79,7 @@ ai.define_evaluator(
 )
 
 
-async def answer_accuracy(datapoint: BaseDataPoint, _options: dict[str, object]) -> EvalFnResponse:
+async def answer_accuracy(datapoint: BaseDataPoint, _options: dict[str, object]) -> EvaluatorResponse:
     rendered = await ai.prompt('answer_accuracy').render(
         input={'query': datapoint.input, 'output': datapoint.output, 'reference': datapoint.reference},
     )
@@ -88,7 +88,7 @@ async def answer_accuracy(datapoint: BaseDataPoint, _options: dict[str, object])
         messages=rendered.messages,
     )
     rating = int(response.text.strip()) if response.text and response.text.strip() in {'0', '2', '4'} else 0
-    return EvalFnResponse(
+    return EvaluatorResponse(
         test_case_id=datapoint.test_case_id or '',
         evaluation=[
             Score(
