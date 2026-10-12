@@ -75,7 +75,7 @@ def config_from_ref(model: ModelRef[Any]) -> dict[str, Any] | None:
     if model.version is not None:
         bag['version'] = model.version
     if model.config is not None:
-        bag.update(model.config.model_dump(exclude_unset=True, exclude_none=True))
+        bag.update(model.config.model_dump(by_alias=True, exclude_unset=True, exclude_none=True))
     return bag or None
 
 

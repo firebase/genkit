@@ -191,17 +191,24 @@ def build_tools(request: ModelRequest[DeepResearchConfig], config: DeepResearchC
         if getattr(config, tool_type, None):
             tools.append({'type': tool_type})
     # The create body is snake_case, the same names the Gemini FileSearch tool takes.
-    file_search = {
+    # Empty store names (an untouched Dev UI list) mean off.
+    stores = [s for s in config.file_search_store_names or [] if s]
+    file_search_options = {
         key: value
         for key, value in (
-            ('file_search_store_names', config.file_search_store_names),
             ('metadata_filter', config.file_search_metadata_filter),
             ('top_k', config.file_search_top_k),
         )
         if value is not None
     }
-    if file_search:
-        tools.append({'type': 'file_search', **file_search})
+    if stores:
+        tools.append({'type': 'file_search', 'file_search_store_names': stores, **file_search_options})
+    elif file_search_options:
+        names = ', '.join(f'file_search_{k}' for k in file_search_options)
+        raise GenkitError(
+            status='INVALID_ARGUMENT',
+            message=f'{names} needs file_search_store_names',
+        )
     for mcp_server in config.mcp_servers or []:
         tools.append({'type': 'mcp_server', **{k: v for k, v in mcp_server.items() if v is not None}})
 

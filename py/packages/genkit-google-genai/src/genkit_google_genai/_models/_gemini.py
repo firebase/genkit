@@ -221,7 +221,7 @@ class SafetySetting(TypedDict):
 
     category: HarmCategory
     threshold: HarmBlockThreshold
-    method: NotRequired[HarmBlockMethod]
+    method: NotRequired[HarmBlockMethod | None]
 
 
 def _literal_list_schema(choices: tuple[str, ...], description: str) -> WithJsonSchema:
@@ -497,7 +497,11 @@ class GeminiConfig(ModelConfig):
         if self.thinking_level is not None and self.thinking_budget is not None:
             raise _both_set_error('thinking_level', 'thinking_budget')
         if self.google_search is False:
-            options = [name for name in _GOOGLE_SEARCH_OPTIONS if getattr(self, name) is not None]
+            options = [
+                name
+                for name in _GOOGLE_SEARCH_OPTIONS
+                if (val := getattr(self, name)) is not None and (not isinstance(val, list) or any(val))
+            ]
             if options:
                 raise ValueError(
                     f'google_search=False with {", ".join(options)} set; drop the options, '
@@ -2178,15 +2182,30 @@ class GeminiModel:
         )
 
     def _check_backend_fields(self, config: Mapping[str, Any]) -> None:
-        """Raise for settings the Gemini API rejects, naming the flat field.
+        """Raise for settings the backend rejects, naming the flat field.
 
         google-genai raises its own ValueError for these, with the nested
         SDK path; the plugin knows the backend, so it raises first.
         """
         if self._client.vertexai:
+            stores = [s for s in config.get('file_search_store_names') or [] if s]
+            fields = [
+                *(('file_search_store_names',) if stores else ()),
+                *(
+                    name
+                    for name in ('file_search_metadata_filter', 'file_search_top_k')
+                    if config.get(name) is not None
+                ),
+            ]
+            if fields:
+                raise self._invalid_config(f'{", ".join(fields)}: Gemini API only, not supported on Vertex AI')
             return
-        fields = [name for name in _VERTEX_ONLY_FIELDS if config.get(name) is not None]
-        if any('method' in s for s in config.get('safety_settings') or []):
+        fields = [
+            name
+            for name in _VERTEX_ONLY_FIELDS
+            if config.get(name) is not None and (name != 'google_search_exclude_domains' or any(config.get(name) or []))
+        ]
+        if any(s.get('method') is not None for s in config.get('safety_settings') or []):
             fields.append('safety_settings[].method')
         if fields:
             raise self._invalid_config(f'{", ".join(fields)}: Vertex AI only, not supported on the Gemini API')
@@ -2205,15 +2224,24 @@ class GeminiModel:
         if config.pop('code_execution', None):
             tools.append(genai_types.Tool(code_execution=genai_types.ToolCodeExecution()))
 
-        # Safety settings — filter out unspecified categories
+        # Safety settings — filter out unspecified categories and None methods
         if 'safety_settings' in config:
             config['safety_settings'] = [
-                s for s in config['safety_settings'] if s['category'] != 'HARM_CATEGORY_UNSPECIFIED'
+                {k: v for k, v in s.items() if v is not None}
+                for s in config['safety_settings']
+                if s['category'] != 'HARM_CATEGORY_UNSPECIFIED'
             ]
 
         # Google Search: True, or any option with google_search unset. The
-        # config class already rejected False alongside options.
+        # config class already rejected False alongside options. Empty list
+        # options (an untouched Dev UI list) mean unset.
         search = _pop_prefixed(config, 'google_search_')
+        if 'types' in search and not search['types']:
+            search.pop('types')
+        if 'exclude_domains' in search:
+            domains = [d for d in search.pop('exclude_domains') or [] if d]
+            if domains:
+                search['exclude_domains'] = domains
         if config.pop('google_search', None) or search:
             options: dict[str, Any] = {}
             if 'types' in search:

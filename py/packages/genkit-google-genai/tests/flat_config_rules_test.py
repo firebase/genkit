@@ -187,6 +187,34 @@ async def test_file_search_empty_store_names_attach_nothing(sent: _Sent) -> None
     assert 'tools' not in sent.bodies[-1]
 
 
+@pytest.mark.asyncio
+async def test_google_search_empty_list_options_attach_nothing(sent: _Sent) -> None:
+    """Empty google_search_types / google_search_exclude_domains lists neither turn search on nor trip Vertex checks."""
+    await _googleai().generate(
+        model=_GEMINI,
+        prompt='hi',
+        config=GeminiConfig(google_search_types=[], google_search_exclude_domains=[]),
+    )
+
+    assert 'tools' not in sent.bodies[-1]
+
+
+@pytest.mark.asyncio
+async def test_safety_setting_method_none_passes_on_gemini_api(sent: _Sent) -> None:
+    """A SafetySetting entry with method=None is stripped and not rejected as Vertex-only."""
+    await _googleai().generate(
+        model=_GEMINI,
+        prompt='hi',
+        config=GeminiConfig(
+            safety_settings=[{'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_ONLY_HIGH', 'method': None}]
+        ),
+    )
+
+    assert sent.bodies[-1]['safetySettings'] == [
+        {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_ONLY_HIGH'}
+    ]
+
+
 # -- Vertex-only settings on the Gemini API -------------------------------------
 
 
@@ -221,6 +249,26 @@ async def test_vertex_only_setting_raises_on_gemini_api(
     response = await _googleai().generate(model=model, prompt='hi', config=config)
 
     assert re.search(f'{re.escape(field)}.*Vertex AI only', _failure(response))
+    assert sent.bodies == []
+
+
+@pytest.mark.parametrize(
+    ('config', 'field'),
+    [
+        (GeminiConfig(file_search_store_names=['fileSearchStores/s1']), 'file_search_store_names'),
+        (
+            GeminiConfig(file_search_store_names=['fileSearchStores/s1'], file_search_top_k=5),
+            'file_search_store_names, file_search_top_k',
+        ),
+    ],
+    ids=['store_names', 'store_names_and_top_k'],
+)
+@pytest.mark.asyncio
+async def test_gemini_api_only_file_search_raises_on_vertex_ai(sent: _Sent, config: GeminiConfig, field: str) -> None:
+    """File Search is Gemini-API-only; Vertex AI rejects it naming the flat field."""
+    response = await _vertexai().generate(model='vertexai/gemini-2.5-flash', prompt='hi', config=config)
+
+    assert re.search(f'{re.escape(field)}: Gemini API only, not supported on Vertex AI', _failure(response))
     assert sent.bodies == []
 
 

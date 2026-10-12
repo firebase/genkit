@@ -826,6 +826,36 @@ async def test_deep_research_file_search_and_mcp_dump_snake_case() -> None:
     assert 'allowedTools' not in tools[1]
 
 
+@pytest.mark.asyncio
+async def test_deep_research_file_search_empty_stores_and_orphan_options() -> None:
+    patcher, create_calls, _, _ = patch_interactions(
+        'genkit_google_genai._models._deep_research',
+        create_result={'id': 'dr-tools', 'status': 'in_progress'},
+    )
+    action = create_deep_research_background_action(
+        'deep-research-preview-04-2026',
+        plugin_api_key='plugin-key',
+        client_options=ClientOptions(),
+    )
+    with patcher:
+        await action.start(
+            ModelRequest(
+                messages=[Message(role=Role.USER, content=[Part.from_text('q')])],
+                config={'file_search_store_names': ['']},
+            )
+        )
+        assert 'tools' not in create_calls[-1]
+
+        with pytest.raises(GenkitError, match='file_search_top_k needs file_search_store_names') as exc_info:
+            await action.start(
+                ModelRequest(
+                    messages=[Message(role=Role.USER, content=[Part.from_text('q')])],
+                    config={'file_search_top_k': 5},
+                )
+            )
+        assert exc_info.value.status == 'INVALID_ARGUMENT'
+
+
 def test_deep_research_accepts_uppercase_choice_labels() -> None:
     config = DeepResearchConfig.model_validate({
         'thinking_summaries': 'AUTO',

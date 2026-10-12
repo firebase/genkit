@@ -81,6 +81,7 @@ from genkit._core._middleware import (
     ModelHookParams,
     ToolHookParams,
     _copy_middleware_instance,
+    _dump_middleware_ref_config,
     middleware_class_index,
 )
 from genkit._core._model import (
@@ -315,8 +316,8 @@ def register_middleware(
                     reg_name,
                     GenerateMiddleware(cls=mw_cls, name=reg_name),
                 )
-            # by_alias: the ref keys match the schema the Dev UI renders (camelCase for GenkitConfig).
-            config = cast(BaseModel, entry.config).model_dump(exclude_none=True, by_alias=True, mode='json') or None
+            # Dump keys that match the schema and that the config class validates.
+            config = _dump_middleware_ref_config(cast(BaseModel, entry.config))
             refs.append(MiddlewareRef(name=reg_name, config=config))
         else:
             refs.append(entry)

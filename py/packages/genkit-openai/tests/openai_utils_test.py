@@ -210,6 +210,24 @@ class TestExtractConfigDict:
             'timestamp_granularities': ['word'],
         }
 
+    def test_typed_image_configs_keep_sdk_field_names(self) -> None:
+        """Typed DALL-E and GPT-Image configs reach the SDK with snake_case field names."""
+        from genkit_openai._models._image import OpenAIDalleConfig, OpenAIGptImageConfig, _to_image_generate_params
+
+        dalle_req = self._make_request(config=OpenAIDalleConfig(response_format='url'))
+        assert _to_image_generate_params('dall-e-3', dalle_req) == {
+            'model': 'dall-e-3',
+            'prompt': 'hello',
+            'response_format': 'url',
+        }
+        gpt_img_req = self._make_request(config=OpenAIGptImageConfig(output_format='png', output_compression=80))
+        assert _to_image_generate_params('gpt-image-1', gpt_img_req) == {
+            'model': 'gpt-image-1',
+            'prompt': 'hello',
+            'output_format': 'png',
+            'output_compression': 80,
+        }
+
 
 class TestFindText:
     """Tests for _find_text."""
