@@ -23,7 +23,7 @@ import httpx
 import pytest
 from genkit_openai import OpenAI
 
-from genkit import Genkit
+from genkit import Genkit, ToolChoice
 
 
 def _completion(message: dict[str, Any], finish_reason: str) -> dict[str, Any]:
@@ -67,7 +67,7 @@ _ANSWER = _completion({'role': 'assistant', 'content': 'The pho is in stock and 
 
 def _genkit(server: _ScriptedServer) -> Genkit:
     http_client = httpx.AsyncClient(transport=httpx.MockTransport(server.handler))
-    ai = Genkit(plugins=[OpenAI(api_key='sk-plugin', http_client=http_client, max_retries=0)])
+    ai = Genkit(plugins=[OpenAI(api_key='sk-plugin', client_options={'http_client': http_client, 'max_retries': 0})])
 
     @ai.tool(name='lookup_menu')
     async def lookup_menu(dish: str) -> str:
@@ -129,7 +129,7 @@ async def test_tool_choice_kept_after_a_tool_turn(tool_choice: Any) -> None:  # 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('tool_choice', ['auto', 'required', 'none'])
-async def test_tool_choice_dropped_without_tools(tool_choice: str) -> None:
+async def test_tool_choice_dropped_without_tools(tool_choice: ToolChoice) -> None:
     """OpenAI rejects tool_choice without tools, so a request with no tools sends neither."""
     server = _ScriptedServer([_ANSWER])
     ai = _genkit(server)

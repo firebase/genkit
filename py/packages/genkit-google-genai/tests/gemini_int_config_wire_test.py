@@ -40,7 +40,13 @@ _OK = {'candidates': [{'content': {'role': 'model', 'parts': [{'text': 'ok'}]}, 
 @pytest.mark.parametrize(
     'config',
     [
-        GeminiConfig(top_k=40, max_output_tokens=500, candidate_count=1, seed=7, logprobs=2),
+        GeminiConfig.model_validate({
+            'top_k': 40,
+            'max_output_tokens': 500,
+            'candidate_count': 1,
+            'seed': 7,
+            'logprobs': 2,
+        }),
         {'topK': 40, 'maxOutputTokens': 500, 'candidateCount': 1, 'seed': 7, 'logprobs': 2},
     ],
     ids=['typed', 'dict'],
