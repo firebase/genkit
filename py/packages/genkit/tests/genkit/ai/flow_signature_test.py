@@ -9,8 +9,9 @@ from typing import Any
 
 import pytest
 from pydantic import BaseModel
+from typing_extensions import assert_type
 
-from genkit import FlowContext, Genkit
+from genkit import Flow, FlowContext, Genkit
 
 
 @pytest.mark.asyncio
@@ -282,6 +283,10 @@ async def test_bare_flow_decorator_without_parentheses_registers_and_streams() -
         ctx.send_chunk('searing')
         return f'{dish} for {ctx.context["table"]}'
 
+    assert isinstance(greet, Flow)
+    assert isinstance(plate, Flow)
+    assert_type(greet, Flow[str, str])
+    assert_type(plate, Flow[str, str, str])
     assert greet.name == 'greet'
     assert await greet('ada') == 'hello ada'
 
@@ -290,3 +295,54 @@ async def test_bare_flow_decorator_without_parentheses_registers_and_streams() -
     assert plate.name == 'plate'
     assert chunks == ['searing']
     assert result.response == 'salmon for 4'
+
+
+@pytest.mark.asyncio
+async def test_standalone_flow_class_runs_and_streams_without_registry() -> None:
+    """`Flow(fn)` constructs a standalone typed flow that runs, streams, and enforces strict I/O without a registry."""
+
+    async def plate(dish: str, ctx: FlowContext[str]) -> str:
+        ctx.send_chunk('searing')
+        ctx.send_chunk('plating')
+        return f'{dish} for {ctx.context["table"]}'
+
+    standalone = Flow(plate, name='plate_dish', description='Plate a dish.')
+    assert isinstance(standalone, Flow)
+    assert_type(standalone, Flow[str, str, str])
+    assert standalone.name == 'plate_dish'
+    assert standalone.description == 'Plate a dish.'
+    assert standalone.input_schema == {'type': 'string'}
+    assert standalone.output_schema == {'type': 'string'}
+    assert await standalone('halibut', context={'table': 7}) == 'halibut for 7'
+
+    stream = standalone.stream('salmon', context={'table': 4})
+    got = [chunk async for chunk in stream.stream]
+    assert got == ['searing', 'plating']
+    assert await stream.response == 'salmon for 4'
+
+    async def reversed_flow(ctx: FlowContext[int], dish: str) -> str:
+        ctx.send_chunk(1)
+        return dish.upper()
+
+    rev = Flow(reversed_flow)
+    assert_type(rev, Flow[str, str, int])
+    assert await rev('risotto') == 'RISOTTO'
+
+    async def simple_flow(dish: str) -> int:
+        return len(dish)
+
+    simple = Flow(simple_flow)
+    assert_type(simple, Flow[str, int])
+    assert await simple('taco') == 4
+
+    async def untyped(name) -> str:  # noqa: ANN001
+        return f'hello {name}'
+
+    with pytest.raises(TypeError, match="flow 'untyped' input 'name' has no type annotation"):
+        Flow(untyped)
+
+    def sync_fn(x: str) -> str:
+        return x
+
+    with pytest.raises(TypeError, match='Flow must be async'):
+        Flow(sync_fn)  # type: ignore[arg-type]
