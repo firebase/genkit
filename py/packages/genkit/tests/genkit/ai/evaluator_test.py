@@ -123,17 +123,18 @@ def test_evaluator_action_metadata_carries_display_name_definition_billed() -> N
 
     assert listing.action_type == ActionKind.EVALUATOR
     assert listing.name == 'p/fluency'
-    assert listing.metadata is not None
-    assert listing.metadata['evaluator'] == {
-        'evaluatorDisplayName': 'Fluency',
-        'evaluatorDefinition': 'Assesses the language mastery of an output',
-        'evaluatorIsBilled': True,
-        'label': 'p/fluency',
-        'customOptions': {
-            'properties': {'threshold': {'default': 0.5, 'title': 'Threshold', 'type': 'number'}},
-            'title': 'ThresholdOptions',
-            'type': 'object',
-        },
+    assert listing.metadata == {
+        'evaluator': {
+            'evaluatorDisplayName': 'Fluency',
+            'evaluatorDefinition': 'Assesses the language mastery of an output',
+            'evaluatorIsBilled': True,
+            'label': 'p/fluency',
+            'customOptions': {
+                'properties': {'threshold': {'default': 0.5, 'title': 'Threshold', 'type': 'number'}},
+                'title': 'ThresholdOptions',
+                'type': 'object',
+            },
+        }
     }
 
 

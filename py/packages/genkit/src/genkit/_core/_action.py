@@ -833,13 +833,18 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
 
     def action_metadata(self) -> ActionMetadata:
         """Return the ActionMetadata descriptor for Plugin.list_actions()."""
+        meta = {
+            k: v
+            for k, v in self._metadata.items()
+            if k not in (ActionMetadataKey.INPUT_KEY, ActionMetadataKey.OUTPUT_KEY)
+        }
         return ActionMetadata(
             action_type=self._kind,
             name=self._name,
             description=self._description,
             input_schema=self._input_schema,
             output_schema=self._output_schema,
-            metadata=self._metadata,
+            metadata=meta,
         )
 
     @property
