@@ -136,6 +136,11 @@ export function fastifyHandler<
     }
 
     const abortController = new AbortController();
+    // The client may have disconnected while the context provider was running,
+    // before the 'close' listener below existed; 'close' fires only once.
+    if (reply.raw.destroyed) {
+      abortController.abort();
+    }
     // Listen on the response, not the request: since Node 16 the request
     // (IncomingMessage) emits 'close' as soon as its body has been consumed,
     // which is long before the client disconnects. The response emits 'close'

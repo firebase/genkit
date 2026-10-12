@@ -58,6 +58,13 @@ const contextProvider: ContextProvider<Context> = (req: RequestData) => {
   };
 };
 
+// Takes long enough for a test client to disconnect while the handler is still
+// waiting for the context.
+const slowContextProvider: ContextProvider<Context> = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  return { auth: { user: 'Ali Baba' } };
+};
+
 describe('expressHandler', async () => {
   let server: http.Server;
   let port;
@@ -140,6 +147,10 @@ describe('expressHandler', async () => {
         resolveFlowStarted();
         if (input === 'wait') {
           await new Promise<void>((resolve) => {
+            if (abortSignal.aborted) {
+              resolve();
+              return;
+            }
             const timer = setTimeout(resolve, 3000);
             abortSignal.addEventListener(
               'abort',
@@ -216,6 +227,10 @@ describe('expressHandler', async () => {
     app.post('/flowWithInit', expressHandler(flowWithInit));
     app.post('/flowWithInitSchema', expressHandler(flowWithInitSchema));
     app.post('/abortableFlow', expressHandler(abortableFlow));
+    app.post(
+      '/abortableFlowSlowContext',
+      expressHandler(abortableFlow, { contextProvider: slowContextProvider })
+    );
 
     server = app.listen(port, () => {
       console.log(`Example app listening on port ${port}`);
@@ -393,6 +408,27 @@ describe('expressHandler', async () => {
         signal: controller.signal,
       });
       await flowStarted;
+      controller.abort();
+      await assert.rejects(response); // abort error
+
+      const { aborted } = await flowFinished;
+      assert.strictEqual(aborted, true);
+    });
+
+    it('aborts the flow when the client disconnects while the context is being resolved', async () => {
+      const controller = new AbortController();
+      const response = fetch(
+        `http://localhost:${port}/abortableFlowSlowContext`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: 'wait' }),
+          signal: controller.signal,
+        }
+      );
+      // Disconnect while the slow context provider is still running, so the
+      // flow has not started yet.
+      await new Promise((resolve) => setTimeout(resolve, 100));
       controller.abort();
       await assert.rejects(response); // abort error
 
