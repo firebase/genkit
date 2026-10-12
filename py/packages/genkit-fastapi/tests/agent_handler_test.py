@@ -18,13 +18,13 @@ if not hasattr(_genkit_agent, 'InMemorySessionStore'):
     pytest.skip('agents API not available', allow_module_level=True)
 InMemorySessionStore = _genkit_agent.InMemorySessionStore
 AgentInit = _genkit_agent.AgentInit
-error_from_http = _genkit_agent.error_from_http
 
 from genkit_fastapi import handle_genkit_request  # noqa: E402
 from genkit_fastapi.exp import serve_agent  # noqa: E402
 
 from genkit import (  # noqa: E402
     FinishReason,
+    GenkitRuntimeError,
     Message,
     ModelResponse,
     ModelResponseChunk as ModelResponseChunkModel,
@@ -257,6 +257,6 @@ def test_serve_agent_init_mismatch_returns_agent_init_error(
         expected['details'] = {'reason': reason.value}
     assert response.json() == expected
 
-    err = error_from_http(status_code=response.status_code, body=response.text)
+    err = GenkitRuntimeError.model_validate_json(response.text)
     assert err.status == 'FAILED_PRECONDITION'
     assert err.reason is reason

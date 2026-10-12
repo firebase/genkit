@@ -37,7 +37,7 @@ from openai.types.chat import ChatCompletion
 from genkit import Document, Genkit, GenkitError, Message, ModelResponse, Part, Role
 from genkit.embedder import EmbedRequest, EmbedResponse
 from genkit.model import Supports
-from genkit.plugin_api import ActionKind, ActionMetadata, built_in_formats, loop_local_client
+from genkit.plugin_api import ActionKind, ActionMetadata, loop_local_client
 
 
 @pytest.mark.asyncio
@@ -110,10 +110,6 @@ def test_gpt_6_astra_catalog_entry() -> None:
     )
 
 
-# Image and audio models list 'media' in addition to the built-in formats.
-KNOWN_OUTPUTS = {f.name for f in built_in_formats} | {'media'}
-
-
 @pytest.mark.parametrize(
     'catalog',
     [SUPPORTED_OPENAI_MODELS, SUPPORTED_IMAGE_MODELS, SUPPORTED_TTS_MODELS, SUPPORTED_STT_MODELS],
@@ -121,9 +117,13 @@ KNOWN_OUTPUTS = {f.name for f in built_in_formats} | {'media'}
 )
 def test_catalog_output_names_are_known_formats(catalog: dict[str, Any]) -> None:
     """supports.output lists Genkit output formats, not OpenAI request options like json_mode."""
+    ai = Genkit()
     for name, info in catalog.items():
         outputs = info.supports.output if info.supports else None
-        unknown = set(outputs or []) - KNOWN_OUTPUTS
+        # Image and audio models list 'media' in addition to the built-in formats.
+        unknown = [
+            out for out in (outputs or []) if out != 'media' and ai.lookup_value(kind='format', name=out) is None
+        ]
         assert not unknown, f'{name}: {sorted(unknown)}'
 
 

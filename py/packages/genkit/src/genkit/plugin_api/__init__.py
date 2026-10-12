@@ -17,7 +17,6 @@
 """Framework primitives for plugin authors."""
 
 # Base class and framework primitives
-from genkit._ai._formats._builtin import built_in_formats
 from genkit._core._action import Action, ActionKind, input_from_json
 from genkit._core._compat import StrEnum
 from genkit._core._constants import GENKIT_CLIENT_HEADER
@@ -25,8 +24,6 @@ from genkit._core._context import joined_headers
 from genkit._core._environment import is_dev_environment
 from genkit._core._error import (
     StatusName,
-    get_callable_json,
-    get_http_status,
     log_served_failure,
     provider_error,
     served_error_json,
@@ -63,8 +60,4 @@ __all__ = [
     'log_served_failure',
     'served_error_json',
     'served_stream_error_event',
-    'get_callable_json',
-    'get_http_status',
-    # Built-in output formats
-    'built_in_formats',
 ]

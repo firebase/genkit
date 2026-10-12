@@ -24,7 +24,6 @@ Example:
     model, _ = define_scripted_model(ai, responses=[...])
 """
 
-from genkit._ai._tools import run_tool_after_restart
 from genkit.testing._models import (
     EchoModel,
     ScriptedModel,
@@ -41,5 +40,4 @@ __all__ = [
     'define_echo_model',
     'define_scripted_model',
     'define_static_response_model',
-    'run_tool_after_restart',
 ]
