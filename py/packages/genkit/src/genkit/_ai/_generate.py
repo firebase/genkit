@@ -16,6 +16,8 @@
 
 """Generate action."""
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import copy
@@ -27,6 +29,7 @@ from typing import Any, TypeVar, cast
 
 from pydantic import BaseModel, ValidationError
 
+from genkit._ai import _aio
 from genkit._ai._formats._types import FormatDef, Formatter
 from genkit._ai._messages import inject_instructions
 from genkit._ai._model import (
@@ -35,6 +38,8 @@ from genkit._ai._model import (
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,
+    annotated_config_class,
+    check_config_before_turn,
     resolve_model_name,
     text_from_content,
 )
@@ -87,11 +92,9 @@ from genkit._core._model import (
     Part,
     as_message,
     chunk_for_stream,
-    declared_config_type,
     reject_config_api_key,
     reject_unanswered_interrupts,
 )
-from genkit._core._protocols import RegistryLike
 from genkit._core._registry import Registry
 from genkit._core._schema import check_output_schema
 from genkit._core._telemetry._instrumentation import SpanContext, run_in_new_span, set_span_state
@@ -126,7 +129,18 @@ HookWrap = Callable[
 
 
 class StreamingCallbackError(Exception):
-    """Carries a caller callback failure through generate's failure handling."""
+    """The caller's ``on_chunk`` raised while a model was streaming.
+
+    Generate wraps the caller's callback before handing it to the model, so a
+    failing client sink surfaces at ``ctx.send_chunk`` as this error, raised
+    from the original. ``cause`` holds the caller's exception.
+
+    It is the caller's failure, not the model's: a model that catches broad
+    exceptions around ``send_chunk`` should let it through, and middleware
+    should not retry or fall back on it. A plugin may still re-raise it as
+    another error ``from`` it, so check the ``__cause__`` chain, not only the
+    top exception.
+    """
 
     def __init__(self, cause: Exception) -> None:
         super().__init__(str(cause))
@@ -251,16 +265,18 @@ async def run_logged_hook(
         )
 
 
-@dataclass(frozen=True)
-class ScopedGenkitView:
-    """A GenkitLike view over the call-scoped registry for one generate invocation.
+class CallScope:
+    """One generate call: the app's Genkit and a child registry for this call only.
 
-    Middleware reads ``ctx.ai.registry`` expecting the per-call child registry
-    (with this call's middleware/tool registrations), not the global one, so we
-    hand it this thin wrapper instead of the full Genkit veneer.
+    Inline ``tools=[...]``, inline ``use=[...]`` middleware, and tools middleware
+    contributes are registered on ``registry`` so they resolve by name for this
+    call and are gone after it. The child is built from ``ai``'s registry here,
+    so the two always belong together.
     """
 
-    registry: RegistryLike
+    def __init__(self, ai: _aio.Genkit) -> None:
+        self.ai = ai
+        self.registry: Registry = ai._registry.new_child()
 
 
 def register_middleware(
@@ -671,7 +687,7 @@ def raise_if_aborted(abort_signal: asyncio.Event) -> None:
         raise GenkitError(status='ABORTED', message='Generation aborted.')
 
 
-def define_generate_action(registry: Registry) -> None:
+def define_generate_action(ai: _aio.Genkit) -> None:
     """Register the generation action triggered by the Dev UI."""
 
     async def generate_action_fn(
@@ -680,7 +696,7 @@ def define_generate_action(registry: Registry) -> None:
     ) -> ModelResponse:
         on_chunk = cast(Callable[[ModelResponseChunk], None], ctx.streaming_callback) if ctx.is_streaming else None
         response = await run_generate(
-            registry=registry,
+            scope=CallScope(ai),
             options=input,
             abort_signal=ctx.abort_signal,
             on_chunk=on_chunk,
@@ -690,7 +706,7 @@ def define_generate_action(registry: Registry) -> None:
             set_span_state('error')
         return response
 
-    _ = registry.register_action(
+    _ = ai._registry.register_action(
         kind=ActionKind.UTIL,
         name='generate',
         fn=generate_action_fn,
@@ -698,7 +714,7 @@ def define_generate_action(registry: Registry) -> None:
 
 
 async def generate_action(
-    registry: Registry,
+    scope: CallScope,
     options: GenerateActionOptions,
     on_chunk: Callable[[ModelResponseChunk], None] | None = None,
     message_index: int = 0,
@@ -721,7 +737,7 @@ async def generate_action(
 
     async def body(_span: SpanContext) -> ModelResponse:
         result = await run_generate(
-            registry=registry,
+            scope=scope,
             options=options,
             abort_signal=abort_signal,
             on_chunk=on_chunk,
@@ -738,7 +754,7 @@ async def generate_action(
 
 async def run_generate(
     *,
-    registry: Registry,
+    scope: CallScope,
     options: GenerateActionOptions,
     on_chunk: Callable[[ModelResponseChunk], None] | None = None,
     message_index: int = 0,
@@ -767,7 +783,12 @@ async def run_generate(
     # The veneer already checked ahead of its span. /util/generate (Dev UI,
     # reflection) starts here, so it fails before middleware or the model runs.
     reject_config_api_key(options.config)
-    registry = registry if registry.is_child else registry.new_child()
+    registry = scope.registry
+    # Config values the model's ModelRequest[...] class or JSON-schema
+    # config_schema= rejects raise here, before any hook runs, for every entry
+    # point (ai.generate, prompts, generate_operation, /util/generate).
+    if options.model:
+        await check_config_before_turn(model=options.model, config=options.config, registry=registry)
 
     if options.tools:
         options.tools = await expand_wildcard_tools(registry, options.tools)
@@ -784,7 +805,7 @@ async def run_generate(
             raise StreamingCallbackError(exc) from exc
 
     ctx = GenerateMiddlewareContext(
-        ai=ScopedGenkitView(registry),
+        ai=scope.ai,
         custom_context=dict(context or {}),
         on_chunk=send_caller_chunk if caller_on_chunk is not None else None,
         abort_signal=abort_signal if abort_signal is not None else asyncio.Event(),
@@ -1522,7 +1543,6 @@ async def generate_turn(
         tool_requests=tool_requests_on(generated_msg),
         options=options,
         resolved=resolved,
-        registry=registry,
         ctx=ctx,
         mw_pipeline=mw_pipeline,
         current_turn=current_turn,
@@ -1605,7 +1625,7 @@ async def call_model(
     # that object; a swapped-in dict or other class would reach inner layers
     # as a second shape, so each handoff is checked. When the build fell back
     # to a bare request (the config didn't fit), the model action reports it.
-    config_class = declared_config_type(turn_model.input_class) if turn_model.input_class is not None else None
+    config_class = annotated_config_class(turn_model)
     on_handoff: Callable[[ModelHookParams, MiddlewareDef], None] | None = None
     if config_class is not None and isinstance(request.config, config_class):
         config_check = MiddlewareConfigCheck(config=request.config, schema=config_class, model=turn_model.name)
@@ -1693,7 +1713,6 @@ async def run_tools_or_stop(
     tool_requests: list[Part],
     options: GenerateActionOptions,
     resolved: ResolvedTurn,
-    registry: Registry,
     ctx: GenerateMiddlewareContext,
     mw_pipeline: MiddlewarePipeline,
     current_turn: int,
@@ -1763,10 +1782,8 @@ async def run_tools_or_stop(
 
     try:
         revised_model_msg, tool_msg = await resolve_tool_requests(
-            registry=registry,
             message=generated_msg,
             mw_pipeline=mw_pipeline,
-            abort_signal=ctx.abort_signal,
             tools=resolved.tools,
         )
     except (Exception, asyncio.CancelledError) as exc:
@@ -2078,10 +2095,8 @@ def to_tool_definition(tool: Action) -> ToolDefinition:
 
 async def resolve_tool_requests(
     *,
-    registry: Registry,
     message: Message,
-    abort_signal: asyncio.Event,
-    mw_pipeline: MiddlewarePipeline | None = None,
+    mw_pipeline: MiddlewarePipeline,
     tools: list[Action],
 ) -> tuple[Message | None, Message | None]:
     """Execute tool requests in a message, returning responses or interrupt info."""
@@ -2120,14 +2135,7 @@ async def resolve_tool_requests(
     async def run_one_tool(tool: Action, trp: Part) -> tuple[MultipartToolResponse | None, Part | None]:
         if trp.tool_request is None:
             raise GenkitError(status='INTERNAL', message='Expected a tool request part')
-        ctx = (
-            mw_pipeline.ctx
-            if mw_pipeline is not None
-            else GenerateMiddlewareContext(
-                ai=ScopedGenkitView(registry),
-                abort_signal=abort_signal,
-            )
-        )
+        ctx = mw_pipeline.ctx
         raise_if_aborted(ctx.abort_signal)
         params = ToolHookParams(tool_request_part=trp, tool=tool)
 

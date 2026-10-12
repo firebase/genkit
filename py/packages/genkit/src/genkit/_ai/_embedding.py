@@ -104,19 +104,10 @@ def embedder_action_metadata(
     return ActionMetadata(
         action_type=ActionKind.EMBEDDER,
         name=name,
-        input_json_schema=to_json_schema(EmbedRequest),
-        output_json_schema=to_json_schema(EmbedResponse),
+        input_schema=to_json_schema(EmbedRequest),
+        output_schema=to_json_schema(EmbedResponse),
         metadata=embedder_metadata_dict,
     )
-
-
-def create_embedder_ref(name: str, *, config: dict[str, Any] | None = None, version: str | None = None) -> EmbedderRef:
-    """Create an EmbedderRef. Settings and version are named.
-
-    A version string in the second position used to be stored as config and
-    silently dropped. Pass config= and version=.
-    """
-    return EmbedderRef(name=name, config=config, version=version)
 
 
 def embedder(
