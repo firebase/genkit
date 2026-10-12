@@ -36,7 +36,9 @@ from pydantic import BaseModel
 
 from genkit._ai._embedding import EmbedderFn, EmbedderInfo, EmbedderRef, define_embedder
 from genkit._ai._evaluator import (
+    BatchEvaluator,
     BatchEvaluatorFn,
+    Evaluator,
     EvaluatorFn,
     EvaluatorRef,
     define_batch_evaluator,
@@ -124,8 +126,8 @@ from genkit._core._tool import Tool
 from genkit._core._typing import (
     BaseDataPoint,
     Embedding,
-    EvalFnResponse,
-    EvalRequest,
+    EvaluatorRequest,
+    EvaluatorResponse,
     MiddlewareRef,
     ModelInfo,
     Operation,
@@ -553,15 +555,15 @@ class Genkit:
         config_schema: type[BaseModel] | dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
         description: str | None = None,
-    ) -> Action:
+    ) -> Evaluator:
         """Register an evaluator that scores one dataset row at a time.
 
         Example:
             ```python
             # 1. Score whether the answer mentions the expected dish
-            async def mentions_dish(row: BaseDataPoint, options: object | None) -> EvalFnResponse:
+            async def mentions_dish(row: BaseDataPoint, options: object | None) -> EvaluatorResponse:
                 hit = row.reference.lower() in str(row.output).lower()
-                return EvalFnResponse(test_case_id=row.test_case_id or '', evaluation=[Score(score=hit)])
+                return EvaluatorResponse(test_case_id=row.test_case_id or '', evaluation=[Score(score=hit)])
 
 
             # 2. Register it under a name
@@ -574,7 +576,7 @@ class Genkit:
 
             # 3. Run it over a dataset
             rows = await ai.evaluate(evaluator='mentions_dish', dataset=dataset)
-            # => [EvalResponse row with evaluation=[Score(score=True)], ...]
+            # => [EvaluatorResponse(test_case_id='...', evaluation=[Score(score=True)]), ...]
             ```
         """
         return define_evaluator(
@@ -600,11 +602,11 @@ class Genkit:
         config_schema: type[BaseModel] | dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
         description: str | None = None,
-    ) -> Action:
+    ) -> BatchEvaluator:
         """Register a batch evaluator.
 
-        The function is an action: one ``EvalRequest``. Read options from
-        ``req.options``. A second parameter raises ``TypeError`` when defined.
+        The function takes one ``EvaluatorRequest`` and returns ``list[EvaluatorResponse]``.
+        Read options from ``req.options``. A second parameter raises ``TypeError`` when defined.
         """
         return define_batch_evaluator(
             self._registry,
@@ -1943,7 +1945,7 @@ class Genkit:
         dataset: list[BaseDataPoint],
         config: dict[str, object] | None = None,
         eval_run_id: str | None = None,
-    ) -> list[EvalFnResponse]:
+    ) -> list[EvaluatorResponse]:
         """Evaluate a dataset using the specified evaluator.
 
         Returns a list of rows. A per-row evaluator gives one row per
@@ -1992,7 +1994,7 @@ class Genkit:
             eval_run_id = str(uuid.uuid4())
 
         response = await eval_action.run(
-            EvalRequest(
+            EvaluatorRequest(
                 dataset=dataset,
                 options=final_options,
                 eval_run_id=eval_run_id,
