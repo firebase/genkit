@@ -66,7 +66,6 @@ from genkit import (
     Role,
 )
 from genkit.model import (
-    Candidate,
     ConstrainedSupport,
     GenerationUsage,
     ModelConfig,
@@ -1727,32 +1726,10 @@ class GeminiModel:
         if not content:
             content = [Part.from_text('')]
 
+        # The reply is candidate 0, the same one _contents_from_response reads.
         finish_reason = FinishReason.OTHER
-        candidates = []
         if response.candidates:
-            for i, c in enumerate(response.candidates):
-                c_content = []
-                if c.content and c.content.parts:
-                    for part in c.content.parts:
-                        converted = PartConverter.from_gemini(part=part, tools=tools)
-                        if converted:
-                            c_content.append(converted)
-
-                if not c_content:
-                    c_content = [Part.from_text('')]
-
-                c_finish_reason = _to_finish_reason(c.finish_reason)
-
-                if i == 0:
-                    finish_reason = c_finish_reason
-
-                candidates.append(
-                    Candidate(
-                        index=float(i),
-                        message=Message(role=Role.MODEL, content=c_content),
-                        finish_reason=c_finish_reason,
-                    )
-                )
+            finish_reason = _to_finish_reason(response.candidates[0].finish_reason)
 
         return ModelResponse(
             message=Message(
@@ -1760,7 +1737,6 @@ class GeminiModel:
                 role=Role.MODEL,
             ),
             finish_reason=finish_reason,
-            candidates=candidates,
             usage=_usage_from_metadata(response.usage_metadata),
         )
 
@@ -1918,13 +1894,13 @@ class GeminiModel:
             list of generated contents.
         """
         content = []
-        if response.candidates:
-            for candidate in response.candidates:
-                if candidate.content and candidate.content.parts:
-                    for part in candidate.content.parts:
-                        converted = PartConverter.from_gemini(part=part, tools=tools)
-                        if converted:  # Only append if conversion succeeded
-                            content.append(converted)
+        # Genkit responses carry one reply: candidate 0.
+        candidate = response.candidates[0] if response.candidates else None
+        if candidate and candidate.content and candidate.content.parts:
+            for part in candidate.content.parts:
+                converted = PartConverter.from_gemini(part=part, tools=tools)
+                if converted:  # Only append if conversion succeeded
+                    content.append(converted)
 
         # Ensure we always return a list, even if empty
         return content if content else []

@@ -24,7 +24,6 @@ from genkit._ai._model import (
 from genkit._core._background import BackgroundModel, background_model
 from genkit._core._model import (
     ABNORMAL_FINISH_REASONS,
-    Candidate,
     GenerateActionOptions,
     GenerationUsage,
     ModelConfig,
@@ -56,7 +55,6 @@ __all__ = [
     'OutputConfig',
     # Usage and metadata
     'GenerationUsage',
-    'Candidate',
     # Long-running operations
     'OperationError',
     # Tool types
