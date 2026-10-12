@@ -595,13 +595,14 @@ func (h *AgentHandle) forwardTurns(ctx context.Context, init *AgentInit[json.Raw
 
 // nextTurnInit returns the session source that continues the conversation a
 // turn's output describes: its state for a client-managed agent, its snapshot
-// for a server-managed one.
+// for a server-managed one, with the session ID so the server checks that the
+// snapshot belongs to that session.
 func nextTurnInit(out *AgentOutput[json.RawMessage]) *AgentInit[json.RawMessage] {
 	switch {
 	case out.State != nil:
 		return &AgentInit[json.RawMessage]{State: out.State}
 	case out.SnapshotID != "":
-		return &AgentInit[json.RawMessage]{SnapshotID: out.SnapshotID}
+		return &AgentInit[json.RawMessage]{SnapshotID: out.SnapshotID, SessionID: out.SessionID}
 	case out.SessionID != "":
 		return &AgentInit[json.RawMessage]{SessionID: out.SessionID}
 	}

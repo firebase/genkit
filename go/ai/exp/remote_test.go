@@ -484,12 +484,35 @@ func TestAgentHandle_ForwardTurnsUsage(t *testing.T) {
 	}
 }
 
-// scriptedRunTransport answers each Run with the next of outs.
-type scriptedRunTransport struct {
-	outs []*AgentOutput[json.RawMessage]
+func TestAgentHandle_ForwardTurnsCarriesTheSession(t *testing.T) {
+	// The second turn resumes the first turn's snapshot and names its session,
+	// so the server checks that the snapshot belongs to that session.
+	tr := &scriptedRunTransport{outs: []*AgentOutput[json.RawMessage]{
+		{FinishReason: AgentFinishReasonStop, SnapshotID: "snap-1", SessionID: "sess"},
+		{FinishReason: AgentFinishReasonStop, SnapshotID: "snap-2", SessionID: "sess"},
+	}}
+	h := NewAgentHandle("a", nil, tr)
+	inCh := make(chan *AgentInput, 2)
+	inCh <- &AgentInput{}
+	inCh <- &AgentInput{}
+	close(inCh)
+	if _, err := h.forwardTurns(context.Background(), nil, inCh, make(chan *AgentStreamChunk, 1)); err != nil {
+		t.Fatal(err)
+	}
+	if got := tr.inits[1]; got == nil || got.SnapshotID != "snap-1" || got.SessionID != "sess" {
+		t.Errorf("second turn init = %+v, want snapshot snap-1 in session sess", got)
+	}
 }
 
-func (t *scriptedRunTransport) Run(context.Context, *AgentInput, *AgentInit[json.RawMessage], func(context.Context, json.RawMessage) error) (*AgentOutput[json.RawMessage], error) {
+// scriptedRunTransport answers each Run with the next of outs and records the
+// init each Run received.
+type scriptedRunTransport struct {
+	outs  []*AgentOutput[json.RawMessage]
+	inits []*AgentInit[json.RawMessage]
+}
+
+func (t *scriptedRunTransport) Run(_ context.Context, _ *AgentInput, init *AgentInit[json.RawMessage], _ func(context.Context, json.RawMessage) error) (*AgentOutput[json.RawMessage], error) {
+	t.inits = append(t.inits, init)
 	out := t.outs[0]
 	t.outs = t.outs[1:]
 	return out, nil
