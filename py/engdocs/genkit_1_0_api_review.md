@@ -937,42 +937,46 @@ async def track_endpoint(request: Request):
         return JSONResponse(error_body(e), status_code=error_status(e))
 ```
 
-### Context providers
+### Authenticating the caller
 
-The Flask, Django and FastAPI adapters take `context_provider=`: a function that reads the request and returns the flow's context. It gets a `RequestData` (`method`, `headers` with lowercased names, parsed `input`, and the framework's raw `request`), so one provider works in every adapter. `ContextProvider` is its type, for when you write a function that returns one.
+A served flow usually needs to know who is calling, and should turn away bad callers before it runs. Do that in one function that reads the request and returns the flow's context. Genkit calls it before the flow, and the dict it returns becomes `ctx.context`.
+
+- **FastAPI:** pass your existing `Depends` function as `context_dependency=` (Levels 1 and 2). You don't need anything else.
+- **Flask and Django:** pass `context_provider=`. The function gets a `RequestData` and returns a dict. It can be sync or async.
+- **To reject:** raise `PublicError`. The client gets its status and message (`UNAUTHENTICATED` is a 401) and the flow never runs. Any other exception is logged and returned as a redacted 500. The framework's own exceptions (Flask `abort(401)`, Django `PermissionDenied`) go to the framework as usual.
+- **Read `headers` when you can:** `method`, `headers` (lowercase names) and `input` look the same in every adapter, so the provider is plain Python you can reuse and unit test.
+- **Read `request.request` when you need the framework:** it's the raw Flask/Django request, for cookies, sessions or the logged-in user. That provider only works with that one framework.
+- **Tenant API keys go in `context['secrets']`**, not next to the user id. See Per-tenant API keys.
 
 ```python
 from genkit import PublicError
 from genkit.web import RequestData
-from genkit_django import genkit_django_handler
 from genkit_flask import genkit_flask_handler
 
-# 1. Read the request, return the flow's context; raise PublicError to reject
+# 1. Bearer token: reject with a 401 or return the flow's context
 async def auth_context(request: RequestData) -> dict[str, object]:
     token = request.headers.get('authorization')
     if token is None:
         raise PublicError('UNAUTHENTICATED', 'Missing Authorization header')
     return {'user_id': verify_token(token)}
 
-# 2. The same function in Flask and Django
+# 2. Attach it to the served flow
 @genkit_flask_handler(ai, context_provider=auth_context)
 @ai.flow
-async def track_order(order_id: str, ctx: FlowContext[str]) -> str: ...
+async def track_order(order_id: str, ctx: FlowContext[str]) -> str:
+    # 3. Read it inside the flow
+    return f'tracking {order_id} for {ctx.context["user_id"]}'
+    # => tracking ORD-9921 for u_42
 
-@genkit_django_handler(ai, context_provider=auth_context)
-@ai.flow
-async def refund_order(order_id: str, ctx: FlowContext) -> str: ...
-
-# 3. Inside the flow
-ctx.context['user_id']
-# => u_42
+# POST /track_order without Authorization
+# => 401 {"message": "Missing Authorization header", "status": "UNAUTHENTICATED"}
 ```
 
-In FastAPI, `serve_flow(..., context_dependency=...)` takes a regular `Depends` function instead, as in Levels 1 and 2.
-
-`request.request` is the framework's own request object, for what the shared fields don't carry: cookies, sessions, the logged-in user. A provider that reads it works on that framework only. The common case is Django session auth, which has no other way in:
+Django session auth is the common case for `request.request`. The logged-in user is only available from Django's own request:
 
 ```python
+from genkit_django import genkit_django_handler
+
 # 1. AuthenticationMiddleware set the user; auser() because the view is async (Django 5.0+)
 async def django_user(request: RequestData) -> dict[str, object]:
     user = await request.request.auser()
