@@ -17,7 +17,6 @@
 """Tool-specific types and utilities for the Genkit framework."""
 
 import base64
-import inspect
 from collections.abc import Awaitable, Callable, Sequence
 from contextvars import ContextVar
 from types import UnionType
@@ -25,7 +24,7 @@ from typing import Any, NoReturn, TypeVar, Union, cast, get_args, get_origin, ov
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
-from genkit._core._action import Action, ActionKind, ActionRunContext, ChunkT, resolve_type_hints
+from genkit._core._action import Action, ActionRunContext, ChunkT, resolve_type_hints
 from genkit._core._error import GenkitError, Interrupt, RuntimeErrorReason
 from genkit._core._logger import get_logger
 from genkit._core._middleware import GenerateMiddlewareContext
@@ -33,7 +32,7 @@ from genkit._core._model import MultipartToolResponse, Part, as_part, as_resumed
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
 from genkit._core._telemetry._instrumentation import set_custom_metadata_attributes
-from genkit._core._tool import Tool as _Tool, direct_call
+from genkit._core._tool import ORIGINAL_OUTPUT_SCHEMA_KEY as ORIGINAL_OUTPUT_SCHEMA_KEY, Tool as _Tool
 from genkit._core._typing import (
     MultipartToolResponse as MultipartToolResponseData,
     ToolResponse,
@@ -92,9 +91,6 @@ def normalize_pending_content(pending_content: object, *, tool_name: str) -> lis
             raise live_payload_error(tool_name=tool_name, where=f'pendingContent[{i}]')
         out.append(dumped)
     return out
-
-
-ORIGINAL_OUTPUT_SCHEMA_KEY = 'originalOutputSchema'
 
 
 def wire_part_is_live(dumped: dict[str, Any]) -> bool:
@@ -292,6 +288,32 @@ class ToolContext(ActionRunContext[ChunkT]):
         return self.resumed_metadata is not None
 
 
+async def call_tool_fn(
+    tool: Action,
+    func: Callable[..., Awaitable[Any]],
+    input: object,  # noqa: A002
+    ctx: ActionRunContext,
+) -> Any:  # noqa: ANN401 - whatever the tool function returned
+    """Call a tool function with a ``ToolContext`` carrying resume state.
+
+    Both the ``tool`` action and its ``tool.v2`` envelope action run the
+    function through here, so resume metadata reaches it either way.
+    """
+    resumed_meta = _tool_resumed_metadata.get()
+    if resumed_meta:
+        # Record resumed metadata on the current span for observability.
+        set_custom_metadata_attributes({'resumed': resumed_meta})
+    # The ToolContext claims the generate-scoped stream sender; clear the
+    # ContextVar while the function runs so a nested direct tool call inside
+    # it doesn't inherit this call's (name, ref) stream sink.
+    tool_ctx = ToolContext(ctx, resumed_metadata=resumed_meta, original_input=_tool_original_input.get())
+    token_inner = _tool_generate_chunk_sender.set(None)
+    try:
+        return await tool.params.call(func, input, tool_ctx)
+    finally:
+        _tool_generate_chunk_sender.reset(token_inner)
+
+
 def _resume_context_from_tool_request_part(
     tool_request_part: Part,
 ) -> tuple[dict[str, Any] | None, Any | None]:
@@ -460,15 +482,6 @@ def model_schema_from_return_annotation(
     return to_json_schema(cast(type | dict[str, Any] | str, inner))
 
 
-def _get_func_description(func: Callable[..., Any], description: str | None = None) -> str:
-    """Return description if provided, otherwise use the function's docstring."""
-    if description is not None:
-        return description
-    if func.__doc__ is not None:
-        return func.__doc__
-    return ''
-
-
 def _define_tool(
     registry: Registry,
     func: Callable[..., Any],
@@ -477,64 +490,15 @@ def _define_tool(
     *,
     input_schema: type[BaseModel] | dict[str, object] | None = None,
 ) -> _Tool[Any, Any, Any]:
-    """Register a function as a tool.
+    """Build a tool and register it (``/tool/<name>`` and its ``/tool.v2/<name>`` envelope).
 
     The return annotation is what the model binds. ``input_schema=`` is for
     cases like define_interrupt where the handler signature cannot express
     the input shape.
     """
-    if not inspect.iscoroutinefunction(func):
-        raise TypeError(f'Tool function must be async. Got sync function: {getattr(func, "__name__", repr(func))}')
-
-    tool_name = name if name is not None else getattr(func, '__name__', None)
-    if tool_name is None:
-        raise ValueError(f'Cannot infer a tool name from {func!r}; pass name= explicitly.')
-    tool_description = _get_func_description(func, description)
-
-    async def tool_fn_wrapper(input: object, ctx: ActionRunContext) -> MultipartToolResponse[Any]:  # noqa: A002
-        # Record resumed metadata on the current span for observability.
-        resumed_meta = _tool_resumed_metadata.get()
-        if resumed_meta:
-            set_custom_metadata_attributes({'resumed': resumed_meta})
-
-        # Claim the generate-scoped stream sender on this ToolContext and clear
-        # the ContextVar so a nested direct tool call inside `func` does not
-        # inherit this call's (name, ref) stream sink.
-        tool_ctx = ToolContext(ctx, resumed_metadata=resumed_meta, original_input=_tool_original_input.get())
-        call = direct_call.get()
-        if call is not None and call.action is not action:
-            call = None
-        # Tools this function runs (directly or through generate) aren't the
-        # direct call we were awaited for.
-        token_call = direct_call.set(None)
-        token_inner = _tool_generate_chunk_sender.set(None)
-        try:
-            raw = await action.params.call(func, input, tool_ctx)
-        finally:
-            _tool_generate_chunk_sender.reset(token_inner)
-            direct_call.reset(token_call)
-        envelope = as_multipart_tool_response(raw, tool_name=tool_name)
-        if call is not None:
-            call.returned.append(raw)
-        return envelope
-
-    action = registry.register_action(
-        name=tool_name,
-        kind=ActionKind.TOOL,
-        description=tool_description,
-        fn=tool_fn_wrapper,
-        metadata_fn=func,
-    )
-    if input_schema is not None:
-        action._override_input_schema(input_schema)
-
-    # The return annotation is what the model binds. MultipartToolResponse[T]
-    # means T. A bare MultipartToolResponse means output is anything.
-    original_output_schema = model_schema_from_return_annotation(func, inferred=action.output_schema)
-    action.metadata[ORIGINAL_OUTPUT_SCHEMA_KEY] = original_output_schema
-    action.output_schema = TypeAdapter(MultipartToolResponseData).json_schema()
-
-    return _Tool(action, original_output_schema=original_output_schema)
+    built: _Tool[Any, Any, Any] = _Tool(func, name=name, description=description, input_schema=input_schema)
+    registry.register_action_from_instance(built)
+    return built
 
 
 # Overload order matters: type checkers pick the first shape that fits. The
@@ -607,8 +571,9 @@ def define_tool(
     """Register a function as a tool.
 
     The model sees the handler's return annotation as ``outputSchema``.
-    ``Action.output_schema`` / Dev UI ``run`` advertise the envelope that
-    can also carry media.
+    ``await tool(x)`` returns what the function returned. The registry also
+    stores ``/tool.v2/<name>``, which returns the ``MultipartToolResponse``
+    envelope; that's the one the Dev UI runs.
 
     Args:
         registry: The registry to register the tool in.
@@ -711,7 +676,7 @@ def tool(
         ephemeral = tool(lookup_price, name='lookup_price')
         res = await ai.generate(prompt='Price of SKU-1?', tools=[ephemeral])
     """
-    return _define_tool(Registry(), func, name, description, input_schema=input_schema)
+    return _Tool(func, name=name, description=description, input_schema=input_schema)
 
 
 def define_interrupt(

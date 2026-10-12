@@ -429,7 +429,7 @@ def test_tool_with_type_checking_only_context_still_reads_multipart_return() -> 
 
     forecast = ai.tool()(_type_checking_context_module()['forecast'])
 
-    assert forecast.output_schema == to_json_schema(Forecast)
+    assert forecast.definition().output_schema == to_json_schema(Forecast)
 
 
 # A user module whose return type is imported only for type checkers.
