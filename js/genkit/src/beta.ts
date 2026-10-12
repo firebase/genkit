@@ -28,6 +28,36 @@
  */
 
 export {
+  AgentInitSchema,
+  AgentInputSchema,
+  AgentOutputSchema,
+  AgentStreamChunkSchema,
+  type AgentInit,
+  type AgentInput,
+  type AgentOutput,
+} from '@genkit-ai/ai';
+export { Session, type Artifact } from '@genkit-ai/ai/session';
+export {
+  AgentError,
+  createAgentAPI,
+  remoteAgent,
+  remoteAgentTransport,
+  type AgentAPI,
+  type AgentChat,
+  type AgentChunk,
+  type AgentInterrupt,
+  type AgentResponse,
+  type AgentTransport,
+  type AgentTurn,
+  type AgentTurnOptions,
+  type DetachedTask,
+  type RemoteAgentOptions,
+  type SnapshotLookup,
+} from './client/agent.js';
+
+export type { AgentFinishReason } from './client/types.js';
+
+export {
   InMemoryStreamManager,
   StreamNotFoundError,
   type ActionStreamInput,
@@ -36,4 +66,26 @@ export {
 } from '@genkit-ai/core';
 export { AsyncTaskQueue, lazy } from '@genkit-ai/core/async';
 export * from './common.js';
-export { GenkitBeta, genkit, type GenkitBetaOptions } from './genkit-beta.js';
+export {
+  FileSessionStore,
+  GenkitBeta,
+  InMemorySessionStore,
+  SessionRunner,
+  applyPatch,
+  diff,
+  genkit,
+  type Agent,
+  type AgentFn,
+  type AgentStreamChunk,
+  type ClientTransform,
+  type GenkitBetaOptions,
+  type JsonPatch,
+  type JsonPatchOperation,
+  type LocalAgentOptions,
+  type SessionSnapshot,
+  type SessionSnapshotInput,
+  type SessionState,
+  type SessionStore,
+  type SessionStoreOptions,
+  type SnapshotMutator,
+} from './genkit-beta.js';

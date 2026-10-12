@@ -2,6 +2,16 @@
 
 This plugin provides utilities for conveninetly exposing Genkit flows and actions via Express HTTP server as REST APIs.
 
+> **Building with a coding agent? Install the Genkit JS skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-js
+> ```
+>
+> It teaches your agent the current Genkit JS APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
+
 See [official documentation](https://genkit.dev/docs/frameworks/express/) for more.
 
 ## Installation
@@ -20,7 +30,7 @@ import express from 'express';
 
 const simpleFlow = ai.defineFlow('simpleFlow', async (input, { sendChunk }) => {
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: googleAI.model('gemini-flash-latest'),
     prompt: input,
     onChunk: (c) => sendChunk(c.text),
   });
@@ -130,6 +140,31 @@ for await (const chunk of result.stream) {
 }
 console.log(await result.output);
 ```
+
+### Initialization Data
+
+If your flow or action accepts initialization data (defined via `initSchema`), you can pass it using the `init` option in the client:
+
+```ts
+const result = await runFlow({
+  url: `http://localhost:${port}/myFlow`,
+  input: 'say hello',
+  init: { sessionId: 'abc123', config: { temperature: 0.7 } },
+});
+
+// Also works with streaming
+const streamed = streamFlow({
+  url: `http://localhost:${port}/myFlow`,
+  input: 'say hello',
+  init: { sessionId: 'abc123' },
+});
+for await (const chunk of streamed.stream) {
+  console.log(chunk);
+}
+console.log(await streamed.output);
+```
+
+The `init` data is sent in the request body alongside `data` and is validated against the action's `initSchema` on the server side. If the `init` data does not conform to the `initSchema`, the request fails with a `400 INVALID_ARGUMENT` error before the flow runs.
 
 You can also use `startFlowServer` to quickly expose multiple flows and actions:
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type { LogStore } from '@genkit-ai/tools-common';
+import type { LogQuery, LogStore } from '@genkit-ai/tools-common';
 import {
   TraceDataSchema,
   TraceQueryFilterSchema,
@@ -35,6 +35,92 @@ export { TraceQuerySchema, type TraceQuery, type TraceStore } from './types';
 let server: http.Server;
 const broadcastManager = new BroadcastManager();
 
+/** A live-trace event streamed to dev UI clients over SSE. */
+export interface SpanBroadcastEvent {
+  type: 'span_start' | 'span_end';
+  traceId: string;
+  span: SpanData;
+}
+
+/**
+ * Parses an integer parameter from query parameters with an optional fallback/default value.
+ */
+export function parseIntParam(value: unknown): number | undefined;
+export function parseIntParam(value: unknown, defaultValue: number): number;
+export function parseIntParam(
+  value: unknown,
+  defaultValue?: number
+): number | undefined {
+  if (value === undefined || value === null || value === '')
+    return defaultValue;
+  const parsed = Number.parseInt(String(value), 10);
+  return Number.isNaN(parsed) ? defaultValue : parsed;
+}
+
+/**
+ * Extracts and normalizes LogQuery parameters from request query and route path params.
+ */
+export function parseLogQuery(
+  query: express.Request['query'],
+  params?: { traceId?: string; spanId?: string }
+): LogQuery {
+  return {
+    limit: parseIntParam(query.limit, 100),
+    continuationToken: query.continuationToken
+      ? query.continuationToken.toString()
+      : undefined,
+    severityText: query.severityText
+      ? query.severityText.toString()
+      : undefined,
+    severityNumber: parseIntParam(query.severityNumber),
+    traceId:
+      params?.traceId ?? (query.traceId ? query.traceId.toString() : undefined),
+    spanId:
+      params?.spanId ?? (query.spanId ? query.spanId.toString() : undefined),
+  };
+}
+
+/**
+ * spanBroadcastEvents decides which span_start / span_end events to broadcast
+ * for an incoming /api/traces save, given the trace's merged (post-save) spans.
+ *
+ * Live traces export each span twice — once as it starts (no endTime) and again
+ * as it ends — and the senders do not guarantee start-before-end delivery. A
+ * stale, still-in-progress "start" for a span the store already has as ended is
+ * dropped, so it cannot re-open a finished span in the live view (which would
+ * leave it spinning forever); this mirrors the merge in the file trace store
+ * that already ignores such a start on disk. Events are returned in
+ * chronological order, with span_start before span_end when times tie.
+ */
+export function spanBroadcastEvents(
+  traceId: string,
+  incomingSpans: SpanData[],
+  mergedSpans: Record<string, SpanData> = {}
+): SpanBroadcastEvent[] {
+  const events: SpanBroadcastEvent[] = [];
+  for (const span of incomingSpans) {
+    const incomingEnded = span.endTime > 0;
+    const mergedSpan = mergedSpans[span.spanId];
+    const alreadyEnded = !!mergedSpan && mergedSpan.endTime > 0;
+    if (!incomingEnded && alreadyEnded) {
+      continue;
+    }
+    events.push({ type: 'span_start', traceId, span });
+    if (incomingEnded) {
+      events.push({ type: 'span_end', traceId, span });
+    }
+  }
+  events.sort((a, b) => {
+    const aTime = a.type === 'span_start' ? a.span.startTime : a.span.endTime;
+    const bTime = b.type === 'span_start' ? b.span.startTime : b.span.endTime;
+    if (aTime !== bTime) {
+      return aTime - bTime;
+    }
+    return a.type === 'span_start' ? -1 : 1;
+  });
+  return events;
+}
+
 /**
  * Starts the telemetry server with the provided params
  */
@@ -51,6 +137,13 @@ export async function startTelemetryServer(params: {
    */
   maxRequestBodySize?: string | number;
   corsOrigin?: string | RegExp;
+  /**
+   * The network interface to bind to. Defaults to '127.0.0.1' so the
+   * telemetry server is only reachable from the local machine. This is a
+   * developer-facing tool with no authentication, so it should not be exposed
+   * to other hosts by default.
+   */
+  host?: string;
 }) {
   await params.traceStore.init();
   await params.logStore.init();
@@ -117,44 +210,21 @@ export async function startTelemetryServer(params: {
       const traceData = TraceDataSchema.parse(request.body);
       await params.traceStore.save(traceData.traceId, traceData);
 
-      // Create events for all spans and sort them by start time to ensure
-      // correct ordering.
-      const allSpans = Object.values(traceData.spans);
-      const events: {
-        type: 'span_start' | 'span_end';
-        traceId: string;
-        span: SpanData;
-      }[] = [];
-
-      // Create span_start and span_end events
-      for (const span of allSpans) {
-        events.push({
-          type: 'span_start',
-          traceId: traceData.traceId,
-          span,
-        });
-        if (span.endTime > 0) {
-          events.push({
-            type: 'span_end',
-            traceId: traceData.traceId,
-            span,
-          });
-        }
-      }
-
-      // Sort events chronologically. If times are equal, start comes before end.
-      events.sort((a, b) => {
-        const aTime =
-          a.type === 'span_start' ? a.span.startTime : a.span.endTime;
-        const bTime =
-          b.type === 'span_start' ? b.span.startTime : b.span.endTime;
-        if (aTime !== bTime) {
-          return aTime - bTime;
-        }
-        return a.type === 'span_start' ? -1 : 1;
-      });
-
-      // Broadcast events in chronological order.
+      // Decide what to broadcast against the merged store so a stale in-progress
+      // "start" cannot re-open an already-finished span in the live view (see
+      // spanBroadcastEvents). Only an in-progress span can be a stale start, so
+      // the extra read is skipped for the common all-ended save (e.g. the
+      // non-realtime exporter, which sends each span only once, on end).
+      const spans = Object.values(traceData.spans);
+      const hasInProgress = spans.some((s) => !(s.endTime > 0));
+      const merged = hasInProgress
+        ? await params.traceStore.load(traceData.traceId)
+        : undefined;
+      const events = spanBroadcastEvents(
+        traceData.traceId,
+        spans,
+        merged?.spans
+      );
       for (const event of events) {
         broadcastManager.broadcast(traceData.traceId, event);
       }
@@ -170,7 +240,7 @@ export async function startTelemetryServer(params: {
       const { limit, continuationToken, filter } = request.query;
       response.json(
         await params.traceStore.list({
-          limit: limit ? Number.parseInt(limit.toString()) : 10,
+          limit: parseIntParam(limit, 10),
           continuationToken: continuationToken
             ? continuationToken.toString()
             : undefined,
@@ -186,15 +256,7 @@ export async function startTelemetryServer(params: {
 
   api.get('/api/logs', async (request, response, next) => {
     try {
-      const { limit, continuationToken } = request.query;
-      response.json(
-        await params.logStore.list({
-          limit: limit ? Number.parseInt(limit.toString()) : 100,
-          continuationToken: continuationToken
-            ? continuationToken.toString()
-            : undefined,
-        })
-      );
+      response.json(await params.logStore.list(parseLogQuery(request.query)));
     } catch (e) {
       next(e);
     }
@@ -202,16 +264,8 @@ export async function startTelemetryServer(params: {
 
   api.get('/api/traces/:traceId/logs', async (request, response, next) => {
     try {
-      const { limit, continuationToken } = request.query;
-      const { traceId } = request.params;
       response.json(
-        await params.logStore.list({
-          limit: limit ? Number.parseInt(limit.toString()) : 100,
-          continuationToken: continuationToken
-            ? continuationToken.toString()
-            : undefined,
-          traceId,
-        })
+        await params.logStore.list(parseLogQuery(request.query, request.params))
       );
     } catch (e) {
       next(e);
@@ -222,17 +276,10 @@ export async function startTelemetryServer(params: {
     '/api/traces/:traceId/spans/:spanId/logs',
     async (request, response, next) => {
       try {
-        const { limit, continuationToken } = request.query;
-        const { traceId, spanId } = request.params;
         response.json(
-          await params.logStore.list({
-            limit: limit ? Number.parseInt(limit.toString()) : 100,
-            continuationToken: continuationToken
-              ? continuationToken.toString()
-              : undefined,
-            traceId,
-            spanId,
-          })
+          await params.logStore.list(
+            parseLogQuery(request.query, request.params)
+          )
         );
       } catch (e) {
         next(e);
@@ -246,9 +293,12 @@ export async function startTelemetryServer(params: {
       '/api/otlp/v1/traces',
       '/api/otlp/v1/logs',
       '/api/otlp/v1/metrics',
+      '/api/otlp/:parentTraceId/:parentSpanId',
     ],
     async (request, response) => {
       try {
+        const { parentTraceId, parentSpanId } = request.params;
+
         if (
           !request.body.resourceSpans?.length &&
           !request.body.resourceLogs?.length
@@ -259,6 +309,16 @@ export async function startTelemetryServer(params: {
         }
         const traces = traceDataFromOtlp(request.body);
         for (const trace of traces) {
+          if (parentTraceId) {
+            trace.traceId = parentTraceId;
+            for (const span of Object.values(trace.spans)) {
+              span.attributes['genkit:otlp-traceId'] = span.traceId;
+              span.traceId = parentTraceId;
+              if (!span.parentSpanId && parentSpanId) {
+                span.parentSpanId = parentSpanId;
+              }
+            }
+          }
           const traceData = TraceDataSchema.parse(trace);
           await params.traceStore.save(traceData.traceId, traceData);
 
@@ -312,8 +372,9 @@ export async function startTelemetryServer(params: {
     res.status(500).json(errorResponse);
   });
 
-  server = api.listen(params.port, () => {
-    logger.info(`Telemetry API running on http://localhost:${params.port}`);
+  const host = params.host ?? '127.0.0.1';
+  server = api.listen(params.port, host, () => {
+    logger.info(`Telemetry API running on http://${host}:${params.port}`);
   });
 
   server.on('error', (error) => {

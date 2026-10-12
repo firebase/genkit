@@ -28,9 +28,7 @@ Actions and flows defined with Genkit are automatically traced. Each action
 execution creates a span with input/output data, timing, and any errors.
 Use [core.Run] within flows to create traced sub-steps:
 
-	// In a real scenario, 'r' would be the registry from your Genkit instance.
-	var r api.Registry
-	flow := core.DefineFlow(r, "myFlow",
+	flow := core.NewFlow("myFlow",
 		func(ctx context.Context, input string) (string, error) {
 			// This creates a traced step named "processData"
 			result, err := core.Run(ctx, "processData", func() (string, error) {
@@ -39,6 +37,8 @@ Use [core.Run] within flows to create traced sub-steps:
 			return result, err
 		},
 	)
+	// In a real scenario, 'r' would be the registry from your Genkit instance.
+	flow.Register(r)
 
 # Tracer Access
 
@@ -95,10 +95,8 @@ Create spans with rich metadata for better observability:
 
 Extract trace context for correlation with external systems:
 
-	info := tracing.GetTraceInfo(ctx)
-	if info != nil {
-		log.Printf("TraceID: %s, SpanID: %s", info.TraceID, info.SpanID)
-	}
+	info := tracing.SpanTraceInfo(ctx)
+	log.Printf("TraceID: %s, SpanID: %s", info.TraceID, info.SpanID)
 
 This package is primarily intended for Genkit internals and advanced plugin
 development. Most application developers will interact with tracing through

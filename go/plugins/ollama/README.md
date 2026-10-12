@@ -2,6 +2,16 @@
 
 The Ollama plugin provides a unified interface to connect with locally hosted (or remote) models through the [Ollama](https://ollama.com/) API.
 
+> **Building with a coding agent? Install the Genkit Go skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-go
+> ```
+>
+> It teaches your agent the current Genkit Go APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
+
 The plugin supports a wide range of capabilities, relying on the models you have pulled:
 
 - **Language Models**: Chat and text generation models, including support for tools, vision (multimodal), and reasoning (thinking).
@@ -37,6 +47,19 @@ func main() {
  }
 
  g := genkit.Init(ctx, genkit.WithPlugins(o))
+}
+```
+
+A hosted Ollama server, such as `https://ollama.com`, authenticates with the
+`OLLAMA_API_KEY` environment variable, which the plugin sends as a bearer token.
+A proxy that needs other headers takes `Headers`, which go on every request. For
+credentials that change per request, such as a short-lived token, supply an
+`HTTPClient` whose transport adds them (for example `oauth2.NewClient`):
+
+```go
+o := &ollama.Ollama{
+ ServerAddress: "https://ollama.example.com",
+ Headers:       http.Header{"X-Api-Key": {apiKey}},
 }
 ```
 
@@ -198,14 +221,18 @@ resp, err := genkit.Generate(ctx, g,
 ## Embedding Models
 
 You can define and use text embedding models hosted on Ollama (e.g., `nomic-embed-text`).
+`dimensions` is required and should match the model's embedding size. The embedder is
+retrieved by model name.
+
+Note: Existing callers should replace server-address lookups with model-name lookups and pass dimensions to `DefineEmbedder`
 
 ### Defining an Embedder
 
 ```go
 // Define an embedder model
-o.DefineEmbedder(g, "http://localhost:11434", "nomic-embed-text", nil)
+o.DefineEmbedder(g, "nomic-embed-text", 768, nil)
 
-embedder := ollama.Embedder(g, "http://localhost:11434")
+embedder := ollama.Embedder(g, "nomic-embed-text")
 ```
 
 ### Usage

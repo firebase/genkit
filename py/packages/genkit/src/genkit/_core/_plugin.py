@@ -16,10 +16,25 @@
 
 """Abstract base class for Genkit plugins."""
 
-import abc
+from __future__ import annotations
 
-from genkit._core._action import Action, ActionKind
+import abc
+from collections.abc import Sequence
+from typing import ClassVar
+
+from genkit._core._action import Action, ActionKind, set_action_name
+from genkit._core._middleware import GenerateMiddleware
 from genkit._core._typing import ActionMetadata
+
+
+def resolved_action_name(*, plugin: str, requested_id: str) -> str:
+    """The registry key for an action reached through ``resolve``.
+
+    The caller asked for ``{plugin}/{requested_id}``; that's the id they look
+    up later, so the action is stored and named under it even when the plugin
+    returned a different name. See the naming rule on :meth:`Plugin.resolve`.
+    """
+    return f'{plugin}/{requested_id}'
 
 
 class Plugin(abc.ABC):
@@ -29,16 +44,56 @@ class Plugin(abc.ABC):
 
     @abc.abstractmethod
     async def init(self) -> list[Action]:
-        """Lazy warm-up called once per plugin; return actions to pre-register."""
+        """Lazy warm-up called once per plugin; return actions to pre-register.
+
+        Return names with or without the ``{plugin.name}/`` prefix. A name that
+        doesn't start with it is registered under ``{plugin.name}/{name}`` with
+        the whole name kept: ``endpoints/123`` becomes ``myplug/endpoints/123``,
+        and ``other/x`` becomes ``myplug/other/x``. See :meth:`resolve`.
+        """
         ...
 
     @abc.abstractmethod
     async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
-        """Resolve a single action by kind and namespaced name."""
+        """Resolve a single action by kind and its id inside this plugin.
+
+        Naming rule. When an app asks for ``{plugin.name}/{rest}``:
+
+        1. Genkit removes exactly one ``{plugin.name}/`` from the front and
+           passes ``rest`` as ``name``. That's the provider's id, verbatim:
+           send it upstream unchanged and don't strip anything from it.
+           Provider ids may contain slashes (publisher paths, tuned
+           endpoints, ARNs, OpenRouter ids).
+        2. The returned action is renamed to exactly what the app asked for
+           and stored there, whatever name the plugin gave it, so the same
+           string always looks up the same action.
+
+        Return ``None`` to decline; the caller then gets NOT_FOUND.
+
+        Example:
+            ```python
+            from genkit import Genkit
+            from genkit.plugin_api import ActionKind
+            from genkit_openai import OpenAI
+
+            # 1. Point the OpenAI plugin at OpenRouter, whose ids carry a vendor
+            ai = Genkit(plugins=[OpenAI(base_url='https://openrouter.ai/api/v1')])
+
+            # 2. One `openai/` is the plugin; the rest is the OpenRouter id
+            response = await ai.generate(model='openai/openai/gpt-4o', prompt='Suggest a dish.')
+            # => resolve(ActionKind.MODEL, 'openai/gpt-4o')
+            #    request sent with model='openai/gpt-4o'
+
+            # 3. The action lives under the id the app typed
+            action = await ai.lookup_model('openai/openai/gpt-4o')
+            print(action.name)
+            # => openai/openai/gpt-4o
+            ```
+        """
         ...
 
     @abc.abstractmethod
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> Sequence[Action | ActionMetadata]:
         """Return advertised actions for dev UI/reflection listing.
 
         ``ActionMetadata.action_type`` must be set (typically ``ActionKind.*``) and
@@ -47,12 +102,92 @@ class Plugin(abc.ABC):
         """
         ...
 
+    def list_middleware(self) -> list[GenerateMiddleware]:
+        """Return middleware descriptors for this plugin to register on the app.
+
+        This runs while :class:`Genkit` is being constructed, after
+        built-in middleware is registered. Use unique flat names without
+        slash characters so they do not collide with built-ins or other
+        plugins.
+
+        Returns:
+            Descriptors to list in the Dev UI and to resolve by name from
+            ``generate(use=...)``.
+        """
+        return []
+
     async def model(self, name: str) -> Action | None:
-        """Resolve a model action by name (local or namespaced)."""
-        target = name if '/' in name else f'{self.name}/{name}'
-        return await self.resolve(ActionKind.MODEL, target)
+        """Resolve a model action by id, with or without this plugin's prefix.
+
+        Follows the naming rule on :meth:`resolve`: one leading
+        ``{plugin.name}/`` is removed, the rest goes to ``resolve`` unchanged,
+        and the action is named ``{plugin.name}/{rest}``. Any other prefix is
+        part of the id, so ``Bedrock().model('googleai/gemini')`` asks Bedrock
+        for ``googleai/gemini``.
+        """
+        return await self._named_resolve(ActionKind.MODEL, name)
 
     async def embedder(self, name: str) -> Action | None:
-        """Resolve an embedder action by name (local or namespaced)."""
-        target = name if '/' in name else f'{self.name}/{name}'
-        return await self.resolve(ActionKind.EMBEDDER, target)
+        """Resolve an embedder action by id, with or without this plugin's prefix.
+
+        Same naming rule as :meth:`model`.
+        """
+        return await self._named_resolve(ActionKind.EMBEDDER, name)
+
+    async def _named_resolve(self, kind: ActionKind, name: str) -> Action | None:
+        requested_id = name.removeprefix(f'{self.name}/')
+        action = await self.resolve(kind, requested_id)
+        if action is not None:
+            set_action_name(action, resolved_action_name(plugin=self.name, requested_id=requested_id))
+        return action
+
+
+class MiddlewarePlugin(Plugin):
+    """Plugin that contributes middleware descriptors only.
+
+    Example:
+        from genkit import Genkit
+        from genkit.middleware import BaseMiddleware
+        from genkit.middleware import GenerateMiddleware
+        from genkit.plugin_api import MiddlewarePlugin
+
+        class PrefixPromptMiddleware(BaseMiddleware):
+            ...
+
+        class MyMiddlewarePlugin(MiddlewarePlugin):
+            name = 'my-middleware'
+            middleware = [
+                GenerateMiddleware(
+                    cls=PrefixPromptMiddleware,
+                    name='prefix_prompt',
+                    description='Prepends a fixed prompt',
+                ),
+            ]
+
+        ai = Genkit(plugins=[MyMiddlewarePlugin()])
+    """
+
+    name: str = ''
+    middleware: ClassVar[list[GenerateMiddleware]] = []
+
+    def __init__(self) -> None:
+        if not type(self).name:
+            raise ValueError(f'{type(self).__name__} must set `name` to the plugin namespace string.')
+        if not self.list_middleware():
+            raise ValueError(
+                f'{type(self).__name__} must provide middleware via the `middleware` class '
+                'attribute or a `list_middleware` override. Each entry should come from '
+                'GenerateMiddleware(cls=YourMiddleware, name=..., description=...).'
+            )
+
+    async def init(self) -> list[Action]:
+        return []
+
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
+        return None
+
+    async def list_actions(self) -> Sequence[Action | ActionMetadata]:
+        return []
+
+    def list_middleware(self) -> list[GenerateMiddleware]:
+        return list(type(self).middleware)

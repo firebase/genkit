@@ -14,7 +14,15 @@
  * limitations under the License.
  */
 
-import { ActionMetadata, GenkitError, modelActionMetadata, z } from 'genkit';
+import {
+  ActionMetadata,
+  GENKIT_UI_METADATA,
+  GENKIT_UI_WIDGETS,
+  GenkitError,
+  annotateSchema,
+  modelActionMetadata,
+  z,
+} from 'genkit';
 import {
   CandidateData,
   GenerationCommonConfigDescriptions,
@@ -131,6 +139,12 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .string()
     .describe('Overrides the plugin-configured API key, if specified.')
     .optional(),
+  apiVersion: z
+    .enum(['v1', 'v1beta1'])
+    .describe(
+      'Overrides the plugin-configured API version to use, if specified.'
+    )
+    .optional(),
   labels: z
     .record(z.string())
     .optional()
@@ -185,13 +199,16 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
    * }
    * ```
    */
-  safetySettings: z
-    .array(SafetySettingsSchema)
-    .describe(
-      'Adjust how likely you are to see responses that could be harmful. ' +
-        'Content is blocked based on the probability that it is harmful.'
-    )
-    .optional(),
+  safetySettings: annotateSchema(
+    z
+      .array(SafetySettingsSchema)
+      .describe(
+        'Adjust how likely you are to see responses that could be harmful. ' +
+          'Content is blocked based on the probability that it is harmful.'
+      )
+      .optional(),
+    { [GENKIT_UI_METADATA.WIDGET]: GENKIT_UI_WIDGETS.SAFETY_SETTINGS }
+  ),
 
   /**
    * Vertex retrieval options.
@@ -411,7 +428,7 @@ function commonRef(
         tools: true,
         toolChoice: true,
         systemRole: true,
-        constrained: 'no-tools',
+        constrained: 'all',
       },
     },
   });
@@ -428,6 +445,7 @@ export const KNOWN_GEMINI_MODELS = {
   'gemini-flash-latest': commonRef('gemini-flash-latest'),
   'gemini-flash-lite-latest': commonRef('gemini-flash-lite-latest'),
   'gemini-3.5-flash': commonRef('gemini-3.5-flash'),
+  'gemini-3.1-flash-lite': commonRef('gemini-3.1-flash-lite'),
   'gemini-3.1-flash-lite-preview': commonRef('gemini-3.1-flash-lite-preview'),
   'gemini-3.1-pro-preview': commonRef('gemini-3.1-pro-preview'),
   'gemini-3-flash-preview': commonRef('gemini-3-flash-preview'),
@@ -446,13 +464,13 @@ export function isGeminiModelName(value?: string): value is GeminiModelName {
 }
 
 export const KNOWN_IMAGE_MODELS = {
-  'gemini-3.1-flash-image-preview': commonRef(
-    'gemini-3.1-flash-image-preview',
+  'gemini-3.1-flash-image': commonRef(
+    'gemini-3.1-flash-image',
     { ...GENERIC_IMAGE_MODEL.info },
     GeminiImageConfigSchema
   ),
-  'gemini-3-pro-image-preview': commonRef(
-    'gemini-3-pro-image-preview',
+  'gemini-3-pro-image': commonRef(
+    'gemini-3-pro-image',
     { ...GENERIC_IMAGE_MODEL.info },
     GeminiImageConfigSchema
   ),
@@ -595,6 +613,7 @@ export function defineModel(
 
       const {
         apiKey: apiKeyFromConfig,
+        apiVersion: apiVersionFromConfig,
         functionCallingConfig,
         retrievalConfig,
         version: versionFromConfig,
@@ -611,6 +630,7 @@ export function defineModel(
       clientOpt = calculateRequestOptions(clientOpt, {
         location,
         apiKey: apiKeyFromConfig,
+        apiVersion: apiVersionFromConfig,
       });
 
       if (payGo) {
@@ -665,10 +685,8 @@ export function defineModel(
         toolConfig.retrievalConfig = structuredClone(retrievalConfig);
       }
 
-      // Cannot use tools and function calling at the same time
       const jsonMode =
-        (request.output?.format === 'json' || !!request.output?.schema) &&
-        tools.length === 0;
+        request.output?.format === 'json' || !!request.output?.schema;
 
       if (toolsFromConfig) {
         tools.push(...(toolsFromConfig as any[]));

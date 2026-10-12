@@ -30,6 +30,8 @@ export const ReflectionRegisterParamsSchema = z.object({
   genkitVersion: z.string().optional(),
   reflectionApiSpecVersion: z.number().optional(),
   envs: z.array(z.string()).optional(),
+  /** Value of GENKIT_REFLECTION_SECRET_TOKEN, when the runtime has one. */
+  secret: z.string().optional(),
 });
 
 export type ReflectionRegisterParams = z.infer<
@@ -92,6 +94,7 @@ export type ReflectionListValuesParams = z.infer<
 export const ReflectionRunActionParamsSchema = z.object({
   key: z.string(),
   input: z.any().optional(),
+  init: z.any().optional(),
   context: z.any().optional(),
   telemetryLabels: z.record(z.string(), z.string()).optional(),
   stream: z.boolean().optional(),

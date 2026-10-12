@@ -20,23 +20,23 @@ package middleware
 
 import (
 	"context"
-	"errors"
 	"math"
 	"math/rand"
 	"slices"
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/logger"
+	"github.com/firebase/genkit/go/core/status"
 )
 
 // defaultRetryStatuses are the status codes that trigger a retry by default.
-var defaultRetryStatuses = []core.StatusName{
-	core.UNAVAILABLE,
-	core.DEADLINE_EXCEEDED,
-	core.RESOURCE_EXHAUSTED,
-	core.ABORTED,
-	core.INTERNAL,
+var defaultRetryStatuses = []status.Name{
+	status.Unavailable,
+	status.DeadlineExceeded,
+	status.ResourceExhausted,
+	status.Aborted,
+	status.Internal,
 }
 
 // sleepFunc is the function used for delays. It blocks for d or until ctx is
@@ -57,9 +57,11 @@ var sleepFunc = func(ctx context.Context, d time.Duration) error {
 // It only hooks the Model stage — individual model API calls are retried,
 // not the entire generate loop.
 //
-// By default, retries occur for non-[core.GenkitError] errors (e.g. network failures)
-// and for [core.GenkitError] errors whose status is one of UNAVAILABLE, DEADLINE_EXCEEDED,
-// RESOURCE_EXHAUSTED, ABORTED, or INTERNAL_SERVER_ERROR.
+// A classified error is retried when its status is in Statuses, which defaults
+// to UNAVAILABLE, DEADLINE_EXCEEDED, RESOURCE_EXHAUSTED, ABORTED, and INTERNAL.
+// An unclassified error (no [status.Error] or sentinel in its chain) is always
+// retried, regardless of Statuses. A cancelled context reports CANCELLED and is
+// not retried.
 //
 // Usage:
 //
@@ -70,25 +72,27 @@ var sleepFunc = func(ctx context.Context, d time.Duration) error {
 //	)
 type Retry struct {
 	// MaxRetries is the maximum number of retry attempts. Defaults to 3.
-	MaxRetries int `json:"maxRetries,omitempty"`
-	// Statuses is the set of status codes that trigger a retry for [core.GenkitError] errors.
-	// Non-GenkitError errors are always retried regardless of this setting.
+	MaxRetries int `json:"maxRetries,omitempty" jsonschema_description:"Maximum number of retry attempts. Defaults to 3."`
+	// Statuses is the set of status codes that trigger a retry for classified
+	// errors; unclassified errors are always retried regardless of this list.
 	// Defaults to [defaultRetryStatuses].
-	Statuses []core.StatusName `json:"statuses,omitempty"`
+	Statuses []status.Name `json:"statuses,omitempty" jsonschema_description:"Status codes that trigger a retry for classified errors. Unclassified errors are always retried regardless of this list. Defaults to UNAVAILABLE, DEADLINE_EXCEEDED, RESOURCE_EXHAUSTED, ABORTED and INTERNAL." jsonschema:"enum=OK,enum=CANCELLED,enum=UNKNOWN,enum=INVALID_ARGUMENT,enum=DEADLINE_EXCEEDED,enum=NOT_FOUND,enum=ALREADY_EXISTS,enum=PERMISSION_DENIED,enum=UNAUTHENTICATED,enum=RESOURCE_EXHAUSTED,enum=FAILED_PRECONDITION,enum=ABORTED,enum=OUT_OF_RANGE,enum=UNIMPLEMENTED,enum=INTERNAL,enum=UNAVAILABLE,enum=DATA_LOSS"`
 	// InitialDelayMs is the delay before the first retry, in milliseconds. Defaults to 1000.
-	InitialDelayMs int `json:"initialDelayMs,omitempty"`
+	InitialDelayMs int `json:"initialDelayMs,omitempty" jsonschema_description:"Delay before the first retry, in milliseconds. Defaults to 1000."`
 	// MaxDelayMs is the upper bound on retry delay, in milliseconds. Defaults to 60000.
-	MaxDelayMs int `json:"maxDelayMs,omitempty"`
+	MaxDelayMs int `json:"maxDelayMs,omitempty" jsonschema_description:"Upper bound on the retry delay, in milliseconds. Defaults to 60000."`
 	// BackoffFactor is the multiplier applied to the delay after each retry. Defaults to 2.
-	BackoffFactor float64 `json:"backoffFactor,omitempty"`
+	BackoffFactor float64 `json:"backoffFactor,omitempty" jsonschema_description:"Multiplier applied to the delay after each retry. Defaults to 2."`
 	// NoJitter disables random jitter on the delay. Jitter helps prevent
 	// thundering-herd problems when many clients retry simultaneously.
-	NoJitter bool `json:"noJitter,omitempty"`
+	NoJitter bool `json:"noJitter,omitempty" jsonschema_description:"Disables random jitter on the delay. Jitter helps prevent thundering-herd problems when many clients retry at the same time. Defaults to false."`
 }
 
-func (r *Retry) Name() string { return provider + "/retry" }
+// Name implements [ai.Middleware].
+func (r Retry) Name() string { return provider + "/retry" }
 
-func (r *Retry) New(ctx context.Context) (*ai.Hooks, error) {
+// New implements [ai.Middleware], hooking the model stage.
+func (r Retry) New(ctx context.Context) (*ai.Hooks, error) {
 	return &ai.Hooks{
 		WrapModel: r.wrapModel,
 	}, nil
@@ -101,7 +105,7 @@ func (r *Retry) maxRetries() int {
 	return 3
 }
 
-func (r *Retry) statuses() []core.StatusName {
+func (r *Retry) statuses() []status.Name {
 	if len(r.Statuses) > 0 {
 		return r.Statuses
 	}
@@ -156,6 +160,12 @@ func (r *Retry) wrapModel(ctx context.Context, params *ai.ModelParams, next ai.M
 			delay += jitter
 		}
 
+		logger.Debug(ctx, "model call failed, retrying",
+			"attempt", attempt+1,
+			"maxRetries", maxRetries,
+			"delay", delay.Round(time.Millisecond),
+			"error", err)
+
 		// Bail out if the caller disconnected mid-backoff; no reason to wait
 		// out the delay (or issue another retry) for a caller who has left.
 		if err := sleepFunc(ctx, delay); err != nil {
@@ -167,13 +177,13 @@ func (r *Retry) wrapModel(ctx context.Context, params *ai.ModelParams, next ai.M
 	return nil, lastErr
 }
 
-// isRetryable reports whether err should trigger a retry.
-// Non-GenkitError errors are always retried. GenkitErrors are retried
-// only if their status is in the provided list.
-func isRetryable(err error, statuses []core.StatusName) bool {
-	var ge *core.GenkitError
-	if !errors.As(err, &ge) {
-		return true // unknown errors are retryable
+// isRetryable reports whether err should trigger a retry: a classified error's
+// status must be in statuses, and an unclassified error is always retryable,
+// preserving the v1 contract that non-GenkitError errors are retried
+// regardless of the Statuses setting.
+func isRetryable(err error, statuses []status.Name) bool {
+	if s, ok := status.Classified(err); ok {
+		return slices.Contains(statuses, s)
 	}
-	return slices.Contains(statuses, ge.Status)
+	return true
 }

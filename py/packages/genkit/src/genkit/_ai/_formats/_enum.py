@@ -25,7 +25,7 @@ from genkit._ai._model import (
     ModelResponseChunk,
 )
 from genkit._core._compat import override
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
 
 
 class EnumFormat(FormatDef):
@@ -41,13 +41,11 @@ class EnumFormat(FormatDef):
 
     Usage:
         ai.generate(
-            output=OutputConfig(
-                format='enum',
-                schema={
-                    'type': 'string',
-                    'enum': ['positive', 'negative', 'neutral']
-                }
-            )
+            output_format='enum',
+            output_schema={
+                'type': 'string',
+                'enum': ['positive', 'negative', 'neutral']
+            }
         )
     """
 
@@ -84,6 +82,7 @@ class EnumFormat(FormatDef):
             raise GenkitError(
                 status='INVALID_ARGUMENT',
                 message="Must supply a schema of type 'string' with an 'enum' property when using the enum format.",
+                reason=RuntimeErrorReason.INVALID_SCHEMA,
             )
 
         def message_parser(msg: Message) -> str:

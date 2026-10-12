@@ -93,7 +93,7 @@ describe('toGeminiMessage', () => {
         ],
       },
       expectedOutput: {
-        role: 'function',
+        role: 'user',
         parts: [
           {
             functionResponse: {
@@ -142,7 +142,7 @@ describe('toGeminiMessage', () => {
         ],
       },
       expectedOutput: {
-        role: 'function',
+        role: 'user',
         parts: [
           {
             functionResponse: {
@@ -189,7 +189,7 @@ describe('toGeminiMessage', () => {
         ],
       },
       expectedOutput: {
-        role: 'function',
+        role: 'user',
         parts: [
           {
             functionResponse: {
@@ -231,7 +231,7 @@ describe('toGeminiMessage', () => {
         ],
       },
       expectedOutput: {
-        role: 'function',
+        role: 'user',
         parts: [
           {
             functionResponse: {
@@ -469,7 +469,7 @@ describe('toGeminiMessage', () => {
         ],
       },
       expectedOutput: {
-        role: 'function',
+        role: 'user',
         parts: [
           {
             codeExecutionResult: {
@@ -552,7 +552,7 @@ describe('toGeminiMessage', () => {
     );
   });
 
-  it('should throw on media part missing contentType for non-data URL', () => {
+  it('should not throw on media part missing contentType for non-data URL', () => {
     const inputMessage = {
       role: 'user',
       content: [
@@ -563,10 +563,16 @@ describe('toGeminiMessage', () => {
         } as any,
       ],
     };
-    assert.throws(
-      () => toGeminiMessage(inputMessage as MessageData),
-      /Must supply a (`)?contentType(`)? when sending File URIs to Gemini/
-    );
+    assert.deepStrictEqual(toGeminiMessage(inputMessage as MessageData), {
+      role: 'user',
+      parts: [
+        {
+          fileData: {
+            fileUri: 'gs://bucket/file',
+          },
+        },
+      ],
+    });
   });
 });
 
@@ -968,6 +974,42 @@ describe('fromGeminiCandidate', () => {
             {
               media: {
                 contentType: 'image/png',
+                url: 'gs://bucket/image.png',
+              },
+            },
+          ],
+        },
+        finishReason: 'unknown',
+        finishMessage: undefined,
+        custom: {
+          citationMetadata: undefined,
+          safetyRatings: undefined,
+        },
+      },
+    },
+    {
+      should:
+        'should transform gemini candidate (fileData without mimeType) correctly',
+      geminiCandidate: {
+        index: 0,
+        content: {
+          role: 'model',
+          parts: [
+            {
+              fileData: {
+                fileUri: 'gs://bucket/image.png',
+              },
+            },
+          ],
+        },
+      },
+      expectedOutput: {
+        index: 0,
+        message: {
+          role: 'model',
+          content: [
+            {
+              media: {
                 url: 'gs://bucket/image.png',
               },
             },

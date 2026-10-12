@@ -1,12 +1,14 @@
 {
   "entryPoints": [
     "genkit",
+    "plugins/a2ui",
     "plugins/google-genai",
     "plugins/compat-oai",
     "plugins/vertexai",
     "plugins/anthropic",
     "plugins/firebase",
     "plugins/express",
+    "plugins/fastify",
     "plugins/fetch",
     "plugins/google-cloud",
     "plugins/middleware",

@@ -22,11 +22,13 @@
 
 import pytest
 
-from genkit import Genkit, Message, ModelResponse, Part, Plugin, Role, TextPart
+from genkit import Genkit, Message, ModelResponse, Part, Role
 from genkit._core._action import Action, ActionRunContext
 from genkit._core._model import ModelRequest
 from genkit._core._registry import ActionKind
 from genkit._core._typing import ActionMetadata, FinishReason
+from genkit.middleware import BaseMiddleware, GenerateMiddleware
+from genkit.plugin_api import Plugin
 
 
 class AsyncResolveOnlyPlugin(Plugin):
@@ -43,12 +45,12 @@ class AsyncResolveOnlyPlugin(Plugin):
         """Resolve an action."""
         if action_type != ActionKind.MODEL:
             return None
-        if name != f'{self.name}/lazy-model':
+        if name != 'lazy-model':
             return None
 
         async def _generate(req: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
             return ModelResponse(
-                message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='OK: lazy'))]),
+                message=Message(role=Role.MODEL, content=[Part.from_text('OK: lazy')]),
                 finish_reason=FinishReason.STOP,
             )
 
@@ -87,7 +89,7 @@ class AsyncInitPlugin(Plugin):
 
         async def _generate(req: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
             return ModelResponse(
-                message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='OK: resolve'))]),
+                message=Message(role=Role.MODEL, content=[Part.from_text('OK: resolve')]),
                 finish_reason=FinishReason.STOP,
             )
 
@@ -105,6 +107,39 @@ class AsyncInitPlugin(Plugin):
                 name=f'{self.name}/init-model',
             )
         ]
+
+
+class _RegistryMw(BaseMiddleware):
+    pass
+
+
+class MiddlewareListingPlugin(Plugin):
+    """Plugin that contributes middleware via list_middleware."""
+
+    name = 'mw-list-plugin'
+
+    async def init(self) -> list[Action]:
+        return []
+
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
+        return None
+
+    async def list_actions(self) -> list[ActionMetadata]:
+        return []
+
+    def list_middleware(self) -> list[GenerateMiddleware]:
+        return [GenerateMiddleware(cls=_RegistryMw, name='ai_plugin_test_mw')]
+
+
+@pytest.mark.asyncio
+async def test_plugin_list_middleware_registers_on_registry() -> None:
+    """Descriptors from Plugin.list_middleware appear under list_values('middleware')."""
+    ai = Genkit(plugins=[MiddlewareListingPlugin()])
+    names = ai._registry.list_values('middleware')
+    assert 'ai_plugin_test_mw' in names
+    desc = ai._registry.lookup_value('middleware', 'ai_plugin_test_mw')
+    assert desc is not None
+    assert isinstance(desc, GenerateMiddleware)
 
 
 @pytest.mark.asyncio

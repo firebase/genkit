@@ -111,7 +111,7 @@ func TestConvertSpan(t *testing.T) {
 			Attributes:             map[string]any{"k3": "v3"},
 			DroppedAttributesCount: 1,
 		}},
-		Status: Status{Code: 2, Description: "desc"},
+		Status: Status{Code: 1, Description: "desc"},
 		InstrumentationScope: InstrumentationScope{
 			Name:      "iname",
 			Version:   "version",
@@ -122,5 +122,56 @@ func TestConvertSpan(t *testing.T) {
 	got := convertSpan(ss.Snapshot())
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("mismatch (-want, +got)\n%s", diff)
+	}
+}
+
+// TestConvertStatus checks that the Go SDK status codes are sent with their
+// OTLP values, which reverse Ok and Error.
+func TestConvertStatus(t *testing.T) {
+	tests := []struct {
+		name string
+		code codes.Code
+		want uint32
+	}{
+		{name: "unset", code: codes.Unset, want: 0},
+		{name: "ok", code: codes.Ok, want: 1},
+		{name: "error", code: codes.Error, want: 2},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := convertStatus(sdktrace.Status{Code: test.code}).Code
+			if got != test.want {
+				t.Errorf("convertStatus(%v).Code = %d, want %d", test.code, got, test.want)
+			}
+		})
+	}
+}
+
+// TestConvertSpanLive checks that a span exported before it has ended (as the
+// realtime processor does on span start) gets EndTime 0 rather than the garbage
+// value ToMilliseconds would produce from a zero time.Time. The telemetry
+// server relies on a falsy endTime to treat the span as in progress.
+func TestConvertSpanLive(t *testing.T) {
+	tid, err := trace.TraceIDFromHex("1234567890abcdef1234567890abcdef")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sid, err := trace.SpanIDFromHex("1234567890abcdef")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ss := tracetest.SpanStub{
+		Name:        "live",
+		SpanContext: trace.NewSpanContext(trace.SpanContextConfig{TraceID: tid, SpanID: sid}),
+		StartTime:   time.Unix(1, 0),
+		// EndTime left zero: the span has not ended.
+	}
+	got := convertSpan(ss.Snapshot())
+	if got.StartTime != Milliseconds(1e3) {
+		t.Errorf("StartTime = %v, want 1000", got.StartTime)
+	}
+	if got.EndTime != 0 {
+		t.Errorf("EndTime = %v, want 0 for an unfinished span", got.EndTime)
 	}
 }

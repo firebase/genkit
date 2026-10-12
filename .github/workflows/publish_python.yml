@@ -31,6 +31,9 @@ concurrency:
   group: publish-python-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -39,8 +42,10 @@ jobs:
     environment:
       name: pypi_github_publishing
     steps:
-      - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           enable-cache: true
           python-version: "3.12"
@@ -50,17 +55,23 @@ jobs:
         run: |
           set -uo pipefail
 
+          # Publish all core and plugin packages for v0.10.0 release.
           PACKAGES=(
             py/packages/genkit
-            py/plugins/anthropic
-            py/plugins/compat-oai
-            py/plugins/google-cloud
-            py/plugins/google-genai
-            py/plugins/ollama
-            py/plugins/fastapi
-            py/plugins/flask
-            py/plugins/vertex-ai
-            py/plugins/evaluators
+            py/packages/genkit-a2ui
+            py/packages/genkit-amazon-bedrock
+            py/packages/genkit-anthropic
+            py/packages/genkit-django
+            py/packages/genkit-evaluators
+            py/packages/genkit-fastapi
+            py/packages/genkit-flask
+            py/packages/genkit-google-cloud
+            py/packages/genkit-google-genai
+            py/packages/genkit-middleware
+            py/packages/genkit-otel
+            py/packages/genkit-ollama
+            py/packages/genkit-openai
+            py/packages/genkit-vertexai
           )
 
           FAILED=()
@@ -75,13 +86,27 @@ jobs:
             echo "::endgroup::"
           done
 
+          # Python-floor shim (genkit 0.3.0): gives Python <= 3.9 users a clear
+          # upgrade message instead of resolving an unrelated pre-transfer
+          # package. sdist ONLY - a wheel would install as an empty package on
+          # old Pythons. skip-existing makes this a no-op after first publish.
+          # See py/floor-shim/README.md.
+          echo "::group::py/floor-shim (sdist only)"
+          if uv build --sdist py/floor-shim --out-dir dist/; then
+            echo "Build succeeded: py/floor-shim"
+          else
+            echo "::error::Build failed: py/floor-shim"
+            FAILED+=("py/floor-shim")
+          fi
+          echo "::endgroup::"
+
           if [ ${#FAILED[@]} -gt 0 ]; then
             echo "::error::Failed packages: ${FAILED[*]}"
             exit 1
           fi
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
           packages-dir: dist/
           verbose: true
@@ -90,8 +115,10 @@ jobs:
   verify:
     needs: publish
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
       - name: Smoke test
@@ -101,4 +128,4 @@ jobs:
           VERSION="${TAG#py/v}"
           [[ "$VERSION" == "$TAG" ]] && VERSION="${TAG#release/py/}"
           pip install "genkit==${VERSION}"
-          python -c "from genkit.ai import Genkit; print('ok')"
+          python -c "from genkit import Genkit; Genkit(); print('ok')"

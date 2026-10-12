@@ -17,11 +17,20 @@
 package tracing
 
 // Data is information about a trace.
+//
+// DisplayName, StartTime, and EndTime are derived from the trace's root
+// (parentless) span, so a batch that carries only child spans leaves them at
+// their zero values. They are omitempty for that reason: the telemetry server
+// only overwrites a stored trace's metadata when the incoming value is defined
+// (see the merge in genkit-tools' file trace store), so emitting a zero here
+// would clobber the real title/times a prior root-span save established. This
+// matters once spans are exported as they start (live traces), where child
+// spans can reach the server before the root span closes.
 type Data struct {
 	TraceID     string               `json:"traceId"`
-	DisplayName string               `json:"displayName"`
-	StartTime   Milliseconds         `json:"startTime"`
-	EndTime     Milliseconds         `json:"endTime"`
+	DisplayName string               `json:"displayName,omitempty"`
+	StartTime   Milliseconds         `json:"startTime,omitempty"`
+	EndTime     Milliseconds         `json:"endTime,omitempty"`
 	Spans       map[string]*SpanData `json:"spans"`
 }
 
@@ -88,9 +97,12 @@ type InstrumentationScope struct {
 	SchemaURL string `json:"schemaUrl,omitempty"`
 }
 
-// Status is a copy of [go.opentelemetry.io/otel/sdk/trace.Status],
-// with added struct tags to match the javascript JSON field names.
+// Status is the JSON form of [go.opentelemetry.io/otel/sdk/trace.Status],
+// with struct tags that match the javascript JSON field names.
 type Status struct {
-	Code        uint32 `json:"code"` // avoid the MarshalJSON method on codes.Code
+	// Code is the OTLP status code: 0 = Unset, 1 = Ok, 2 = Error.
+	// It is not a [go.opentelemetry.io/otel/codes.Code], whose Ok and Error
+	// values are reversed.
+	Code        uint32 `json:"code"`
 	Description string `json:"message,omitempty"`
 }

@@ -35,8 +35,10 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
+	"github.com/firebase/genkit/go/core/status"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/base"
 )
 
 type streamingCallback[Stream any] = func(context.Context, Stream) error
@@ -49,6 +51,9 @@ type runtimeFileData struct {
 	Timestamp                string `json:"timestamp"`
 	GenkitVersion            string `json:"genkitVersion"`
 	ReflectionApiSpecVersion int    `json:"reflectionApiSpecVersion"`
+	// ReflectionSecret lets a CLI process that did not spawn this runtime
+	// still authenticate to it. Dev only, and the file is mode 0600.
+	ReflectionSecret string `json:"reflectionSecret,omitempty"`
 }
 
 // reflectionServer encapsulates everything needed to serve the Reflection API.
@@ -105,71 +110,72 @@ func (s *reflectionServer) runtimeID() string {
 	return fmt.Sprintf("%d-%s", os.Getpid(), port)
 }
 
-// findAvailablePort finds the next available port starting from the given port number.
-func findAvailablePort(startPort int) (string, error) {
-	for port := startPort; port < startPort+100; port++ {
-		addr := fmt.Sprintf("127.0.0.1:%d", port)
-		listener, err := net.Listen("tcp", addr)
-		if err == nil {
-			listener.Close()
-			return addr, nil
+// listenReflection opens the v1 listener. A pinned port is bound exactly
+// (0 lets the OS pick); otherwise the next free port at or above cfg.port is
+// used. The listener is returned rather than closed and re-bound, so there is
+// no window for another process to take the port.
+func listenReflection(cfg reflectionConfig) (net.Listener, error) {
+	if cfg.pinned {
+		// A chosen port is a contract with whoever chose it: bind exactly that
+		// port or fail. Shifting to the next free one would leave them talking
+		// to a dead port.
+		return net.Listen("tcp", net.JoinHostPort(cfg.host, strconv.Itoa(cfg.port)))
+	}
+	end := min(cfg.port+99, 65535)
+	for port := cfg.port; port <= end; port++ {
+		if l, err := net.Listen("tcp", net.JoinHostPort(cfg.host, strconv.Itoa(port))); err == nil {
+			return l, nil
 		}
 	}
-	return "", fmt.Errorf("no available port found in range %d-%d", startPort, startPort+99)
+	return nil, fmt.Errorf("no available port found in range %d-%d", cfg.port, end)
 }
 
-// startReflectionServer starts the Reflection API server listening at the
-// value of the environment variable GENKIT_REFLECTION_PORT for the port,
-// or finds the next available port starting at 3100 if it is empty.
-func startReflectionServer(ctx context.Context, g *Genkit, errCh chan<- error, serverStartCh chan<- struct{}) *reflectionServer {
+// startReflectionServer starts the Reflection API server using cfg, which the
+// caller resolved from the environment. A pinned port is bound exactly; when
+// it is not pinned the next available port starting at cfg.port is used.
+func startReflectionServer(ctx context.Context, g *Genkit, cfg reflectionConfig, errCh chan<- error, serverStartCh chan<- struct{}) *reflectionServer {
 	if g == nil {
 		errCh <- fmt.Errorf("nil Genkit provided")
 		return nil
 	}
 
-	var addr string
-	if envPort := os.Getenv("GENKIT_REFLECTION_PORT"); envPort != "" {
-		// Validate that the user-provided port is a valid integer.
-		_, err := strconv.Atoi(envPort)
-		if err != nil {
-			errCh <- fmt.Errorf("invalid GENKIT_REFLECTION_PORT: %w", err)
-			return nil
-		}
-		addr = net.JoinHostPort("127.0.0.1", envPort)
-	} else {
-		var err error
-		addr, err = findAvailablePort(3100)
-		if err != nil {
-			errCh <- fmt.Errorf("failed to find available port: %w", err)
-			return nil
-		}
+	// Listen before anything records the address: with port 0 only the
+	// listener knows the real port, and the runtime file must point at it.
+	listener, err := listenReflection(cfg)
+	if err != nil {
+		errCh <- fmt.Errorf("failed to create listener: %w", err)
+		return nil
 	}
 
 	s := &reflectionServer{
 		Server: &http.Server{
-			Addr: addr,
+			Addr: listener.Addr().String(),
 		},
 		activeActions: newActiveActionsMap(),
 	}
-	s.Handler = serveMux(g, s)
+	s.Handler = requireReflectionSecret(cfg.secret, serveMux(g, s))
+	if cfg.secret == "" && !isLoopbackHost(cfg.host) {
+		slog.Warn("reflection API is listening without authentication; anyone who can reach this port can run any registered action. Set GENKIT_REFLECTION_SECRET_TOKEN, or front it with your own auth",
+			"host", cfg.host)
+	}
 
 	slog.Debug("starting reflection server", "addr", s.Addr)
 
-	if err := s.writeRuntimeFile(s.Addr); err != nil {
-		errCh <- fmt.Errorf("failed to write runtime file: %w", err)
-		return nil
+	// Dev only: the file exists so a local CLI watching the same filesystem can
+	// discover this runtime. Nothing is watching in a container, the working
+	// directory is frequently read-only, and the failure here is fatal.
+	if api.CurrentEnvironment() == api.EnvironmentDev {
+		if err := s.writeRuntimeFile(advertisedReflectionAddr(s.Addr), cfg.secret); err != nil {
+			listener.Close()
+			errCh <- fmt.Errorf("failed to write runtime file: %w", err)
+			return nil
+		}
 	}
 
 	serverCtx, cancel := context.WithCancel(context.Background())
 
 	go func() {
-		// First check that the port is available before signaling a server start success.
-		listener, err := net.Listen("tcp", s.Addr)
-		if err != nil {
-			errCh <- fmt.Errorf("failed to create listener: %w", err)
-			return
-		}
-
+		slog.Info("reflection server listening", "addr", s.Addr)
 		close(serverStartCh)
 
 		if err := s.Serve(listener); err != nil && err != http.ErrServerClosed {
@@ -203,7 +209,9 @@ func startReflectionServer(ctx context.Context, g *Genkit, errCh chan<- error, s
 }
 
 // writeRuntimeFile writes a file describing the runtime to the project root.
-func (s *reflectionServer) writeRuntimeFile(url string) error {
+// The secret, when set, is advertised so any local CLI process can reach this
+// runtime, not just the one that spawned it.
+func (s *reflectionServer) writeRuntimeFile(url, secret string) error {
 	projectRoot, err := findProjectRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find project root: %w", err)
@@ -234,6 +242,7 @@ func (s *reflectionServer) writeRuntimeFile(url string) error {
 		Timestamp:                timestamp,
 		GenkitVersion:            "go/" + internal.Version,
 		ReflectionApiSpecVersion: internal.GENKIT_REFLECTION_API_SPEC_VERSION,
+		ReflectionSecret:         secret,
 	}
 
 	fileContent, err := json.MarshalIndent(data, "", "  ")
@@ -241,7 +250,8 @@ func (s *reflectionServer) writeRuntimeFile(url string) error {
 		return fmt.Errorf("failed to marshal runtime data: %w", err)
 	}
 
-	if err := os.WriteFile(s.RuntimeFilePath, fileContent, 0644); err != nil {
+	// 0600: the file carries the reflection secret.
+	if err := os.WriteFile(s.RuntimeFilePath, fileContent, 0600); err != nil {
 		return fmt.Errorf("failed to write runtime file: %w", err)
 	}
 
@@ -319,24 +329,98 @@ func serveMux(g *Genkit, s *reflectionServer) *http.ServeMux {
 func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		logger.FromContext(ctx).Debug("request start", "method", r.Method, "path", r.URL.Path)
+		logger.Debug(ctx, "reflection request started", "method", r.Method, "path", r.URL.Path)
 
 		var err error
 		defer func() {
 			if err != nil {
-				logger.FromContext(ctx).Error("request end", "err", err)
+				logger.Error(ctx, "reflection request failed", "method", r.Method, "path", r.URL.Path, "error", err)
 			} else {
-				logger.FromContext(ctx).Debug("request end")
+				logger.Debug(ctx, "reflection request finished", "method", r.Method, "path", r.URL.Path)
 			}
 		}()
 
 		w.Header().Set("x-genkit-version", "go/"+internal.Version)
 
 		if err = h(w, r); err != nil {
-			errorResponse := core.ToReflectionError(err)
-			w.WriteHeader(errorResponse.Code)
+			errorResponse := toReflectionError(err)
+			// The body's code is a canonical status code, not an HTTP one, so
+			// the transport status is derived from it rather than reused. Going
+			// through the code keeps the two from ever disagreeing.
+			w.WriteHeader(status.FromCode(errorResponse.Code).HTTPCode())
 			writeJSON(ctx, w, errorResponse)
 		}
+	}
+}
+
+// reflectionErrorDetails is the details field of a [reflectionError].
+type reflectionErrorDetails struct {
+	Stack   *string `json:"stack,omitempty"`
+	TraceID *string `json:"traceId,omitempty"`
+}
+
+// reflectionError is the wire format for an error in a reflection API
+// response. It belongs to this boundary alone: the reflection API is how the
+// dev UI talks to a running app, so nothing outside this package constructs or
+// reads one.
+type reflectionError struct {
+	Details *reflectionErrorDetails `json:"details,omitempty"`
+	Message string                  `json:"message"`
+	// Code is the canonical status code, the same numbering gRPC uses and the
+	// dev UI's Status schema validates against (INVALID_ARGUMENT is 3, not
+	// 400). It is not an HTTP status: callers needing one derive it with
+	// [status.FromCode] and [status.Name.HTTPCode].
+	Code int `json:"code"`
+}
+
+// setTraceID records traceID, allocating the details envelope when the error
+// arrived without one.
+//
+// [toReflectionError] fills in details only from a stack or trace the error
+// itself carried, and leaves the pointer nil otherwise. Every error that was
+// never classified reaches that case, which is any plain error returned by a
+// plugin or a user's own function, so the envelope cannot be assumed to exist
+// just because a trace ID is on hand to write into it.
+func (re *reflectionError) setTraceID(traceID string) {
+	if traceID == "" {
+		return
+	}
+	if re.Details == nil {
+		re.Details = &reflectionErrorDetails{}
+	}
+	re.Details.TraceID = &traceID
+}
+
+// toReflectionError renders err as the reflection API's wire envelope, mapping
+// its status to an HTTP code and carrying the stack through to the dev UI.
+func toReflectionError(err error) reflectionError {
+	e := status.Convert(err)
+	if e == nil {
+		return reflectionError{Code: status.Internal.Code(), Details: &reflectionErrorDetails{}}
+	}
+	// The deprecated core constructors recorded the stack under
+	// Details["stack"]; status.Errorf keeps it off the details map and formats
+	// it on demand. Read both so errors from either carry a stack.
+	stack, stackOK := e.Details["stack"].(string)
+	if !stackOK {
+		stack = e.Stack()
+		stackOK = stack != ""
+	}
+	traceID, traceOK := e.Details["traceId"].(string)
+	var details *reflectionErrorDetails
+	if stackOK || traceOK {
+		details = &reflectionErrorDetails{}
+		if stackOK {
+			details.Stack = &stack
+		}
+		if traceOK {
+			details.TraceID = &traceID
+		}
+	}
+	return reflectionError{
+		Details: details,
+		Code:    e.Status.Code(),
+		Message: e.Message,
 	}
 }
 
@@ -349,12 +433,13 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 		var body struct {
 			Key             string          `json:"key"`
 			Input           json.RawMessage `json:"input"`
+			Init            json.RawMessage `json:"init"`
 			Context         json.RawMessage `json:"context"`
 			TelemetryLabels json.RawMessage `json:"telemetryLabels"`
 		}
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			return core.NewError(core.INVALID_ARGUMENT, err.Error())
+			return status.Errorf(status.ErrInvalidArgument, "%w", err)
 		}
 
 		stream, err := parseBoolQueryParam(r, "stream")
@@ -362,7 +447,7 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 			return err
 		}
 
-		logger.FromContext(ctx).Debug("running action", "key", body.Key, "stream", stream)
+		logger.Debug(ctx, "running action from the Dev UI", "key", body.Key, "stream", stream)
 
 		// Create cancellable context for this action
 		actionCtx, cancel := context.WithCancel(ctx)
@@ -431,7 +516,7 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 
 		// Attach telemetry callback to context so action can invoke it when span is created
 		actionCtx = tracing.WithTelemetryCallback(actionCtx, telemetryCb)
-		resp, err := runAction(actionCtx, g, body.Key, body.Input, body.TelemetryLabels, cb, contextMap)
+		resp, err := runAction(actionCtx, g, body.Key, body.Input, body.Init, body.TelemetryLabels, cb, contextMap)
 
 		// Clean up active action using the trace ID from response
 		if resp != nil && resp.Telemetry.TraceID != "" {
@@ -447,10 +532,10 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 					traceIDPtr = &resp.Telemetry.TraceID
 				}
 				errResp := errorResponse{
-					Error: core.ReflectionError{
+					Error: reflectionError{
 						Code:    core.CodeCancelled, // gRPC CANCELLED = 1
 						Message: "Action was cancelled",
-						Details: &core.ReflectionErrorDetails{
+						Details: &reflectionErrorDetails{
 							TraceID: traceIDPtr,
 						},
 					},
@@ -471,14 +556,14 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 
 			// Handle other errors
 			if stream {
-				refErr := core.ToReflectionError(err)
-				if resp != nil && resp.Telemetry.TraceID != "" {
-					refErr.Details.TraceID = &resp.Telemetry.TraceID
+				refErr := toReflectionError(err)
+				if resp != nil {
+					refErr.setTraceID(resp.Telemetry.TraceID)
 				}
 
 				reflectErr, err := json.Marshal(refErr)
 				if err != nil {
-					logger.FromContext(ctx).Error("writing output", "err", err)
+					logger.Error(ctx, "failed to write reflection response", "error", err)
 					return nil
 				}
 				_, err = fmt.Fprintf(w, "{\"error\": %s }", reflectErr)
@@ -489,14 +574,14 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 			}
 
 			// Non-streaming error
-			errorResponse := core.ToReflectionError(err)
-			if resp != nil && resp.Telemetry.TraceID != "" {
-				errorResponse.Details.TraceID = &resp.Telemetry.TraceID
+			errorResponse := toReflectionError(err)
+			if resp != nil {
+				errorResponse.setTraceID(resp.Telemetry.TraceID)
 			}
 
 			reflectErr, err := json.Marshal(errorResponse)
 			if err != nil {
-				logger.FromContext(ctx).Error("writing output", "err", err)
+				logger.Error(ctx, "failed to write reflection response", "error", err)
 				return nil
 			}
 
@@ -517,7 +602,7 @@ func handleRunAction(g *Genkit, activeActions *activeActionsMap) func(w http.Res
 			}
 			data, err := json.Marshal(finalResponse)
 			if err != nil {
-				logger.FromContext(ctx).Error("writing output", "err", err)
+				logger.Error(ctx, "failed to write reflection response", "error", err)
 				return nil
 			}
 
@@ -541,11 +626,11 @@ func handleCancelAction(activeActions *activeActionsMap) func(w http.ResponseWri
 
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			return core.NewError(core.INVALID_ARGUMENT, err.Error())
+			return status.Errorf(status.ErrInvalidArgument, "%w", err)
 		}
 
 		if body.TraceID == "" {
-			return core.NewError(core.INVALID_ARGUMENT, "traceId is required")
+			return status.Errorf(status.ErrInvalidArgument, "traceId is required")
 		}
 
 		action, exists := activeActions.Get(body.TraceID)
@@ -570,8 +655,18 @@ func handleCancelAction(activeActions *activeActionsMap) func(w http.ResponseWri
 // Shared between V1 and V2 reflection servers.
 func configureTelemetry(url string) {
 	if os.Getenv("GENKIT_TELEMETRY_SERVER") == "" && url != "" {
-		tracing.WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(url))
-		slog.Debug("connected to telemetry server", "url", url)
+		client := tracing.NewHTTPTelemetryClient(url)
+		// `genkit start` sets GENKIT_ENABLE_REALTIME_TELEMETRY so traces stream to
+		// the dev UI as spans start, not just when they end (which, for a
+		// long-lived agent connection, is only when it closes).
+		realtime := os.Getenv("GENKIT_ENABLE_REALTIME_TELEMETRY") == "true"
+		if realtime {
+			tracing.WriteTelemetryRealtime(client)
+		} else {
+			tracing.WriteTelemetryImmediate(client)
+		}
+		tracing.EnableLogExport(url)
+		slog.Debug("connected to telemetry server", "url", url, "realtime", realtime)
 	}
 }
 
@@ -585,13 +680,15 @@ func handleNotify() func(w http.ResponseWriter, r *http.Request) error {
 
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			return core.NewError(core.INVALID_ARGUMENT, err.Error())
+			return status.Errorf(status.ErrInvalidArgument, "%w", err)
 		}
 
 		configureTelemetry(body.TelemetryServerURL)
 
 		if body.ReflectionApiSpecVersion != internal.GENKIT_REFLECTION_API_SPEC_VERSION {
-			slog.Error("Genkit CLI version is not compatible with runtime library. Please use `genkit-cli` version compatible with runtime library version.")
+			slog.Warn("Genkit CLI version is not compatible with the runtime library, update genkit-cli to a compatible version",
+				"expectedSpecVersion", internal.GENKIT_REFLECTION_API_SPEC_VERSION,
+				"gotSpecVersion", body.ReflectionApiSpecVersion)
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -619,7 +716,7 @@ func handleListValues(g *Genkit) func(w http.ResponseWriter, r *http.Request) er
 	return func(w http.ResponseWriter, r *http.Request) error {
 		valueType := r.URL.Query().Get("type")
 		if valueType == "" {
-			return core.NewError(core.INVALID_ARGUMENT, `query parameter "type" is required`)
+			return status.Errorf(status.ErrInvalidArgument, `query parameter "type" is required`)
 		}
 		prefix := "/" + valueType + "/"
 		result := map[string]any{}
@@ -707,29 +804,30 @@ type telemetry struct {
 }
 
 type errorResponse struct {
-	Error core.ReflectionError `json:"error"`
+	Error reflectionError `json:"error"`
 }
 
-func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage, telemetryLabels json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
+func runAction(ctx context.Context, g *Genkit, key string, input, init json.RawMessage, telemetryLabels json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
 	action := g.reg.ResolveAction(key)
 	if action == nil {
-		return nil, core.NewError(core.NOT_FOUND, "action %q not found", key)
+		return nil, status.Errorf(status.ErrActionNotFound, "action %q not found", key)
 	}
 	ctx = core.WithActionContext(ctx, runtimeContext)
 
 	// Parse telemetry attributes if provided
-	var telemetryAttributes map[string]string
-	if telemetryLabels != nil {
+	if base.HasJSONValue(telemetryLabels) {
+		var telemetryAttributes map[string]string
 		err := json.Unmarshal(telemetryLabels, &telemetryAttributes)
 		if err != nil {
-			return nil, core.NewError(core.INTERNAL, "Error unmarshalling telemetryLabels: %v", err)
+			return nil, status.Errorf(status.ErrInvalidArgument, "Error unmarshalling telemetryLabels: %w", err)
 		}
+		ctx = tracing.WithTelemetryLabels(ctx, telemetryAttributes)
 	}
 
 	// Run the action and capture trace ID. We need to ensure there's a valid trace context.
 	var traceID string
 	output, err := func() (json.RawMessage, error) {
-		r, err := action.RunJSONWithTelemetry(ctx, input, cb)
+		r, err := runActionWithOptionalInit(ctx, action, input, init, cb)
 		if r != nil {
 			traceID = r.TraceId
 		}
@@ -750,6 +848,35 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 	}, nil
 }
 
+// checkInitSupported rejects an init payload aimed at an action that cannot
+// accept one: it returns INVALID_ARGUMENT when init carries a value and the
+// action is not bidi, and nil otherwise. Transports call it before committing
+// to a response shape (e.g. before writing SSE headers) so the rejection
+// surfaces as a proper request error on every path.
+func checkInitSupported(a api.Action, init json.RawMessage) error {
+	if base.HasJSONValue(init) {
+		if _, ok := a.(api.BidiAction); !ok {
+			return status.PublicErrorf(status.ErrInvalidArgument, "action %q does not accept init", a.Name())
+		}
+	}
+	return nil
+}
+
+// runActionWithOptionalInit runs an action through its JSON surface,
+// dispatching to the bidi one-shot path when init carries a value. Init on a
+// non-bidi action is rejected with INVALID_ARGUMENT. Shared by the reflection
+// servers and the HTTP action handler so the init-acceptance contract stays
+// in one place.
+func runActionWithOptionalInit(ctx context.Context, a api.Action, input, init json.RawMessage, cb streamingCallback[json.RawMessage]) (*api.ActionRunResult[json.RawMessage], error) {
+	if err := checkInitSupported(a, init); err != nil {
+		return nil, err
+	}
+	if bidi, ok := a.(api.BidiAction); ok && base.HasJSONValue(init) {
+		return bidi.RunBidiJSON(ctx, input, cb, &api.BidiJSONOptions{Init: init})
+	}
+	return a.RunJSONWithTelemetry(ctx, input, cb)
+}
+
 // writeJSON writes a JSON-marshaled value to the response writer.
 func writeJSON(ctx context.Context, w http.ResponseWriter, value any) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -760,7 +887,7 @@ func writeJSON(ctx context.Context, w http.ResponseWriter, value any) error {
 	}
 	_, err = w.Write(data)
 	if err != nil {
-		logger.FromContext(ctx).Error("writing output", "err", err)
+		logger.Error(ctx, "failed to write reflection response", "error", err)
 	}
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()

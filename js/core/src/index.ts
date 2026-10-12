@@ -65,6 +65,7 @@ export {
 } from './dynamic-action-provider.js';
 export {
   GenkitError,
+  StatusNameSchema,
   UnstableApiError,
   UserFacingError,
   assertUnstable,
@@ -83,6 +84,11 @@ export {
   type FlowSideChannel,
 } from './flow.js';
 export * from './plugin.js';
+// Only what `genkit()` needs; the rest of reflection-config is internal.
+export {
+  resolveReflectionConfig,
+  type ReflectionConfig,
+} from './reflection-config.js';
 export * from './reflection.js';
 export {
   annotateSchema,

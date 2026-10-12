@@ -28,7 +28,7 @@ from genkit._ai._model import (
     ModelResponseChunk,
 )
 from genkit._core._compat import override
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._extract_json import extract_json
 
 
@@ -46,13 +46,11 @@ class JsonlFormat(FormatDef):
 
     Usage:
         ai.generate(
-            output=OutputConfig(
-                format='jsonl',
-                schema={
-                    'type': 'array',
-                    'items': {'type': 'object', 'properties': ...}
-                }
-            )
+            output_format='jsonl',
+            output_schema={
+                'type': 'array',
+                'items': {'type': 'object', 'properties': ...}
+            }
         )
     """
 
@@ -99,17 +97,18 @@ class JsonlFormat(FormatDef):
                         "Must supply an 'array' schema type containing 'object' items "
                         "when using the 'jsonl' parser format."
                     ),
+                    reason=RuntimeErrorReason.INVALID_SCHEMA,
                 )
 
-        def message_parser(msg: Message) -> list[object]:
+        def message_parser(msg: Message) -> list[object] | None:
             """Parses a complete message into a list of objects."""
             lines = [line.strip() for line in msg.text.split('\n') if line.strip().startswith('{')]
             items = []
             for line in lines:
                 extracted = extract_json(line, throw_on_bad_json=False)
-                if extracted:
+                if extracted is not None:
                     items.append(extracted)
-            return items
+            return items or None
 
         def chunk_parser(chunk: ModelResponseChunk) -> list[object]:
             """Parses a streaming chunk into a list of objects found in that chunk."""

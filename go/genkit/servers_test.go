@@ -21,12 +21,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/x/streaming"
 )
 
@@ -48,7 +52,7 @@ func TestHandler(t *testing.T) {
 	})
 
 	genkitErrorInvalidArgFlow := DefineFlow(g, "handlerGenkitErrorInvalidArg", func(ctx context.Context, input string) (string, error) {
-		return "", core.NewError(core.INVALID_ARGUMENT, "invalid argument")
+		return "", core.NewError(core.INVALID_ARGUMENT, "field %q must be an RFC3339 timestamp", "startedAt")
 	})
 
 	genkitErrorNotFoundFlow := DefineFlow(g, "handlerGenkitErrorNotFound", func(ctx context.Context, input string) (string, error) {
@@ -56,7 +60,7 @@ func TestHandler(t *testing.T) {
 	})
 
 	genkitErrorPermissionDeniedFlow := DefineFlow(g, "handlerGenkitErrorPermissionDenied", func(ctx context.Context, input string) (string, error) {
-		return "", core.NewError(core.PERMISSION_DENIED, "permission denied")
+		return "", core.NewError(core.PERMISSION_DENIED, "caller lacks roles/aiplatform.user on project acme-prod")
 	})
 
 	userFacingErrorFlow := DefineFlow(g, "handlerUserFacingError", func(ctx context.Context, input string) (string, error) {
@@ -100,8 +104,10 @@ func TestHandler(t *testing.T) {
 			t.Errorf("want status code %d, got %d", http.StatusInternalServerError, resp.StatusCode)
 		}
 
-		if !strings.Contains(string(body), "generic error message") {
-			t.Errorf("want error message in response body, got %q", string(body))
+		// The message is deliberately withheld: an unclassified error was never
+		// vetted as safe to return, so the client gets the status alone.
+		if strings.Contains(string(body), "generic error message") {
+			t.Errorf("internal message leaked to client: %q", string(body))
 		}
 	})
 
@@ -121,8 +127,9 @@ func TestHandler(t *testing.T) {
 			t.Errorf("want status code %d for INVALID_ARGUMENT, got %d", http.StatusBadRequest, resp.StatusCode)
 		}
 
-		if !strings.Contains(string(body), "invalid argument") {
-			t.Errorf("want error message in response body, got %q", string(body))
+		// The generic label for the status, not the flow's own text.
+		if got, want := strings.TrimSpace(string(body)), "invalid argument"; got != want {
+			t.Errorf("body = %q, want the generic %q", got, want)
 		}
 	})
 
@@ -142,8 +149,8 @@ func TestHandler(t *testing.T) {
 			t.Errorf("want status code %d for NOT_FOUND, got %d", http.StatusNotFound, resp.StatusCode)
 		}
 
-		if !strings.Contains(string(body), "resource not found") {
-			t.Errorf("want error message in response body, got %q", string(body))
+		if strings.Contains(string(body), "resource not found") {
+			t.Errorf("internal message leaked to client: %q", string(body))
 		}
 	})
 
@@ -163,12 +170,18 @@ func TestHandler(t *testing.T) {
 			t.Errorf("want status code %d for PERMISSION_DENIED, got %d", http.StatusForbidden, resp.StatusCode)
 		}
 
-		if !strings.Contains(string(body), "permission denied") {
-			t.Errorf("want error message in response body, got %q", string(body))
+		if got, want := strings.TrimSpace(string(body)), "permission denied"; got != want {
+			t.Errorf("body = %q, want the generic %q", got, want)
+		}
+		if strings.Contains(string(body), "acme-prod") {
+			t.Errorf("internal detail leaked to client: %q", string(body))
 		}
 	})
 
-	t.Run("UserFacingError returns internal server error", func(t *testing.T) {
+	// A public error reaches the client with its own status. It used to fall
+	// through to 500 because *core.UserFacingError is unrelated to
+	// *core.GenkitError, so the handler's errors.As could never match it.
+	t.Run("UserFacingError keeps its status and message", func(t *testing.T) {
 		handler := Handler(userFacingErrorFlow)
 
 		req := httptest.NewRequest("POST", "/", strings.NewReader(`{"data":"test"}`))
@@ -180,8 +193,8 @@ func TestHandler(t *testing.T) {
 		resp := w.Result()
 		body, _ := io.ReadAll(resp.Body)
 
-		if resp.StatusCode != http.StatusInternalServerError {
-			t.Errorf("want status code %d, got %d", http.StatusInternalServerError, resp.StatusCode)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("want status code %d, got %d", http.StatusBadRequest, resp.StatusCode)
 		}
 
 		if !strings.Contains(string(body), "public error message") {
@@ -422,13 +435,127 @@ data: {"result":"hello-end"}
 		resp := w.Result()
 		body, _ := io.ReadAll(resp.Body)
 
-		expected := `data: {"error":{"status":"INTERNAL_SERVER_ERROR","message":"stream flow error","details":"streaming error"}}
+		expected := `data: {"error":{"status":"INTERNAL","message":"internal"}}
 
 `
 		if string(body) != expected {
 			t.Errorf("want error body:\n%q\n\nGot:\n%q", expected, string(body))
 		}
 	})
+}
+
+// recordingHandler is a slog.Handler that keeps every record it receives.
+type recordingHandler struct {
+	mu      sync.Mutex
+	records []slog.Record
+}
+
+func (h *recordingHandler) Enabled(context.Context, slog.Level) bool { return true }
+
+func (h *recordingHandler) Handle(_ context.Context, r slog.Record) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.records = append(h.records, r.Clone())
+	return nil
+}
+
+func (h *recordingHandler) WithAttrs([]slog.Attr) slog.Handler { return h }
+func (h *recordingHandler) WithGroup(string) slog.Handler      { return h }
+
+// messages returns the messages of the records logged at level.
+func (h *recordingHandler) messages(level slog.Level) []string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var msgs []string
+	for _, r := range h.records {
+		if r.Level == level {
+			msgs = append(msgs, r.Message)
+		}
+	}
+	return msgs
+}
+
+func TestHandlerClientDisconnectLogging(t *testing.T) {
+	g := Init(context.Background())
+
+	// Each flow streams one chunk (when streaming), signals it is in flight,
+	// and then either waits for the request to end or fails on its own with
+	// context.Canceled while the request is still live.
+	defineFlow := func(name string, selfCancel bool, started chan<- struct{}) api.Action {
+		return DefineStreamingFlow(g, name,
+			func(ctx context.Context, _ string, cb func(context.Context, string) error) (string, error) {
+				if cb != nil {
+					if err := cb(ctx, "chunk"); err != nil {
+						return "", err
+					}
+				}
+				close(started)
+				if selfCancel {
+					return "", context.Canceled
+				}
+				<-ctx.Done()
+				return "", ctx.Err()
+			})
+	}
+
+	tests := []struct {
+		name       string
+		stream     bool
+		selfCancel bool
+		wantError  bool
+	}{
+		{name: "streaming client disconnects", stream: true},
+		{name: "non-streaming client disconnects"},
+		{name: "streaming flow cancels itself", stream: true, selfCancel: true, wantError: true},
+	}
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := &recordingHandler{}
+			prev := slog.Default()
+			slog.SetDefault(slog.New(rec))
+			t.Cleanup(func() { slog.SetDefault(prev) })
+
+			started := make(chan struct{})
+			h := Handler(defineFlow(fmt.Sprintf("disconnect%d", i), tt.selfCancel, started))
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			req := httptest.NewRequestWithContext(ctx, "POST", "/", strings.NewReader(`{"data":"x"}`))
+			req.Header.Set("Content-Type", "application/json")
+			if tt.stream {
+				req.Header.Set("Accept", "text/event-stream")
+			}
+
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				h(httptest.NewRecorder(), req)
+			}()
+			<-started
+			if !tt.selfCancel {
+				cancel()
+			}
+			<-done
+
+			errs := rec.messages(slog.LevelError)
+			if tt.wantError {
+				if len(errs) == 0 {
+					t.Fatal("no ERROR record for a cancellation the flow raised itself")
+				}
+				return
+			}
+			if len(errs) > 0 {
+				t.Errorf("ERROR records for a client disconnect: %q", errs)
+			}
+			debug := rec.messages(slog.LevelDebug)
+			if n := len(slices.DeleteFunc(slices.Clone(debug), func(m string) bool { return m != "client disconnected" })); n != 1 {
+				t.Errorf("DEBUG records = %q, want exactly one %q", debug, "client disconnected")
+			}
+			if slices.Contains(debug, "request finished") {
+				t.Errorf("DEBUG records = %q, want no %q for a disconnect", debug, "request finished")
+			}
+		})
+	}
 }
 
 func TestDurableStreamingHandlerFunc(t *testing.T) {
@@ -553,6 +680,158 @@ data: {"result":"ab-done"}
 
 		if resp.StatusCode != http.StatusNoContent {
 			t.Errorf("want status code %d, got %d", http.StatusNoContent, resp.StatusCode)
+		}
+	})
+}
+
+// TestHandlerBidiInitEnvelope verifies that an HTTP POST to a bidi action
+// handler can supply Init via the request envelope's "init" field, alongside
+// the existing "data" field. This is the production HTTP path for bidi
+// actions invoked as one-shots.
+func TestHandlerBidiInitEnvelope(t *testing.T) {
+	g := Init(context.Background())
+
+	type Config struct {
+		Prefix string `json:"prefix"`
+	}
+
+	bidiAction := defineTestBidiAction(g.reg, api.ActionTypeCustom, "envelopeBidi", nil,
+		func(ctx context.Context, cfg Config, inCh <-chan string, outCh chan<- string) (string, error) {
+			for in := range inCh {
+				outCh <- cfg.Prefix + in
+			}
+			return "done", nil
+		})
+
+	t.Run("non-streaming envelope with init", func(t *testing.T) {
+		handler := Handler(bidiAction)
+
+		body := `{"data":"hello","init":{"prefix":">> "}}`
+		req := httptest.NewRequest("POST", "/", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler(w, req)
+
+		resp := w.Result()
+		respBody, _ := io.ReadAll(resp.Body)
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("status = %d, body = %s", resp.StatusCode, string(respBody))
+		}
+		// Result should be "done"; the prefixed chunk goes to the streaming
+		// callback (nil here), so the final output is the function's return.
+		if !strings.Contains(string(respBody), `"done"`) {
+			t.Errorf("response body = %q, want it to contain \"done\"", string(respBody))
+		}
+	})
+
+	t.Run("streaming envelope with init delivers prefixed chunk", func(t *testing.T) {
+		handler := HandlerFunc(bidiAction)
+
+		// Use an HTML-safe prefix so json.Marshal doesn't escape it; that
+		// way the assertion can match the prefix literally in the SSE body.
+		body := `{"data":"hello","init":{"prefix":"PFX:"}}`
+		req := httptest.NewRequest("POST", "/", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "text/event-stream")
+		w := httptest.NewRecorder()
+
+		if err := handler(w, req); err != nil {
+			t.Fatalf("handler: %v", err)
+		}
+
+		respBody, _ := io.ReadAll(w.Result().Body)
+		if !strings.Contains(string(respBody), "PFX:hello") {
+			t.Errorf("response missing prefixed chunk; body = %q", string(respBody))
+		}
+		if !strings.Contains(string(respBody), `"done"`) {
+			t.Errorf("response missing final result; body = %q", string(respBody))
+		}
+	})
+
+	t.Run("envelope without init uses zero value", func(t *testing.T) {
+		handler := Handler(bidiAction)
+
+		body := `{"data":"hello"}`
+		req := httptest.NewRequest("POST", "/", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler(w, req)
+
+		resp := w.Result()
+		if resp.StatusCode != http.StatusOK {
+			respBody, _ := io.ReadAll(resp.Body)
+			t.Fatalf("status = %d, body = %s", resp.StatusCode, string(respBody))
+		}
+	})
+
+	t.Run("envelope with malformed init returns 400", func(t *testing.T) {
+		handler := Handler(bidiAction)
+
+		// Init is valid JSON but doesn't match the action's Config (prefix
+		// must be a string; here it's a number).
+		body := `{"data":"hello","init":{"prefix":42}}`
+		req := httptest.NewRequest("POST", "/", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler(w, req)
+
+		resp := w.Result()
+		if resp.StatusCode != http.StatusBadRequest {
+			respBody, _ := io.ReadAll(resp.Body)
+			t.Errorf("status = %d, want %d; body = %s", resp.StatusCode, http.StatusBadRequest, string(respBody))
+		}
+	})
+
+	t.Run("init on non-bidi flow returns 400", func(t *testing.T) {
+		plainFlow := DefineFlow(g, "envelopePlain",
+			func(ctx context.Context, in string) (string, error) {
+				return "out:" + in, nil
+			})
+		handler := Handler(plainFlow)
+
+		body := `{"data":"hello","init":{"prefix":">> "}}`
+		req := httptest.NewRequest("POST", "/", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler(w, req)
+
+		resp := w.Result()
+		if resp.StatusCode != http.StatusBadRequest {
+			respBody, _ := io.ReadAll(resp.Body)
+			t.Errorf("status = %d, want %d; body = %s", resp.StatusCode, http.StatusBadRequest, string(respBody))
+		}
+	})
+
+	t.Run("init on non-bidi flow returns 400 on streaming requests", func(t *testing.T) {
+		plainFlow := DefineFlow(g, "envelopePlainStream",
+			func(ctx context.Context, in string) (string, error) {
+				return "out:" + in, nil
+			})
+		handler := Handler(plainFlow)
+
+		// The rejection must happen before the handler commits to SSE: a
+		// streaming client should see an HTTP 400, not a 200 with an
+		// in-band error event.
+		body := `{"data":"hello","init":{"prefix":">> "}}`
+		req := httptest.NewRequest("POST", "/", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "text/event-stream")
+		w := httptest.NewRecorder()
+
+		handler(w, req)
+
+		resp := w.Result()
+		respBody, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("status = %d, want %d; body = %s", resp.StatusCode, http.StatusBadRequest, string(respBody))
+		}
+		if ct := resp.Header.Get("Content-Type"); strings.Contains(ct, "text/event-stream") {
+			t.Errorf("Content-Type = %q; response must not commit to SSE before rejecting init", ct)
 		}
 	})
 }

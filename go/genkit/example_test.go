@@ -152,8 +152,8 @@ func ExampleDefineTool() {
 	_ = genkit.DefineTool(g, "add",
 		"Adds two numbers together",
 		func(ctx *ai.ToolContext, input struct {
-			A float64 `json:"a" jsonschema:"description=First number"`
-			B float64 `json:"b" jsonschema:"description=Second number"`
+			A float64 `json:"a" jsonschema_description:"First number"`
+			B float64 `json:"b" jsonschema_description:"Second number"`
 		}) (float64, error) {
 			return input.A + input.B, nil
 		},
@@ -188,20 +188,20 @@ func ExampleDefinePrompt() {
 	// Output: Say hello to Alice in a friendly way.
 }
 
-// This example demonstrates registering a Go type as a named schema.
-func ExampleDefineSchemaFor() {
+// This example demonstrates registering Go types as named schemas.
+func ExampleDefineSchemasFor() {
 	ctx := context.Background()
 	g := genkit.Init(ctx)
 
 	// Define a struct type
 	type Person struct {
-		Name string `json:"name" jsonschema:"description=The person's name"`
-		Age  int    `json:"age" jsonschema:"description=The person's age"`
+		Name string `json:"name" jsonschema_description:"The person's name"`
+		Age  int    `json:"age" jsonschema_description:"The person's age"`
 	}
 
 	// Register the schema - this makes it available for .prompt files
 	// that reference it by name (e.g., "output: { schema: Person }")
-	genkit.DefineSchemaFor[Person](g)
+	genkit.DefineSchemasFor(g, Person{})
 
 	fmt.Println("Schema registered: Person")
 	// Output: Schema registered: Person

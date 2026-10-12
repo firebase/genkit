@@ -24,10 +24,10 @@ from pydantic.alias_generators import to_camel
 from typing_extensions import Never
 
 from genkit._core._action import Action, ActionKind, get_func_description
-from genkit._core._model import Document
+from genkit._core._model import Document, EmbedRequest
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
-from genkit._core._typing import ActionMetadata, EmbedRequest, EmbedResponse
+from genkit._core._typing import ActionMetadata, EmbedResponse
 
 
 class EmbedderSupports(BaseModel):
@@ -39,8 +39,8 @@ class EmbedderSupports(BaseModel):
     multilingual: bool | None = None
 
 
-class EmbedderOptions(BaseModel):
-    """Configuration options for an embedder."""
+class EmbedderInfo(BaseModel):
+    """Catalog card for an embedder: label, vector width, and input kinds."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
 
@@ -56,7 +56,7 @@ class EmbedderRef(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True)
 
     name: str
-    config: Any | None = None
+    config: dict[str, Any] | None = None
     version: str | None = None
 
 
@@ -74,7 +74,6 @@ class Embedder:
         options: dict[str, Any] | None = None,
     ) -> EmbedResponse:
         """Generate embeddings for a list of documents."""
-        # Document veneer is compatible with DocumentData at runtime
         return (
             await self._action.run(EmbedRequest(input=documents, options=options))  # type: ignore[arg-type]
         ).response
@@ -85,70 +84,92 @@ EmbedderFn = Callable[[EmbedRequest], Awaitable[EmbedResponse]]
 
 def embedder_action_metadata(
     name: str,
-    options: EmbedderOptions | None = None,
+    info: EmbedderInfo | None = None,
 ) -> ActionMetadata:
     """Create ActionMetadata for an embedder action."""
-    options = options if options is not None else EmbedderOptions()
+    info = info if info is not None else EmbedderInfo()
     embedder_metadata_dict: dict[str, object] = {'embedder': {}}
     embedder_info = cast(dict[str, object], embedder_metadata_dict['embedder'])
 
-    if options.label:
-        embedder_info['label'] = options.label
+    if info.label:
+        embedder_info['label'] = info.label
 
-    embedder_info['dimensions'] = options.dimensions
+    embedder_info['dimensions'] = info.dimensions
 
-    if options.supports:
-        embedder_info['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+    if info.supports:
+        embedder_info['supports'] = info.supports.model_dump(exclude_none=True, by_alias=True)
 
-    embedder_info['customOptions'] = options.config_schema if options.config_schema else None
+    embedder_info['customOptions'] = info.config_schema if info.config_schema else None
 
     return ActionMetadata(
         action_type=ActionKind.EMBEDDER,
         name=name,
-        input_json_schema=to_json_schema(EmbedRequest),
-        output_json_schema=to_json_schema(EmbedResponse),
+        input_schema=to_json_schema(EmbedRequest),
+        output_schema=to_json_schema(EmbedResponse),
         metadata=embedder_metadata_dict,
     )
 
 
-def create_embedder_ref(name: str, config: dict[str, Any] | None = None, version: str | None = None) -> EmbedderRef:
-    """Creates an EmbedderRef instance."""
-    return EmbedderRef(name=name, config=config, version=version)
+def embedder(
+    name: str,
+    fn: EmbedderFn,
+    *,
+    metadata: dict[str, object] | None = None,
+    info: EmbedderInfo | None = None,
+    description: str | None = None,
+) -> Action:
+    """Build an embedder action without registering it.
+
+    Plugin ``init`` / ``resolve`` return this. ``define_embedder`` registers it.
+    """
+    embedder_info: dict[str, object] = {}
+
+    if metadata and 'embedder' in metadata:
+        existing = metadata['embedder']
+        if isinstance(existing, dict):
+            existing_dict = cast(dict[str, object], existing)
+            for key, value in existing_dict.items():
+                if isinstance(key, str) and key not in embedder_info:
+                    embedder_info[key] = value
+
+    if info:
+        if info.label:
+            embedder_info['label'] = info.label
+        embedder_info['dimensions'] = info.dimensions
+        if info.supports:
+            embedder_info['supports'] = info.supports.model_dump(exclude_none=True, by_alias=True)
+        embedder_info['customOptions'] = info.config_schema if info.config_schema else None
+
+    if 'label' not in embedder_info or not embedder_info['label']:
+        embedder_info['label'] = name
+
+    embedder_meta: dict[str, object] = metadata.copy() if metadata else {}
+    embedder_meta['embedder'] = embedder_info
+
+    return Action(
+        kind=ActionKind.EMBEDDER,
+        name=name,
+        fn=fn,
+        metadata=embedder_meta,
+        description=get_func_description(fn, description),
+    )
 
 
 def define_embedder(
     registry: Registry,
     name: str,
     fn: EmbedderFn,
-    options: EmbedderOptions | None = None,
+    info: EmbedderInfo | None = None,
     metadata: dict[str, object] | None = None,
     description: str | None = None,
 ) -> Action:
     """Register a custom embedder action."""
-    embedder_meta: dict[str, object] = dict(metadata) if metadata else {}
-    embedder_info: dict[str, object]
-    existing_embedder = embedder_meta.get('embedder')
-    if isinstance(existing_embedder, dict):
-        embedder_info = {str(key): value for key, value in existing_embedder.items()}
-    else:
-        embedder_info = {}
-    embedder_meta['embedder'] = embedder_info
-
-    if options:
-        if options.label:
-            embedder_info['label'] = options.label
-        if options.dimensions:
-            embedder_info['dimensions'] = options.dimensions
-        if options.supports:
-            embedder_info['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
-        if options.config_schema:
-            embedder_info['customOptions'] = to_json_schema(options.config_schema)
-
-    embedder_description = get_func_description(fn, description)
-    return registry.register_action(
-        name=name,
-        kind=ActionKind.EMBEDDER,
-        fn=fn,
-        metadata=embedder_meta,
-        description=embedder_description,
+    action = embedder(
+        name,
+        fn,
+        metadata=metadata,
+        info=info,
+        description=description,
     )
+    registry.register_action_from_instance(action)
+    return action

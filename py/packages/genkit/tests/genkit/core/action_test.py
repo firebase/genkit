@@ -6,21 +6,28 @@
 """Tests for the action module."""
 
 import json
-from typing import cast
+from typing import Any, cast
 
 import pytest
+from pydantic import BaseModel, ConfigDict
 
+from genkit import Genkit, Message, Part, PublicError
 from genkit._core._action import (
     Action,
     ActionKind,
     ActionRunContext,
+    BidiAction,
     DapQualifiedName,
     create_action_key,
+    get_current_context,
     parse_action_key,
     parse_dap_qualified_name,
     parse_plugin_name_from_action_name,
 )
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, RuntimeErrorReason
+from genkit._core._model import OutputConfig
+from genkit.embedder import EmbedRequest, EmbedResponse
+from genkit.model import ModelRequest
 
 
 def test_action_enum_behaves_like_str() -> None:
@@ -33,10 +40,11 @@ def test_action_enum_behaves_like_str() -> None:
     assert ActionKind.EMBEDDER == 'embedder'
     assert ActionKind.EVALUATOR == 'evaluator'
     assert ActionKind.EXECUTABLE_PROMPT == 'executable-prompt'
+    assert ActionKind.AGENT == 'agent'
     assert ActionKind.FLOW == 'flow'
     assert ActionKind.MODEL == 'model'
     assert ActionKind.PROMPT == 'prompt'
-    assert ActionKind.TOOL == 'tool'
+    assert ActionKind.TOOL == 'tool.v2'
     assert ActionKind.UTIL == 'util'
 
 
@@ -51,6 +59,8 @@ def test_parse_action_key_valid() -> None:
         ),
         ('/custom/test-action', (ActionKind.CUSTOM, 'test-action')),
         ('/flow/my-flow', (ActionKind.FLOW, 'my-flow')),
+        ('/agent/my-agent', (ActionKind.AGENT, 'my-agent')),
+        ('/tool.v2/my-tool', (ActionKind.TOOL, 'my-tool')),
     ]
 
     for key, expected in test_cases:
@@ -74,9 +84,23 @@ def test_parse_action_key_invalid_format() -> None:
             parse_action_key(key)
 
 
+def test_parse_action_key_rejects_tool_kind() -> None:
+    """Catalog tools live under ``/tool.v2/``; ``/tool/`` is not a kind."""
+    with pytest.raises(ValueError, match='Invalid action kind'):
+        parse_action_key('/tool/my-tool')
+
+
+@pytest.mark.parametrize('kind', ['retriever', 'indexer', 'reranker'])
+def test_parse_action_key_retriever_indexer_reranker_raise_invalid_action_kind(kind: str) -> None:
+    """Parsing '/retriever/x', '/indexer/x', or '/reranker/x' raises 'Invalid action kind'."""
+    with pytest.raises(ValueError, match=f'Invalid action kind: `{kind}`'):
+        parse_action_key(f'/{kind}/x')
+
+
 def test_parse_dap_qualified_name() -> None:
     """Parse provider:innerKind/innerName segments."""
     assert parse_dap_qualified_name('my-dap:tool/echo') == DapQualifiedName('my-dap', 'tool', 'echo')
+    assert parse_dap_qualified_name('my-dap:tool.v2/echo') is None
     assert parse_dap_qualified_name('plugin/foo:model/bar') is None
     assert parse_dap_qualified_name('plain-name') is None
     assert parse_dap_qualified_name('no-slash:toolonly') is None
@@ -88,8 +112,9 @@ def test_create_action_key() -> None:
     assert create_action_key(ActionKind.CUSTOM, 'foo') == '/custom/foo'
     assert create_action_key(ActionKind.MODEL, 'foo') == '/model/foo'
     assert create_action_key(ActionKind.PROMPT, 'foo') == '/prompt/foo'
-    assert create_action_key(ActionKind.TOOL, 'foo') == '/tool/foo'
+    assert create_action_key(ActionKind.TOOL, 'foo') == '/tool.v2/foo'
     assert create_action_key(ActionKind.UTIL, 'foo') == '/util/foo'
+    assert create_action_key(ActionKind.AGENT, 'foo') == '/agent/foo'
 
 
 def test_sync_action_rejected() -> None:
@@ -188,6 +213,17 @@ async def test_streaming_action_with_stream_method() -> None:
     assert chunks == ['1', '2']
 
 
+def test_action_stream_does_not_accept_timeout() -> None:
+    """action.stream has no timeout=; the async for waits until the run finishes."""
+
+    async def foo(input: str, ctx: ActionRunContext) -> int:
+        return 1
+
+    action = Action(name='foo', kind=ActionKind.CUSTOM, fn=foo)
+    with pytest.raises(TypeError, match='timeout'):
+        action.stream('foo', timeout=5)  # type: ignore[call-arg]
+
+
 def test_parse_plugin_name_from_action_name() -> None:
     """Parse plugin name from the action name."""
     assert parse_plugin_name_from_action_name('foo') is None
@@ -223,19 +259,32 @@ async def test_propagates_context_via_contextvar() -> None:
 
 @pytest.mark.asyncio
 async def test_action_raises_errors() -> None:
-    """Action raises error with necessary metadata."""
+    """Action.run raises the exception the body raised."""
 
     async def foo(_: str | None, ctx: ActionRunContext) -> None:
         raise Exception('oops')
 
     action = Action(name='fooAction', kind=ActionKind.CUSTOM, fn=foo)
 
-    with pytest.raises(GenkitError, match=r'.*Error while running action fooAction.*') as e:
+    with pytest.raises(Exception, match='^oops$') as e:
         await action.run()
 
-    assert 'stack' in e.value.details
-    assert 'trace_id' in e.value.details
-    assert str(e.value.cause) == 'oops'
+    assert type(e.value) is Exception
+    # Default-off: no provider → no trace id.
+    assert not hasattr(e.value, 'trace_id')
+
+
+@pytest.mark.asyncio
+async def test_action_error_has_no_trace_id_when_instrumented(hex_ids) -> None:
+    """Tracing on doesn't change the raised exception; the trace id stays on the span."""
+
+    async def foo(_: str | None, ctx: ActionRunContext) -> None:
+        raise Exception('oops')
+
+    action = Action(name='fooAction', kind=ActionKind.CUSTOM, fn=foo)
+    with pytest.raises(Exception, match='^oops$') as e:
+        await action.run()
+    assert not hasattr(e.value, 'trace_id')
 
 
 @pytest.mark.asyncio
@@ -249,6 +298,29 @@ async def test_run_raises_on_none_input_when_input_required() -> None:
 
     with pytest.raises(GenkitError, match=r'.*requires input but none was provided.*'):
         await action.run(input=None)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ('kind', 'want'),
+    [
+        pytest.param(ActionKind.FLOW, "Invalid input for flow 'lookup'", id='flow'),
+        pytest.param(ActionKind.TOOL, "Invalid input for tool 'lookup'", id='tool.v2 reads as tool'),
+        pytest.param(ActionKind.BACKGROUND_MODEL, "Invalid input for background model 'lookup'", id='hyphen'),
+    ],
+)
+async def test_invalid_input_error_names_the_action_kind(kind: ActionKind, want: str) -> None:
+    """The error says `flow` / `tool` / `background model`, the word the caller defined it with."""
+
+    async def lookup(order_id: int) -> int:
+        return order_id
+
+    action = Action(name='lookup', kind=kind, fn=lookup)
+
+    with pytest.raises(GenkitError) as e:
+        await action.run(input='abc')
+
+    assert e.value.original_message == want
 
 
 @pytest.mark.asyncio
@@ -275,3 +347,428 @@ async def test_run_no_input_type_allows_none() -> None:
 
     result = await action.run(input=None)
     assert result.response == 'no input needed'
+
+
+@pytest.mark.asyncio
+async def test_action_context_isolation_sequential_and_nested() -> None:
+    """Action context is isolated and does not bleed sequentially or permanently override in nested runs."""
+
+    # 1. Sequential isolation test
+    async def get_context(_: None, ctx: ActionRunContext) -> dict[str, object] | None:
+        return ctx.context
+
+    tool_action = Action(name='getContext', kind=ActionKind.TOOL, fn=get_context)
+
+    # First run sets context
+    res1 = await tool_action.run(context={'auth': 'user1'})
+    assert res1.response == {'auth': 'user1'}
+
+    # Second run does NOT set context (should be empty/None)
+    res2 = await tool_action.run()
+    assert res2.response == {}  # Bleeding check
+
+    # 2. Nested isolation test (parent calls child with overrides)
+    async def child_fn(_: None, ctx: ActionRunContext) -> dict[str, object] | None:
+        return ctx.context
+
+    child_action = Action(name='childAction', kind=ActionKind.CUSTOM, fn=child_fn)
+
+    async def parent_fn(_: None, ctx: ActionRunContext) -> tuple[dict[str, object] | None, dict[str, object] | None]:
+        # Run child action with different context
+        child_res = await child_action.run(context={'auth': 'child_secret'})
+        # Return parent context (which should still be parent's original context!)
+        return ctx.context, child_res.response
+
+    parent_action = Action(name='parentAction', kind=ActionKind.CUSTOM, fn=parent_fn)
+
+    # Run parent action with its own context
+    res = await parent_action.run(context={'auth': 'parent_secret'})
+    parent_ctx, child_ctx = res.response
+
+    assert child_ctx == {'auth': 'child_secret'}
+    assert parent_ctx == {'auth': 'parent_secret'}  # Permanent override check
+
+    assert get_current_context() is None
+
+
+@pytest.mark.asyncio
+async def test_run_defaulted_input_arg_allows_none() -> None:
+    """A function with a Python default for its input should be callable with no input.
+
+    Otherwise `await my_flow()` on `async def my_flow(name: str = 'world')`
+    would surprise the caller with INVALID_ARGUMENT — typing accepts the
+    call but the runtime would reject it.
+    """
+
+    async def greet(name: str = 'world') -> str:
+        return f'hi {name}'
+
+    action = Action(name='greet', kind=ActionKind.CUSTOM, fn=greet)
+
+    assert (await action.run(input='Alice')).response == 'hi Alice'
+    assert (await action.run(input=None)).response == 'hi world'
+    assert (await action.run()).response == 'hi world'
+
+
+@pytest.mark.asyncio
+async def test_run_defaulted_input_arg_allows_none_with_ctx() -> None:
+    """Same as above but for 2-arg (input + ctx) actions."""
+
+    async def greet(name: str = 'world', ctx: ActionRunContext | None = None) -> str:
+        return f'hi {name}'
+
+    action = Action(name='greet_ctx', kind=ActionKind.CUSTOM, fn=greet)
+
+    assert (await action.run(input='Bob')).response == 'hi Bob'
+    assert (await action.run(input=None)).response == 'hi world'
+    assert (await action.run()).response == 'hi world'
+
+
+@pytest.mark.asyncio
+async def test_action_revalidates_bare_model_request_into_plugin_config() -> None:
+    """Action.run: a bare ModelRequest with a dict config arrives as the plugin class."""
+
+    class PluginConfig(BaseModel):
+        model_config = ConfigDict(extra='allow')
+        safe_prompt: bool | None = None
+
+    seen: dict[str, Any] = {}
+
+    async def model_fn(request: ModelRequest[PluginConfig]) -> str:
+        seen['config'] = request.config
+        return 'ok'
+
+    action = Action(name='pluginModel', kind=ActionKind.MODEL, fn=model_fn)
+    # generate may hand the action a bare request that still has a dict config.
+    request = ModelRequest(
+        messages=[Message(role='user', content=[Part.from_text('hi')])],
+        config={'safe_prompt': True},
+    )
+    assert request.config == {'safe_prompt': True}
+
+    result = await action.run(input=request)
+    assert result.response == 'ok'
+    assert isinstance(seen['config'], PluginConfig)
+    assert seen['config'].safe_prompt is True
+
+
+@pytest.mark.asyncio
+async def test_action_rejects_foreign_config_class() -> None:
+    """Action.run: a request already carrying OpenAICfg is not dumped into GeminiCfg."""
+
+    class OpenAICfg(BaseModel):
+        temperature: float | None = None
+
+    class GeminiCfg(BaseModel):
+        temperature: float | None = None
+
+    async def model_fn(request: ModelRequest[GeminiCfg]) -> str:
+        return 'ok'
+
+    action = Action(name='gemini', kind=ActionKind.MODEL, fn=model_fn)
+    request = ModelRequest[OpenAICfg](
+        messages=[Message(role='user', content=[Part.from_text('hi')])],
+        config=OpenAICfg(temperature=0.5),
+    )
+
+    with pytest.raises(GenkitError, match=r'config must be .+\.GeminiCfg or a mapping, got .+\.OpenAICfg'):
+        await action.run(input=request)
+
+
+@pytest.mark.asyncio
+async def test_action_coerces_dict_config_from_other_request_type() -> None:
+    """Action.run: a mapping on a bare ModelRequest still becomes the plugin class."""
+
+    class PluginCfg(BaseModel):
+        temperature: float | None = None
+
+    seen: dict[str, Any] = {}
+
+    async def model_fn(request: ModelRequest[PluginCfg]) -> str:
+        seen['config'] = request.config
+        return 'ok'
+
+    action = Action(name='pluginModel', kind=ActionKind.MODEL, fn=model_fn)
+    request = ModelRequest(
+        messages=[Message(role='user', content=[Part.from_text('hi')])],
+        config={'temperature': 0.5},
+        output=OutputConfig(format='json', constrained=True),
+    )
+    assert type(request.config) is dict
+
+    result = await action.run(input=request)
+    assert result.response == 'ok'
+    assert isinstance(seen['config'], PluginCfg)
+    assert seen['config'].temperature == 0.5
+
+
+def _counting_bidi() -> BidiAction:
+    async def count(_init: Any, input_stream: Any, send_chunk: Any) -> dict[str, int]:
+        turns = 0
+        async for item in input_stream:
+            turns += 1
+            send_chunk(item)
+        return {'turns': turns}
+
+    return BidiAction(ActionKind.CUSTOM, 'count', count)
+
+
+@pytest.mark.asyncio
+async def test_bidi_send_after_close_raises_connection_closed() -> None:
+    """close() then send() is CONNECTION_CLOSED; output() is still readable."""
+    conn = await _counting_bidi().stream_bidi()
+    await conn.close()
+
+    with pytest.raises(GenkitError) as raised:
+        await conn.send('late')
+    assert raised.value.status == 'FAILED_PRECONDITION'
+    assert raised.value.reason is RuntimeErrorReason.CONNECTION_CLOSED
+    assert 'already been closed' in raised.value.original_message
+    assert 'CONNECTION_CLOSED' not in raised.value.original_message
+    assert await conn.output() == {'turns': 0}
+
+
+@pytest.mark.asyncio
+async def test_bidi_send_after_a_turn_then_close_raises_connection_closed() -> None:
+    """A delivered turn, then close(), then send() is still CONNECTION_CLOSED."""
+    conn = await _counting_bidi().stream_bidi()
+    await conn.send('hi')
+    await conn.close()
+
+    with pytest.raises(GenkitError) as raised:
+        await conn.send('late')
+    assert raised.value.status == 'FAILED_PRECONDITION'
+    assert raised.value.reason is RuntimeErrorReason.CONNECTION_CLOSED
+    assert 'already been closed' in raised.value.original_message
+    assert 'CONNECTION_CLOSED' not in raised.value.original_message
+    assert await conn.output() == {'turns': 1}
+
+
+@pytest.mark.asyncio
+async def test_bidi_send_after_close_twice_raises_connection_closed() -> None:
+    """A second close() does not change send(): still CONNECTION_CLOSED."""
+    conn = await _counting_bidi().stream_bidi()
+    await conn.close()
+    await conn.close()
+
+    with pytest.raises(GenkitError) as raised:
+        await conn.send('late')
+    assert raised.value.status == 'FAILED_PRECONDITION'
+    assert raised.value.reason is RuntimeErrorReason.CONNECTION_CLOSED
+    assert 'already been closed' in raised.value.original_message
+    assert 'CONNECTION_CLOSED' not in raised.value.original_message
+    assert await conn.output() == {'turns': 0}
+
+
+@pytest.mark.asyncio
+async def test_bidi_send_before_close_delivers_the_turn() -> None:
+    """send() before close() is a delivered turn, not CONNECTION_CLOSED."""
+    conn = await _counting_bidi().stream_bidi()
+    await conn.send('hi')
+    await conn.close()
+    assert await conn.output() == {'turns': 1}
+
+
+class AccountLockedError(Exception):
+    """A caller's own exception type."""
+
+
+class Receipt(BaseModel):
+    account: str
+    amount: int
+
+
+def _define_missing(ai: Genkit):  # noqa: ANN202
+    @ai.flow()
+    async def missing(account: str) -> str:
+        raise ValueError('no such account')
+
+    return missing
+
+
+@pytest.mark.asyncio
+async def test_await_flow_that_raises_value_error_raises_value_error() -> None:
+    """`await missing('acme')` raises the body's ValueError."""
+    missing = _define_missing(Genkit())
+
+    with pytest.raises(ValueError, match='no such account') as exc:
+        await missing('acme')
+
+    assert type(exc.value) is ValueError
+
+
+@pytest.mark.asyncio
+async def test_await_flow_that_raises_custom_exception_raises_same_instance() -> None:
+    """A user exception class comes back as the same object the body raised."""
+    ai = Genkit()
+    raised = AccountLockedError('acme is locked')
+
+    @ai.flow()
+    async def charge(account: str) -> str:
+        raise raised
+
+    with pytest.raises(AccountLockedError) as exc:
+        await charge('acme')
+
+    assert exc.value is raised
+
+
+@pytest.mark.asyncio
+async def test_await_flow_that_raises_public_error_keeps_status_and_message() -> None:
+    """A PublicError('NOT_FOUND', 'no order 99') surfaces unchanged."""
+    ai = Genkit()
+
+    @ai.flow()
+    async def order(order_id: str) -> str:
+        raise PublicError('NOT_FOUND', f'no order {order_id}')
+
+    with pytest.raises(PublicError) as exc:
+        await order('99')
+
+    assert exc.value.status == 'NOT_FOUND'
+    assert exc.value.original_message == 'no order 99'
+
+
+@pytest.mark.asyncio
+async def test_await_flow_that_raises_genkit_error_keeps_status() -> None:
+    """A GenkitError(status='FAILED_PRECONDITION') surfaces with that status."""
+    ai = Genkit()
+
+    @ai.flow()
+    async def ship(order_id: str) -> str:
+        raise GenkitError(status='FAILED_PRECONDITION', message='order is not paid')
+
+    with pytest.raises(GenkitError) as exc:
+        await ship('99')
+
+    assert exc.value.status == 'FAILED_PRECONDITION'
+    assert exc.value.original_message == 'order is not paid'
+    assert exc.value.cause is None
+
+
+@pytest.mark.asyncio
+async def test_await_outer_flow_calling_failing_inner_flow_raises_inner_value_error() -> None:
+    """A ValueError from a nested flow reaches the outer caller unwrapped."""
+    ai = Genkit()
+    missing = _define_missing(ai)
+
+    @ai.flow()
+    async def statement(account: str) -> str:
+        return await missing(account)
+
+    with pytest.raises(ValueError, match='no such account') as exc:
+        await statement('acme')
+
+    assert type(exc.value) is ValueError
+
+
+@pytest.mark.asyncio
+async def test_await_tool_that_raises_value_error_raises_value_error() -> None:
+    """Calling a tool directly raises the tool's ValueError."""
+    ai = Genkit()
+
+    @ai.tool()
+    async def balance(account: str) -> int:
+        """Look up an account balance."""
+        raise ValueError(f'no account {account}')
+
+    with pytest.raises(ValueError, match='no account acme') as exc:
+        await balance('acme')
+
+    assert type(exc.value) is ValueError
+
+
+@pytest.mark.asyncio
+async def test_ai_embed_with_failing_embedder_raises_original_exception() -> None:
+    """`ai.embed` raises the embedder's own exception."""
+    ai = Genkit()
+
+    async def down(request: EmbedRequest) -> EmbedResponse:
+        raise ConnectionError('embedding server refused the connection')
+
+    ai.define_embedder(name='down', fn=down)
+
+    with pytest.raises(ConnectionError, match='refused the connection') as exc:
+        await ai.embed(embedder='down', content='hello')
+
+    assert type(exc.value) is ConnectionError
+
+
+@pytest.mark.asyncio
+async def test_flow_error_with_tracing_on_has_no_trace_id(hex_ids: None) -> None:
+    """With tracing on, the raised ValueError still has no `trace_id`; the trace keeps it."""
+    missing = _define_missing(Genkit())
+
+    with pytest.raises(ValueError) as exc:
+        await missing('acme')
+
+    assert not hasattr(exc.value, 'trace_id')
+
+
+@pytest.mark.asyncio
+async def test_flow_genkit_error_with_tracing_on_keeps_trace_id_unset(hex_ids: None) -> None:
+    """With tracing on, a GenkitError the body raised comes back with `trace_id` still None."""
+    ai = Genkit()
+
+    @ai.flow()
+    async def ship(order_id: str) -> str:
+        raise GenkitError(status='FAILED_PRECONDITION', message='order is not paid')
+
+    with pytest.raises(GenkitError) as exc:
+        await ship('99')
+
+    assert exc.value.trace_id is None
+    assert exc.value.status == 'FAILED_PRECONDITION'
+
+
+@pytest.mark.asyncio
+async def test_flow_reraising_shared_exception_leaves_it_untouched(hex_ids: None) -> None:
+    """One exception instance raised by two runs comes back unchanged both times."""
+    ai = Genkit()
+    locked = AccountLockedError('acme is locked')
+
+    @ai.flow()
+    async def charge(account: str) -> str:
+        raise locked
+
+    for _ in range(2):
+        with pytest.raises(AccountLockedError) as exc:
+            await charge('acme')
+        assert exc.value is locked
+        assert 'trace_id' not in vars(locked)
+
+
+@pytest.mark.asyncio
+async def test_flow_error_keeps_existing_trace_id_attribute(hex_ids: None) -> None:
+    """An exception that already carries `trace_id` keeps its own value."""
+    ai = Genkit()
+
+    class UpstreamError(Exception):
+        trace_id = 'upstream-trace'
+
+    @ai.flow()
+    async def relay(account: str) -> str:
+        raise UpstreamError('upstream failed')
+
+    with pytest.raises(UpstreamError) as exc:
+        await relay('acme')
+
+    assert exc.value.trace_id == 'upstream-trace'
+
+
+@pytest.mark.asyncio
+async def test_flow_bad_return_with_tracing_on_has_no_trace_id(hex_ids: None) -> None:
+    """`-> Receipt` returning `'nope'` raises INVALID_OUTPUT with `trace_id` still None."""
+    ai = Genkit()
+
+    @ai.flow()
+    async def charge(order: str) -> Receipt:
+        return 'nope'  # type: ignore[return-value]
+
+    with pytest.raises(GenkitError) as exc:
+        await charge('o1')
+
+    assert exc.value.status == 'INTERNAL'
+    assert exc.value.reason is RuntimeErrorReason.INVALID_OUTPUT
+    assert exc.value.trace_id is None
+    assert 'trace_id' not in (exc.value.details or {})

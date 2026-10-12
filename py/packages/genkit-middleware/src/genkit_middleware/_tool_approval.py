@@ -1,0 +1,73 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+"""Tool approval middleware for Genkit."""
+
+from __future__ import annotations
+
+from collections.abc import Awaitable, Callable
+
+from pydantic import BaseModel, Field
+
+from genkit import Interrupt, MultipartToolResponse
+from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, ToolHookParams
+from genkit.plugin_api import ActionKind
+from genkit.telemetry import SpanContext, run_in_new_span
+
+
+class ToolApprovalConfig(BaseModel):
+    """Tools that may run without an approval interrupt."""
+
+    allowed_tools: list[str] = Field(default_factory=list)
+
+
+class ToolApproval(BaseMiddleware[ToolApprovalConfig]):
+    """Tool approval middleware that interrupts execution for non-allowed tools."""
+
+    async def wrap_tool(
+        self,
+        params: ToolHookParams,
+        ctx: GenerateMiddlewareContext,
+        next_fn: Callable[[ToolHookParams, GenerateMiddlewareContext], Awaitable[MultipartToolResponse]],
+    ) -> MultipartToolResponse:
+        """Intercept tool execution and require approval if not in allowed list."""
+        tool_name = params.tool.name
+
+        if tool_name in self.config.allowed_tools:
+            return await next_fn(params, ctx)
+
+        metadata = params.tool_request_part.metadata or {}
+        resumed = metadata.get('resumed')
+        if isinstance(resumed, dict) and (resumed.get('toolApproved') or resumed.get('tool_approved')):
+            return await next_fn(params, ctx)
+
+        tool_req = params.tool_request_part.tool_request
+        if tool_req is None:
+            raise ValueError('wrap_tool needs a tool request part')
+        tool_input = tool_req.input
+
+        async def body(_span: SpanContext) -> MultipartToolResponse:
+            raise Interrupt({'message': f'Tool not in approved list: {tool_name}'})
+
+        # the denied call should look like the tool ran and interrupted, so the
+        # trace shows a tool span rather than a bare step.
+        return await run_in_new_span(
+            tool_name,
+            body,
+            action_type=str(ActionKind.TOOL),
+            input=tool_input,
+            is_action=True,
+        )

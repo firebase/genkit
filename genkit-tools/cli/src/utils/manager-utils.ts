@@ -22,13 +22,28 @@ import {
 import type { Status } from '@genkit-ai/tools-common';
 import {
   BaseRuntimeManager,
+  DEFAULT_REFLECTION_V2_HOST,
   ProcessManager,
+  REFLECTION_SECRET_ENV,
   RuntimeEvent,
   RuntimeManager,
+  generateReflectionSecret,
+  reflectionV2Url,
   type GenkitToolsError,
 } from '@genkit-ai/tools-common/manager';
 import { logger } from '@genkit-ai/tools-common/utils';
 import getPort, { makeRange } from 'get-port';
+
+/** Shared help text for `--experimental-auth` on every command that spawns or hosts runtimes. */
+export const EXPERIMENTAL_AUTH_OPTION_HELP =
+  'generate a reflection API secret and require it from runtimes (experimental; ' +
+  'runtimes on older Genkit versions are rejected over the WebSocket protocol)';
+
+/** Shared help text for `--reflection-v2-host`. */
+export const REFLECTION_V2_HOST_OPTION_HELP =
+  'host/interface to bind the reflection v2 (WebSocket) server to (defaults to ' +
+  '127.0.0.1). Use 0.0.0.0 when the runtime runs elsewhere, e.g. in a container ' +
+  'or on a device; pair it with --experimental-auth.';
 
 /**
  * Returns the telemetry server address either based on environment setup or starts one.
@@ -60,6 +75,31 @@ export async function resolveTelemetryServer(options: {
 }
 
 /**
+ * Resolves the reflection secret this CLI run uses.
+ *
+ * An operator-set `GENKIT_REFLECTION_SECRET_TOKEN` is always used, flag or
+ * not: nobody sets it by accident, and it is how a CLI shares a secret with a
+ * runtime it did not spawn. Otherwise a fresh secret is minted only when
+ * `auth` is on (`--experimental-auth`) and `generate` is set: commands that
+ * spawn a runtime or host the v2 server generate, commands that only attach
+ * to existing v1 runtimes do not (they read each runtime's secret from its
+ * discovery file).
+ */
+export function resolveReflectionSecret(options: {
+  /** `--experimental-auth`: mint a secret when none is configured. */
+  auth?: boolean;
+  generate: boolean;
+}): string | undefined {
+  const fromEnv = process.env[REFLECTION_SECRET_ENV];
+  if (fromEnv) {
+    return fromEnv;
+  }
+  return options.auth && options.generate
+    ? generateReflectionSecret()
+    : undefined;
+}
+
+/**
  * Starts the runtime manager and its dependencies.
  */
 export async function startManager(options: {
@@ -68,7 +108,17 @@ export async function startManager(options: {
   corsOrigin?: string;
   experimentalReflectionV2?: boolean;
   reflectionV2Port?: number;
+  /** `--reflection-v2-host`. */
+  reflectionV2Host?: string;
   telemetryServerUrl?: string;
+  /**
+   * Secret to use. When omitted, falls back to `GENKIT_REFLECTION_SECRET_TOKEN`.
+   * Never generated here: a manager without a spawned runtime has nobody to
+   * hand a fresh secret to.
+   * v1 runtimes that wrote their own secret into their discovery file are
+   * reached with that one regardless.
+   */
+  reflectionSecret?: string;
 }): Promise<BaseRuntimeManager> {
   const telemetryServerUrl =
     options.telemetryServerUrl ?? (await resolveTelemetryServer(options));
@@ -78,6 +128,9 @@ export async function startManager(options: {
     projectRoot: options.projectRoot,
     experimentalReflectionV2: options.experimentalReflectionV2,
     reflectionV2Port: options.reflectionV2Port,
+    reflectionV2Host: options.reflectionV2Host,
+    reflectionSecret:
+      options.reflectionSecret ?? resolveReflectionSecret({ generate: false }),
   });
   return manager;
 }
@@ -92,23 +145,37 @@ export interface DevProcessManagerOptions {
   experimentalReflectionV2?: boolean;
   envVars?: Record<string, string>;
   reflectionV2Port?: number;
+  /** `--reflection-v2-host`: interface the v2 server binds. */
+  reflectionV2Host?: string;
   telemetryServerUrl?: string;
+  /** `--experimental-auth`: generate a secret and require it from runtimes. */
+  auth?: boolean;
+  /** Secret already resolved by {@link getDevEnvVars}; reused as-is. */
+  reflectionSecret?: string;
+}
+
+export interface DevEnv {
+  envVars: Record<string, string>;
+  reflectionV2Port?: number;
+  telemetryServerUrl: string;
+  /** Set with `--experimental-auth` or an operator-set token. */
+  reflectionSecret?: string;
 }
 
 export async function getDevEnvVars(
   projectRoot: string,
   options?: DevProcessManagerOptions
-): Promise<{
-  envVars: Record<string, string>;
-  reflectionV2Port?: number;
-  telemetryServerUrl: string;
-}> {
+): Promise<DevEnv> {
   const telemetryServerUrl = await resolveTelemetryServer({
     projectRoot,
     corsOrigin: options?.corsOrigin,
   });
   const disableRealtimeTelemetry = options?.disableRealtimeTelemetry ?? false;
   const experimentalReflectionV2 = options?.experimentalReflectionV2 ?? false;
+  const reflectionSecret = resolveReflectionSecret({
+    auth: options?.auth,
+    generate: true,
+  });
 
   let reflectionV2Port: number | undefined;
   const envVars: Record<string, string> = {
@@ -116,16 +183,26 @@ export async function getDevEnvVars(
     GENKIT_ENV: 'dev',
   };
 
+  if (reflectionSecret) {
+    envVars[REFLECTION_SECRET_ENV] = reflectionSecret;
+  }
+
   if (experimentalReflectionV2) {
-    reflectionV2Port = await getPort({ port: makeRange(3200, 3400) });
-    envVars.GENKIT_REFLECTION_V2_SERVER = `ws://localhost:${reflectionV2Port}`;
+    // Probe and URL must both match the interface the v2 server binds;
+    // `localhost` may resolve to ::1 first and miss an IPv4-only listener.
+    const host = options?.reflectionV2Host ?? DEFAULT_REFLECTION_V2_HOST;
+    reflectionV2Port = await getPort({ port: makeRange(3200, 3400), host });
+    envVars.GENKIT_REFLECTION_V2_SERVER = reflectionV2Url(
+      host,
+      reflectionV2Port
+    );
   }
 
   if (!disableRealtimeTelemetry) {
     envVars.GENKIT_ENABLE_REALTIME_TELEMETRY = 'true';
   }
 
-  return { envVars, reflectionV2Port, telemetryServerUrl };
+  return { envVars, reflectionV2Port, telemetryServerUrl, reflectionSecret };
 }
 
 export async function startDevProcessManager(
@@ -147,6 +224,9 @@ export async function startDevProcessManager(
 
   const disableRealtimeTelemetry = options?.disableRealtimeTelemetry ?? false;
   const experimentalReflectionV2 = options?.experimentalReflectionV2 ?? false;
+  // Derived from the env the child actually receives, so the manager and the
+  // runtime can never disagree, whichever path produced envVars.
+  const reflectionSecret: string | undefined = envVars[REFLECTION_SECRET_ENV];
 
   const processManager = new ProcessManager(command, args, envVars);
   const manager = await RuntimeManager.create({
@@ -157,6 +237,8 @@ export async function startDevProcessManager(
     disableRealtimeTelemetry,
     experimentalReflectionV2,
     reflectionV2Port,
+    reflectionV2Host: options?.reflectionV2Host,
+    reflectionSecret,
   });
   const processPromise = processManager.start({ ...options });
 
@@ -220,12 +302,111 @@ export async function waitForRuntime(
   }
 }
 
+export interface WaitForActionKeysOptions {
+  /** How often to poll the runtime for its action list. */
+  pollIntervalMs?: number;
+  /**
+   * If the set of registered actions stops changing for this long and the
+   * target action(s) still haven't appeared, stop waiting. This keeps a
+   * mistyped action name from blocking for the full timeout.
+   */
+  stableForMs?: number;
+  /** Hard upper bound as a safety net. */
+  timeoutMs?: number;
+}
+
+/**
+ * Waits until all of the given action keys are registered with the runtime.
+ *
+ * Ephemeral runtimes (used by the `-- <cmd>` commands) register their actions
+ * asynchronously after startup. Some SDKs (notably Go) register the runtime
+ * with the CLI during initialization but define their actions slightly later.
+ * If we dispatch a runAction before the target action is registered, the
+ * runtime returns an "action not found" error. Polling until the actions
+ * appear closes that race.
+ *
+ * To avoid making a mistyped action name block for the full timeout, we watch
+ * the number of registered actions: while it keeps changing, registration is
+ * still in progress; once it settles (stops changing for `stableForMs`) without
+ * the target appearing, we stop waiting and let the subsequent runAction
+ * surface the real "not found" error.
+ */
+export async function waitForActionKeys(
+  manager: BaseRuntimeManager,
+  keys: string[],
+  {
+    pollIntervalMs = 500,
+    stableForMs = 5000,
+    timeoutMs = 30000,
+  }: WaitForActionKeysOptions = {}
+): Promise<void> {
+  const requiredKeys = keys.filter((k) => !!k);
+  if (requiredKeys.length === 0) return;
+
+  const deadline = Date.now() + timeoutMs;
+
+  let hasSeenRuntime = manager.listRuntimes().length > 0;
+  let lastCount = -1;
+  let lastChange = Date.now();
+
+  while (true) {
+    // If the runtime process crashed or exited after registering but before
+    // registering its actions, stop waiting instead of hanging. A subsequent
+    // runAction will surface the real error.
+    if (manager.listRuntimes().length > 0) {
+      hasSeenRuntime = true;
+    } else if (hasSeenRuntime) {
+      logger.debug(
+        'Runtime disconnected while waiting for actions. Stopping wait.'
+      );
+      return;
+    }
+
+    try {
+      const actions = await manager.listActions();
+      const registered = Object.keys(actions);
+      const missing = requiredKeys.filter((k) => !registered.includes(k));
+      if (missing.length === 0) return;
+
+      if (registered.length !== lastCount) {
+        // Still registering actions; reset the stability window.
+        lastCount = registered.length;
+        lastChange = Date.now();
+      } else if (Date.now() - lastChange >= stableForMs) {
+        logger.debug(
+          `Action list stabilized without registering: ${missing.join(
+            ', '
+          )}. Stopping wait.`
+        );
+        return;
+      }
+    } catch (e) {
+      // The actions endpoint may not be ready yet; keep polling.
+      logger.debug(`Polling for actions failed, will retry: ${e}`);
+    }
+
+    if (Date.now() >= deadline) {
+      logger.debug('Timed out waiting for actions to register. Proceeding.');
+      return;
+    }
+    await new Promise((r) => setTimeout(r, pollIntervalMs));
+  }
+}
+
 /**
  * Runs the given function with a runtime manager.
  */
 export interface RunWithManagerOptions {
   /** Command to start the runtime process. If provided, an ephemeral manager is used. */
   runtimeCommand?: string[];
+  /**
+   * Action keys to wait for before invoking the function. Only used for
+   * ephemeral runtimes to avoid dispatching before the runtime has finished
+   * registering the target action(s).
+   */
+  waitForActionKeys?: string[];
+  /** `--experimental-auth`. */
+  auth?: boolean;
 }
 
 export async function runWithManager(
@@ -242,6 +423,7 @@ export async function runWithManager(
     if (useEphemeral) {
       const devEnv = await getDevEnvVars(projectRoot, {
         experimentalReflectionV2: true,
+        auth: options?.auth,
       });
       const { envVars, telemetryServerUrl, reflectionV2Port } = devEnv;
 
@@ -262,10 +444,13 @@ export async function runWithManager(
       );
       manager = result.manager;
     } else {
-      manager = await startManager({
-        projectRoot,
-        manageHealth: false,
-      });
+      if (options?.auth) {
+        logger.warn(
+          '--experimental-auth has no effect without a command to run (`-- <cmd>`). ' +
+            `To share a secret with a runtime you start yourself, set ${REFLECTION_SECRET_ENV}.`
+        );
+      }
+      manager = await startManager({ projectRoot, manageHealth: false });
     }
   } catch (e) {
     logger.error('Failed to start manager', e);
@@ -277,11 +462,20 @@ export async function runWithManager(
   }
 
   try {
+    if (useEphemeral && options?.waitForActionKeys?.length) {
+      await waitForActionKeys(manager, options.waitForActionKeys);
+    }
     await fn(manager);
   } catch (err) {
+    process.exitCode = 1;
     logger.error('Command exited with an Error:');
     const error = err as GenkitToolsError;
-    if (typeof error.data === 'object') {
+    if (
+      error &&
+      typeof error === 'object' &&
+      typeof error.data === 'object' &&
+      error.data !== null
+    ) {
       const errorStatus = error.data as Status;
       const { code, details, message } = errorStatus;
       logger.error(`\tCode: ${code}`);
@@ -290,10 +484,12 @@ export async function runWithManager(
         logger.error(`\tTrace ID: ${details.traceId}\n`);
       }
     } else {
-      logger.error(`\tMessage: ${error.data}\n`);
+      logger.error(
+        `\tMessage: ${error?.data ?? error?.message ?? String(err)}\n`
+      );
     }
-    logger.error('Stack trace:');
-    logger.error(`${error.stack}`);
+    logger.debug('Stack trace:');
+    logger.debug(`${error?.stack ?? ''}`);
   } finally {
     if (manager) {
       await manager.stop();

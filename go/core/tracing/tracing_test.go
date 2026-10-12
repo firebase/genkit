@@ -18,6 +18,7 @@ package tracing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -53,6 +54,198 @@ func TestSpanMetadata(t *testing.T) {
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("\ngot  %v\nwant %v", got, want)
+	}
+}
+
+func TestSpanMetadataStartAttributes(t *testing.T) {
+	sm := &spanMetadata{
+		Name:     "myTool",
+		State:    spanStateSuccess, // run-determined: must be excluded
+		Path:     "/{chatFlow,t:flow}/{myTool,t:action}",
+		Type:     "action",
+		Subtype:  "tool",
+		Input:    "in",  // deferred to end: must be excluded
+		Output:   "out", // run-determined: must be excluded
+		IsRoot:   true,
+		Metadata: map[string]string{"key": "value"},
+	}
+
+	// startAttributes carries only the shape known at span start, in the same
+	// order (and with the same keys/values) as the matching prefix of
+	// attributes(), so the end write reasserts them cleanly.
+	got := sm.startAttributes()
+	want := []attribute.KeyValue{
+		attribute.String("genkit:name", "myTool"),
+		attribute.String("genkit:path", "/{chatFlow,t:flow}/{myTool,t:action}"),
+		attribute.String("genkit:type", "action"),
+		attribute.String("genkit:metadata:subtype", "tool"),
+		attribute.Bool("genkit:isRoot", true),
+		attribute.String("genkit:metadata:key", "value"),
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("\ngot  %v\nwant %v", got, want)
+	}
+
+	// The run-determined attributes must not leak into the start write, and input
+	// and init are seeded separately (see inputAttributes / TestSpanMetadataInputAttributes).
+	for _, kv := range got {
+		switch kv.Key {
+		case "genkit:state", "genkit:input", "genkit:output", "genkit:init":
+			t.Errorf("startAttributes must not include %q", kv.Key)
+		}
+	}
+}
+
+func TestSpanMetadataInputAttributes(t *testing.T) {
+	// With init: both genkit:input and genkit:init, matching attributes().
+	sm := &spanMetadata{Input: "in", Init: map[string]string{"prefix": "PFX:"}}
+	got := sm.inputAttributes()
+	want := []attribute.KeyValue{
+		attribute.String("genkit:input", `"in"`),
+		attribute.String("genkit:init", `{"prefix":"PFX:"}`),
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("with init:\ngot  %v\nwant %v", got, want)
+	}
+
+	// Without init (e.g. a bidi/agent root span has nil input and may have no
+	// init): genkit:input is still present, recorded as JSON null.
+	smNoInit := &spanMetadata{Input: nil}
+	got = smNoInit.inputAttributes()
+	want = []attribute.KeyValue{attribute.String("genkit:input", "null")}
+	if !slices.Equal(got, want) {
+		t.Errorf("without init:\ngot  %v\nwant %v", got, want)
+	}
+}
+
+func TestSpanMetadataInit(t *testing.T) {
+	sm := &spanMetadata{
+		Name:  "name",
+		State: spanStateSuccess,
+		Path:  "parent/name",
+		Input: "in",
+		Init:  map[string]string{"prefix": "PFX:"},
+	}
+
+	got := sm.attributes()
+	want := []attribute.KeyValue{
+		attribute.String("genkit:name", "name"),
+		attribute.String("genkit:state", "success"),
+		attribute.String("genkit:input", `"in"`),
+		attribute.String("genkit:path", "parent/name"),
+		attribute.String("genkit:init", `{"prefix":"PFX:"}`),
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("\ngot  %v\nwant %v", got, want)
+	}
+}
+
+func TestSpanMetadataInlineMedia(t *testing.T) {
+	media := func(url string) map[string]any {
+		return map[string]any{"media": map[string]string{"url": url}}
+	}
+	sm := &spanMetadata{
+		Input:  media("data:image/png;base64,input-bytes"),
+		Init:   media("data:image/png;base64,init-bytes"),
+		Output: media("data:image/png;base64,output-bytes"),
+	}
+
+	tests := []struct {
+		env  string
+		want map[string]string
+	}{
+		{
+			env: "prod",
+			want: map[string]string{
+				"genkit:input":  `{"media":{"url":"data:image/png;base64,[redacted]"}}`,
+				"genkit:init":   `{"media":{"url":"data:image/png;base64,[redacted]"}}`,
+				"genkit:output": `{"media":{"url":"data:image/png;base64,[redacted]"}}`,
+			},
+		},
+		{
+			// The Dev UI renders media from these attributes.
+			env: "dev",
+			want: map[string]string{
+				"genkit:input":  `{"media":{"url":"data:image/png;base64,input-bytes"}}`,
+				"genkit:init":   `{"media":{"url":"data:image/png;base64,init-bytes"}}`,
+				"genkit:output": `{"media":{"url":"data:image/png;base64,output-bytes"}}`,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.env, func(t *testing.T) {
+			t.Setenv("GENKIT_ENV", tt.env)
+			for _, kv := range append(sm.attributes(), sm.inputAttributes()...) {
+				want, ok := tt.want[string(kv.Key)]
+				if !ok {
+					continue
+				}
+				if got := kv.Value.AsString(); got != want {
+					t.Errorf("%s = %s, want %s", kv.Key, got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestRedactInlineMedia(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "data URL keeps header and field order",
+			in:   `{"url":"data:image/png;base64,AAAA","contentType":"image/png"}`,
+			want: `{"url":"data:image/png;base64,[redacted]","contentType":"image/png"}`,
+		},
+		{
+			name: "every data URL in arrays",
+			in:   `["data:image/png;base64,AAAA",1,"data:audio/wav;base64,BBBB"]`,
+			want: `["data:image/png;base64,[redacted]",1,"data:audio/wav;base64,[redacted]"]`,
+		},
+		{
+			name: "header is case-insensitive",
+			in:   `"DATA:image/png;BASE64,AAAA"`,
+			want: `"DATA:image/png;BASE64,[redacted]"`,
+		},
+		{
+			name: "header with parameters",
+			in:   `"data:text/plain;charset=utf-8;base64,AAAA"`,
+			want: `"data:text/plain;charset=utf-8;base64,[redacted]"`,
+		},
+		{
+			name: "escaped quote does not end a string",
+			in:   `{"a":"x\"data:image/png;base64,AAAA","b":"data:image/png;base64,BBBB"}`,
+			want: `{"a":"x\"data:image/png;base64,AAAA","b":"data:image/png;base64,[redacted]"}`,
+		},
+		{
+			name: "remote URL",
+			in:   `{"url":"https://example.com/image.png"}`,
+			want: `{"url":"https://example.com/image.png"}`,
+		},
+		{
+			name: "data URL inside text",
+			in:   `"see data:image/png;base64,AAAA"`,
+			want: `"see data:image/png;base64,AAAA"`,
+		},
+		{
+			name: "prose with a space in the header",
+			in:   `"data: see notes;base64, then decode"`,
+			want: `"data: see notes;base64, then decode"`,
+		},
+		{
+			name: "data URL without base64",
+			in:   `"data:text/plain,hello"`,
+			want: `"data:text/plain,hello"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := redactInlineMedia(tt.in); got != tt.want {
+				t.Errorf("redactInlineMedia(%s) = %s, want %s", tt.in, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -296,6 +489,31 @@ func TestRunInNewSpanWithMetadata(t *testing.T) {
 			expectedPath:    "/{generate,t:action,s:model}",
 		},
 		{
+			name:     "Util span",
+			spanName: "generate",
+			isRoot:   true,
+			metadata: &SpanMetadata{
+				Name: "generate",
+				Type: "util", // A tool-loop turn: no subtype, so nothing follows the type.
+			},
+			expectedType:    "util",
+			expectedSubtype: "",
+			expectedPath:    "/{generate,t:util}",
+		},
+		{
+			name:     "Util action span",
+			spanName: "generate",
+			isRoot:   true,
+			metadata: &SpanMetadata{
+				Name:    "generate",
+				Type:    "action", // /util/generate is an action first,
+				Subtype: "util",   // so util is its subtype, not its type.
+			},
+			expectedType:    "action",
+			expectedSubtype: "util",
+			expectedPath:    "/{generate,t:action,s:util}",
+		},
+		{
 			name:     "Nil metadata",
 			spanName: "testSpan",
 			isRoot:   true,
@@ -433,6 +651,47 @@ func TestIsFailureSourceOnError(t *testing.T) {
 	// on the span via span.SetAttributes() during error handling
 	if err == nil {
 		t.Fatal("Expected error to be returned")
+	}
+}
+
+func TestRunInNewSpanRecordsPartialOutputOnError(t *testing.T) {
+	// A failure can still carry a result, so the span records it and a trace
+	// shows what the call produced. A failure that produced nothing records
+	// no output at all, rather than stamping a null one on every failing span.
+	ctx := context.Background()
+	boom := errors.New("boom")
+
+	// The metadata is filled in after the function returns, so the test keeps
+	// the pointer the run handed its callback and reads it afterwards.
+	run := func(t *testing.T, fn func() (*string, error)) *spanMetadata {
+		t.Helper()
+		var sm *spanMetadata
+		_, err := RunInNewSpan(ctx, &SpanMetadata{Name: "partial"}, "in",
+			func(ctx context.Context, in string) (*string, error) {
+				sm = spanMetaKey.FromContext(ctx)
+				return fn()
+			})
+		if !errors.Is(err, boom) {
+			t.Fatalf("err = %v, want boom", err)
+		}
+		return sm
+	}
+
+	partial := "as far as it got"
+	sm := run(t, func() (*string, error) { return &partial, boom })
+	if sm.State != spanStateError {
+		t.Errorf("state = %q, want %q", sm.State, spanStateError)
+	}
+	got, ok := sm.Output.(*string)
+	if !ok {
+		t.Fatalf("failing span recorded output %v, want the partial result", sm.Output)
+	}
+	if got != &partial {
+		t.Errorf("output = %q, want the returned partial", *got)
+	}
+
+	if sm := run(t, func() (*string, error) { return nil, boom }); sm.Output != nil {
+		t.Errorf("output = %v, want none: the call produced nothing", sm.Output)
 	}
 }
 

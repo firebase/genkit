@@ -19,9 +19,13 @@ package core
 import (
 	"context"
 	"slices"
+	"strings"
+	"sync"
 	"testing"
 
+	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/registry"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 func TestRunInFlow(t *testing.T) {
@@ -32,7 +36,7 @@ func TestRunInFlow(t *testing.T) {
 		return n, nil
 	}
 
-	flow := DefineFlow(r, "run", func(ctx context.Context, _ any) ([]int, error) {
+	flow := defineFlow(r, "run", func(ctx context.Context, _ any) ([]int, error) {
 		g1, err := Run(ctx, "s1", stepf)
 		if err != nil {
 			return nil, err
@@ -55,7 +59,7 @@ func TestRunInFlow(t *testing.T) {
 
 func TestRunFlow(t *testing.T) {
 	r := registry.New()
-	f := DefineFlow(r, "inc", func(ctx context.Context, i int) (int, error) {
+	f := defineFlow(r, "inc", func(ctx context.Context, i int) (int, error) {
 		return i + 1, nil
 	})
 	got, err := f.Run(context.Background(), 2)
@@ -70,10 +74,10 @@ func TestRunFlow(t *testing.T) {
 func TestFlowNameFromContext(t *testing.T) {
 	r := registry.New()
 	flows := []*Flow[struct{}, string, struct{}]{
-		DefineFlow(r, "DefineFlow", func(ctx context.Context, _ struct{}) (string, error) {
+		defineFlow(r, "DefineFlow", func(ctx context.Context, _ struct{}) (string, error) {
 			return FlowNameFromContext(ctx), nil
 		}),
-		DefineStreamingFlow(r, "DefineStreamingFlow", func(ctx context.Context, _ struct{}, s StreamCallback[struct{}]) (string, error) {
+		defineStreamingFlow(r, "DefineStreamingFlow", func(ctx context.Context, _ struct{}, s StreamCallback[struct{}]) (string, error) {
 			return FlowNameFromContext(ctx), nil
 		}),
 	}
@@ -106,7 +110,7 @@ func TestRunOutsideFlow(t *testing.T) {
 func TestFlowStream(t *testing.T) {
 	t.Run("streams values correctly", func(t *testing.T) {
 		r := registry.New()
-		f := DefineStreamingFlow(r, "counter", func(ctx context.Context, n int, cb StreamCallback[int]) (int, error) {
+		f := defineStreamingFlow(r, "counter", func(ctx context.Context, n int, cb StreamCallback[int]) (int, error) {
 			for i := 0; i < n; i++ {
 				if err := cb(ctx, i); err != nil {
 					return 0, err
@@ -145,7 +149,7 @@ func TestFlowStream(t *testing.T) {
 
 	t.Run("yields error on flow failure", func(t *testing.T) {
 		r := registry.New()
-		f := DefineStreamingFlow(r, "failing", func(ctx context.Context, input int, cb StreamCallback[int]) (int, error) {
+		f := defineStreamingFlow(r, "failing", func(ctx context.Context, input int, cb StreamCallback[int]) (int, error) {
 			return 0, NewError(INTERNAL, "flow failed")
 		})
 
@@ -165,7 +169,7 @@ func TestFlowStream(t *testing.T) {
 func TestFlowRegister(t *testing.T) {
 	t.Run("flow can be registered with registry", func(t *testing.T) {
 		r := registry.New()
-		f := DefineFlow(r, "test/registerable", func(ctx context.Context, input string) (string, error) {
+		f := defineFlow(r, "test/registerable", func(ctx context.Context, input string) (string, error) {
 			return input, nil
 		})
 
@@ -179,7 +183,7 @@ func TestFlowRegister(t *testing.T) {
 func TestFlowDesc(t *testing.T) {
 	t.Run("returns flow descriptor", func(t *testing.T) {
 		r := registry.New()
-		f := DefineFlow(r, "test/described", func(ctx context.Context, input struct {
+		f := defineFlow(r, "test/described", func(ctx context.Context, input struct {
 			Name string `json:"name"`
 		}) (struct {
 			Greeting string `json:"greeting"`
@@ -206,7 +210,7 @@ func TestFlowDesc(t *testing.T) {
 func TestFlowRunJSON(t *testing.T) {
 	t.Run("runs flow with JSON input and output", func(t *testing.T) {
 		r := registry.New()
-		f := DefineFlow(r, "test/jsonFlow", func(ctx context.Context, input int) (int, error) {
+		f := defineFlow(r, "test/jsonFlow", func(ctx context.Context, input int) (int, error) {
 			return input * 2, nil
 		})
 
@@ -224,7 +228,7 @@ func TestFlowRunJSON(t *testing.T) {
 func TestFlowRunJSONWithTelemetry(t *testing.T) {
 	t.Run("returns telemetry info with result", func(t *testing.T) {
 		r := registry.New()
-		f := DefineFlow(r, "test/telemetryFlow", func(ctx context.Context, input int) (int, error) {
+		f := defineFlow(r, "test/telemetryFlow", func(ctx context.Context, input int) (int, error) {
 			return input + 1, nil
 		})
 
@@ -256,4 +260,104 @@ func TestFlowNameFromContextOutsideFlow(t *testing.T) {
 			t.Errorf("FlowNameFromContext outside flow = %q, want empty string", got)
 		}
 	})
+}
+
+// stepSpanCollector records finished spans so a test can assert on how they
+// nest. It is the same shape as the collector in ai/testutil_test.go, kept here
+// because tests live beside the file they cover.
+type stepSpanCollector struct {
+	mu    sync.Mutex
+	spans []sdktrace.ReadOnlySpan
+}
+
+func (c *stepSpanCollector) ExportSpans(_ context.Context, spans []sdktrace.ReadOnlySpan) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.spans = append(c.spans, spans...)
+	return nil
+}
+
+func (c *stepSpanCollector) Shutdown(context.Context) error { return nil }
+
+func (c *stepSpanCollector) byName(name string) sdktrace.ReadOnlySpan {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, s := range c.spans {
+		if s.Name() == name {
+			return s
+		}
+	}
+	return nil
+}
+
+func collectStepSpans(t *testing.T) *stepSpanCollector {
+	t.Helper()
+	c := &stepSpanCollector{}
+	sp := sdktrace.NewSimpleSpanProcessor(c)
+	tp := tracing.TracerProvider()
+	tp.RegisterSpanProcessor(sp)
+	t.Cleanup(func() { tp.UnregisterSpanProcessor(sp) })
+	return c
+}
+
+// TestRunWithContextNesting is the reason RunWithContext exists: work started
+// with the context it hands over belongs to the step, while work started with
+// the enclosing context escapes to the flow.
+func TestRunWithContextNesting(t *testing.T) {
+	r := registry.New()
+	c := collectStepSpans(t)
+
+	flow := defineFlow(r, "nesting", func(ctx context.Context, _ any) (int, error) {
+		// The step's own context reaches the callee, so its span nests.
+		if _, err := RunWithContext(ctx, "with-context", func(stepCtx context.Context) (int, error) {
+			return tracing.RunInNewSpan(stepCtx, &tracing.SpanMetadata{Name: "inner-nested"}, nil,
+				func(context.Context, any) (int, error) { return 1, nil })
+		}); err != nil {
+			return 0, err
+		}
+
+		// Run cannot pass the step context on, so a callee handed the flow's
+		// context reports against the flow instead.
+		if _, err := Run(ctx, "without-context", func() (int, error) {
+			return tracing.RunInNewSpan(ctx, &tracing.SpanMetadata{Name: "inner-escaped"}, nil,
+				func(context.Context, any) (int, error) { return 2, nil })
+		}); err != nil {
+			return 0, err
+		}
+		return 3, nil
+	})
+
+	if _, err := flow.Run(context.Background(), nil); err != nil {
+		t.Fatal(err)
+	}
+
+	step := c.byName("with-context")
+	nested := c.byName("inner-nested")
+	escaped := c.byName("inner-escaped")
+	for name, s := range map[string]sdktrace.ReadOnlySpan{
+		"with-context": step, "inner-nested": nested, "inner-escaped": escaped,
+	} {
+		if s == nil {
+			t.Fatalf("span %q was not recorded", name)
+		}
+	}
+
+	if got, want := nested.Parent().SpanID(), step.SpanContext().SpanID(); got != want {
+		t.Errorf("inner-nested parent = %s, want the with-context step %s", got, want)
+	}
+	if got := escaped.Parent().SpanID(); got == c.byName("without-context").SpanContext().SpanID() {
+		t.Errorf("inner-escaped nested under its step, so Run now propagates context and this test is stale")
+	}
+}
+
+func TestRunWithContextOutsideFlow(t *testing.T) {
+	_, err := RunWithContext(context.Background(), "step", func(context.Context) (int, error) {
+		return 42, nil
+	})
+	if err == nil {
+		t.Fatal("expected an error when called outside a flow")
+	}
+	if !strings.Contains(err.Error(), "flow.RunWithContext") {
+		t.Errorf("error %q should name the function that was called", err)
+	}
 }

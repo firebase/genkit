@@ -78,13 +78,14 @@ async function maybeTraceRequest<T>(
 
   if (traceOptions.clientOptions?.experimental_debugTraces) {
     return tracingHooks.runInNewSpan(
-      { metadata: { name: 'httpRequest' } },
+      {
+        metadata: {
+          name: 'httpRequest',
+          // Seed input up front so the realtime "pending" span export carries it.
+          input: buildTraceMetadataInput(url, fetchOptions, traceOptions),
+        },
+      },
       async (metadata) => {
-        metadata.input = buildTraceMetadataInput(
-          url,
-          fetchOptions,
-          traceOptions
-        );
         const processedResponse = await call();
 
         if (traceOptions.streaming) {
@@ -339,6 +340,8 @@ export function getVertexAIUrl(params: {
 
   if (params.clientOptions.kind == 'regional') {
     basePath = `${params.clientOptions.location}-${API_BASE_PATH}`;
+  } else if (params.clientOptions.kind == 'multi-regional') {
+    basePath = `aiplatform.${params.clientOptions.location}.rep.googleapis.com`;
   } else {
     basePath = API_BASE_PATH;
   }
@@ -352,7 +355,9 @@ export function getVertexAIUrl(params: {
     resourcePath = `${parent}/${params.resourcePath}`;
   }
 
-  let url = `https://${basePath}/${DEFAULT_API_VERSION}/${resourcePath}`;
+  const version = params.clientOptions.apiVersion ?? DEFAULT_API_VERSION;
+
+  let url = `https://${basePath}/${version}/${resourcePath}`;
   if (params.resourceMethod) {
     url += `:${params.resourceMethod}`;
   }
@@ -377,6 +382,7 @@ async function getFetchOptions(params: {
   const fetchOptions: RequestInit = {
     method: params.method,
     headers: await getHeaders(params.clientOptions),
+    redirect: 'manual',
   };
   if (params.body) {
     fetchOptions.body = params.body;

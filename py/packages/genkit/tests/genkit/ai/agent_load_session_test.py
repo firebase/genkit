@@ -1,0 +1,189 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+"""Resume guards in load_session: only completed snapshots resume, leaf walk-back."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import Any
+
+import pytest
+
+from genkit._ai._agents._runtime import AgentInitError, load_session
+from genkit._ai._agents._session import SessionStore
+from genkit._core._error import GenkitError, RuntimeErrorReason
+from genkit._core._model import AgentInit, SessionSnapshot, SessionState
+from genkit._core._typing import (
+    SnapshotStatus,
+)
+
+INVALID_ARGUMENT = 'INVALID_ARGUMENT'
+FAILED_PRECONDITION = 'FAILED_PRECONDITION'
+
+SESSION_ID = 's1'
+
+
+def _snap(
+    snapshot_id: str,
+    status: SnapshotStatus,
+    parent_id: str | None = None,
+) -> SessionSnapshot:
+    return SessionSnapshot(
+        snapshot_id=snapshot_id,
+        session_id=SESSION_ID,
+        parent_id=parent_id,
+        created_at='2026-06-18T12:00:00Z',
+        status=status,
+        state=SessionState(session_id=SESSION_ID, messages=[], artifacts=[]),
+    )
+
+
+class _ScriptedStore(SessionStore[Any]):
+    """Returns snapshots by id and a designated leaf by session, to drive load_session."""
+
+    def __init__(self, by_id: dict[str, SessionSnapshot], leaf: SessionSnapshot | None) -> None:
+        self._by_id = by_id
+        self._leaf = leaf
+
+    async def get_snapshot(
+        self,
+        *,
+        snapshot_id: str | None = None,
+        session_id: str | None = None,
+        context: object | None = None,
+    ) -> SessionSnapshot | None:
+        if snapshot_id is not None:
+            return self._by_id.get(snapshot_id)
+        if session_id is not None:
+            return self._leaf
+        return None
+
+    async def save_snapshot(
+        self,
+        snapshot_id: str,
+        fn: Callable[[SessionSnapshot | None], SessionSnapshot | None],
+        *,
+        context: object | None = None,
+    ) -> SessionSnapshot | None:
+        return None
+
+
+@pytest.mark.asyncio
+async def test_missing_snapshot_raises_with_snapshot_not_found() -> None:
+    """A snapshot id the store does not have raises; reason bubbles on the exception."""
+    store = _ScriptedStore({}, leaf=None)
+
+    with pytest.raises(GenkitError) as exc:
+        await load_session(init=AgentInit(snapshot_id='gone'), store=store, agent_name='a')
+    assert exc.value.status == 'NOT_FOUND'
+    assert exc.value.reason is RuntimeErrorReason.SNAPSHOT_NOT_FOUND
+    assert 'gone' in exc.value.original_message
+    assert 'SNAPSHOT_NOT_FOUND' not in exc.value.original_message
+
+
+@pytest.mark.asyncio
+async def test_resume_by_snapshot_id_rejects_non_completed() -> None:
+    failed = _snap('snap-f', SnapshotStatus.FAILED)
+    store = _ScriptedStore({'snap-f': failed}, leaf=None)
+
+    with pytest.raises(GenkitError) as exc:
+        await load_session(init=AgentInit(snapshot_id='snap-f'), store=store, agent_name='a')
+    assert exc.value.status == INVALID_ARGUMENT
+    assert exc.value.reason is RuntimeErrorReason.SNAPSHOT_NOT_RESUMABLE
+    assert 'not resumable' in exc.value.original_message
+    assert 'SNAPSHOT_NOT_RESUMABLE' not in exc.value.original_message
+
+
+@pytest.mark.asyncio
+async def test_resume_by_snapshot_id_rejects_pending() -> None:
+    """A pending snapshot is kept for inspection and is not a place to continue."""
+    pending = _snap('snap-p', SnapshotStatus.PENDING)
+    store = _ScriptedStore({'snap-p': pending}, leaf=None)
+
+    with pytest.raises(GenkitError) as exc:
+        await load_session(init=AgentInit(snapshot_id='snap-p'), store=store, agent_name='a')
+    assert exc.value.status == INVALID_ARGUMENT
+    assert exc.value.reason is RuntimeErrorReason.SNAPSHOT_NOT_RESUMABLE
+    assert 'not resumable' in exc.value.original_message
+    assert 'SNAPSHOT_NOT_RESUMABLE' not in exc.value.original_message
+
+
+@pytest.mark.asyncio
+async def test_resume_by_session_id_walks_back_to_last_completed() -> None:
+    completed = _snap('snap-c', SnapshotStatus.COMPLETED)
+    failed = _snap('snap-f', SnapshotStatus.FAILED, parent_id='snap-c')
+    store = _ScriptedStore({'snap-c': completed, 'snap-f': failed}, leaf=failed)
+
+    _session, snap = await load_session(init=AgentInit(session_id=SESSION_ID), store=store, agent_name='a')
+    assert snap is not None
+    assert snap.snapshot_id == 'snap-c'
+
+
+@pytest.mark.asyncio
+async def test_resume_by_session_id_cyclic_chain_raises() -> None:
+    a = _snap('a', SnapshotStatus.FAILED, parent_id='b')
+    b = _snap('b', SnapshotStatus.FAILED, parent_id='a')
+    store = _ScriptedStore({'a': a, 'b': b}, leaf=a)
+
+    with pytest.raises(GenkitError) as exc:
+        await load_session(init=AgentInit(session_id=SESSION_ID), store=store, agent_name='a')
+    assert exc.value.status == FAILED_PRECONDITION
+    assert 'cyclic' in str(exc.value)
+
+
+@pytest.mark.asyncio
+async def test_resume_by_session_id_no_completed_seeds_fresh() -> None:
+    failed = _snap('snap-f', SnapshotStatus.FAILED)  # no parent, not resumable
+    store = _ScriptedStore({'snap-f': failed}, leaf=failed)
+
+    session, snap = await load_session(init=AgentInit(session_id=SESSION_ID), store=store, agent_name='a')
+    assert snap is None
+    state = await session.state()
+    assert state.session_id == SESSION_ID
+
+
+@pytest.mark.asyncio
+async def test_snapshot_id_and_matching_session_id_resumes() -> None:
+    completed = _snap('snap-c', SnapshotStatus.COMPLETED)
+    store = _ScriptedStore({'snap-c': completed}, leaf=completed)
+
+    _session, snap = await load_session(
+        init=AgentInit(snapshot_id='snap-c', session_id=SESSION_ID),
+        store=store,
+        agent_name='a',
+    )
+    assert snap is not None
+    assert snap.snapshot_id == 'snap-c'
+
+
+@pytest.mark.asyncio
+async def test_snapshot_id_with_mismatched_session_id_rejected() -> None:
+    completed = _snap('snap-c', SnapshotStatus.COMPLETED)
+    store = _ScriptedStore({'snap-c': completed}, leaf=completed)
+
+    with pytest.raises(AgentInitError) as exc:
+        await load_session(
+            init=AgentInit(snapshot_id='snap-c', session_id='other-sess'),
+            store=store,
+            agent_name='a',
+        )
+    assert exc.value.status == INVALID_ARGUMENT
+    assert exc.value.reason is RuntimeErrorReason.INVALID_SESSION_ID
+    assert 'does not belong to session' in exc.value.original_message
+    assert 'INVALID_SESSION_ID' not in exc.value.original_message
+    # The message is public, so it must not name the session that owns the snapshot.
+    assert f"'{SESSION_ID}'" not in exc.value.original_message

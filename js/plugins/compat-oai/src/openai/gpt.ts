@@ -37,6 +37,7 @@ const MULTIMODAL_MODEL_INFO: ModelInfo = {
 export const OpenAIChatCompletionConfigSchema =
   ChatCompletionCommonConfigSchema.extend({
     store: z.boolean().optional(),
+    strict: z.boolean().optional(),
   });
 
 /** OpenAI ModelRef helper, with OpenAI specific config. */
@@ -227,6 +228,7 @@ const GPT_5_MODEL_INFO: ModelInfo = {
     media: true,
     systemRole: true,
     output: ['text', 'json'],
+    constrained: 'all',
   },
 };
 const gpt5 = openAIModelRef({
@@ -248,12 +250,55 @@ const gpt5ChatLatest = openAIModelRef({
       ...GPT_5_MODEL_INFO.supports,
       tools: false,
       output: ['text'],
+      constrained: undefined,
     },
   },
 });
 const gpt5_1 = openAIModelRef({
   name: 'gpt-5.1',
   info: GPT_5_MODEL_INFO,
+});
+const gpt5_2 = openAIModelRef({
+  name: 'gpt-5.2',
+  info: GPT_5_MODEL_INFO,
+});
+const gpt5_4 = openAIModelRef({
+  name: 'gpt-5.4',
+  info: GPT_5_MODEL_INFO,
+});
+const gpt5_4Mini = openAIModelRef({
+  name: 'gpt-5.4-mini',
+  info: GPT_5_MODEL_INFO,
+});
+const gpt5_4Nano = openAIModelRef({
+  name: 'gpt-5.4-nano',
+  info: GPT_5_MODEL_INFO,
+});
+const gpt5_5 = openAIModelRef({
+  name: 'gpt-5.5',
+  info: GPT_5_MODEL_INFO,
+});
+const gpt5_6Luna = openAIModelRef({
+  name: 'gpt-5.6-luna',
+  info: GPT_5_MODEL_INFO,
+});
+const gpt5_6Terra = openAIModelRef({
+  name: 'gpt-5.6-terra',
+  info: GPT_5_MODEL_INFO,
+});
+const gpt5_6Sol = openAIModelRef({
+  name: 'gpt-5.6-sol',
+  info: GPT_5_MODEL_INFO,
+});
+// Chat Completions rejects function tools for this model.
+const gpt6Astra = openAIModelRef({
+  name: 'gpt-6-astra',
+  info: {
+    supports: {
+      ...GPT_5_MODEL_INFO.supports,
+      tools: false,
+    },
+  },
 });
 
 export const SUPPORTED_GPT_MODELS = {
@@ -287,4 +332,13 @@ export const SUPPORTED_GPT_MODELS = {
   'gpt-5-nano': gpt5Nano,
   'gpt-5-chat-latest': gpt5ChatLatest,
   'gpt-5.1': gpt5_1,
+  'gpt-5.2': gpt5_2,
+  'gpt-5.4': gpt5_4,
+  'gpt-5.4-mini': gpt5_4Mini,
+  'gpt-5.4-nano': gpt5_4Nano,
+  'gpt-5.5': gpt5_5,
+  'gpt-5.6-luna': gpt5_6Luna,
+  'gpt-5.6-terra': gpt5_6Terra,
+  'gpt-5.6-sol': gpt5_6Sol,
+  'gpt-6-astra': gpt6Astra,
 } as const;

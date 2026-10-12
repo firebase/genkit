@@ -26,6 +26,7 @@ import {
 import { getGenkitClientHeader } from '../../src/common/utils.js';
 import {
   TEST_ONLY,
+  createInteraction,
   embedContent,
   generateContent,
   generateContentStream,
@@ -127,12 +128,12 @@ describe('Google AI Client', () => {
 
     it('should build URL with resourceMethod', () => {
       const url = getGoogleAIUrl({
-        resourcePath: 'models/gemini-2.0-pro',
+        resourcePath: 'models/gemini-2.5-pro',
         resourceMethod: 'generateContent',
       });
       assert.strictEqual(
         url,
-        `${defaultBaseUrl}/${defaultApiVersion}/models/gemini-2.0-pro:generateContent`
+        `${defaultBaseUrl}/${defaultApiVersion}/models/gemini-2.5-pro:generateContent`
       );
     });
 
@@ -183,7 +184,7 @@ describe('Google AI Client', () => {
   describe('listModels', () => {
     it('should return a list of models', async () => {
       const mockModels: Model[] = [
-        { name: 'models/gemini-2.0-pro' } as Model,
+        { name: 'models/gemini-2.5-pro' } as Model,
         { name: 'models/gemini-2.5-flash' } as Model,
       ];
       mockFetchResponse({ models: mockModels });
@@ -200,6 +201,7 @@ describe('Google AI Client', () => {
           'x-goog-api-key': apiKey,
           'x-goog-api-client': getGenkitClientHeader(),
         },
+        redirect: 'manual',
       });
     });
 
@@ -273,6 +275,20 @@ describe('Google AI Client', () => {
       );
     });
 
+    it('does not apply Interactions error-code mapping to non-Interactions URLs', async () => {
+      // `safety` would map to FAILED_PRECONDITION on the Interactions path.
+      mockFetchResponse(
+        { error: { code: 'safety', message: 'blocked' } },
+        false,
+        400,
+        'Bad Request'
+      );
+      await assert.rejects(listModels(apiKey), (err: any) => {
+        assert.strictEqual(err.status, 'INVALID_ARGUMENT');
+        return true;
+      });
+    });
+
     it('should include custom headers', async () => {
       mockFetchResponse({ models: [] });
       const clientOptions: ClientOptions = {
@@ -287,8 +303,99 @@ describe('Google AI Client', () => {
     });
   });
 
+  describe('Interactions API HTTP errors', () => {
+    const request = { model: 'gemini-flash-latest', input: 'hi' } as any;
+
+    async function expectStatus(
+      body: any,
+      httpStatus: number,
+      statusText: string,
+      expected: string
+    ) {
+      mockFetchResponse(body, false, httpStatus, statusText);
+      await assert.rejects(createInteraction(apiKey, request), (err: any) => {
+        assert.strictEqual(err.name, 'GenkitError');
+        assert.strictEqual(err.status, expected);
+        return true;
+      });
+    }
+
+    it('maps a pre-execution safety block (400 safety) to FAILED_PRECONDITION', async () => {
+      await expectStatus(
+        {
+          error: {
+            code: 'safety',
+            message:
+              'Request blocked due to safety violations (harmful content). Please modify your input and retry.',
+          },
+        },
+        400,
+        'Bad Request',
+        'FAILED_PRECONDITION'
+      );
+    });
+
+    it('maps 404 model_not_found to NOT_FOUND', async () => {
+      await expectStatus(
+        { error: { code: 'model_not_found', message: 'no such model' } },
+        404,
+        'Not Found',
+        'NOT_FOUND'
+      );
+    });
+
+    it('maps 429 quota_exceeded to RESOURCE_EXHAUSTED', async () => {
+      await expectStatus(
+        { error: { code: 'quota_exceeded', message: 'quota' } },
+        429,
+        'Too Many Requests',
+        'RESOURCE_EXHAUSTED'
+      );
+    });
+
+    it('maps 401 authentication to UNAUTHENTICATED', async () => {
+      await expectStatus(
+        { error: { code: 'authentication', message: 'bad key' } },
+        401,
+        'Unauthorized',
+        'UNAUTHENTICATED'
+      );
+    });
+
+    it('falls back to the HTTP status for an unrecognized code', async () => {
+      await expectStatus(
+        { error: { code: 'something_new', message: 'huh' } },
+        403,
+        'Forbidden',
+        'PERMISSION_DENIED'
+      );
+    });
+
+    it('detects Interactions URLs by path segment', () => {
+      const { isInteractionUrl } = TEST_ONLY;
+      assert.strictEqual(
+        isInteractionUrl(`${defaultBaseUrl}/v1beta/interactions`),
+        true
+      );
+      assert.strictEqual(
+        isInteractionUrl(`${defaultBaseUrl}/v1beta/interactions/abc/cancel`),
+        true
+      );
+      assert.strictEqual(
+        isInteractionUrl(
+          `${defaultBaseUrl}/v1beta/models/gemini-2.5-flash:generateContent`
+        ),
+        false
+      );
+      assert.strictEqual(
+        isInteractionUrl(`${defaultBaseUrl}/v1beta/models?q=interactions`),
+        false
+      );
+    });
+  });
+
   describe('generateContent', () => {
-    const model = 'gemini-2.0-pro';
+    const model = 'gemini-flash-latest';
     const request: GenerateContentRequest = {
       contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
     };
@@ -312,6 +419,7 @@ describe('Google AI Client', () => {
           'x-goog-api-key': apiKey,
           'x-goog-api-client': getGenkitClientHeader(),
         },
+        redirect: 'manual',
         body: JSON.stringify(request),
       });
       // Should not trace by default
@@ -420,6 +528,7 @@ describe('Google AI Client', () => {
           'x-goog-api-key': apiKey,
           'x-goog-api-client': getGenkitClientHeader(),
         },
+        redirect: 'manual',
         body: JSON.stringify(request),
       });
       sinon.assert.notCalled(runInNewSpanSpy);
@@ -600,6 +709,7 @@ describe('Google AI Client', () => {
           'x-goog-api-key': apiKey,
           'x-goog-api-client': getGenkitClientHeader(),
         },
+        redirect: 'manual',
         body: JSON.stringify(defaultRequest),
       });
     });
@@ -842,6 +952,7 @@ describe('Google AI Client', () => {
           'x-goog-api-key': apiKey,
           'x-goog-api-client': getGenkitClientHeader(),
         },
+        redirect: 'manual',
         body: JSON.stringify(request),
       });
     });
@@ -898,6 +1009,7 @@ describe('Google AI Client', () => {
           'x-goog-api-key': apiKey,
           'x-goog-api-client': getGenkitClientHeader(),
         },
+        redirect: 'manual',
         body: JSON.stringify(request),
       });
     });
@@ -944,6 +1056,7 @@ describe('Google AI Client', () => {
           'x-goog-api-key': apiKey,
           'x-goog-api-client': getGenkitClientHeader(),
         },
+        redirect: 'manual',
       });
     });
 

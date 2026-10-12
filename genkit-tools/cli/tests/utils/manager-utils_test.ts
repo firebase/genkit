@@ -14,9 +14,27 @@
  * limitations under the License.
  */
 
-import { RuntimeEvent } from '@genkit-ai/tools-common/manager';
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { waitForRuntime } from '../../src/utils/manager-utils';
+import {
+  REFLECTION_SECRET_ENV,
+  RuntimeEvent,
+  RuntimeManager,
+} from '@genkit-ai/tools-common/manager';
+import { logger } from '@genkit-ai/tools-common/utils';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
+import {
+  getDevEnvVars,
+  resolveReflectionSecret,
+  runWithManager,
+  waitForActionKeys,
+  waitForRuntime,
+} from '../../src/utils/manager-utils';
 
 describe('waitForRuntime', () => {
   let mockManager: any;
@@ -84,5 +102,286 @@ describe('waitForRuntime', () => {
       'Timeout waiting for runtime to be ready'
     );
     jest.useRealTimers();
+  });
+});
+
+describe('waitForActionKeys', () => {
+  let mockManager: any;
+
+  beforeEach(() => {
+    mockManager = {
+      listActions: jest.fn(),
+      listRuntimes: jest.fn().mockReturnValue([{}]),
+    };
+  });
+
+  it('resolves immediately when no keys are required', async () => {
+    await expect(waitForActionKeys(mockManager, [])).resolves.toBeUndefined();
+    expect(mockManager.listActions).not.toHaveBeenCalled();
+  });
+
+  it('resolves once all required actions are registered', async () => {
+    // First poll: action missing. Second poll: action present.
+    mockManager.listActions
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ '/flow/testFlow': {} });
+
+    await expect(
+      waitForActionKeys(mockManager, ['/flow/testFlow'], {
+        pollIntervalMs: 1,
+      })
+    ).resolves.toBeUndefined();
+    expect(mockManager.listActions).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps polling while listActions rejects, then resolves', async () => {
+    mockManager.listActions
+      .mockRejectedValueOnce(new Error('not ready'))
+      .mockResolvedValueOnce({ '/flow/testFlow': {} });
+
+    await expect(
+      waitForActionKeys(mockManager, ['/flow/testFlow'], {
+        pollIntervalMs: 1,
+      })
+    ).resolves.toBeUndefined();
+    expect(mockManager.listActions).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops early once the action list stabilizes without the target', async () => {
+    // The action list never contains the target and stops changing, so we
+    // should give up after the stability window rather than the full timeout.
+    mockManager.listActions.mockResolvedValue({ '/flow/other': {} });
+
+    const start = Date.now();
+    await expect(
+      waitForActionKeys(mockManager, ['/flow/missing'], {
+        pollIntervalMs: 1,
+        stableForMs: 20,
+        timeoutMs: 30000,
+      })
+    ).resolves.toBeUndefined();
+    // Should return around the stability window, well before the timeout.
+    expect(Date.now() - start).toBeLessThan(5000);
+  });
+
+  it('keeps waiting while the action list is still growing', async () => {
+    // The list keeps changing (still registering), so the stability window
+    // should keep resetting until the target finally appears.
+    mockManager.listActions
+      .mockResolvedValueOnce({ a: {} })
+      .mockResolvedValueOnce({ a: {}, b: {} })
+      .mockResolvedValueOnce({ a: {}, b: {}, c: {} })
+      .mockResolvedValue({ a: {}, b: {}, c: {}, '/flow/testFlow': {} });
+
+    await expect(
+      waitForActionKeys(mockManager, ['/flow/testFlow'], {
+        pollIntervalMs: 1,
+        stableForMs: 20,
+      })
+    ).resolves.toBeUndefined();
+    expect(mockManager.listActions).toHaveBeenCalledTimes(4);
+  });
+
+  it('stops early (does not wait for timeout) when the runtime disconnects', async () => {
+    // Runtime is present initially, then disconnects. The action is never
+    // registered. With a long timeout, the function should still return
+    // promptly instead of polling until the deadline.
+    mockManager.listRuntimes
+      .mockReturnValueOnce([{}]) // initial hasSeenRuntime check
+      .mockReturnValueOnce([{}]) // first loop iteration
+      .mockReturnValue([]); // subsequent iterations: disconnected
+    mockManager.listActions.mockResolvedValue({});
+
+    const start = Date.now();
+    await expect(
+      waitForActionKeys(mockManager, ['/flow/testFlow'], {
+        pollIntervalMs: 1,
+        timeoutMs: 30000,
+      })
+    ).resolves.toBeUndefined();
+    // Should return well before the 30s deadline.
+    expect(Date.now() - start).toBeLessThan(5000);
+  });
+});
+
+describe('runWithManager', () => {
+  let mockManager: any;
+  let origTelemetryServer: string | undefined;
+
+  beforeEach(() => {
+    process.exitCode = undefined;
+    origTelemetryServer = process.env.GENKIT_TELEMETRY_SERVER;
+    process.env.GENKIT_TELEMETRY_SERVER = 'http://localhost:4033';
+    mockManager = {
+      stop: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    };
+    jest.spyOn(RuntimeManager, 'create').mockResolvedValue(mockManager);
+    jest.spyOn(logger, 'error').mockImplementation((() => {}) as any);
+    jest.spyOn(logger, 'debug').mockImplementation((() => {}) as any);
+  });
+
+  afterEach(() => {
+    process.exitCode = undefined;
+    if (origTelemetryServer === undefined) {
+      delete process.env.GENKIT_TELEMETRY_SERVER;
+    } else {
+      process.env.GENKIT_TELEMETRY_SERVER = origTelemetryServer;
+    }
+    jest.restoreAllMocks();
+  });
+
+  it('sets process.exitCode = 1, logs error.message, and stops manager when fn throws a standard Error', async () => {
+    await runWithManager('/mock/root', async () => {
+      throw new Error('Missing required argument <dataset>');
+    });
+
+    expect(process.exitCode).toBe(1);
+    expect(logger.error).toHaveBeenCalledWith('Command exited with an Error:');
+    expect(logger.error).toHaveBeenCalledWith(
+      '\tMessage: Missing required argument <dataset>\n'
+    );
+    expect(mockManager.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs Status fields and stops manager when fn throws a GenkitToolsError with Status data', async () => {
+    const toolsError = Object.assign(new Error('Flow failed'), {
+      data: {
+        code: 13,
+        message: 'Internal flow error',
+        details: { traceId: 'trace-abc' },
+      },
+    });
+
+    await runWithManager('/mock/root', async () => {
+      throw toolsError;
+    });
+
+    expect(process.exitCode).toBe(1);
+    expect(logger.error).toHaveBeenCalledWith('\tCode: 13');
+    expect(logger.error).toHaveBeenCalledWith('\tMessage: Internal flow error');
+    expect(logger.error).toHaveBeenCalledWith('\tTrace ID: trace-abc\n');
+    expect(mockManager.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('warns that --experimental-auth has no effect without a runtime command', async () => {
+    const warnSpy = jest
+      .spyOn(logger, 'warn')
+      .mockImplementation((() => {}) as any);
+    await runWithManager('/mock/root', async () => {}, { auth: true });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('--experimental-auth has no effect')
+    );
+    expect(RuntimeManager.create).toHaveBeenCalledWith(
+      expect.objectContaining({ reflectionSecret: undefined })
+    );
+  });
+});
+
+describe('resolveReflectionSecret', () => {
+  const original = process.env[REFLECTION_SECRET_ENV];
+
+  afterEach(() => {
+    if (original === undefined) {
+      delete process.env[REFLECTION_SECRET_ENV];
+    } else {
+      process.env[REFLECTION_SECRET_ENV] = original;
+    }
+  });
+
+  it('does not generate a secret by default', () => {
+    delete process.env[REFLECTION_SECRET_ENV];
+    expect(resolveReflectionSecret({ generate: true })).toBeUndefined();
+  });
+
+  it('uses an operator-set secret even without --experimental-auth', () => {
+    process.env[REFLECTION_SECRET_ENV] = 'from-env';
+    expect(resolveReflectionSecret({ generate: true })).toBe('from-env');
+    expect(resolveReflectionSecret({ generate: false })).toBe('from-env');
+  });
+
+  it('prefers an operator-set secret over generating one', () => {
+    process.env[REFLECTION_SECRET_ENV] = 'from-env';
+    expect(resolveReflectionSecret({ auth: true, generate: true })).toBe(
+      'from-env'
+    );
+  });
+
+  it('generates a fresh secret with --experimental-auth', () => {
+    delete process.env[REFLECTION_SECRET_ENV];
+    const first = resolveReflectionSecret({ auth: true, generate: true });
+    const second = resolveReflectionSecret({ auth: true, generate: true });
+    expect(first).toBeDefined();
+    expect(first).not.toBe(second);
+  });
+
+  it('does not generate for commands that only attach to runtimes', () => {
+    delete process.env[REFLECTION_SECRET_ENV];
+    expect(
+      resolveReflectionSecret({ auth: true, generate: false })
+    ).toBeUndefined();
+  });
+});
+
+describe('getDevEnvVars', () => {
+  const original = process.env[REFLECTION_SECRET_ENV];
+  const originalTelemetry = process.env.GENKIT_TELEMETRY_SERVER;
+
+  beforeEach(() => {
+    // Pre-set so resolveTelemetryServer does not spin up a real server.
+    process.env.GENKIT_TELEMETRY_SERVER = 'http://127.0.0.1:4033';
+    delete process.env[REFLECTION_SECRET_ENV];
+  });
+
+  afterEach(() => {
+    if (original === undefined) {
+      delete process.env[REFLECTION_SECRET_ENV];
+    } else {
+      process.env[REFLECTION_SECRET_ENV] = original;
+    }
+    if (originalTelemetry === undefined) {
+      delete process.env.GENKIT_TELEMETRY_SERVER;
+    } else {
+      process.env.GENKIT_TELEMETRY_SERVER = originalTelemetry;
+    }
+  });
+
+  it('passes no secret by default', async () => {
+    const { envVars, reflectionSecret } = await getDevEnvVars('.');
+    expect(envVars[REFLECTION_SECRET_ENV]).toBeUndefined();
+    expect(reflectionSecret).toBeUndefined();
+    expect(envVars.GENKIT_ENV).toBe('dev');
+  });
+
+  it('passes a secret to the runtime it spawns with --experimental-auth', async () => {
+    const { envVars, reflectionSecret } = await getDevEnvVars('.', {
+      auth: true,
+    });
+    expect(envVars[REFLECTION_SECRET_ENV]).toBeTruthy();
+    expect(envVars[REFLECTION_SECRET_ENV]).toBe(reflectionSecret);
+  });
+
+  it('forwards an operator-set secret without --experimental-auth', async () => {
+    process.env[REFLECTION_SECRET_ENV] = 'from-env';
+    const { envVars } = await getDevEnvVars('.');
+    expect(envVars[REFLECTION_SECRET_ENV]).toBe('from-env');
+  });
+
+  it('points the v2 URL at loopback', async () => {
+    const { envVars } = await getDevEnvVars('.', {
+      experimentalReflectionV2: true,
+    });
+    expect(envVars.GENKIT_REFLECTION_V2_SERVER).toMatch(
+      /^ws:\/\/127\.0\.0\.1:\d+$/
+    );
+  });
+
+  it('advertises a wildcard --reflection-v2-host as loopback', async () => {
+    const { envVars } = await getDevEnvVars('.', {
+      experimentalReflectionV2: true,
+      reflectionV2Host: '0.0.0.0',
+    });
+    expect(envVars.GENKIT_REFLECTION_V2_SERVER).toMatch(
+      /^ws:\/\/127\.0\.0\.1:\d+$/
+    );
   });
 });

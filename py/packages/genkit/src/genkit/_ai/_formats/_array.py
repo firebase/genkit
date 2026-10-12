@@ -26,8 +26,8 @@ from genkit._ai._model import (
     ModelResponseChunk,
 )
 from genkit._core._compat import override
-from genkit._core._error import GenkitError
-from genkit._core._extract_json import extract_json_array_from_text
+from genkit._core._error import GenkitError, RuntimeErrorReason
+from genkit._core._extract_json import extract_json, extract_json_array_from_text
 
 
 class ArrayFormat(FormatDef):
@@ -44,16 +44,14 @@ class ArrayFormat(FormatDef):
 
     Usage:
         ai.generate(
-            output=OutputConfig(
-                format='array',
-                schema={
-                    'type': 'array',
-                    'items': {
-                        'type': 'object',
-                        'properties': {'name': {'type': 'string'}}
-                    }
+            output_format='array',
+            output_schema={
+                'type': 'array',
+                'items': {
+                    'type': 'object',
+                    'properties': {'name': {'type': 'string'}}
                 }
-            )
+            }
         )
     """
 
@@ -92,12 +90,27 @@ class ArrayFormat(FormatDef):
             raise GenkitError(
                 status='INVALID_ARGUMENT',
                 message="Must supply an 'array' schema type when using the 'items' parser format.",
+                reason=RuntimeErrorReason.INVALID_SCHEMA,
             )
 
-        def message_parser(msg: Message) -> list[object]:
-            """Parses a complete message into a list of items."""
-            result = extract_json_array_from_text(msg.text, 0)
-            return result.items
+        def message_parser(msg: Message) -> list[object] | None:
+            """Parses a complete message into a list of items.
+
+            A finished reply like ``["a", "b"]`` is read as one JSON array.
+            A token-capped array keeps the items that finished and drops a
+            half-written last item; ``finish_reason='length'`` is how the
+            caller tells the list is short.
+            """
+            try:
+                parsed = extract_json(msg.text)
+            except ValueError:
+                parsed = None
+            if isinstance(parsed, list):
+                return parsed
+            if '[' not in msg.text:
+                return None
+            items = extract_json_array_from_text(msg.text).items
+            return items or None
 
         def chunk_parser(chunk: ModelResponseChunk) -> list[object]:
             """Parses a streaming chunk into a list of items."""

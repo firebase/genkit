@@ -17,6 +17,8 @@
 import { ToolPluginSubCommandsSchema } from '@genkit-ai/tools-common/plugin';
 import {
   RunCommandEvent,
+  detectRuntime,
+  findProjectRoot,
   logger,
   notifyAnalyticsIfFirstRun,
   record,
@@ -31,6 +33,7 @@ import { evalRun } from './commands/eval-run';
 import { flowBatchRun } from './commands/flow-batch-run';
 import { flowRun } from './commands/flow-run';
 import { initAiTools } from './commands/init-ai-tools/index';
+import { logList } from './commands/log-list';
 import { mcp } from './commands/mcp';
 import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
 import {
@@ -39,6 +42,8 @@ import {
 } from './commands/server-harness';
 import { start } from './commands/start';
 import { startFlutter } from './commands/start-flutter';
+import { traceGet } from './commands/trace-get';
+import { traceList } from './commands/trace-list';
 import { uiStart } from './commands/ui-start';
 import { uiStop } from './commands/ui-stop';
 import { detectCLIRuntime } from './utils/runtime-detector.js';
@@ -68,6 +73,9 @@ const commands: Command[] = [
   docsList,
   docsRead,
   docsSearch,
+  logList,
+  traceGet,
+  traceList,
 ];
 
 /** Main entry point for CLI. */
@@ -85,7 +93,7 @@ export async function startCLI(): Promise<void> {
       // For now only record known command names, to avoid tools plugins causing
       // arbitrary text to get recorded. Once we launch tools plugins, we'll have
       // to give this more thought
-      const commandNames = commands.map((c) => c.name());
+      const commandNames = commands.map((c) => c.name()).concat('help');
       let commandName: string;
       if (commandNames.includes(actionCommand.name())) {
         commandName = actionCommand.name();
@@ -106,8 +114,14 @@ export async function startCLI(): Promise<void> {
       }
 
       const { isCompiledBinary } = detectCLIRuntime();
+      const projectRoot = await findProjectRoot();
+      const projectRuntime = await detectRuntime(projectRoot);
       await record(
-        new RunCommandEvent(commandName, isCompiledBinary ? 'binary' : 'node')
+        new RunCommandEvent(
+          commandName,
+          isCompiledBinary ? 'binary' : 'node',
+          projectRuntime
+        )
       );
     });
 
@@ -132,7 +146,12 @@ export async function startCLI(): Promise<void> {
     program.addCommand(serverHarness);
   }
 
-  for (const command of commands) program.addCommand(command);
+  const deprecatedCommands = new Set([uiStart, uiStop]);
+  for (const command of commands) {
+    program.addCommand(command, {
+      hidden: deprecatedCommands.has(command),
+    });
+  }
   for (const command of await getPluginCommands()) program.addCommand(command);
 
   for (const cmd of ToolPluginSubCommandsSchema.keyof().options) {
@@ -141,15 +160,11 @@ export async function startCLI(): Promise<void> {
       program.addCommand(command);
     }
   }
-  program.addCommand(
-    new Command('help').action(() => {
-      logger.info(program.help());
-    })
-  );
   // Handle unknown commands.
   program.on('command:*', (operands) => {
-    logger.error(`error: unknown command '${operands[0]}'`);
-    logger.info(program.help());
+    logger.error(`unknown command '${operands[0]}'`);
+    // helpInformation() returns the help text. help() would exit with code 0.
+    logger.info(program.helpInformation());
     process.exit(1);
   });
 

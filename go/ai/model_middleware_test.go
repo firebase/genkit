@@ -23,6 +23,8 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"testing"
+
+	"github.com/firebase/genkit/go/core"
 )
 
 func TestValidateSupport(t *testing.T) {
@@ -254,7 +256,17 @@ func TestValidateSupport(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := validateSupport("test-model", tt.opts)(mockModelFunc)
+			// Version validation moved from validateSupport to
+			// normalizeConfig (it must see the raw, pre-conversion config),
+			// so chain both here the way model construction does.
+			var versions []string
+			if tt.opts != nil {
+				versions = tt.opts.Versions
+			}
+			handler := core.ChainMiddleware(
+				normalizeConfig[any]("test-model", versions),
+				validateSupport("test-model", tt.opts),
+			)(mockModelFunc)
 			_, err := handler(context.Background(), tt.input, nil)
 
 			if (err != nil) != tt.wantErr {
@@ -699,5 +711,23 @@ func TestAugmentWithContext(t *testing.T) {
 			middleware := augmentWithContext(tc.opts, tc.options)
 			_, _ = middleware(next)(context.Background(), tc.input, nil)
 		})
+	}
+}
+
+// TestValidateVersion pins the version-validation contract: a declared list
+// enforces membership, and a model that declares no versions is unconstrained
+// so pinning an arbitrary version is not rejected.
+func TestValidateVersion(t *testing.T) {
+	declared := []string{"m-1", "m-2"}
+	if err := validateVersion("m", declared, map[string]any{"version": "m-2"}); err != nil {
+		t.Errorf("declared version rejected: %v", err)
+	}
+	if err := validateVersion("m", declared, map[string]any{"version": "m-9"}); err == nil {
+		t.Error("undeclared version accepted against a declared list")
+	}
+	for _, versions := range [][]string{nil, {}} {
+		if err := validateVersion("m", versions, map[string]any{"version": "m-anything"}); err != nil {
+			t.Errorf("version rejected on an unconstrained model (versions=%v): %v", versions, err)
+		}
 	}
 }

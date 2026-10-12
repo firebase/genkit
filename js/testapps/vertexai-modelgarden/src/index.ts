@@ -36,6 +36,30 @@ const ai = genkit({
   ],
 });
 
+export const anthropicSonnet5Model = ai.defineFlow(
+  {
+    name: 'claude-sonnet-5',
+    outputSchema: z.string(),
+    streamSchema: z.any(),
+  },
+  async (_input, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
+      model: vertexModelGarden.model('claude-sonnet-5'),
+      config: {
+        temperature: 1,
+        location: 'global',
+      },
+      prompt: `You are a helpful assistant named Walt. Say hello`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk);
+    }
+
+    return (await response).text;
+  }
+);
+
 export const anthropicSonnet4Model = ai.defineFlow(
   {
     name: 'claude-sonnet-4 - toolCallingFlow',
@@ -159,15 +183,45 @@ export const thinkingFlow = ai.defineFlow(
   }
 );
 
-export const anthropicOpus47Model = ai.defineFlow(
+export const anthropicFable5Model = ai.defineFlow(
   {
-    name: 'claude-opus-4-7 - basic',
+    name: 'claude-fable-5',
     outputSchema: z.string(),
     streamSchema: z.any(),
   },
   async (_input, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: vertexModelGarden.model('claude-opus-4-7'),
+      model: vertexModelGarden.model('claude-fable-5'),
+      config: {
+        location: 'global',
+        thinking: {
+          adaptive: true,
+          display: 'summarized',
+        },
+        output_config: {
+          effort: 'xhigh',
+        },
+      },
+      prompt: `You are a helpful assistant. Write a Fable about a sunny day`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk);
+    }
+
+    return (await response).text;
+  }
+);
+
+export const anthropicOpus48Model = ai.defineFlow(
+  {
+    name: 'claude-opus-4-8 - basic',
+    outputSchema: z.string(),
+    streamSchema: z.any(),
+  },
+  async (_input, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
+      model: vertexModelGarden.model('claude-opus-4-8'),
       config: {
         location: 'global',
         thinking: {

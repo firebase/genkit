@@ -1,0 +1,1641 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+from __future__ import annotations
+
+import asyncio
+import copy
+import inspect
+import json
+import re
+from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Generator, Sequence
+from dataclasses import dataclass, field
+from typing import Any, Generic, Protocol, TypeVar, cast
+
+from pydantic import BaseModel, ValidationError, field_validator
+from typing_extensions import TypeVar as TypeVarExt
+
+from genkit._ai._agents._runtime import AgentInitError, seeded_init_fields
+from genkit._ai._agents._snapshot import lookup_label
+from genkit._ai._agents._types import StateManagement
+from genkit._ai._json_patch import apply_json_patch
+from genkit._core._channel import CloseableQueue
+from genkit._core._error import (
+    _STATUS_CODE_MAP,
+    GenkitError,
+    GenkitRuntimeError,
+    RuntimeErrorReason,
+    StatusCodes,
+    StatusName,
+)
+from genkit._core._logger import get_logger
+from genkit._core._model import (
+    AgentInit,
+    AgentInput,
+    AgentOutput,
+    AgentStreamChunk,
+    Artifact,
+    Message,
+    Part,
+    Resume,
+    SessionSnapshot as SessionSnapshotVeneer,
+    SessionState as SessionStateVeneer,
+    as_message,
+    as_part,
+    as_session_state,
+    resume_options_to_resume,
+)
+from genkit._core._typing import (
+    AgentFinishReason,
+    Media,
+    Role,
+    SnapshotStatus,
+)
+
+logger = get_logger(__name__)
+
+# Custom state is a Pydantic model, so StateT is bound to BaseModel; the Any
+# default covers schemaless (client-managed) sessions where custom is plain JSON.
+StateT = TypeVarExt('StateT', bound=BaseModel, default=Any)
+InputT = TypeVar('InputT')
+OutputT = TypeVar('OutputT')
+# The transport protocol only ever hands this type back out (in the sessions it
+# returns), never takes it in, so it's covariant.
+StateT_co = TypeVar('StateT_co', bound=BaseModel, covariant=True)
+
+# A failed or aborted turn landed no reply: the chat rolls back the prompt,
+# keeps resuming from the last completed snapshot, and the response shows no
+# message. Every check for "did this turn answer?" reads this one set.
+_NO_REPLY = frozenset({AgentFinishReason.FAILED, AgentFinishReason.ABORTED})
+
+# A custom agent can return TurnResult(finish_reason=FAILED) without raising.
+# Same fallback JS uses when it raises AgentError for that turn.
+_UNEXPLAINED_FAILURE = GenkitRuntimeError(status='UNKNOWN', message='Agent turn failed.')
+
+
+@dataclass(frozen=True)
+class _TurnCheckpoint:
+    """Chat fields a turn can change, so a raised turn can put them back."""
+
+    messages: list[Message]
+    custom: Any
+    artifacts: list[Artifact]
+    session_id: str | None
+    snapshot_id: str | None
+    resume_snapshot_id: str | None
+
+
+class SessionState(SessionStateVeneer, Generic[StateT]):
+    """Session state generic over custom state."""
+
+    custom: StateT | None = None
+
+
+class SessionSnapshot(SessionSnapshotVeneer, Generic[StateT]):
+    """Session snapshot generic over custom state."""
+
+    # Narrows the wire model's plain SessionState to the typed one so snap.state.custom
+    # reads as the declared model; the runtime shape is identical (same JSON fields).
+    state: SessionState[StateT] | None = None  # pyrefly: ignore[bad-override]
+
+    @field_validator('state', mode='before')
+    @classmethod
+    def _wrap_state(cls, v: object) -> object:
+        if v is None:
+            return v
+        return SessionState.model_validate(as_session_state(v).model_dump(mode='json', by_alias=True))
+
+
+# ===========================================================================
+# Client Transport Protocol
+# ===========================================================================
+
+
+class AgentTransport(Protocol, Generic[StateT_co]):
+    """Interface implemented by the transport layer (local or websocket)."""
+
+    # Declares server- vs client-managed state; must be set explicitly on the transport.
+    state_management: StateManagement
+
+    async def run_turn(
+        self,
+        *,
+        agent_input: AgentInput,
+        init: AgentInit,
+    ) -> tuple[AsyncIterable[AgentStreamChunk], Awaitable[AgentOutput]]:
+        """Run a single turn, returning a (stream, output) pair.
+
+        The transport must drive the turn to completion on its own — the returned
+        output awaitable has to resolve whether or not the caller consumes the
+        stream. The stream is an optional live view of the same turn, never the
+        thing that advances it, so ``await output`` works without draining chunks.
+        Concretely: read your own transport (socket, queue, SSE) to the end in a
+        background task; don't rely on the client to pull the stream for you.
+
+        ``init`` describes how to resume the conversation for this turn. A stateful
+        in-process transport reads it only when it opens its connection; a
+        stateless transport (HTTP) replays it on every request. The session keeps
+        it current via ``_wire_init`` so the transport never has to know how state
+        is managed.
+        """
+        ...
+
+    async def get_snapshot(
+        self,
+        *,
+        snapshot_id: str | None = None,
+        session_id: str | None = None,
+    ) -> SessionSnapshotVeneer | None:
+        """Retrieves a session snapshot from the server store."""
+        ...
+
+    async def abort_snapshot(self, snapshot_id: str) -> SnapshotStatus | None:
+        """Aborts the specified snapshot on the server."""
+        ...
+
+
+# ===========================================================================
+# Client Return Types & Models
+# ===========================================================================
+
+
+@dataclass
+class AgentChunk(Generic[StateT]):
+    """Represents a structured stream chunk yielded during a turn."""
+
+    text: str | None = None
+    reasoning: str | None = None
+    accumulated_text: str = ''  # this turn's text so far, including this chunk
+    tool_requests: list[Part] = field(default_factory=list)
+    data: Any | None = None  # structured output part, if the chunk carries one
+    media: Media | None = None
+    artifact: Artifact | None = None
+    custom: StateT | None = None  # post-patch resolved custom state; set when custom_patch is present
+    raw: AgentStreamChunk | None = None
+
+
+class AgentInterrupt(Generic[InputT, OutputT]):
+    """Represents a tool request interrupt that paused the turn."""
+
+    def __init__(
+        self,
+        name: str,
+        ref: str | None,
+        input_data: InputT,
+    ) -> None:
+        self.name = name
+        self.ref = ref
+        self.input = input_data
+
+    def respond(self, output: OutputT) -> Part:
+        """Tool response for ``chat.resume(respond=[...])``.
+
+        Carries the output only. ``Part.respond`` is the call that attaches
+        ``interruptResponse`` metadata.
+        """
+        return Part.from_tool_response(
+            name=self.name,
+            ref=self.ref,
+            output=output,
+        )
+
+    def restart(
+        self,
+        *,
+        resumed_metadata: dict[str, Any] | None = None,
+    ) -> Part:
+        """Tool request for ``chat.resume(restart=[...])``.
+
+        The tool sees a resume (``ctx.is_resumed()`` is true). Pass
+        ``resumed_metadata`` when it needs the approval payload.
+
+        The request input stays the one the model asked for — a client
+        cannot re-run a tool with arguments the model never sent.
+        """
+        part = Part.from_tool_request(
+            name=self.name,
+            ref=self.ref,
+            input=self.input,
+        )
+        return part.restart(resumed_metadata=resumed_metadata)
+
+
+@dataclass
+class AgentResponse(Generic[StateT]):
+    """Completed turn result — client-side wrapper around AgentOutput with rich accessors."""
+
+    raw: AgentOutput
+    messages: list[Message]
+    state: StateT | None = None
+
+    @property
+    def text(self) -> str:
+        """Full text content of the response message."""
+        return text_of(self.message.content) if self.message else ''
+
+    @property
+    def reasoning(self) -> str:
+        """Concatenated reasoning the model exposed for this turn."""
+        return reasoning_of(self.message.content) if self.message else ''
+
+    @property
+    def media(self) -> Media | None:
+        """First media part of the response message, if any."""
+        return first_media_of(self.message.content) if self.message else None
+
+    @property
+    def data(self) -> Any:  # noqa: ANN401
+        """Structured-output value of the response message, if the model returned one."""
+        return first_data_of(self.message.content) if self.message else None
+
+    @property
+    def finish_reason(self) -> AgentFinishReason | None:
+        """Why the turn ended."""
+        return self.raw.finish_reason
+
+    @property
+    def finish_message(self) -> str | None:
+        """Human-readable detail when a turn ends abnormally (e.g. blocked or failed)."""
+        return self.raw.error.message if self.raw.error else None
+
+    @property
+    def snapshot_id(self) -> str | None:
+        """Server snapshot id after this turn, if store-backed."""
+        return self.raw.snapshot_id
+
+    @property
+    def session_id(self) -> str | None:
+        """Session id this turn belongs to (store- or client-managed)."""
+        return self.raw.session_id
+
+    @property
+    def artifacts(self) -> list[Artifact]:
+        """Artifacts emitted during this turn."""
+        return self.raw.artifacts or []
+
+    @property
+    def error(self) -> GenkitRuntimeError | None:
+        """Why this turn failed, or None when it didn't.
+
+        Same fields generate puts on ``response.error`` (status, message,
+        details, and reason), so one check reads both. A failed turn that
+        carried no error still gets one, so ``if res.error:`` never reads a
+        failure as success.
+        """
+        if self.raw.error is not None:
+            return self.raw.error
+        if self.raw.finish_reason == AgentFinishReason.FAILED:
+            return _UNEXPLAINED_FAILURE
+        return None
+
+    @property
+    def message(self) -> Message | None:
+        """The response message.
+
+        A failed or aborted turn's wire message is the previous reply.
+        Showing it would look like this turn answered, so this is None and
+        every accessor that reads the reply (text, data, interrupts, ...)
+        comes back empty.
+        """
+        if self.raw.finish_reason in _NO_REPLY:
+            return None
+        return self.raw.message
+
+    @property
+    def tool_requests(self) -> list[Part]:
+        """Tool requests in the response message."""
+        return tool_requests_of(self.message.content) if self.message else []
+
+    @property
+    def interrupts(self) -> list[AgentInterrupt[Any, Any]]:
+        """Tool requests that paused this turn."""
+        return agent_interrupts_from_message(self.message)
+
+
+HTTP_TO_STATUS: dict[int, StatusName] = {code: name for name, code in _STATUS_CODE_MAP.items()}
+
+
+def coerce_status_name(raw: str | None) -> StatusName:
+    if raw and raw in _STATUS_CODE_MAP:
+        return raw  # type: ignore[return-value]
+    return 'INTERNAL'
+
+
+def error_from_wire(error: dict[str, Any] | str | GenkitError) -> GenkitError:
+    """Parse a reflection or callable wire error payload into GenkitError."""
+    if isinstance(error, GenkitError):
+        return error
+    if isinstance(error, str):
+        return GenkitError(status='INTERNAL', message=error)
+
+    # Callable format: {message, status, details}
+    if isinstance(error.get('status'), str):
+        return GenkitError(
+            status=coerce_status_name(error['status']),
+            message=str(error.get('message', '')),
+            details=error.get('details'),
+        )
+
+    # Reflection format: {message, code, details}
+    if 'code' in error:
+        try:
+            status_name = StatusCodes(int(error['code'])).name
+        except (TypeError, ValueError):
+            status_name = 'INTERNAL'
+        details = error.get('details')
+        if details is not None and hasattr(details, 'model_dump'):
+            details = details.model_dump(by_alias=True)
+        return GenkitError(
+            status=coerce_status_name(status_name),
+            message=str(error.get('message', '')),
+            details=details,
+        )
+
+    message = str(error.get('message', error))
+    return GenkitError(status='INTERNAL', message=message)
+
+
+def error_from_http(*, status_code: int, body: str) -> GenkitError:
+    """Build GenkitError from a non-2xx HTTP response body."""
+    if body:
+        try:
+            parsed = json.loads(body)
+        except json.JSONDecodeError:
+            parsed = None
+        if isinstance(parsed, dict):
+            if 'error' in parsed:
+                return error_from_wire(parsed['error'])
+            if 'message' in parsed and ('status' in parsed or 'code' in parsed):
+                return error_from_wire(parsed)
+
+    status = HTTP_TO_STATUS.get(status_code, 'INTERNAL')
+    message = body.strip() or f'HTTP {status_code}'
+    return GenkitError(status=status, message=message)
+
+
+def error_from_exception(e: Exception) -> GenkitError:
+    """Normalize an arbitrary exception into GenkitError for transport boundaries.
+
+    A ``GenkitError`` passes through unchanged. A dropped socket is
+    ``UNAVAILABLE``: the server never reported a failure, though the turn
+    may still have run.
+    """
+    if isinstance(e, GenkitError):
+        return e
+    if isinstance(e, ConnectionError):
+        return GenkitError(status='UNAVAILABLE', message='Connection to the agent was lost', cause=e)
+    message = str(e)
+    match = re.match(r'^([A-Z_]+):', message)
+    status = coerce_status_name(match.group(1) if match else None)
+    return GenkitError(status=status, message=message, cause=e)
+
+
+def agent_interrupts_from_message(message: Message | None) -> list[AgentInterrupt[Any, Any]]:
+    if message is None:
+        return []
+    msg = as_message(message)
+    interrupts: list[AgentInterrupt[Any, Any]] = []
+    for part in msg.interrupts:
+        req = part.tool_request
+        if req is None:
+            continue
+        interrupts.append(
+            AgentInterrupt(
+                name=req.name,
+                ref=req.ref,
+                input_data=req.input,
+            )
+        )
+    return interrupts
+
+
+class AgentTurn(Generic[StateT]):
+    """A single in-flight turn — read ``.stream`` for chunks, ``.response`` for the result.
+
+    Same handle shape as ``action.stream()``: the turn runs whether or not you read
+    ``.stream``, and ``.response`` resolves to the final result either way.
+    """
+
+    def __init__(
+        self,
+        *,
+        stream: AsyncIterable[AgentChunk[StateT]],
+        output: Awaitable[AgentResponse[StateT]],
+        abort_fn: Callable[[], Awaitable[None] | None] | None = None,
+    ) -> None:
+        self._stream = stream
+        self._output = output
+        self._abort_fn = abort_fn
+
+    @property
+    def stream(self) -> AsyncIterator[AgentChunk[StateT]]:
+        """The turn's chunk stream.
+
+        Cancelling the consumer (``asyncio.timeout(...)`` or a task cancel around the
+        loop) detaches the turn like ``turn.abort()`` — the client stops listening and
+        the server finishes in the background — then the cancellation propagates so the
+        deadline still surfaces.
+        """
+        return self._stream_detaching_on_cancel()
+
+    async def _stream_detaching_on_cancel(self) -> AsyncIterator[AgentChunk[StateT]]:
+        try:
+            async for chunk in self._stream:
+                yield chunk
+        except asyncio.CancelledError:
+            await self.abort()
+            raise
+
+    @property
+    def response(self) -> Awaitable[AgentResponse[StateT]]:
+        """The turn's final result. The turn runs whether or not you read ``.stream``."""
+        return self._await_detaching_on_cancel()
+
+    async def _await_detaching_on_cancel(self) -> AgentResponse[StateT]:
+        """Awaits the result, detaching the turn if the awaiter is cancelled.
+
+        Lets ``async with asyncio.timeout(...): await turn.response`` (or any task
+        cancel) detach the client the same way ``turn.abort()`` would, then re-raises
+        so the deadline still surfaces as a TimeoutError/CancelledError.
+        """
+        try:
+            return await self._output
+        except asyncio.CancelledError:
+            await self.abort()
+            raise
+
+    def __aiter__(self) -> AsyncIterator[AgentChunk[StateT]]:
+        return self.stream
+
+    def __await__(self) -> Generator[Any, None, AgentResponse[StateT]]:
+        return self.response.__await__()
+
+    async def abort(self) -> None:
+        """Detaches the client from this turn: stops streaming and settles the result now.
+
+        This is a client-side abort. The server turn keeps running to completion
+        in the background so its work still lands; we just stop listening and
+        resolve the awaited result as cancelled. The prompt you sent stays in
+        history — it was still asked — so the session reads like a turn that
+        simply got no reply. To actually halt server-side work on a store-backed
+        agent, use ``chat.abort()``.
+        """
+        if self._abort_fn:
+            res = self._abort_fn()
+            if inspect.isawaitable(res):
+                await res
+        # Detaching cancelled the result. But the turn may have already settled on
+        # its own a beat earlier (succeeded or failed), in which case we didn't
+        # cancel it. Read that terminal state so a failed turn's exception isn't
+        # logged as never-retrieved; .exception() does this without raising (unlike
+        # awaiting), and returns None for a successful turn.
+        if isinstance(self._output, asyncio.Future) and self._output.done() and not self._output.cancelled():
+            self._output.exception()
+
+
+# ===========================================================================
+# Client APIs & Session Handles
+# ===========================================================================
+
+
+class AgentAPI(Protocol, Generic[StateT]):
+    """Implemented by both Agent (in-process) and AgentClient (remote)."""
+
+    def chat(
+        self,
+        *,
+        snapshot_id: str | None = None,
+        session_id: str | None = None,
+        messages: list[Message] | None = None,
+        artifacts: list[Artifact] | None = None,
+        state: StateT | None = None,
+    ) -> AgentChat[StateT]:
+        """Starts a new session, or resumes one.
+
+        Store-backed agents take ``snapshot_id`` and/or ``session_id``.
+        ``snapshot_id`` resumes that exact row (it must be completed).
+        ``session_id`` continues the conversation: skip a failed / aborted /
+        pending leaf, or start fresh if there isn't a completed turn yet.
+        Passing both is fine: the snapshot picks the row, the session id
+        checks it belongs to that session.
+
+        ``messages`` / ``artifacts`` / ``state`` are only for client-managed
+        agents (no store). Mixing those with a resume id, or sending a state
+        blob to a store-backed agent, raises :class:`AgentInitError`.
+        """
+        ...
+
+    async def load_chat(
+        self,
+        *,
+        snapshot_id: str | None = None,
+        session_id: str | None = None,
+    ) -> AgentChat[StateT]:
+        """Loads a stored snapshot onto a new chat.
+
+        Pass exactly one of ``snapshot_id`` or ``session_id``. The chat is
+        pointed at that row as stored — including a failed, aborted, or
+        still-pending turn. ``send()`` resumes that row, so a non-completed
+        leaf is rejected. To continue the conversation, use ``chat(session_id=)``.
+        """
+        ...
+
+    async def get_snapshot(
+        self,
+        *,
+        snapshot_id: str | None = None,
+        session_id: str | None = None,
+    ) -> SessionSnapshotVeneer | None:
+        """Reads a stored snapshot without starting a session.
+
+        Pass exactly one of ``snapshot_id`` or ``session_id``. A session
+        lookup returns the newest row even when that turn failed or was
+        aborted. ``chat(session_id=)`` is how you continue from the last
+        good turn.
+        """
+        ...
+
+    async def abort(self, snapshot_id: str) -> SnapshotStatus | None:
+        """Aborts a running snapshot.
+
+        The return is the snapshot's status from *before* this call, not after.
+        ``pending`` means the turn was still running and this call cancelled it
+        (the row is now ``aborted``). A terminal status (``completed``,
+        ``failed``, ``aborted``) means the turn had already finished — this
+        call did not rewrite it. ``None`` means nothing was observed (no row,
+        or the store never ran the abort write).
+        """
+        ...
+
+
+class AgentClient(Generic[StateT]):
+    """Transport-backed agent client — wraps any AgentTransport and implements AgentAPI.
+
+    This is the one ergonomic surface (``chat``/``load_chat``/``get_snapshot``/
+    ``abort``) for talking to an agent, whether it's remote (HTTP transport) or
+    in-process (the local agent action). ``get_snapshot`` and ``load_chat``
+    read the store; ``chat()`` is how you start or continue a conversation.
+
+    ``state_schema`` types the custom session state so the resulting chat hands
+    back a validated model instead of a bare dict; leave it None for untyped state.
+    """
+
+    def __init__(
+        self,
+        transport: AgentTransport[StateT],
+        *,
+        state_schema: type[StateT] | None = None,
+    ) -> None:
+        self._transport = transport
+        self._state_schema = state_schema
+
+    def chat(
+        self,
+        *,
+        snapshot_id: str | None = None,
+        session_id: str | None = None,
+        messages: list[Message] | None = None,
+        artifacts: list[Artifact] | None = None,
+        state: StateT | None = None,
+    ) -> AgentChat[StateT]:
+        """Starts a new session, or resumes one.
+
+        Store-backed agents take ``snapshot_id`` and/or ``session_id``.
+        ``snapshot_id`` resumes that exact row (it must be completed).
+        ``session_id`` continues the conversation: skip a failed / aborted /
+        pending leaf, or start fresh if there isn't a completed turn yet.
+        Passing both is fine: the snapshot picks the row, the session id
+        checks it belongs to that session.
+
+        ``messages`` / ``artifacts`` / ``state`` are only for client-managed
+        agents (no store). Mixing those with a resume id, or sending a state
+        blob to a store-backed agent, raises :class:`AgentInitError`.
+        """
+        session_transport = copy.copy(self._transport)
+        return AgentChat(
+            session_transport,
+            init_from(
+                snapshot_id=snapshot_id,
+                session_id=session_id,
+                messages=messages,
+                artifacts=artifacts,
+                state=state,
+            ),
+            state_schema=self._state_schema,
+        )
+
+    async def load_chat(
+        self,
+        *,
+        snapshot_id: str | None = None,
+        session_id: str | None = None,
+    ) -> AgentChat[StateT]:
+        """Loads a stored snapshot onto a new chat.
+
+        Pass exactly one of ``snapshot_id`` or ``session_id``. The chat is
+        pointed at that row as stored — including a failed, aborted, or
+        still-pending turn. ``send()`` resumes that row, so a non-completed
+        leaf is rejected. To continue the conversation, use ``chat(session_id=)``.
+        """
+        snapshot = await self._transport.get_snapshot(snapshot_id=snapshot_id, session_id=session_id)
+        if snapshot is None:
+            raise GenkitError(
+                status='NOT_FOUND',
+                message=f'Snapshot {lookup_label(snapshot_id=snapshot_id, session_id=session_id)!r} not found.',
+                reason=RuntimeErrorReason.SNAPSHOT_NOT_FOUND,
+            )
+        session_transport = copy.copy(self._transport)
+        session_transport.state_management = 'server'
+        chat = AgentChat(session_transport, state_schema=self._state_schema)
+        chat._load_from_snapshot(snapshot)
+        return chat
+
+    async def get_snapshot(
+        self,
+        *,
+        snapshot_id: str | None = None,
+        session_id: str | None = None,
+    ) -> SessionSnapshotVeneer | None:
+        """Reads a stored snapshot without starting a session.
+
+        Pass exactly one of ``snapshot_id`` or ``session_id``. A session
+        lookup returns the newest row even when that turn failed or was
+        aborted. ``chat(session_id=)`` is how you continue from the last
+        good turn.
+        """
+        return await self._transport.get_snapshot(snapshot_id=snapshot_id, session_id=session_id)
+
+    async def abort(self, snapshot_id: str) -> SnapshotStatus | None:
+        """Aborts a running snapshot on the server.
+
+        The return is the snapshot's status from *before* this call, not after.
+        ``pending`` means the turn was still running and this call cancelled it
+        (the row is now ``aborted``). A terminal status (``completed``,
+        ``failed``, ``aborted``) means the turn had already finished — this
+        call did not rewrite it. ``None`` means nothing was observed (no row,
+        or the store never ran the abort write).
+        """
+        return await self._transport.abort_snapshot(snapshot_id)
+
+
+def to_agent_input(input: str | AgentInput) -> AgentInput:  # noqa: A002
+    """Wraps a plain string in an AgentInput, or copies a passed-in one.
+
+    Always returns a fresh object the caller doesn't own, so per-turn tweaks
+    (e.g. flagging detach) never mutate an AgentInput the caller might reuse.
+    """
+    if isinstance(input, str):
+        return AgentInput(message=Message(role='user', content=[Part.from_text(input)]))
+    return AgentInput(message=input.message, resume=input.resume, detach=input.detach)
+
+
+def init_from(
+    *,
+    snapshot_id: str | None,
+    session_id: str | None,
+    messages: list[Message] | None,
+    artifacts: list[Artifact] | None,
+    state: Any,  # noqa: ANN401
+) -> AgentInit | None:
+    """Bundles the chat-attach kwargs into the wire init, or None when all unset."""
+    has_state = messages is not None or artifacts is not None or state is not None
+    if snapshot_id is None and session_id is None and not has_state:
+        return None
+    session_state = SessionState(messages=messages, artifacts=artifacts, custom=state) if has_state else None
+    return AgentInit(snapshot_id=snapshot_id, session_id=session_id, state=session_state)
+
+
+def validate_init(init: AgentInit) -> None:
+    """Rejects mixing a state blob with a resume id.
+
+    Passing both ``snapshot_id`` and ``session_id`` is fine: the snapshot id
+    picks the row, and the session id checks that the row belongs to that
+    session. What is not allowed is sending ``messages`` / ``artifacts`` /
+    custom state alongside either id — resume from the store, or seed a new
+    conversation, not both.
+    """
+    has_resume = bool(init.snapshot_id) or bool(init.session_id)
+    if init.state is not None and has_resume:
+        fields = seeded_init_fields(init.state)
+        raise AgentInitError(
+            status='FAILED_PRECONDITION',
+            message=(
+                f'Cannot send {fields} together with snapshot_id/session_id. '
+                'Resume with snapshot_id and/or session_id, or send a state blob, not both.'
+            ),
+        )
+
+
+class StreamedMessageAccumulator:
+    """Rebuilds a turn's messages from its chunk stream.
+
+    The chunk stream is the one channel that carries a turn's intermediate
+    tool-request/tool-response steps; nothing else does. We stitch them back the
+    same way the store records them: consecutive model deltas (same role and
+    message index) merge into one message; a ``tool`` chunk arrives whole.
+    """
+
+    def __init__(self) -> None:
+        # Named separately from messages() so the accessor can finalize then return.
+        self.built_messages: list[Message] = []
+        self.role: Role | str | None = None
+        self.index: float | None = None
+        self.parts: list[Part] = []
+
+    def add(self, chunk: AgentStreamChunk) -> None:
+        mc = chunk.model_chunk
+        if mc is None:
+            return
+        role = mc.role if mc.role is not None else Role.MODEL
+        if self.role is not None and (role != self.role or mc.index != self.index):
+            self.flush()
+        self.role = role
+        self.index = mc.index
+        for part in mc.content or []:
+            self.parts.append(as_part(part))
+
+    def flush(self) -> None:
+        if self.role is None:
+            return
+        # Merge adjacent text deltas back into a single part while preserving the
+        # order of tool/data/media parts as they streamed.
+        merged: list[Part] = []
+        text_buf: list[str] = []
+        for p in self.parts:
+            if p.text is not None:
+                text_buf.append(p.text)
+                continue
+            if text_buf:
+                merged.append(Part.from_text(''.join(text_buf)))
+                text_buf = []
+            merged.append(p)
+        if text_buf:
+            merged.append(Part.from_text(''.join(text_buf)))
+        if merged:
+            self.built_messages.append(Message(role=self.role, content=merged))
+        self.role = None
+        self.index = None
+        self.parts = []
+
+    def messages(self) -> list[Message]:
+        """The reconstructed messages, finalizing any in-progress message first."""
+        self.flush()
+        return self.built_messages
+
+
+class RunTurnFn(Protocol):
+    """A bound ``AgentTransport.run_turn``, kept as a field so TurnDriver stays transport-agnostic."""
+
+    async def __call__(
+        self,
+        *,
+        agent_input: AgentInput,
+        init: AgentInit,
+    ) -> tuple[AsyncIterable[AgentStreamChunk], Awaitable[AgentOutput]]: ...
+
+
+class TurnDriver(Generic[StateT]):
+    """Runs one turn: pump the transport, apply patches, commit the result.
+
+    Shared execution path behind both ``AgentChat.send`` (await the final
+    response) and ``AgentChat.send_stream`` (expose chunks to the caller) — the
+    same shape as ``Action.run`` vs ``Action.stream``.
+    """
+
+    def __init__(
+        self,
+        *,
+        inp: AgentInput,
+        init: AgentInit,
+        run_turn: RunTurnFn,
+        commit_output: Callable[[AgentOutput], AgentResponse[StateT]],
+        commit_custom_patch: Callable[[Any], StateT | None],
+        accumulate_chunk: Callable[[AgentStreamChunk], None] | None = None,
+        rollback: Callable[[], None] | None = None,
+        chunks: CloseableQueue[AgentChunk[StateT] | Exception] | None = None,
+    ) -> None:
+        self.inp = inp
+        self.init = init
+        self.run_turn = run_turn
+        self.commit_output = commit_output
+        self.commit_custom_patch = commit_custom_patch
+        self.accumulate_chunk = accumulate_chunk
+        self.rollback = rollback
+        self.accumulated_text = ''
+        self.output: asyncio.Future[AgentResponse[StateT]] = asyncio.get_running_loop().create_future()
+        # Only the streaming path needs a caller-facing chunk queue; send() still
+        # pumps the transport (for patches + message stitching) without buffering
+        # chunks nobody will read.
+        self.chunks = chunks
+        self.run_task: asyncio.Task[None] | None = None
+        self.turn: AgentTurn[StateT] | None = (
+            AgentTurn(
+                stream=self.stream(),
+                output=self.output,
+                abort_fn=self.abort,
+            )
+            if chunks is not None
+            else None
+        )
+
+    async def run(self) -> AgentResponse[StateT]:
+        """Pump the transport stream, then return the committed response.
+
+        The transport drives its turn to completion on its own; we drain its chunk
+        stream — which also feeds the message accumulator and applies state patches —
+        and only then read the authoritative output. Committing after the pump means a
+        server-managed turn sees a complete message history (the intermediate messages
+        are stitched from chunks, not carried on the output).
+
+        ``self.output`` is otherwise only touched by ``abort()``, so the
+        ``done()`` guards let abort win a race without the result being set twice.
+        """
+        output: Awaitable[AgentOutput] | None = None
+        try:
+            stream, output = await self.run_turn(agent_input=self.inp, init=self.init)
+            async for chunk in stream:
+                self.emit(chunk)
+                if chunk.turn_end:
+                    break
+            raw = await output
+            result = self.commit_output(raw)
+            if not self.output.done():
+                self.output.set_result(result)
+            return result
+        except asyncio.CancelledError:
+            if not self.output.done():
+                self.output.cancel()
+            raise
+        except Exception as e:
+            # Transports fail the stream and the output future together. We
+            # raise from the stream, so mark the future's copy as seen or
+            # asyncio logs "Future exception was never retrieved".
+            if isinstance(output, asyncio.Future) and output.done() and not output.cancelled():
+                output.exception()
+            # No turn result: undo local changes, then raise one type for every
+            # transport. GenkitError passes through as-is (AgentInitError stays
+            # AgentInitError); anything else is wrapped with cause=e.
+            #
+            # There is deliberately no AgentError here. A turn that ran and
+            # failed returns res.error, so a raise only means "no turn result",
+            # which is what ai.generate raises GenkitError for. An agent-specific
+            # wrapper only duplicated status/details/reason, copied
+            # chat.state / chat.snapshot_id (still on the chat after _restore),
+            # and hid GenkitError: `except GenkitError` missed it and a
+            # server-side PublicError lost its type, so web handlers sent a 500.
+            if self.rollback is not None:
+                self.rollback()
+            wrapped = error_from_exception(e)
+            if self.chunks is not None:
+                # Streaming path: callers retrieve the error via turn.response / stream.
+                # send() never exposes self.output, so leave it untouched and re-raise.
+                if not self.output.done():
+                    self.output.set_exception(wrapped)
+                self.chunks.put_nowait(wrapped)
+            if wrapped is e:
+                raise
+            raise wrapped from e
+        finally:
+            # Closing wakes the stream consumer once buffered chunks drain, so the
+            # turn ends without a sentinel value threading through the queue.
+            if self.chunks is not None:
+                self.chunks.close()
+
+    def start(self) -> AgentTurn[StateT]:
+        """Launch ``run`` in the background and return a streaming turn handle.
+
+        Same idea as ``Action.stream`` wrapping ``Action.run``: the work is still
+        ``run``, and the caller gets a ``.stream`` / ``.response`` surface on top.
+        """
+        if self.turn is None:
+            raise RuntimeError('TurnDriver.start() requires a chunks queue')
+        self.run_task = asyncio.create_task(self._run_background())
+        return self.turn
+
+    async def _run_background(self) -> None:
+        """Background wrapper so task exceptions stay on ``self.output`` / the stream."""
+        try:
+            await self.run()
+        except Exception as e:
+            # Normal turn failures already resolve ``self.output`` inside ``run``.
+            # If ``rollback`` (or anything else) blows up before that, resolve
+            # here so ``await turn.response`` can't hang forever with an empty log.
+            if not self.output.done():
+                logger.exception('TurnDriver background run failed without resolving output')
+                self.output.set_exception(e)
+
+    def emit(self, chunk: AgentStreamChunk) -> None:
+        """Applies any state patch, transforms the wire chunk, and optionally enqueues it."""
+        if self.accumulate_chunk is not None:
+            self.accumulate_chunk(chunk)
+        custom = self.commit_custom_patch(chunk.custom_patch) if chunk.custom_patch else None
+
+        raw = chunk.model_chunk.content if chunk.model_chunk else None
+        content = [as_part(p) for p in raw] if raw else None
+        text = text_of(content)
+        self.accumulated_text += text
+
+        if self.chunks is None:
+            return
+
+        agent_chunk: AgentChunk[StateT] = AgentChunk(
+            text=text or None,
+            reasoning=reasoning_of(content) or None,
+            accumulated_text=self.accumulated_text,
+            tool_requests=tool_requests_of(content),
+            data=first_data_of(content),
+            media=first_media_of(content),
+            artifact=(
+                chunk.artifact
+                if chunk.artifact is None or isinstance(chunk.artifact, Artifact)
+                else Artifact.model_validate(chunk.artifact)
+            ),
+            custom=custom,
+            raw=chunk,
+        )
+        self.chunks.put_nowait(agent_chunk)
+
+    async def stream(self) -> AsyncIterator[AgentChunk[StateT]]:
+        """Yields transformed chunks until the turn ends, re-raising any failure."""
+        chunks = self.chunks
+        if chunks is None:
+            raise RuntimeError('TurnDriver.stream() requires a chunks queue')
+        async for item in chunks:
+            if isinstance(item, Exception):
+                # The caller saw the error here. If they never await
+                # .response, asyncio would log its copy as never retrieved.
+                if self.output.done() and not self.output.cancelled():
+                    self.output.exception()
+                raise item
+            yield item
+
+    def abort(self) -> None:
+        """Detaches the client from the turn, leaving the server turn to finish.
+
+        We cancel the local pump and result so the caller stops streaming and
+        ``await turn.response`` settles immediately. The transport keeps draining its
+        in-flight turn in the background, so this is a client-side abort only.
+        The optimistic user message stays in history — the prompt was still
+        asked, so the running view keeps it like any other turn.
+        """
+        if not self.output.done():
+            self.output.cancel()
+        if self.run_task is not None and not self.run_task.done():
+            self.run_task.cancel()
+
+
+class AgentChat(Generic[StateT]):
+    """A stateful conversation session with an agent.
+
+    Public surface: read ``snapshot_id``, ``session_id``, ``state``, ``messages``,
+    and ``artifacts``; call ``send`` / ``send_stream``, ``resume`` /
+    ``resume_stream``, ``detach``, and ``abort``. Everything prefixed with ``_``
+    is internal wiring.
+
+    ``state`` is the agent's custom session state; ``messages`` and ``artifacts``
+    are the running conversation and files. The chat tracks all three directly,
+    so a client-managed resume just hands them back (``chat(messages=chat.messages,
+    state=chat.state, artifacts=chat.artifacts)``). ``snapshot_id`` and
+    ``session_id`` are the server store's resume handles.
+
+    The chat keeps these fields in sync with each turn's output and rebuilds the
+    per-turn resume payload from them via ``_wire_init``.
+    """
+
+    def __init__(
+        self,
+        transport: AgentTransport[StateT],
+        init: AgentInit | None = None,
+        *,
+        state_schema: type[StateT] | None = None,
+    ) -> None:
+        self._transport = transport
+        self._state_schema = state_schema
+        self._snapshot_id: str | None = None
+        # Snapshot the next turn resumes from. Kept in lockstep with
+        # ``_snapshot_id`` whenever a turn output carries one (including a
+        # pending detached snapshot — a follow-up ``send`` then fails until that
+        # snapshot completes or the chat is reloaded onto a completed ancestor).
+        self._resume_snapshot_id: str | None = None
+        self._session_id: str | None = None
+        self._messages: list[Message] = []
+        self._artifacts: list[Artifact] = []
+        # Held as the wire-shaped blob (plain JSON); reads validate it into the
+        # declared state model on the way out via _coerce_custom.
+        self._custom: Any | None = None
+        # Rebuilds a server-managed turn's full message history (including
+        # intermediate tool steps) from its chunk stream; created fresh per turn.
+        self._turn_accumulator: StreamedMessageAccumulator | None = None
+
+        if init is not None:
+            validate_init(init)
+            # Store-backed chats resume by snapshot/session id only. Accepting a
+            # seed state blob here would look live on the client while the server
+            # session stayed empty — so refuse up front instead of dropping it.
+            if init.state is not None and self._transport.state_management == 'server':
+                fields = seeded_init_fields(init.state)
+                raise AgentInitError(
+                    status='FAILED_PRECONDITION',
+                    message=(
+                        f'Cannot send {fields} to a server-managed agent (one with a '
+                        "store). Send 'snapshot_id' or 'session_id' instead."
+                    ),
+                )
+            if init.state is not None:
+                self._set_state(init.state)
+            if init.snapshot_id:
+                self._snapshot_id = init.snapshot_id
+                self._resume_snapshot_id = init.snapshot_id
+            if init.session_id:
+                self._session_id = init.session_id
+
+    @property
+    def snapshot_id(self) -> str | None:
+        """Store resume handle, kept in sync with the latest turn (store-backed only)."""
+        return self._snapshot_id
+
+    @property
+    def state(self) -> StateT | None:
+        """The agent's custom session state, kept live as the turn streams."""
+        return self._coerce_custom(self._custom)
+
+    def _coerce_custom(self, value: Any) -> StateT | None:  # noqa: ANN401
+        """Validate the wire-shaped custom blob into the declared state model.
+
+        Custom state rides the wire as plain JSON, so without a ``state_schema``
+        the caller just gets that mapping back. With one, they get a real model
+        instance — so reading ``state`` gives typed attribute access instead of a
+        bare dict.
+        """
+        schema = self._state_schema
+        if value is None or schema is None or isinstance(value, schema):
+            return cast('StateT | None', value)
+        return cast('StateT | None', schema.model_validate(value))
+
+    @property
+    def session_id(self) -> str | None:
+        return self._session_id
+
+    @property
+    def messages(self) -> list[Message]:
+        """Running view of the conversation, built the same way in both modes.
+
+        A turn's messages are stitched from its chunk stream — the only channel
+        that carries the in-between tool-request/tool-response steps — with the
+        final reply taken from the turn's output when it's there (it carries the
+        metadata a resume needs). The chunks are identical whether state is server-
+        or client-managed, so there's one path here. For server-managed sessions
+        the durable snapshot in the store stays the source of truth — use
+        ``get_snapshot()`` / ``load_chat`` to read it (e.g. after a detached
+        turn, whose chunks this session never saw).
+        """
+        return self._messages
+
+    @property
+    def artifacts(self) -> list[Artifact]:
+        return self._artifacts
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    async def send(
+        self,
+        input: str | AgentInput,
+    ) -> AgentResponse[StateT]:
+        """Runs a turn and returns the completed response.
+
+        A turn that finishes failed still returns: ``finish_reason`` is
+        ``failed`` and ``.error`` says why. It raises ``GenkitError`` only
+        when the call never got a turn result (dropped connection, init
+        misuse), and puts the chat back where it was before the send. A
+        dropped connection may still have run the turn server-side, so
+        reload with ``chat(session_id=...)`` before resending a turn whose
+        tools have side effects. Cancelling or timing out the call is a
+        client-side detach instead: it raises ``CancelledError`` /
+        ``TimeoutError`` and keeps the prompt. Pumps the transport so custom-state
+        patches and message stitching still apply; does not expose a chunk
+        stream. For incremental chunks use :meth:`send_stream`.
+        """
+        return await self._start_turn(input).run()
+
+    def send_stream(
+        self,
+        input: str | AgentInput,
+    ) -> AgentTurn[StateT]:
+        """Runs a turn and returns a handle with ``.stream`` / ``.response``.
+
+        Streaming form of :meth:`send` (like ``Action.stream`` / ``ai.generate_stream``):
+        same underlying turn, with chunks delivered to the caller. To stop a turn,
+        call ``turn.abort()`` for a client-side detach (the server finishes in the
+        background), or wrap the stream/response in ``asyncio.timeout(...)`` /
+        cancel the surrounding task — both detach the same way and then surface the
+        deadline. Use ``chat.abort()`` to halt server-side work on a store-backed
+        agent.
+        """
+        return self._start_turn(input, chunks=CloseableQueue()).start()
+
+    def _start_turn(
+        self,
+        input: str | AgentInput,
+        *,
+        chunks: CloseableQueue[AgentChunk[StateT] | Exception] | None = None,
+    ) -> TurnDriver[StateT]:
+        """Shared setup for :meth:`send` and :meth:`send_stream`."""
+        inp = to_agent_input(input)
+
+        # Capture the resume payload from history *before* this turn's message.
+        # The transport carries the new message as the turn input and the agent
+        # records it there, so a client-managed payload that also bundled it would
+        # land the same message in history twice.
+        init = self._wire_init()
+        # If the turn raises, put back everything below (see _restore).
+        checkpoint = self._checkpoint()
+        # Optimistically append the user message so it shows immediately; remember
+        # the prior length so a turn that lands no reply (server-side failed/aborted)
+        # can roll it back. This length-based rollback assumes turns are single-flight
+        # — overlapping sends on one session would race on this list and corrupt it.
+        message_count_before = len(self.messages)
+        # Streamed custom patches land on _custom as they arrive. Keep the
+        # pre-turn value so a turn that lands no reply can undo them.
+        custom_before = checkpoint.custom
+        if inp.message:
+            self.messages.append(inp.message)
+
+        self._turn_accumulator = StreamedMessageAccumulator()
+        return TurnDriver(
+            inp=inp,
+            init=init,
+            run_turn=self._transport.run_turn,
+            commit_output=lambda raw: self._commit_output(
+                raw=raw, message_count_before=message_count_before, custom_before=custom_before
+            ),
+            commit_custom_patch=self._commit_custom_patch,
+            accumulate_chunk=self._turn_accumulator.add,
+            rollback=lambda: self._restore(checkpoint),
+            chunks=chunks,
+        )
+
+    async def resume(
+        self,
+        *,
+        respond: list[Part] | None = None,
+        restart: list[Part] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> AgentResponse[StateT]:
+        """Continues a conversation from an interrupt and returns the response.
+
+        Sugar for :meth:`send` with a resume payload. For streaming, use
+        :meth:`resume_stream`.
+        """
+        wire = resume_options_to_resume(resume_respond=respond, resume_restart=restart, resume_metadata=metadata)
+        return await self.send(AgentInput(resume=wire or Resume(metadata=metadata)))
+
+    def resume_stream(
+        self,
+        *,
+        respond: list[Part] | None = None,
+        restart: list[Part] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> AgentTurn[StateT]:
+        """Continues a conversation from an interrupt and returns an in-flight turn.
+
+        ``respond`` answers paused tool requests; ``restart`` re-runs them with
+        new metadata. Build each part with the interrupt's ``respond`` / ``restart``
+        helpers. ``metadata`` rides along on the resumed tool message (the same
+        ``resume_metadata`` a plain ``generate`` call takes). Sugar for
+        :meth:`send_stream` with a resume payload.
+        """
+        wire = resume_options_to_resume(resume_respond=respond, resume_restart=restart, resume_metadata=metadata)
+        return self.send_stream(AgentInput(resume=wire or Resume(metadata=metadata)))
+
+    async def get_snapshot(self) -> SessionSnapshotVeneer | None:
+        """Reads the current snapshot from the server store, if store-backed."""
+        if not self._snapshot_id:
+            return None
+        return await self._transport.get_snapshot(snapshot_id=self._snapshot_id)
+
+    async def detach(self, input: str | AgentInput) -> DetachedTask[StateT]:  # noqa: A002
+        """Runs a turn in the background on the server and returns a poll handle."""
+        inp = to_agent_input(input)
+        inp.detach = True
+
+        init = self._wire_init()
+        # Optimistically append the user message so the local history reflects the
+        # detached turn; the reply is retrieved later by polling the snapshot.
+        message_count_before = len(self.messages)
+        custom_before = copy.deepcopy(self._custom)
+        if inp.message:
+            self.messages.append(inp.message)
+
+        # This session never sees a detached turn's chunks, so start from an empty
+        # accumulator — otherwise a prior turn's messages would be folded
+        # in when the output settles.
+        self._turn_accumulator = StreamedMessageAccumulator()
+
+        # The transport drives the turn to completion on its own (see
+        # AgentTransport.run_turn), so the output resolves whether or not anyone
+        # reads the stream. For detach we only care about the resulting handle.
+        _stream, output_awaitable = await self._transport.run_turn(agent_input=inp, init=init)
+        raw_output = await output_awaitable
+        # Point the chat at the pending detached snapshot. A send() while it is
+        # still pending is rejected; after it completes, send continues from
+        # that snapshot. Abort stops the server turn but keeps the prompt —
+        # it was still asked. Use chat(session_id=...) to resume from the last
+        # completed turn.
+        self._update_from_output(raw=raw_output, message_count_before=message_count_before, custom_before=custom_before)
+
+        if not raw_output.snapshot_id:
+            raise ValueError('detach did not return a snapshot_id.')
+        return DetachedTask(
+            snapshot_id=raw_output.snapshot_id,
+            transport=self._transport,
+            state_schema=self._state_schema,
+        )
+
+    async def abort(self) -> SnapshotStatus | None:
+        """Stops the session's server-side work by aborting its current snapshot.
+
+        The return is the snapshot's status from *before* this call, not after.
+        ``pending`` means the turn was still running and this call cancelled it
+        (the row is now ``aborted``). A terminal status means the turn had
+        already finished. ``None`` means nothing was observed.
+
+        Against this SDK the return is always the previous status. After abort
+        the chat still points at the aborted leaf — ``chat(session_id=…)``
+        before the next ``send()``. The local transcript keeps the prompt;
+        it was still asked.
+
+        Raises:
+            ValueError: if there's no snapshot to abort — the agent is
+                client-managed (no store) or no turn has produced a snapshot yet.
+                For a client-side stop that just detaches the caller, use
+                ``turn.abort()`` instead.
+        """
+        if not self._snapshot_id:
+            raise ValueError(
+                'No active snapshot to abort. session.abort() stops server-side work and '
+                'needs a store-backed agent with a snapshot (e.g. after detach() or a '
+                'completed turn). For a client-side stop, use turn.abort().'
+            )
+        return await self._transport.abort_snapshot(self._snapshot_id)
+
+    # ------------------------------------------------------------------
+    # Internal (transport / runtime wiring)
+    # ------------------------------------------------------------------
+
+    def _load_from_snapshot(self, snapshot: SessionSnapshotVeneer) -> None:
+        self._snapshot_id = snapshot.snapshot_id
+        self._resume_snapshot_id = snapshot.snapshot_id
+        if snapshot.state is not None:
+            self._set_state(snapshot.state)
+
+    def _set_state(self, state: SessionStateVeneer) -> None:
+        snapshot = state.model_copy(deep=True)
+        self._session_id = snapshot.session_id
+        self._messages = list(snapshot.messages or [])
+        self._artifacts = list(snapshot.artifacts or [])
+        self._custom = snapshot.custom
+
+    def _session_state(self) -> SessionState:
+        """Assembles the wire-shaped state blob from the chat's tracked fields."""
+        return SessionState(
+            session_id=self._session_id,
+            messages=self._messages,
+            custom=self._custom,
+            artifacts=self._artifacts,
+        ).model_copy(deep=True)
+
+    def _wire_init(self) -> AgentInit:
+        """Builds the resume payload for this turn from the live session state.
+
+        The session doesn't hold onto the original init; it just keeps the
+        tracked fields (and ``_snapshot_id``) synced with each turn's output and
+        reconstructs the resume handle every request.
+        """
+        if self._transport.state_management == 'client':
+            # snapshot_id on an agent with no store is misuse. Send the id
+            # so the server rejects the init; a state blob would look like
+            # a brand-new session and the caller would never see why.
+            if self._resume_snapshot_id:
+                return AgentInit(snapshot_id=self._resume_snapshot_id)
+            # No server store, so the client is the source of truth: ship the
+            # full live state every turn.
+            return AgentInit(state=self._session_state())
+
+        # A snapshot id already names the row. Sending session_id too would
+        # re-check ownership every turn, and a mismatched id on the snapshot
+        # vs its state would reject a row the caller already chose. Session
+        # id is only the resume handle when there isn't a snapshot yet.
+        if self._resume_snapshot_id:
+            return AgentInit(snapshot_id=self._resume_snapshot_id)
+        if self._session_id:
+            return AgentInit(session_id=self._session_id)
+        return AgentInit()
+
+    def _apply_custom_patch(self, patch: Any) -> None:  # noqa: ANN401
+        patch_list = patch.root if hasattr(patch, 'root') else patch
+        self._custom = apply_json_patch(doc=self._custom, patch=patch_list)
+
+    def _commit_output(
+        self,
+        *,
+        raw: AgentOutput,
+        message_count_before: int,
+        custom_before: Any,  # noqa: ANN401
+    ) -> AgentResponse[StateT]:
+        """Folds a turn's final output into the session and builds the turn result.
+
+        A failed turn returns with the last good snapshot or state. The
+        caller reads why on ``.error`` and sends again from there.
+        """
+        self._update_from_output(raw=raw, message_count_before=message_count_before, custom_before=custom_before)
+        raw = self._with_resume_snapshot(raw)
+        return AgentResponse(raw=raw, messages=list(self.messages), state=self._response_state(raw))
+
+    def _with_resume_snapshot(self, raw: AgentOutput) -> AgentOutput:
+        """Put the last completed snapshot id on a failed or aborted turn that omitted one.
+
+        A new connection whose first turn fails has no snapshot of its own.
+        The chat is still on the previous completed one, and that is the
+        id the caller resumes from.
+        """
+        if raw.finish_reason in _NO_REPLY and raw.snapshot_id is None and self._resume_snapshot_id is not None:
+            return raw.model_copy(update={'snapshot_id': self._resume_snapshot_id})
+        return raw
+
+    def _response_state(self, raw: AgentOutput) -> StateT | None:
+        """Typed custom state for the response, or None when it can't be read.
+
+        Invalid custom state is itself the failed turn. Validating that
+        blob again would raise and hide the error the turn returned.
+        """
+        try:
+            return self.state
+        except ValidationError:
+            if raw.finish_reason not in _NO_REPLY:
+                raise
+            return None
+
+    def _checkpoint(self) -> _TurnCheckpoint:
+        """Everything a turn can change on the chat, taken before ``send`` touches it."""
+        return _TurnCheckpoint(
+            messages=list(self._messages),
+            custom=copy.deepcopy(self._custom),
+            artifacts=list(self._artifacts),
+            session_id=self._session_id,
+            snapshot_id=self._snapshot_id,
+            resume_snapshot_id=self._resume_snapshot_id,
+        )
+
+    def _restore(self, checkpoint: _TurnCheckpoint) -> None:
+        """Put the chat back where it was before a turn that raised.
+
+        Usually the raise comes before any output, so only the optimistic
+        prompt and streamed patches need undoing. But ``commit_output`` can
+        also raise after the output was folded in (e.g. the final custom
+        state fails ``state_schema``), so every field goes back, or the next
+        send would resume from a snapshot the local history doesn't have.
+        """
+        # In place: callers may hold a reference to chat.messages.
+        self._messages[:] = checkpoint.messages
+        self._custom = checkpoint.custom
+        self._artifacts = checkpoint.artifacts
+        self._session_id = checkpoint.session_id
+        self._snapshot_id = checkpoint.snapshot_id
+        self._resume_snapshot_id = checkpoint.resume_snapshot_id
+
+    def _commit_custom_patch(self, patch: Any) -> StateT | None:  # noqa: ANN401
+        """Applies a streamed custom-state patch and returns the new custom state."""
+        self._apply_custom_patch(patch)
+        return self.state
+
+    def _rollback_optimistic(self, message_count_before: int) -> None:
+        """Drops the user message ``send`` optimistically pushed for an aborted turn.
+
+        Inverse of the eager append in ``send``: trims the running view back to its
+        pre-send length so an aborted turn doesn't strand an unanswered message and
+        the next turn resumes from before it. Assumes single-flight turns, same as
+        the failed-turn rollback in ``_update_from_output``.
+        """
+        del self.messages[message_count_before:]
+
+    def _merge_artifacts(self, artifacts: list[Artifact]) -> None:
+        """Merge a turn's artifacts into the running view, replacing by name."""
+        for art in artifacts:
+            name = art.name
+            idx = next((i for i, x in enumerate(self.artifacts) if x.name == name), -1) if name else -1
+            if idx >= 0:
+                self.artifacts[idx] = art
+            else:
+                self.artifacts.append(art)
+
+    def _update_from_output(
+        self,
+        *,
+        raw: AgentOutput,
+        message_count_before: int,
+        custom_before: Any,  # noqa: ANN401
+    ) -> None:
+        # message_count_before and custom_before are the history length and
+        # custom state from before this turn, so a turn that lands no reply
+        # can roll back the optimistic user message and any streamed custom
+        # patches (see send()).
+        if raw.snapshot_id is not None:
+            self._snapshot_id = raw.snapshot_id
+            # A failed/aborted row is inspectable, not a place the next
+            # send() can resume from. Keep the last completed id.
+            # Everything else was asked — including a blocked refusal —
+            # so the prompt stays and send continues from that snapshot.
+            if raw.finish_reason not in _NO_REPLY:
+                self._resume_snapshot_id = raw.snapshot_id
+
+        if raw.finish_reason in _NO_REPLY:
+            # No reply landed this turn, so drop the optimistic user message
+            # rather than strand it unanswered; the next turn resumes from before
+            # it. The durable snapshot still holds the truth. Its custom state
+            # is the pre-turn one too; a client-managed output that carries
+            # state overwrites this below.
+            self._rollback_optimistic(message_count_before)
+            self._custom = custom_before
+        else:
+            self._append_turn_messages(raw)
+
+        self._sync_nonmessage_state(raw)
+
+    def _append_turn_messages(self, raw: AgentOutput) -> None:
+        """Extend the running view with this turn's messages.
+
+        Intermediate tool-request/tool-response steps only exist on the chunk
+        stream, so they're always taken from the accumulator. The final reply is
+        taken from the turn's output when present — it's the copy that carries the
+        interrupt and output-format metadata a resume depends on, which the model
+        chunks don't.
+        """
+        streamed = self._turn_accumulator.messages() if self._turn_accumulator is not None else []
+
+        # No output reply this turn (e.g. a long-lived socket that only resolves
+        # at close): the streamed model group is the reply, so keep it whole.
+        if raw.message is None:
+            self.messages.extend(streamed)
+            return
+
+        # Prefer the output's reply over the streamed copy of it, so drop that
+        # trailing streamed model group before appending the authoritative one.
+        if streamed and streamed[-1].role == Role.MODEL:
+            streamed = streamed[:-1]
+        self.messages.extend(streamed)
+        self.messages.append(raw.message)
+
+    def _sync_nonmessage_state(self, raw: AgentOutput) -> None:
+        """Refresh the non-message state a turn carries back.
+
+        This is the one place the two modes diverge, and they have to: a
+        client-managed session round-trips the whole blob, so the output is
+        authoritative for the session id, custom state, and artifacts (the
+        last-good values on a failed turn). A server-managed session never puts
+        full state on the wire — custom stays live from streamed patches, and we
+        only fold in whatever session id / artifacts the output reports.
+        """
+        if raw.state is not None:
+            # Client-managed: the whole session round-trips, so the output is
+            # authoritative for session id, custom state, and artifacts. Keep the
+            # id so the next turn's state blob stays self-describing.
+            self._session_id = raw.state.session_id
+            self._custom = copy.deepcopy(raw.state.custom)
+            self._artifacts = [a.model_copy(deep=True) for a in raw.state.artifacts] if raw.state.artifacts else []
+            return
+
+        # Server-managed: the store assigns and owns the session id, so adopt it
+        # (and any artifacts) from the output.
+        if raw.session_id is not None:
+            self._session_id = raw.session_id
+        if raw.artifacts:
+            self._merge_artifacts(raw.artifacts)
+
+
+# Settled statuses for client poll/wait loops. Includes ``expired`` because
+# resolve/get overlays a stale pending heartbeat as expired even though stores
+# never persist that status.
+TERMINAL_SNAPSHOT_STATUSES = frozenset({
+    SnapshotStatus.COMPLETED,
+    SnapshotStatus.FAILED,
+    SnapshotStatus.ABORTED,
+    SnapshotStatus.EXPIRED,
+})
+
+
+class DetachedTask(Generic[StateT]):
+    """A handle to a background (detached) turn running on the server."""
+
+    def __init__(
+        self,
+        *,
+        snapshot_id: str,
+        transport: AgentTransport[StateT],
+        state_schema: type[StateT] | None = None,
+    ) -> None:
+        self.snapshot_id = snapshot_id
+        self._transport = transport
+        self._state_schema = state_schema
+
+    def _parse_snapshot(self, raw: SessionSnapshotVeneer | None) -> SessionSnapshot[StateT] | None:
+        if raw is None:
+            return None
+        snap = SessionSnapshot[StateT].model_validate_json(raw.model_dump_json(by_alias=True))
+        if snap.state is not None and snap.state.custom is not None and self._state_schema is not None:
+            try:
+                snap.state.custom = self._state_schema.model_validate(snap.state.custom)
+            except Exception:
+                if snap.status is not None and snap.status in TERMINAL_SNAPSHOT_STATUSES:
+                    raise
+        return snap
+
+    async def poll(self, interval: float = 1.0) -> AsyncIterator[SessionSnapshot[StateT]]:
+        """Yields the task's snapshot every ``interval`` seconds until it settles.
+
+        Re-reads the server snapshot on a fixed cadence and stops once it reaches
+        a terminal status (completed, failed, aborted, or expired), so a caller
+        can drive a live status UI with a plain ``async for``. For just the final
+        result, await ``wait`` instead.
+        """
+        while True:
+            raw = await self._transport.get_snapshot(snapshot_id=self.snapshot_id)
+            snap = self._parse_snapshot(raw)
+            if snap is not None:
+                yield snap
+                if snap.status is not None and snap.status in TERMINAL_SNAPSHOT_STATUSES:
+                    return
+            await asyncio.sleep(interval)
+
+    async def wait(self, interval: float = 1.0) -> SessionSnapshot[StateT]:
+        """Polls until the task settles and returns its final snapshot."""
+        last: SessionSnapshot[StateT] | None = None
+        async for snapshot in self.poll(interval):
+            last = snapshot
+        if last is None:
+            raise ValueError(f'Detached task {self.snapshot_id} produced no snapshot.')
+        return last
+
+    async def abort(self) -> SnapshotStatus | None:
+        """Aborts the detached task on the server.
+
+        The return is the snapshot's status from *before* this call, not after.
+        ``pending`` means this call cancelled a still-running turn (the row is
+        now ``aborted``). A terminal status means the turn had already
+        finished. ``None`` means nothing was observed.
+
+        This does not edit the originating chat's transcript. The prompt was
+        still asked; reload via ``chat(session_id=...)`` before the next send
+        so you are not still pointed at the aborted leaf.
+        """
+        return await self._transport.abort_snapshot(self.snapshot_id)
+
+
+# ===========================================================================
+# Internal Helper Functions
+# ===========================================================================
+
+
+def text_of(content: Sequence[Part] | None) -> str:
+    """All text parts concatenated."""
+    return ''.join(p.text for p in content or [] if p.text)
+
+
+def reasoning_of(content: Sequence[Part] | None) -> str:
+    """All reasoning parts concatenated."""
+    return ''.join(p.reasoning for p in content or [] if p.reasoning)
+
+
+def first_media_of(content: Sequence[Part] | None) -> Media | None:
+    """The first media part, if any."""
+    for p in content or []:
+        if p.media is not None:
+            return p.media
+    return None
+
+
+def first_data_of(content: Sequence[Part] | None) -> Any:  # noqa: ANN401
+    """The first structured-data part value, if any."""
+    for p in content or []:
+        if p.data is not None:
+            return p.data
+    return None
+
+
+def tool_requests_of(content: Sequence[Part] | None) -> list[Part]:
+    """All tool-request parts."""
+    return [p for p in content or [] if p.tool_request is not None]

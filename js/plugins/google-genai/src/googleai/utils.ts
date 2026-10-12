@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { GenerateRequest, GenkitError, z } from 'genkit';
+import { GenerateRequest, GenkitError, z, type ActionContext } from 'genkit';
 import process from 'process';
 import { extractMedia } from '../common/utils.js';
 import { ClientOptions, ImagenInstance, VeoImage, VeoVideo } from './types.js';
@@ -224,4 +224,90 @@ export function removeClientOptionOverrides<
   delete newConfig?.customHeaders;
 
   return newConfig;
+}
+
+/**
+ * Applies connection-related overrides carried in the action run context
+ * (e.g. `options.context` on `start`/`check`/`cancel` for background models)
+ * on top of the given client options. This is the mechanism by which callers
+ * can supply per-call overrides for calls (like
+ * `checkOperation`/`cancelOperation`) that don't have access to the original
+ * request's `config`.
+ *
+ * The API key is read from `context.secrets.apiKey` (scrubbed from traces).
+ * All other overrides (e.g. `baseUrl`, `apiVersion`) are read from
+ * `context.config`, which is where `checkOperation`/`cancelOperation` fold
+ * their top-level `config` option. This lets callers write
+ * `ai.checkOperation(op, { config: { baseUrl } })`.
+ *
+ * All context-derived values take precedence over whatever is already in
+ * `clientOptions`.
+ *
+ * @param clientOptions The base client options to apply overrides on top of.
+ * @param context The action run context (`options.context`), if any.
+ */
+export function applyContextOverrides(
+  clientOptions: ClientOptions,
+  context?: ActionContext
+): ClientOptions {
+  if (!context) {
+    return clientOptions;
+  }
+
+  let newOptions = { ...clientOptions };
+
+  if (typeof context.secrets?.apiKey === 'string') {
+    newOptions.apiKey = context.secrets.apiKey;
+  }
+
+  // All non-secret overrides (e.g. baseUrl, apiVersion) are carried in
+  // `context.config` (from checkOperation/cancelOperation's top-level
+  // `config`).
+  return calculateRequestOptions(newOptions, context.config);
+}
+
+/**
+ * Converts a string in camelCase to lowercase snake_case.
+ */
+export function camelToSnakeCase(str: string): string {
+  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+export function convertObjectKeysToSnakeCase(obj: Array<unknown>): unknown[];
+export function convertObjectKeysToSnakeCase(
+  obj: Record<string, unknown>
+): Record<string, unknown>;
+export function convertObjectKeysToSnakeCase(obj: unknown): unknown;
+
+export function convertObjectKeysToSnakeCase(obj: unknown): unknown {
+  if (typeof obj !== 'object' || obj === null) {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => convertObjectKeysToSnakeCase(item));
+  }
+
+  const newObj: Record<string, unknown> = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const snakeCaseKey = camelToSnakeCase(key);
+      newObj[snakeCaseKey] = convertObjectKeysToSnakeCase(obj[key]);
+    }
+  }
+  return newObj;
+}
+
+export function isObject(val: unknown): val is Record<string, unknown> {
+  return typeof val === 'object' && val !== null && !Array.isArray(val);
+}
+
+/** Reports whether every element of an array is a string. */
+export function isStringArray(values: unknown[]): values is string[] {
+  return values.every((v) => typeof v === 'string');
+}
+
+export function toSnakeCaseObj(val: unknown): Record<string, unknown> {
+  const snakeVal = convertObjectKeysToSnakeCase(val);
+  return isObject(snakeVal) ? snakeVal : {};
 }

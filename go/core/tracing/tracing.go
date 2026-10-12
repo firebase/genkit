@@ -20,11 +20,14 @@ package tracing
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/base"
 	"go.opentelemetry.io/otel"
@@ -116,7 +119,12 @@ func TracerProvider() *sdktrace.TracerProvider {
 	providerInitOnce.Do(func() {
 		otel.SetTracerProvider(sdktrace.NewTracerProvider())
 		if telemetryURL := os.Getenv("GENKIT_TELEMETRY_SERVER"); telemetryURL != "" {
-			WriteTelemetryImmediate(NewHTTPTelemetryClient(telemetryURL))
+			client := NewHTTPTelemetryClient(telemetryURL)
+			if realtimeTelemetryEnabled() {
+				WriteTelemetryRealtime(client)
+			} else {
+				WriteTelemetryImmediate(client)
+			}
 		}
 	})
 
@@ -150,6 +158,30 @@ func WriteTelemetryBatch(client TelemetryClient) (shutdown func(context.Context)
 	return TracerProvider().Shutdown
 }
 
+// WriteTelemetryRealtime adds a telemetry server to the global tracer provider
+// that writes each span both when it starts and when it ends, so a still-running
+// trace appears in the dev UI immediately rather than only once its root span
+// closes. This matters for agents, whose root span stays open for the lifetime
+// of a bidirectional connection. Use this for a fast Save method (such as one
+// that writes to a file or a local server); for an end-only export use
+// [WriteTelemetryImmediate].
+func WriteTelemetryRealtime(client TelemetryClient) {
+	TracerProvider().RegisterSpanProcessor(newRealtimeSpanProcessor(client))
+}
+
+// realtimeTelemetryActive records whether the dev CLI asked runtimes to export
+// live traces, read once at startup. `genkit start` sets
+// GENKIT_ENABLE_REALTIME_TELEMETRY (unless run with --disable-realtime-telemetry);
+// the JS runtime keys its RealtimeSpanProcessor off the same variable. It is
+// read on every span (see RunInNewSpan), so it is cached here rather than read
+// from the environment each time.
+var realtimeTelemetryActive = os.Getenv("GENKIT_ENABLE_REALTIME_TELEMETRY") == "true"
+
+// realtimeTelemetryEnabled reports whether live-trace export is active.
+func realtimeTelemetryEnabled() bool {
+	return realtimeTelemetryActive
+}
+
 const (
 	attrPrefix   = "genkit"
 	spanTypeAttr = attrPrefix + ":type"
@@ -169,6 +201,11 @@ type SpanMetadata struct {
 	TelemetryLabels map[string]string
 	// Metadata are genkit-specific metadata with automatic "genkit:metadata:" prefix
 	Metadata map[string]string
+	// Init is the initialization data supplied to the action, recorded as the
+	// "genkit:init" span attribute when non-nil. It is kept separate from the
+	// span input so tooling can distinguish per-call input from session
+	// initialization data.
+	Init any
 }
 
 // RunInNewSpan runs f on input in a new span with the provided metadata.
@@ -182,10 +219,6 @@ func RunInNewSpan[I, O any](
 	f func(context.Context, I) (O, error),
 ) (O, error) {
 	// TODO: support span links.
-	log := logger.FromContext(ctx)
-	log.Debug("span start", "name", metadata.Name)
-	defer log.Debug("span end", "name", metadata.Name)
-
 	if metadata == nil {
 		metadata = &SpanMetadata{}
 	}
@@ -200,6 +233,7 @@ func RunInNewSpan[I, O any](
 	sm := &spanMetadata{
 		Name:     metadata.Name,
 		Input:    input,
+		Init:     metadata.Init,
 		IsRoot:   isRoot,
 		Type:     metadata.Type,
 		Subtype:  metadata.Subtype,
@@ -211,11 +245,11 @@ func RunInNewSpan[I, O any](
 		parentPath = parentSM.Path
 	}
 
-	// Build path with type annotations to maintain compatibility with TypeScript telemetry format
+	// Build path with type annotations to maintain compatibility with the
+	// TypeScript telemetry format: a flow is annotated by its subtype, every
+	// other span by its type, then its subtype when it has one.
 	if metadata.Subtype == "flow" {
 		sm.Path = buildAnnotatedPath(metadata.Name, parentPath, "flow")
-	} else if metadata.Subtype == "util" {
-		sm.Path = buildAnnotatedPath(metadata.Name, parentPath, "util")
 	} else {
 		sm.Path = buildAnnotatedPath(metadata.Name, parentPath, metadata.Type)
 		if metadata.Subtype != "" {
@@ -232,8 +266,18 @@ func RunInNewSpan[I, O any](
 		opts = append(opts, trace.WithAttributes(attrs...))
 	}
 
-	if metadata.Type != "" {
-		opts = append(opts, trace.WithAttributes(attribute.String(spanTypeAttr, metadata.Type)))
+	// Seed the start-known genkit attributes (including genkit:type) as span-start
+	// options so a live-trace export taken the moment the span starts already
+	// carries its name, path, type, and subtype. The deferred end write below
+	// reasserts these and adds the run-determined output/state.
+	opts = append(opts, trace.WithAttributes(sm.startAttributes()...))
+	// Input and init are known now too, but JSON-marshaled, so seed them at start
+	// only when a live exporter will read them; otherwise the end write records
+	// them once. Without this an in-flight span (notably an agent's long-lived
+	// root span, whose call data lives entirely in genkit:init) shows no input
+	// until it finishes.
+	if realtimeTelemetryEnabled() {
+		opts = append(opts, trace.WithAttributes(sm.inputAttributes()...))
 	}
 
 	ctx, span := Tracer().Start(ctx, metadata.Name, opts...)
@@ -250,6 +294,36 @@ func RunInNewSpan[I, O any](
 	defer span.End()
 	defer func() { span.SetAttributes(sm.attributes()...) }()
 	ctx = spanMetaKey.NewContext(ctx, sm)
+
+	// These logs run under the new span's context, so they land on this span
+	// in the Dev UI. The deferred one is registered after the span.End defer,
+	// so it fires first, while the span is still recording. This is the
+	// hottest path in the framework, so the log arguments are only built when
+	// some handler accepts debug records (the console at GENKIT_LOG_LEVEL=
+	// debug, or the Dev UI export sink).
+	start := time.Now()
+	logDebug := logger.FromContext(ctx).Enabled(ctx, slog.LevelDebug)
+	if logDebug {
+		startArgs := []any{"name", metadata.Name}
+		if metadata.Type != "" {
+			startArgs = append(startArgs, "type", metadata.Type)
+		}
+		if metadata.Subtype != "" {
+			startArgs = append(startArgs, "subtype", metadata.Subtype)
+		}
+		logger.Debug(ctx, "span started", startArgs...)
+	}
+	defer func() {
+		if !logDebug {
+			return
+		}
+		endArgs := []any{"name", metadata.Name, "state", string(sm.State), "duration", time.Since(start).Round(time.Millisecond)}
+		if sm.Error != "" {
+			endArgs = append(endArgs, "error", sm.Error)
+		}
+		logger.Debug(ctx, "span finished", endArgs...)
+	}()
+
 	output, err := f(ctx, input)
 
 	if err != nil {
@@ -259,6 +333,14 @@ func RunInNewSpan[I, O any](
 		if !isErrorAlreadyMarked(err) {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
+		}
+		// A failure can still carry a result: the generate loop returns the
+		// conversation it completed alongside its error. Record it so the
+		// span shows what the call produced and not only that it stopped.
+		// Guarded, because a function that returns nothing on error would
+		// otherwise stamp a null output on every failing span.
+		if !base.IsNil(output) {
+			sm.Output = output
 		}
 	} else {
 		sm.State = spanStateSuccess
@@ -329,6 +411,7 @@ type spanMetadata struct {
 	IsRoot          bool
 	IsFailureSource bool // whether this span is the source of a failure
 	Input           any
+	Init            any // initialization data for the action, if any
 	Output          any
 	Error           string            // error message if State is spanStateError
 	Path            string            // annotated path with type information
@@ -337,18 +420,96 @@ type spanMetadata struct {
 	Metadata        map[string]string // additional custom metadata
 }
 
+// ioAttrJSON returns the JSON encoding of v for the genkit:input, genkit:init,
+// and genkit:output span attributes. Outside the dev environment it redacts the
+// payload of inline base64 media: a span holds its attributes until export, so
+// each media part would otherwise keep a second copy of its bytes in memory and
+// ship it to the trace backend. The Dev UI renders media from these attributes,
+// so dev keeps the bytes.
+func ioAttrJSON(v any) string {
+	s := base.JSONString(v)
+	if api.CurrentEnvironment() == api.EnvironmentDev {
+		return s
+	}
+	return redactInlineMedia(s)
+}
+
+// redactInlineMedia replaces the payload of each JSON string in s that is a
+// base64 data URL with "[redacted]". The data URL header stays, so the trace
+// still shows the media type. Remote URLs and data URLs inside longer text are
+// left alone. s must be valid JSON. If nothing is redacted, s is returned as is.
+func redactInlineMedia(s string) string {
+	var b strings.Builder
+	copied := 0 // s[copied:] is not yet written to b
+	for i := 0; i < len(s); i++ {
+		if s[i] != '"' {
+			continue
+		}
+		// Outside a string, a quote in valid JSON always opens one.
+		end := closingQuote(s, i+1)
+		if n := base64DataURLHeaderLen(s[i+1 : end]); n > 0 {
+			b.WriteString(s[copied : i+1+n])
+			b.WriteString("[redacted]")
+			copied = end
+		}
+		i = end
+	}
+	if copied == 0 {
+		return s
+	}
+	b.WriteString(s[copied:])
+	return b.String()
+}
+
+// closingQuote returns the index of the quote that ends the JSON string whose
+// contents start at s[start]. A quote preceded by an odd number of backslashes
+// is escaped and does not end the string.
+func closingQuote(s string, start int) int {
+	for i := start; ; i++ {
+		i += strings.IndexByte(s[i:], '"')
+		escapes := 0
+		for j := i - 1; j >= start && s[j] == '\\'; j-- {
+			escapes++
+		}
+		if escapes%2 == 0 {
+			return i
+		}
+	}
+}
+
+// base64DataURLHeaderLen returns the length of the "data:...;base64," header
+// if str is a base64 data URL, or 0 otherwise. Matching is case-insensitive
+// (RFC 2397), and a header with a space is treated as prose, not a URL.
+func base64DataURLHeaderLen(str string) int {
+	const scheme, encoding = "data:", ";base64"
+	if len(str) < len(scheme) || !strings.EqualFold(str[:len(scheme)], scheme) {
+		return 0
+	}
+	header, _, ok := strings.Cut(str, ",")
+	if !ok || len(header) < len(scheme)+len(encoding) ||
+		!strings.EqualFold(header[len(header)-len(encoding):], encoding) ||
+		strings.Contains(header, " ") {
+		return 0
+	}
+	return len(header) + 1
+}
+
 // attributes returns some information about the spanMetadata
 // as a slice of OpenTelemetry attributes.
 func (sm *spanMetadata) attributes() []attribute.KeyValue {
 	kvs := []attribute.KeyValue{
 		attribute.String("genkit:name", sm.Name),
 		attribute.String("genkit:state", string(sm.State)),
-		attribute.String("genkit:input", base.JSONString(sm.Input)),
+		attribute.String("genkit:input", ioAttrJSON(sm.Input)),
 		attribute.String("genkit:path", sm.Path),
 	}
 
+	if sm.Init != nil {
+		kvs = append(kvs, attribute.String("genkit:init", ioAttrJSON(sm.Init)))
+	}
+
 	if sm.Output != nil {
-		kvs = append(kvs, attribute.String("genkit:output", base.JSONString(sm.Output)))
+		kvs = append(kvs, attribute.String("genkit:output", ioAttrJSON(sm.Output)))
 	}
 
 	if sm.Type != "" {
@@ -376,16 +537,78 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 	return kvs
 }
 
+// startAttributes returns the cheap subset of [spanMetadata.attributes] that is
+// already known when the span begins: its identity and shape (name, path, type,
+// subtype, root flag, and custom metadata). RunInNewSpan always sets these as
+// span-start options so a live-trace exporter, which captures the span the
+// instant it starts (before the deferred end write), still sees a span that
+// renders with its proper type and place in the tree rather than just
+// "genkit:type". State and output are excluded because they are not determined
+// until the span finishes; input and init are excluded here because they are
+// JSON-marshaled (see inputAttributes). These keys and values match attributes()
+// exactly, so the end write simply reasserts them.
+func (sm *spanMetadata) startAttributes() []attribute.KeyValue {
+	kvs := []attribute.KeyValue{
+		attribute.String("genkit:name", sm.Name),
+		attribute.String("genkit:path", sm.Path),
+	}
+	if sm.Type != "" {
+		kvs = append(kvs, attribute.String(spanTypeAttr, sm.Type))
+	}
+	if sm.Subtype != "" {
+		kvs = append(kvs, attribute.String("genkit:metadata:subtype", sm.Subtype))
+	}
+	if sm.IsRoot {
+		kvs = append(kvs, attribute.Bool("genkit:isRoot", sm.IsRoot))
+	}
+	for k, v := range sm.Metadata {
+		kvs = append(kvs, attribute.String(attrPrefix+":metadata:"+k, v))
+	}
+	return kvs
+}
+
+// inputAttributes returns the JSON-marshaled input and init attributes. Both are
+// known when the span begins, but RunInNewSpan only seeds them as span-start
+// options when live-trace export is active: marshaling them is not free, and off
+// the live path the deferred end write is the single place they are recorded.
+// Seeding them at start lets an in-flight span show what it was invoked with,
+// which for a bidi/agent root span (whose input is nil and whose init carries
+// the session) is the only call data it has until it ends. The keys and values
+// match attributes() so the end write reasserts them.
+func (sm *spanMetadata) inputAttributes() []attribute.KeyValue {
+	kvs := []attribute.KeyValue{
+		attribute.String("genkit:input", ioAttrJSON(sm.Input)),
+	}
+	if sm.Init != nil {
+		kvs = append(kvs, attribute.String("genkit:init", ioAttrJSON(sm.Init)))
+	}
+	return kvs
+}
+
 // spanMetaKey is for storing spanMetadatas in a context.
 var spanMetaKey = base.NewContextKey[*spanMetadata]()
 
 // telemetryCbKey is the context key for telemetry callbacks.
 var telemetryCbKey = base.NewContextKey[func(traceID, spanID string)]()
 
+// telemetryLabelsKey is the context key for telemetry labels.
+var telemetryLabelsKey = base.NewContextKey[map[string]string]()
+
 // WithTelemetryCallback returns a context with the telemetry callback attached.
 // Used by the reflection server to pass callbacks to actions.
 func WithTelemetryCallback(ctx context.Context, cb func(traceID, spanID string)) context.Context {
 	return telemetryCbKey.NewContext(ctx, cb)
+}
+
+// WithTelemetryLabels returns a context with the telemetry labels attached.
+// Used by the reflection server to pass labels to actions.
+func WithTelemetryLabels(ctx context.Context, labels map[string]string) context.Context {
+	return telemetryLabelsKey.NewContext(ctx, labels)
+}
+
+// TelemetryLabelsFromContext retrieves the telemetry labels from context, or nil if not set.
+func TelemetryLabelsFromContext(ctx context.Context) map[string]string {
+	return telemetryLabelsKey.FromContext(ctx)
 }
 
 // telemetryCallback retrieves the telemetry callback from context, or nil if not set.

@@ -2,6 +2,16 @@
 
 See [official documentation](https://genkit.dev/docs/frameworks/nextjs/) for more.
 
+> **Building with a coding agent? Install the Genkit JS skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-js
+> ```
+>
+> It teaches your agent the current Genkit JS APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
+
 This plugin provides utilities for conveninetly exposing Genkit flows and actions via Next.js app routs for REST APIs.
 
 ```ts
@@ -10,7 +20,7 @@ const simpleFlow = ai.defineFlow(
   'simpleFlow',
   async (input, streamingCallback) => {
     const { text } = await ai.generate({
-      model: googleAI.model('gemini-2.5-flash'),
+      model: googleAI.model('gemini-flash-latest'),
       prompt: input,
       streamingCallback: (chunk) => streamingCallback(chunk.text),
     });
@@ -97,6 +107,31 @@ for await (const chunk of stream) {
 }
 console.log(await output); // output is a promise, must be awaited
 ```
+
+### Initialization Data
+
+If your flow or action accepts initialization data (defined via `initSchema`), you can pass it using the `init` option in the client:
+
+```ts
+const result = await runFlow<typeof myFlow>({
+  url: '/api/myFlow',
+  input: 'say hello',
+  init: { sessionId: 'abc123', config: { temperature: 0.7 } },
+});
+
+// Also works with streaming
+const { stream, output } = streamFlow<typeof myFlow>({
+  url: '/api/myFlow',
+  input: 'say hello',
+  init: { sessionId: 'abc123' },
+});
+for await (const chunk of stream) {
+  console.log(chunk.output);
+}
+console.log(await output);
+```
+
+The `init` data is sent in the request body alongside `data` and is validated against the action's `initSchema` on the server side. If the `init` data does not conform to the `initSchema`, the request fails with a `400 INVALID_ARGUMENT` error before the flow runs.
 
 The sources for this package are in the main [Genkit](https://github.com/genkit-ai/genkit) repo. Please file issues and pull requests against that repo.
 

@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/sdk/instrumentation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	otrace "go.opentelemetry.io/otel/trace"
@@ -99,7 +100,6 @@ func convertSpan(span sdktrace.ReadOnlySpan) *SpanData {
 		SpanID:                  sc.SpanID().String(),
 		TraceID:                 sc.TraceID().String(),
 		StartTime:               ToMilliseconds(span.StartTime()),
-		EndTime:                 ToMilliseconds(span.EndTime()),
 		Attributes:              attributesToMap(span.Attributes()),
 		DisplayName:             span.Name(),
 		Links:                   convertLinks(span.Links()),
@@ -107,6 +107,15 @@ func convertSpan(span sdktrace.ReadOnlySpan) *SpanData {
 		SpanKind:                strings.ToUpper(span.SpanKind().String()),
 		SameProcessAsParentSpan: BoolValue{!sc.IsRemote()},
 		Status:                  convertStatus(span.Status()),
+	}
+	// A span exported as it starts (live traces) has not ended yet. OpenTelemetry
+	// reports a zero end time for it, which ToMilliseconds would turn into a
+	// garbage (overflowed) value; leave EndTime at 0 instead. The telemetry
+	// server treats a falsy endTime as "in progress": it renders no duration and
+	// its span-merge keeps the completed span once the real end arrives, even if
+	// the start event is delivered out of order.
+	if et := span.EndTime(); !et.IsZero() {
+		sd.EndTime = ToMilliseconds(et)
 	}
 	if p := span.Parent(); p.HasSpanID() {
 		sd.ParentSpanID = p.SpanID().String()
@@ -170,9 +179,19 @@ func convertEvents(evs []sdktrace.Event) []TimeEvent {
 	return tes
 }
 
+// convertStatus converts an OpenTelemetry Status to a Status. The Go SDK's
+// [codes.Code] values are internal to the SDK (Error = 1, Ok = 2), so they are
+// translated to the OTLP values that the telemetry server expects.
 func convertStatus(s sdktrace.Status) Status {
+	var code uint32 // STATUS_CODE_UNSET
+	switch s.Code {
+	case codes.Ok:
+		code = 1 // STATUS_CODE_OK
+	case codes.Error:
+		code = 2 // STATUS_CODE_ERROR
+	}
 	return Status{
-		Code:        uint32(s.Code),
+		Code:        code,
 		Description: s.Description,
 	}
 }

@@ -50,7 +50,7 @@ import (
 
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/firebase"
-	firebasex "github.com/firebase/genkit/go/plugins/firebase/x"
+	firebasex "github.com/firebase/genkit/go/plugins/firebase/exp"
 	"github.com/firebase/genkit/go/plugins/server"
 )
 
@@ -105,5 +105,7 @@ func main() {
 	// Completed streams are kept for 10 minutes before cleanup.
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /countdown", genkit.Handler(countdown, genkit.WithStreamManager(sm)))
-	log.Fatal(server.Start(ctx, "127.0.0.1:8088", mux))
+	if err := server.Start(ctx, "127.0.0.1:8088", mux); err != nil {
+		log.Fatal(err)
+	}
 }

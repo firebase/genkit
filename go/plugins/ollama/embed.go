@@ -27,6 +27,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/internal"
 )
 
 type EmbedOptions struct {
@@ -43,7 +44,7 @@ type ollamaEmbedResponse struct {
 	Embeddings [][]float32 `json:"embeddings"`
 }
 
-func embed(ctx context.Context, serverAddress string, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+func embed(ctx context.Context, client *http.Client, serverAddress string, headers http.Header, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 	options, ok := req.Options.(*EmbedOptions)
 	if !ok && req.Options != nil {
 		return nil, fmt.Errorf("invalid options type: expected *EmbedOptions")
@@ -63,7 +64,12 @@ func embed(ctx context.Context, serverAddress string, req *ai.EmbedRequest) (*ai
 		return nil, fmt.Errorf("failed to marshal embed request: %w", err)
 	}
 
-	resp, err := sendEmbedRequest(ctx, serverAddress, jsonData)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", serverAddress+"/api/embed", bytes.NewReader(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	resp, err := send(client, httpReq, headers)
 	if err != nil {
 		return nil, err
 	}
@@ -79,16 +85,6 @@ func embed(ctx context.Context, serverAddress string, req *ai.EmbedRequest) (*ai
 	}
 
 	return newEmbedResponse(ollamaResp.Embeddings), nil
-}
-
-func sendEmbedRequest(ctx context.Context, serverAddress string, jsonData []byte) (*http.Response, error) {
-	client := &http.Client{}
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", serverAddress+"/api/embed", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	return client.Do(httpReq)
 }
 
 func newOllamaEmbedRequest(model string, documents []*ai.Document) ollamaEmbedRequest {
@@ -128,32 +124,71 @@ func concatenateText(doc *ai.Document) string {
 	return result
 }
 
-// DefineEmbedder defines an embedder with a given server address.
-func (o *Ollama) DefineEmbedder(g *genkit.Genkit, serverAddress string, model string, embedOpts *ai.EmbedderOptions) ai.Embedder {
+// DefineEmbedder defines an embedder with a given model.
+func (o *Ollama) DefineEmbedder(g *genkit.Genkit, model string, dimensions int, embedOpts *ai.EmbedderOptions) ai.Embedder {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if !o.initted {
 		panic("ollama.Init not called")
 	}
-	return genkit.DefineEmbedder(g, api.NewName(provider, serverAddress), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+
+	if dimensions <= 0 {
+		panic("ollama.DefineEmbedder: dimensions must be greater than 0")
+	}
+
+	meta := &ai.EmbedderOptions{}
+
+	if embedOpts != nil {
+		*meta = *embedOpts
+	}
+
+	if embedOpts != nil && embedOpts.Supports != nil {
+		supports := *embedOpts.Supports
+		meta.Supports = &supports
+	}
+
+	if meta.Label == "" {
+		meta.Label = internal.ProviderLabel("Ollama Embedding", model)
+	}
+	if meta.Supports == nil {
+		meta.Supports = &ai.EmbedderSupports{}
+	}
+	if len(meta.Supports.Input) == 0 {
+		meta.Supports.Input = []string{"text"}
+	}
+
+	meta.Dimensions = dimensions
+
+	return genkit.DefineEmbedder(g, api.NewName(provider, model), meta, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+		normalizedReq := *req
+
 		if req.Options == nil {
-			req.Options = &EmbedOptions{Model: model}
+			normalizedReq.Options = &EmbedOptions{Model: model}
 		} else if opts, ok := req.Options.(*EmbedOptions); ok {
-			if opts.Model == "" {
-				opts.Model = model
+			if opts == nil {
+				normalizedReq.Options = &EmbedOptions{Model: model}
+			} else {
+				normalisedOpts := *opts
+				if normalisedOpts.Model == "" {
+					normalisedOpts.Model = model
+				} else if normalisedOpts.Model != model {
+					return nil, fmt.Errorf("invalid embedding model: embedder bound to model %q, got %q", model, opts.Model)
+				}
+				normalizedReq.Options = &normalisedOpts
 			}
 		}
-		return embed(ctx, serverAddress, req)
+
+		return embed(ctx, o.client, o.ServerAddress, o.headers, &normalizedReq)
 	})
 }
 
-// IsDefinedEmbedder reports whether the embedder with the given server address is defined by this plugin.
-func IsDefinedEmbedder(g *genkit.Genkit, serverAddress string) bool {
-	return genkit.LookupEmbedder(g, api.NewName(provider, serverAddress)) != nil
+// IsDefinedEmbedder reports whether the embedder with the given model is defined by this plugin.
+func IsDefinedEmbedder(g *genkit.Genkit, model string) bool {
+	return genkit.LookupEmbedder(g, api.NewName(provider, model)) != nil
 }
 
-// Embedder returns the [ai.Embedder] with the given server address.
+// Embedder returns the [ai.Embedder] with the given model.
 // It returns nil if the embedder was not defined.
-func Embedder(g *genkit.Genkit, serverAddress string) ai.Embedder {
-	return genkit.LookupEmbedder(g, api.NewName(provider, serverAddress))
+func Embedder(g *genkit.Genkit, model string) ai.Embedder {
+	return genkit.LookupEmbedder(g, api.NewName(provider, model))
 }

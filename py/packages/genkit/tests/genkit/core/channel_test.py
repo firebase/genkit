@@ -23,7 +23,7 @@ from typing import Any, TypeVar
 
 import pytest
 
-from genkit._core._channel import Channel
+from genkit._core._channel import Channel, CloseableQueue, QueueShutDown
 
 T = TypeVar('T')
 
@@ -95,66 +95,15 @@ async def test_channel_aiter_anext() -> None:
 
 
 @pytest.mark.asyncio
-async def test_channel_invalid_timeout() -> None:
-    """Tests that an invalid timeout value raises ValueError."""
-    with pytest.raises(ValueError):
-        Channel(timeout=-0.1)
-
-
-@pytest.mark.asyncio
-async def test_channel_timeout() -> None:
-    """Tests that the channel raises TimeoutError when timeout is reached."""
-    channel: Channel[Any] = Channel(timeout=0.1)
-    with pytest.raises(TimeoutError):
-        await channel.__anext__()
-
-
-@pytest.mark.asyncio
-async def test_channel_no_timeout() -> None:
-    """Tests that the channel doesn't timeout when timeout=None."""
-    channel: Channel[Any] = Channel(timeout=None)
+async def test_channel_waits_until_a_value_arrives() -> None:
+    """The next chunk wait does not raise on its own; a send unblocks it."""
+    channel: Channel[Any] = Channel()
     anext_task = asyncio.create_task(channel.__anext__())
     await asyncio.sleep(0.1)
     assert not anext_task.done()
     channel.send('value')
     result = await anext_task
     assert result == 'value'
-
-
-@pytest.mark.asyncio
-async def test_channel_timeout_with_close_future() -> None:
-    """Tests timeout with an active close_future."""
-    channel: Channel[Any] = Channel(timeout=0.1)
-    close_future: asyncio.Future[Any] = asyncio.Future()
-    channel.set_close_future(close_future)
-    with pytest.raises(TimeoutError):
-        await channel.__anext__()
-    close_future.set_result(None)
-    with pytest.raises(StopAsyncIteration):
-        await channel.__anext__()
-
-
-@pytest.mark.asyncio
-async def test_channel_invalid_timeout_negative() -> None:
-    """Tests that negative timeout values raise ValueError."""
-    with pytest.raises(ValueError) as excinfo:
-        Channel(timeout=-1.0)
-    assert 'Timeout must be non-negative' in str(excinfo.value)
-
-
-@pytest.mark.asyncio
-async def test_channel_timeout_race_condition() -> None:
-    """Tests the behavior when a value arrives just as the timeout occurs."""
-    channel: Channel[Any] = Channel(timeout=0.2)
-
-    async def delayed_send() -> None:
-        await asyncio.sleep(0.15)
-        channel.send('just in time')
-
-    send_task = asyncio.create_task(delayed_send())
-    result = await channel.__anext__()
-    assert result == 'just in time'
-    await send_task
 
 
 @pytest.mark.asyncio
@@ -174,6 +123,13 @@ async def test_channel_close_future_with_exception() -> None:
     # The channel.closed future should have the exception
     with pytest.raises(ValueError, match='Task failed!'):
         await channel.closed
+
+    # async for has to raise too — generate_stream iterate is this loop.
+    channel2: Channel[Any] = Channel()
+    channel2.set_close_future(asyncio.create_task(failing_task()))
+    with pytest.raises(ValueError, match='Task failed!'):
+        async for _item in channel2:
+            pass
 
 
 @pytest.mark.asyncio
@@ -213,3 +169,85 @@ async def test_channel_close_future_success_propagates_result() -> None:
     result = await channel.closed
 
     assert result == 'success_result'
+
+
+@pytest.mark.asyncio
+async def test_closeable_queue_close_wakes_blocked_getter() -> None:
+    """Tests that close() wakes a coroutine already blocked in get()."""
+    queue: CloseableQueue[int] = CloseableQueue()
+
+    get_task = asyncio.create_task(queue.get())
+    await asyncio.sleep(0)
+    assert not get_task.done()
+
+    queue.close()
+
+    with pytest.raises(QueueShutDown):
+        await get_task
+
+
+@pytest.mark.asyncio
+async def test_closeable_queue_drain_then_stop() -> None:
+    """Tests that buffered items drain in order before get() raises."""
+    queue: CloseableQueue[int] = CloseableQueue()
+    for value in (1, 2, 3):
+        queue.put_nowait(value)
+
+    queue.close()
+
+    assert await queue.get() == 1
+    assert await queue.get() == 2
+    assert await queue.get() == 3
+    with pytest.raises(QueueShutDown):
+        await queue.get()
+
+
+@pytest.mark.asyncio
+async def test_closeable_queue_put_after_close_raises() -> None:
+    """Tests that put()/put_nowait() after close() raise QueueShutDown."""
+    queue: CloseableQueue[int] = CloseableQueue()
+    queue.close()
+
+    with pytest.raises(QueueShutDown):
+        await queue.put(1)
+    with pytest.raises(QueueShutDown):
+        queue.put_nowait(1)
+
+
+@pytest.mark.asyncio
+async def test_closeable_queue_get_nowait_after_close() -> None:
+    """Tests get_nowait() on a closed queue: drains buffered items, then raises."""
+    queue: CloseableQueue[int] = CloseableQueue()
+    queue.put_nowait(42)
+    queue.close()
+
+    assert queue.get_nowait() == 42
+    with pytest.raises(QueueShutDown):
+        queue.get_nowait()
+
+
+@pytest.mark.asyncio
+async def test_closeable_queue_async_iteration() -> None:
+    """Tests that async for yields buffered items then terminates cleanly."""
+    queue: CloseableQueue[int] = CloseableQueue()
+    for value in (10, 20, 30):
+        queue.put_nowait(value)
+    queue.close()
+
+    received = [item async for item in queue]
+
+    assert received == [10, 20, 30]
+
+
+@pytest.mark.asyncio
+async def test_closeable_queue_close_is_idempotent() -> None:
+    """Tests that close() is idempotent and is_closed() reflects state."""
+    queue: CloseableQueue[int] = CloseableQueue()
+    assert not queue.is_closed()
+
+    queue.close()
+    assert queue.is_closed()
+
+    # a second close() is a no-op and must not raise.
+    queue.close()
+    assert queue.is_closed()

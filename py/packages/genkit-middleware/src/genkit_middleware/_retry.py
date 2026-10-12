@@ -1,0 +1,97 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+"""Retry middleware for Genkit model calls."""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+import math
+import random
+from collections.abc import Awaitable, Callable
+
+from pydantic import BaseModel, Field
+
+from genkit import GenkitError, ModelResponse
+from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, ModelHookParams
+from genkit_middleware._errors import caused_by_caller_callback
+from genkit_middleware._statuses import TRANSIENT_STATUSES
+
+_DEFAULT_RETRY_STATUSES: list[str] = list(TRANSIENT_STATUSES)
+
+
+async def sleep_unless_stopped(seconds: float, abort_signal: asyncio.Event) -> None:
+    with contextlib.suppress(asyncio.TimeoutError):
+        await asyncio.wait_for(abort_signal.wait(), seconds)
+
+
+class RetryConfig(BaseModel):
+    """Knobs for retry backoff and which error statuses are retried."""
+
+    max_retries: int = Field(default=3, ge=0)
+    statuses: list[str] = Field(default_factory=lambda: list(_DEFAULT_RETRY_STATUSES))
+    initial_delay_ms: int = 1000
+    max_delay_ms: int = 60000
+    backoff_factor: float = 2.0
+    no_jitter: bool = False
+
+
+class Retry(BaseMiddleware[RetryConfig]):
+    """Retry middleware with exponential backoff for transient failures."""
+
+    async def wrap_model(
+        self,
+        params: ModelHookParams,
+        ctx: GenerateMiddlewareContext,
+        next_fn: Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+    ) -> ModelResponse:
+        """Retry the model call up to max_retries times on transient failures."""
+        current_delay_ms = float(self.config.initial_delay_ms)
+
+        for attempt in range(self.config.max_retries + 1):
+            try:
+                return await next_fn(params, ctx)
+            except Exception as e:
+                if attempt == self.config.max_retries:
+                    raise
+
+                # The caller's own on_chunk failure is not retried. A
+                # GenkitError is retried only when its status is listed. Any
+                # other exception is retried.
+                if caused_by_caller_callback(e):
+                    raise
+                if isinstance(e, GenkitError) and e.status not in self.config.statuses:
+                    raise
+
+                delay_ms = current_delay_ms
+                if isinstance(e, GenkitError) and e.response_metadata is not None:
+                    retry_after_ms = e.response_metadata.get('retry_after_ms')
+                    if retry_after_ms is not None:
+                        delay_ms = max(delay_ms, retry_after_ms)
+
+                if not self.config.no_jitter:
+                    delay_ms += 1000.0 * math.pow(2, attempt) * random.random()
+                # The provider delay is a floor within max_delay_ms, never an override of it.
+                delay_ms = min(delay_ms, self.config.max_delay_ms)
+
+                await sleep_unless_stopped(delay_ms / 1000.0, ctx.abort_signal)
+                # Once the caller stops, every further attempt would be a model call nobody reads.
+                if ctx.abort_signal.is_set():
+                    raise
+                current_delay_ms = min(current_delay_ms * self.config.backoff_factor, self.config.max_delay_ms)
+
+        raise AssertionError('Retry loop exited without returning or raising')  # noqa: EM101

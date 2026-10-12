@@ -44,11 +44,16 @@ from unittest.mock import ANY, AsyncMock, MagicMock
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from pydantic import BaseModel, Field
 
+from genkit import ActionRunContext, Genkit, PublicError
 from genkit._core._action import ActionKind
+from genkit._core._middleware import BaseMiddleware
+from genkit._core._model import ModelConfig
 from genkit._core._reflection import create_reflection_asgi_app
 from genkit._core._registry import Registry
-from genkit._core._typing import ActionMetadata
+from genkit._core._typing import ActionMetadata, BaseDataPoint, EvaluatorRequest, EvaluatorResponse, Score
+from genkit.model import model_ref
 
 
 @pytest.fixture
@@ -159,7 +164,7 @@ async def test_run_action_standard(asgi_client: AsyncClient, mock_registry: Magi
 
     mock_registry.resolve_action_by_key = mock_resolve_action_by_key
 
-    response = await asgi_client.post('/api/runAction', json={'key': 'test_action', 'input': {'data': 'test'}})
+    response = await asgi_client.post('/api/runAction', json={'key': '/custom/test_action', 'input': {'data': 'test'}})
 
     assert response.status_code == 200
     response_data = response.json()
@@ -175,41 +180,57 @@ async def test_run_action_standard(asgi_client: AsyncClient, mock_registry: Magi
         on_trace_start=ANY,
         on_chunk=None,
         telemetry_labels=None,
+        init=None,
     )
 
 
 @pytest.mark.asyncio
-async def test_run_action_with_context(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
-    """Test that an action with context works correctly."""
-    mock_action = AsyncMock()
-    mock_output = MagicMock()
-    mock_output.response = {'result': 'success'}
-    mock_output.trace_id = 'test_trace_id'
-    mock_output.span_id = 'test_span_id'
-    mock_action.run.return_value = mock_output
+async def test_run_action_context_reaches_flow_and_subflow() -> None:
+    """runAction `context` reaches the flow, and a subflow called without `context=` sees the same dict."""
+    ai = Genkit()
+    caller = {'auth': {'uid': 'u_42', 'tier': 'gold'}, 'locale': 'en-US'}
 
-    async def mock_resolve_action_by_key(key: str) -> AsyncMock:
-        return mock_action
+    @ai.flow()
+    async def allergy_check(dish: str, ctx: ActionRunContext) -> dict[str, Any]:
+        return dict(ctx.context)
 
-    mock_registry.resolve_action_by_key = mock_resolve_action_by_key
+    @ai.flow()
+    async def order_dish(dish: str, ctx: ActionRunContext) -> dict[str, Any]:
+        return {'flow': dict(ctx.context), 'subflow': await allergy_check(dish)}
 
-    response = await asgi_client.post(
-        '/api/runAction',
-        json={
-            'key': 'test_action',
-            'input': {'data': 'test'},
-            'context': {'user': 'test_user'},
-        },
-    )
+    app = create_reflection_asgi_app(ai._registry)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+        response = await client.post(
+            '/api/runAction',
+            json={'key': '/flow/order_dish', 'input': 'Smoked Salmon Tartine', 'context': caller},
+        )
 
     assert response.status_code == 200
-    mock_action.run.assert_called_once_with(
-        input={'data': 'test'},
-        context={'user': 'test_user'},
-        on_trace_start=ANY,
-        on_chunk=None,
-        telemetry_labels=None,
-    )
+    assert response.json()['result'] == {'flow': caller, 'subflow': caller}
+
+
+@pytest.mark.asyncio
+async def test_run_action_rejects_non_object_context() -> None:
+    """runAction with `context: "gold"` answers 400 and never runs the flow."""
+    ai = Genkit()
+    calls = 0
+
+    @ai.flow()
+    async def order_dish(dish: str) -> str:
+        nonlocal calls
+        calls += 1
+        return dish
+
+    app = create_reflection_asgi_app(ai._registry)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+        response = await client.post(
+            '/api/runAction',
+            json={'key': '/flow/order_dish', 'input': 'Tartine', 'context': 'gold'},
+        )
+
+    assert response.status_code == 400
+    assert response.json() == {'error': 'context must be a JSON object when provided'}
+    assert calls == 0
 
 
 @pytest.mark.asyncio
@@ -244,7 +265,7 @@ async def test_run_action_streaming(
 
     response = await asgi_client.post(
         '/api/runAction?stream=true',
-        json={'key': 'test_action', 'input': {'data': 'test'}},
+        json={'key': '/custom/test_action', 'input': {'data': 'test'}},
     )
 
     assert response.status_code == 200
@@ -297,7 +318,7 @@ async def test_run_action_streaming_primitive_types(
 
     response = await asgi_client.post(
         '/api/runAction?stream=true',
-        json={'key': 'test_action', 'input': {'data': 'test'}},
+        json={'key': '/custom/test_action', 'input': {'data': 'test'}},
     )
 
     assert response.status_code == 200
@@ -309,3 +330,291 @@ async def test_run_action_streaming_primitive_types(
 
     final_result = json.loads(lines[-1])
     assert final_result['result'] == {'final': 'result'}
+
+
+# Real-registry tests for the /api/values?type=middleware endpoint. The other
+# endpoint tests above use a MagicMock registry, but here we want to exercise
+# the actual GenerateMiddleware serialization path the Dev UI consumes — mocking
+# would defeat the point.
+
+
+async def _registry_asgi_client(registry: Registry) -> AsyncClient:
+    """Build an ASGI client wired to a real Registry instance."""
+    app = create_reflection_asgi_app(registry)
+    transport = ASGITransport(app=app)
+    return AsyncClient(transport=transport, base_url='http://test')
+
+
+@pytest.mark.asyncio
+async def test_values_middleware_includes_derived_config_schema() -> None:
+    """The Dev UI's /api/values?type=middleware response carries each middleware's configSchema.
+
+    The schema is derived from the middleware class's pydantic fields by ``GenerateMiddleware(cls=...)``.
+    """
+
+    ai = Genkit()
+
+    class _FallbackConfig(BaseModel):
+        models: list[str] = Field(default_factory=list)
+        statuses: list[str] = Field(default_factory=list)
+        isolate_config: bool = False
+
+    @ai.middleware(name='fallback', description='Falls back to alternative models on failure')
+    class _Fallback(BaseMiddleware[_FallbackConfig]):
+        pass
+
+    client = await _registry_asgi_client(ai._registry)
+    try:
+        response = await client.get('/api/values?type=middleware')
+        assert response.status_code == 200
+        body = response.json()
+        entry = body['fallback']
+        assert entry['name'] == 'fallback'
+        assert entry['description'] == 'Falls back to alternative models on failure'
+        config_schema = entry['configSchema']
+        assert config_schema['type'] == 'object'
+        # Author-defined fields show up; framework-injected ones (registry,
+        # custom_context / on_chunk) must not leak into the form.
+        assert set(config_schema['properties'].keys()) == {'models', 'statuses', 'isolate_config'}
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_values_middleware_uses_class_docstring_as_description_fallback() -> None:
+    """When no explicit description is passed, the class docstring is the fallback.
+
+    Mirrors the action/tool convention: authors get a Dev-UI-visible description
+    for free from a well-written docstring, with leading indentation cleaned up.
+    """
+
+    ai = Genkit()
+
+    @ai.middleware(name='docstring_mw')
+    class _DocMw(BaseMiddleware):
+        """Logs every model call with a configurable prefix.
+
+        Extra paragraphs end up in the description verbatim.
+        """
+
+    client = await _registry_asgi_client(ai._registry)
+    try:
+        response = await client.get('/api/values?type=middleware')
+        assert response.status_code == 200
+        entry = response.json()['docstring_mw']
+        assert entry['description'] == (
+            'Logs every model call with a configurable prefix.\n\nExtra paragraphs end up in the description verbatim.'
+        )
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_values_middleware_empty_config_schema_for_no_op() -> None:
+    """A middleware with no config knobs still gets an (empty) object schema.
+
+    The Dev UI renders an empty config form, signalling registered.
+    """
+
+    ai = Genkit()
+
+    @ai.middleware(name='no_op')
+    class _NoOp(BaseMiddleware):
+        pass
+
+    client = await _registry_asgi_client(ai._registry)
+    try:
+        response = await client.get('/api/values?type=middleware')
+        assert response.status_code == 200
+        entry = response.json()['no_op']
+        assert entry['configSchema'] == {
+            'type': 'object',
+            'properties': {},
+            'additionalProperties': True,
+        }
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_values_default_model_ref_is_name() -> None:
+    """A stored ModelRef lists as its wire name so the Dev UI can JSON it."""
+    registry = Registry()
+    registry.register_value(
+        'defaultModel',
+        'defaultModel',
+        model_ref(
+            'echoModel',
+            config_schema=ModelConfig,
+            version='001',
+            config=ModelConfig(temperature=0.7),
+        ),
+    )
+    client = await _registry_asgi_client(registry)
+    try:
+        response = await client.get('/api/values?type=defaultModel')
+        assert response.status_code == 200
+        assert response.json() == {'defaultModel': 'echoModel'}
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_values_lists_a2ui_catalog() -> None:
+    """The Developer UI lists registered A2UI catalogs at /api/values?type=a2ui-catalog."""
+    registry = Registry()
+    catalog = {
+        'id': 'https://example.com/catalogs/banner.json',
+        'components': [{'name': 'Banner', 'description': 'A banner.', 'props': 'title: string.'}],
+    }
+    registry.register_value('a2ui-catalog', catalog['id'], catalog)
+    client = await _registry_asgi_client(registry)
+    try:
+        response = await client.get('/api/values?type=a2ui-catalog')
+        assert response.status_code == 200
+        assert response.json() == {catalog['id']: catalog}
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_no_cors_headers_returned(asgi_client: AsyncClient) -> None:
+    """Test that the reflection server does not return CORS headers, matching JS/Go."""
+    response = await asgi_client.get('/api/__health', headers={'Origin': 'https://evil.example'})
+    assert response.status_code == 200
+    assert 'access-control-allow-origin' not in response.headers
+
+    preflight = await asgi_client.options(
+        '/api/runAction',
+        headers={
+            'Origin': 'https://evil.example',
+            'Access-Control-Request-Method': 'POST',
+            'Access-Control-Request-Headers': 'content-type',
+        },
+    )
+    assert 'access-control-allow-origin' not in preflight.headers
+
+
+# What `genkit eval:run` and the Dev UI send: an EvaluatorRequest posted to
+# /api/runAction for the evaluator's action key.
+
+
+def _define_always_true_evaluators(ai: Genkit) -> None:
+    async def row_eval(datapoint: BaseDataPoint, options: object | None) -> EvaluatorResponse:
+        return EvaluatorResponse(test_case_id=datapoint.test_case_id or '', evaluation=[Score(score=True)])
+
+    async def batch_eval(req: EvaluatorRequest) -> list[EvaluatorResponse]:
+        return [
+            EvaluatorResponse(test_case_id=row.test_case_id or '', evaluation=[Score(score=True)])
+            for row in req.dataset
+        ]
+
+    ai.define_evaluator(name='row_eval', display_name='row_eval', definition='always true', fn=row_eval)
+    ai.define_batch_evaluator(name='batch_eval', display_name='batch_eval', definition='always true', fn=batch_eval)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('evaluator', ['row_eval', 'batch_eval'])
+async def test_reflection_run_evaluator_returns_json_array_of_rows(evaluator: str) -> None:
+    """Per-row and batch evaluators run through /api/runAction both return a JSON array of rows."""
+    ai = Genkit()
+    _define_always_true_evaluators(ai)
+    client = await _registry_asgi_client(ai._registry)
+    body = {
+        'key': f'/evaluator/{evaluator}',
+        'input': {
+            'dataset': [
+                {'testCaseId': 'case1', 'input': 'hi', 'output': 'hi'},
+                {'testCaseId': 'case2', 'input': 'bye', 'output': 'bye'},
+            ],
+            'evalRunId': 'run1',
+        },
+    }
+    try:
+        response = await client.post('/api/runAction', json=body)
+    finally:
+        await client.aclose()
+
+    assert response.status_code == 200
+    result = response.json()['result']
+    assert [row['testCaseId'] for row in result] == ['case1', 'case2']
+    assert [row['evaluation'] for row in result] == [[{'score': True}], [{'score': True}]]
+
+
+@pytest.mark.asyncio
+async def test_reflection_run_slash_retriever_key_returns_404() -> None:
+    """Running '/retriever/x' from the Dev UI gets a 404 'Action not found', not a server error."""
+    ai = Genkit()
+    client = await _registry_asgi_client(ai._registry)
+    try:
+        response = await client.post('/api/runAction', json={'key': '/retriever/x', 'input': 'q'})
+    finally:
+        await client.aclose()
+
+    assert response.status_code == 404
+    assert response.json() == {'error': 'Action not found: /retriever/x'}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('key', ['/tool/x', '/bogus/x', 'no-slashes'])
+async def test_reflection_run_unparseable_key_returns_404(key: str) -> None:
+    """Running a key that doesn't parse (like '/tool/x') gets a 404 'Action not found', not a server error."""
+    ai = Genkit()
+
+    @ai.tool()
+    async def x() -> str:
+        return 'ok'
+
+    client = await _registry_asgi_client(ai._registry)
+    try:
+        response = await client.post('/api/runAction', json={'key': key, 'input': None})
+    finally:
+        await client.aclose()
+
+    assert response.status_code == 404
+    assert response.json() == {'error': f'Action not found: {key}'}
+
+
+def _define_missing(ai: Genkit):  # noqa: ANN202
+    @ai.flow()
+    async def missing(account: str) -> str:
+        raise ValueError('no such account')
+
+    return missing
+
+
+@pytest.mark.asyncio
+async def test_dev_ui_run_of_failing_flow_returns_message_and_trace_id(hex_ids: None) -> None:
+    """A Dev UI runAction of `missing` returns the body's message, code INTERNAL, and the run's trace id."""
+    ai = Genkit()
+    _define_missing(ai)
+    app = create_reflection_asgi_app(ai._registry)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+        response = await client.post('/api/runAction', json={'key': '/flow/missing', 'input': 'acme'})
+
+    error = response.json()['error']
+    assert error['message'] == 'no such account'
+    assert error['code'] == 13
+    assert error['details']['traceId'] == response.headers['x-genkit-trace-id']
+    assert len(error['details']['traceId']) == 32
+
+
+@pytest.mark.asyncio
+async def test_dev_ui_run_of_public_error_flow_returns_its_status_and_trace_id(hex_ids: None) -> None:
+    """A Dev UI runAction of a flow raising PublicError NOT_FOUND returns its message, code, and the run's trace id."""
+    ai = Genkit()
+
+    @ai.flow()
+    async def order(order_id: str) -> str:
+        raise PublicError('NOT_FOUND', f'no order {order_id}')
+
+    app = create_reflection_asgi_app(ai._registry)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+        response = await client.post('/api/runAction', json={'key': '/flow/order', 'input': '99'})
+
+    error = response.json()['error']
+    assert error['message'] == 'no order 99'
+    assert error['code'] == 5
+    assert error['details']['traceId'] == response.headers['x-genkit-trace-id']

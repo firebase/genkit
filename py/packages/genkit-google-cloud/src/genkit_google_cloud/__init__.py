@@ -1,0 +1,54 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+
+"""Google Cloud plugin for Genkit.
+
+Exports Genkit telemetry to Cloud Trace, Cloud Monitoring, and Cloud Logging.
+
+Durable agent sessions are experimental — import
+:class:`FirestoreSessionStore` from ``genkit_google_cloud.exp``.
+
+Example:
+    ```python
+    from genkit import Genkit
+    from genkit_google_genai import GoogleAI
+    from genkit_google_cloud import enable_google_cloud_telemetry
+
+
+    # Enable Google Cloud Trace and Monitoring export
+    enable_google_cloud_telemetry(project='my-project')
+
+    # All subsequent Genkit actions automatically export telemetry
+    ai = Genkit(plugins=[GoogleAI()], model=GoogleAI.gemini_model('gemini-flash-latest'))
+    await ai.generate(prompt='Hello, world!')
+    # => Traces exported asynchronously to Cloud Trace (latency, tokens, status)
+    ```
+
+Requirements:
+    - Google Cloud Application Default Credentials (ADC), or explicit credentials.
+    - Telemetry export is disabled by default in local dev unless explicitly configured.
+
+See Also:
+    - Cloud Trace: https://cloud.google.com/trace
+    - Cloud Monitoring: https://cloud.google.com/monitoring
+"""
+
+from genkit_google_cloud._telemetry._tracing import enable_google_cloud_telemetry
+
+__all__ = [
+    'enable_google_cloud_telemetry',
+]

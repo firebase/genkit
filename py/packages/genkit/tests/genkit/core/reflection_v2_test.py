@@ -41,16 +41,29 @@ from typing import Any
 
 import pytest
 import pytest_asyncio
+from pydantic import BaseModel, Field
 from websockets.asyncio.server import serve
 
-from genkit._core._action import Action, ActionKind, ActionRunContext
+from genkit import Genkit
+from genkit._core._action import Action, ActionKind, ActionRunContext, BidiAction
+from genkit._core._middleware import BaseMiddleware
+from genkit._core._model import AgentInit, AgentInput, ModelConfig
+from genkit._core._reflection import ActionRunner
 from genkit._core._reflection_v2 import (
     JSON_RPC_INVALID_PARAMS,
     JSON_RPC_METHOD_NOT_FOUND,
-    JSON_RPC_SERVER_ERROR,
     ReflectionServerV2,
 )
 from genkit._core._registry import Registry
+from genkit._core._typing import ReflectionRunActionParams
+from genkit.model import model_ref
+from genkit.plugin_api import ActionMetadata, Plugin
+
+
+@pytest.fixture(autouse=True)
+def _ids_for_reflection(hex_ids: None) -> None:
+    """Dev UI cancel/state uses trace ids."""
+    return
 
 
 class FakeReflectionManager:
@@ -136,7 +149,7 @@ async def _run_client_lifecycle(
 
 
 async def _stop_client(client: ReflectionServerV2, task: asyncio.Task[None]) -> None:
-    client.stop()
+    await client.stop()
     task.cancel()
     try:
         await task
@@ -213,12 +226,48 @@ async def test_reflection_server_v2_list_actions(fake_manager: FakeReflectionMan
                 'actionType': 'custom',
                 'inputSchema': {'type': 'integer'},
                 'outputSchema': {'type': 'integer'},
-                'metadata': {
-                    'inputSchema': {'type': 'integer'},
-                    'outputSchema': {'type': 'integer'},
-                },
             }
         }
+    finally:
+        await _stop_client(client, task)
+
+
+class ListingPlugin(Plugin):
+    """Lists one model row with a request and response schema."""
+
+    name = 'acme'
+
+    async def init(self) -> list[Action]:
+        return []
+
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
+        return None
+
+    async def list_actions(self) -> list[ActionMetadata]:
+        return [
+            ActionMetadata(
+                action_type=ActionKind.MODEL,
+                name='acme/m',
+                input_schema={'type': 'object', 'properties': {'prompt': {'type': 'string'}}},
+                output_schema={'type': 'object', 'properties': {'text': {'type': 'string'}}},
+            )
+        ]
+
+
+@pytest.mark.asyncio
+async def test_reflection_v2_list_actions_uses_input_schema(fake_manager: FakeReflectionManager) -> None:
+    """A plugin row's input_schema and output_schema reach listActions as inputSchema and outputSchema."""
+    ai = Genkit(plugins=[ListingPlugin()])
+
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({'jsonrpc': '2.0', 'method': 'listActions', 'id': '1'})
+        resp = await fake_manager.read_rpc()
+        assert resp.get('id') == '1'
+        listed = resp['result']['actions']['/model/acme/m']
+        assert listed['inputSchema'] == {'type': 'object', 'properties': {'prompt': {'type': 'string'}}}
+        assert listed['outputSchema'] == {'type': 'object', 'properties': {'text': {'type': 'string'}}}
     finally:
         await _stop_client(client, task)
 
@@ -244,6 +293,196 @@ async def test_reflection_server_v2_list_values(fake_manager: FakeReflectionMana
         values = result.get('values')
         assert isinstance(values, dict)
         assert values.get('defaultModel') == 'my-model'
+    finally:
+        await _stop_client(client, task)
+
+
+@pytest.mark.asyncio
+async def test_reflection_server_v2_list_values_a2ui_catalog(
+    fake_manager: FakeReflectionManager,
+) -> None:
+    """Developer UI can list registered A2UI catalogs."""
+    registry = Registry()
+    catalog = {
+        'id': 'https://example.com/catalogs/banner.json',
+        'components': [{'name': 'Banner', 'description': 'A banner.', 'props': 'title: string.'}],
+    }
+    registry.register_value('a2ui-catalog', catalog['id'], catalog)
+
+    client, task = await _run_client_lifecycle(registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({
+            'jsonrpc': '2.0',
+            'method': 'listValues',
+            'params': {'type': 'a2ui-catalog'},
+            'id': '2c',
+        })
+        resp = await fake_manager.read_rpc()
+        assert resp.get('id') == '2c'
+        result = resp.get('result')
+        assert isinstance(result, dict)
+        values = result.get('values')
+        assert isinstance(values, dict)
+        assert values.get(catalog['id']) == catalog
+    finally:
+        await _stop_client(client, task)
+
+
+@pytest.mark.asyncio
+async def test_reflection_server_v2_list_values_model_ref_is_name(
+    fake_manager: FakeReflectionManager,
+) -> None:
+    """A stored ModelRef lists as its wire name, not the object."""
+    registry = Registry()
+    registry.register_value(
+        'defaultModel',
+        'defaultModel',
+        model_ref('echo-model', config_schema=ModelConfig),
+    )
+
+    client, task = await _run_client_lifecycle(registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({
+            'jsonrpc': '2.0',
+            'method': 'listValues',
+            'params': {'type': 'defaultModel'},
+            'id': '2',
+        })
+        resp = await fake_manager.read_rpc()
+        result = resp.get('result')
+        assert isinstance(result, dict)
+        values = result.get('values')
+        assert isinstance(values, dict)
+        assert values.get('defaultModel') == 'echo-model'
+    finally:
+        await _stop_client(client, task)
+
+
+@pytest.mark.asyncio
+async def test_reflection_server_v2_list_values_serializes_middleware_as_object(
+    fake_manager: FakeReflectionManager,
+) -> None:
+    """Registered middleware comes back as a JSON object, not pydantic's repr.
+
+    Without explicit serialization the response would fall through to
+    ``json.dumps(default=str)`` and the dev-ui would receive the string
+    ``"name='concise_reply_mw' description=None ..."`` instead of the
+    ``GenerateMiddleware`` wire shape.
+    """
+
+    ai = Genkit()
+
+    @ai.middleware(name='concise_reply_mw')
+    class _NoOpMiddleware(BaseMiddleware):
+        pass
+
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({
+            'jsonrpc': '2.0',
+            'method': 'listValues',
+            'params': {'type': 'middleware'},
+            'id': '2b',
+        })
+        resp = await fake_manager.read_rpc()
+        assert resp.get('id') == '2b'
+        values = resp['result']['values']
+        assert values == {
+            'concise_reply_mw': {
+                'name': 'concise_reply_mw',
+                'configSchema': {
+                    'type': 'object',
+                    'properties': {},
+                    'additionalProperties': True,
+                },
+            }
+        }
+    finally:
+        await _stop_client(client, task)
+
+
+@pytest.mark.asyncio
+async def test_reflection_server_v2_list_values_includes_derived_config_schema(
+    fake_manager: FakeReflectionManager,
+) -> None:
+    """Middleware registered via ``GenerateMiddleware(cls=...)`` exposes a derived configSchema.
+
+    The Dev UI uses this schema to render a config form for each registered
+    middleware.
+    """
+
+    ai = Genkit()
+
+    class _FallbackConfig(BaseModel):
+        models: list[str] = Field(default_factory=list)
+        statuses: list[str] = Field(default_factory=list)
+        isolate_config: bool = False
+
+    @ai.middleware(name='fallback', description='Falls back to alternative models on failure')
+    class _Fallback(BaseMiddleware[_FallbackConfig]):
+        pass
+
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({
+            'jsonrpc': '2.0',
+            'method': 'listValues',
+            'params': {'type': 'middleware'},
+            'id': '2c',
+        })
+        resp = await fake_manager.read_rpc()
+        assert resp.get('id') == '2c'
+        entry = resp['result']['values']['fallback']
+        assert entry['name'] == 'fallback'
+        assert entry['description'] == 'Falls back to alternative models on failure'
+        config_schema = entry['configSchema']
+        assert config_schema['type'] == 'object'
+        # Author-defined fields show up; framework-injected ones (registry,
+        # custom_context / on_chunk) must not leak into the form.
+        props = config_schema['properties']
+        assert set(props.keys()) == {'models', 'statuses', 'isolate_config'}
+        assert props['models']['type'] == 'array'
+        assert props['statuses']['type'] == 'array'
+        assert props['isolate_config']['type'] == 'boolean'
+    finally:
+        await _stop_client(client, task)
+
+
+@pytest.mark.asyncio
+async def test_reflection_server_v2_list_values_empty_config_schema_for_no_op(
+    fake_manager: FakeReflectionManager,
+) -> None:
+    """A middleware with no config knobs still gets an (empty) object schema.
+
+    The Dev UI renders an empty config form, signalling registered.
+    """
+
+    ai = Genkit()
+
+    @ai.middleware(name='no_op')
+    class _NoOp(BaseMiddleware):
+        pass
+
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({
+            'jsonrpc': '2.0',
+            'method': 'listValues',
+            'params': {'type': 'middleware'},
+            'id': '2d',
+        })
+        resp = await fake_manager.read_rpc()
+        entry = resp['result']['values']['no_op']
+        assert entry['configSchema'] == {
+            'type': 'object',
+            'properties': {},
+            'additionalProperties': True,
+        }
     finally:
         await _stop_client(client, task)
 
@@ -350,8 +589,171 @@ async def test_reflection_server_v2_streaming_run_action(fake_manager: FakeRefle
         await _stop_client(client, task)
 
 
+def _register_echo_agent(registry: Registry, name: str = 'test/echo') -> str:
+    """Register a minimal bidi (agent) action that emits one chunk per input turn.
+
+    Returns the action key. The fn stays agnostic of session state — it just
+    counts turns — so the test exercises the reflection→bidi seam (init/input
+    resolution, chunk forwarding, final output) without the full agent runtime.
+    """
+
+    async def echo_agent(_init: Any, input_stream: Any, send_chunk: Any) -> dict[str, Any]:
+        turns = 0
+        async for _inp in input_stream:
+            turns += 1
+            send_chunk({'turn': turns})
+        return {'turns': turns}
+
+    registry.register_action_from_instance(
+        BidiAction(
+            ActionKind.AGENT,
+            name,
+            echo_agent,
+            metadata={'agent': {'stateManagement': 'client'}},
+            init_schema=AgentInit,
+            input_schema=AgentInput,
+        )
+    )
+    return f'/agent/{name}'
+
+
 @pytest.mark.asyncio
-async def test_reflection_server_v2_run_action_not_found(fake_manager: FakeReflectionManager) -> None:
+async def test_reflection_server_v2_run_bidi_action(fake_manager: FakeReflectionManager) -> None:
+    """A bidi (agent) runAction sends one input turn, streams its chunk, then the final output."""
+    registry = Registry()
+    key = _register_echo_agent(registry)
+
+    client, task = await _run_client_lifecycle(registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({
+            'jsonrpc': '2.0',
+            'method': 'runAction',
+            'params': {'key': key, 'input': {}},
+            'id': 'bidi-1',
+        })
+        chunks: list[Any] = []
+        final: dict[str, Any] | None = None
+        while final is None:
+            msg = await fake_manager.read_rpc()
+            if msg.get('method') == 'streamChunk':
+                params = msg.get('params')
+                assert isinstance(params, dict)
+                assert params.get('requestId') == 'bidi-1'
+                chunks.append(params.get('chunk'))
+                continue
+            if msg.get('method') == 'runActionState':
+                continue
+            final = msg
+        assert chunks == [{'turn': 1}]
+        assert final.get('id') == 'bidi-1'
+        assert final.get('error') is None
+        result = final.get('result')
+        assert isinstance(result, dict)
+        assert result.get('result') == {'turns': 1}
+    finally:
+        await _stop_client(client, task)
+
+
+@pytest.mark.asyncio
+async def test_reflection_server_v2_bidi_input_stream(fake_manager: FakeReflectionManager) -> None:
+    """With streamInput, turns are fed via sendInputStreamChunk and closed with endInputStream."""
+    registry = Registry()
+    key = _register_echo_agent(registry, 'test/echo_stream')
+
+    client, task = await _run_client_lifecycle(registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({
+            'jsonrpc': '2.0',
+            'method': 'runAction',
+            'params': {'key': key, 'streamInput': True},
+            'id': 'bidi-2',
+        })
+        # runActionState fires after the bidi connection is registered, so waiting
+        # for it means sendInputStreamChunk won't race ahead of registration.
+        seen_state = False
+        while not seen_state:
+            msg = await fake_manager.read_rpc()
+            if msg.get('method') == 'runActionState':
+                seen_state = True
+
+        for _ in range(2):
+            await fake_manager.write_rpc({
+                'jsonrpc': '2.0',
+                'method': 'sendInputStreamChunk',
+                'params': {'requestId': 'bidi-2', 'chunk': {}},
+            })
+        await fake_manager.write_rpc({
+            'jsonrpc': '2.0',
+            'method': 'endInputStream',
+            'params': {'requestId': 'bidi-2'},
+        })
+
+        chunks: list[Any] = []
+        final: dict[str, Any] | None = None
+        while final is None:
+            msg = await fake_manager.read_rpc()
+            if msg.get('method') == 'streamChunk':
+                params = msg.get('params')
+                assert isinstance(params, dict)
+                chunks.append(params.get('chunk'))
+                continue
+            if msg.get('method') == 'runActionState':
+                continue
+            final = msg
+        assert chunks == [{'turn': 1}, {'turn': 2}]
+        assert final.get('id') == 'bidi-2'
+        assert final.get('error') is None
+        result = final.get('result')
+        assert isinstance(result, dict)
+        assert result.get('result') == {'turns': 2}
+    finally:
+        await _stop_client(client, task)
+
+
+@pytest.mark.asyncio
+async def test_reflection_server_v2_bidi_action_cleans_up_active_actions(
+    fake_manager: FakeReflectionManager,
+) -> None:
+    """A finished agent turn leaves nothing behind in the cancel/connection registries.
+
+    Regression: `run_bidi_action` used to drop only the bidi stream registry, so
+    each turn's trace id lingered in `active_actions` (a late cancelAction would
+    then falsely succeed against a completed turn).
+    """
+    registry = Registry()
+    key = _register_echo_agent(registry, 'test/echo_cleanup')
+
+    client, task = await _run_client_lifecycle(registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({
+            'jsonrpc': '2.0',
+            'method': 'runAction',
+            'params': {'key': key, 'input': {}},
+            'id': 'bidi-cleanup',
+        })
+        final: dict[str, Any] | None = None
+        while final is None:
+            msg = await fake_manager.read_rpc()
+            if msg.get('method') in ('streamChunk', 'runActionState'):
+                continue
+            final = msg
+        assert final.get('id') == 'bidi-cleanup'
+        assert final.get('error') is None
+        # Let the run's `finally` run before inspecting the registries.
+        await asyncio.sleep(0)
+        assert client.active_actions == {}
+        assert client.bidi_input_streams == {}
+    finally:
+        await _stop_client(client, task)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('key', ['/custom/does-not-exist', '/retriever/x', '/tool/x', '/bogus/x'])
+async def test_reflection_server_v2_run_action_not_found(fake_manager: FakeReflectionManager, key: str) -> None:
+    """runAction for a key naming no runnable action, even one that doesn't parse, gets the not-found error."""
     registry = Registry()
     client, task = await _run_client_lifecycle(registry, fake_manager)
     try:
@@ -359,7 +761,7 @@ async def test_reflection_server_v2_run_action_not_found(fake_manager: FakeRefle
         await fake_manager.write_rpc({
             'jsonrpc': '2.0',
             'method': 'runAction',
-            'params': {'key': '/custom/does-not-exist', 'input': None},
+            'params': {'key': key, 'input': None},
             'id': '5',
         })
         resp = await fake_manager.read_rpc()
@@ -432,11 +834,11 @@ async def test_reflection_server_v2_cancel_action(fake_manager: FakeReflectionMa
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('stream_method', ('sendInputStreamChunk', 'endInputStream'))
-async def test_reflection_server_v2_input_stream_not_implemented_js_style(
+async def test_reflection_server_v2_input_stream_rejects_invalid_params(
     fake_manager: FakeReflectionManager,
     stream_method: str,
 ) -> None:
-    """Unimplemented input-stream methods return -32000 + data.stack when id is set (JS parity)."""
+    """Input-stream methods validate params and return -32602 when required fields are missing."""
     registry = Registry()
     client, task = await _run_client_lifecycle(registry, fake_manager)
     try:
@@ -450,11 +852,8 @@ async def test_reflection_server_v2_input_stream_not_implemented_js_style(
         resp = await fake_manager.read_rpc()
         err = resp.get('error')
         assert isinstance(err, dict)
-        assert err.get('code') == JSON_RPC_SERVER_ERROR
-        assert 'not implemented' in str(err.get('message', '')).lower()
-        data = err.get('data')
-        assert isinstance(data, dict)
-        assert 'stack' in data and str(data.get('stack', '')).strip()
+        assert err.get('code') == JSON_RPC_INVALID_PARAMS
+        assert 'invalid params' in str(err.get('message', '')).lower()
     finally:
         await _stop_client(client, task)
 
@@ -522,11 +921,156 @@ async def test_reflection_server_v2_omits_data_for_simple_errors(
 
 def test_reflection_run_action_params_accepts_dev_ui_telemetry_labels() -> None:
     """Dev UI sends telemetryLabels as a string record (e.g. genkitx:ignore-trace)."""
-
-    from genkit._core._typing import ReflectionRunActionParams
-
     p = ReflectionRunActionParams.model_validate({
         'key': '/executable-prompt/story',
         'telemetryLabels': {'genkitx:ignore-trace': 'true'},
     })
     assert p.telemetry_labels == {'genkitx:ignore-trace': 'true'}
+
+
+@pytest.mark.asyncio
+async def test_empty_trace_id_is_not_registered_for_cancel() -> None:
+    """Empty ids must not become a shared cancel key."""
+
+    async def noop() -> None:
+        return None
+
+    active: dict[str, asyncio.Task[Any]] = {}
+    runner = ActionRunner(
+        action=Action(name='noop', kind=ActionKind.CUSTOM, fn=noop),
+        payload={},
+        stream=False,
+        active_actions=active,
+    )
+    await runner.on_trace_start('', 'span')
+    assert '' not in active
+
+
+@pytest.mark.asyncio
+async def test_empty_trace_id_does_not_notify_run_action_state() -> None:
+    """An empty tid is not a run the Developer UI can display or cancel."""
+    notified: list[tuple[str, str]] = []
+    server = ReflectionServerV2(Registry(), 'ws://127.0.0.1:1')
+
+    async def fake_notify(sid: str, tid: str) -> None:
+        notified.append((sid, tid))
+
+    server.notify_run_action_state = fake_notify  # type: ignore[method-assign]
+    cb = server.trace_start_callback('sid-1', [None], register_for_cancel=True)
+    await cb('', 'span')
+    assert '' not in server.active_actions
+    assert notified == []
+
+
+async def _read_run_action_reply(fm: FakeReflectionManager) -> dict[str, Any]:
+    while True:
+        msg = await fm.read_rpc()
+        if msg.get('method') not in ('runActionState', 'streamChunk'):
+            return msg
+
+
+@pytest.mark.asyncio
+async def test_reflection_server_v2_run_action_context_reaches_flow_and_subflow(
+    fake_manager: FakeReflectionManager,
+) -> None:
+    """runAction `context` reaches the flow, and a subflow called without `context=` sees the same dict."""
+    ai = Genkit()
+    caller = {'auth': {'uid': 'u_42', 'tier': 'gold'}, 'locale': 'en-US'}
+
+    @ai.flow()
+    async def allergy_check(dish: str, ctx: ActionRunContext) -> dict[str, Any]:
+        return dict(ctx.context)
+
+    @ai.flow()
+    async def order_dish(dish: str, ctx: ActionRunContext) -> dict[str, Any]:
+        return {'flow': dict(ctx.context), 'subflow': await allergy_check(dish)}
+
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({
+            'jsonrpc': '2.0',
+            'method': 'runAction',
+            'params': {'key': '/flow/order_dish', 'input': 'Smoked Salmon Tartine', 'context': caller},
+            'id': 'ctx-1',
+        })
+        resp = await _read_run_action_reply(fake_manager)
+        assert resp.get('id') == 'ctx-1'
+        assert resp.get('error') is None
+        assert resp['result']['result'] == {'flow': caller, 'subflow': caller}
+    finally:
+        await _stop_client(client, task)
+
+
+@pytest.mark.asyncio
+async def test_reflection_server_v2_run_action_rejects_non_object_context(
+    fake_manager: FakeReflectionManager,
+) -> None:
+    """runAction with `context: "gold"` fails with invalid params and never runs the flow."""
+    ai = Genkit()
+    calls = 0
+
+    @ai.flow()
+    async def order_dish(dish: str) -> str:
+        nonlocal calls
+        calls += 1
+        return dish
+
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({
+            'jsonrpc': '2.0',
+            'method': 'runAction',
+            'params': {'key': '/flow/order_dish', 'input': 'Tartine', 'context': 'gold'},
+            'id': 'ctx-2',
+        })
+        resp = await _read_run_action_reply(fake_manager)
+        assert resp.get('id') == 'ctx-2'
+        err = resp.get('error')
+        assert isinstance(err, dict)
+        assert err.get('code') == JSON_RPC_INVALID_PARAMS
+        assert calls == 0
+    finally:
+        await _stop_client(client, task)
+
+
+@pytest.mark.asyncio
+async def test_reflection_server_v2_run_bidi_action_context_reaches_agent(
+    fake_manager: FakeReflectionManager,
+) -> None:
+    """A bidi (agent) runAction with `context` runs the agent with that context."""
+    registry = Registry()
+    caller = {'auth': {'uid': 'u_42', 'tier': 'gold'}, 'locale': 'en-US'}
+
+    async def concierge_agent(_init: Any, input_stream: Any, send_chunk: Any) -> dict[str, Any]:
+        async for _inp in input_stream:
+            pass
+        return {'context': Genkit.current_context()}
+
+    registry.register_action_from_instance(
+        BidiAction(
+            ActionKind.AGENT,
+            'test/concierge',
+            concierge_agent,
+            metadata={'agent': {'stateManagement': 'client'}},
+            init_schema=AgentInit,
+            input_schema=AgentInput,
+        )
+    )
+
+    client, task = await _run_client_lifecycle(registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({
+            'jsonrpc': '2.0',
+            'method': 'runAction',
+            'params': {'key': '/agent/test/concierge', 'input': {}, 'context': caller},
+            'id': 'bidi-ctx',
+        })
+        resp = await _read_run_action_reply(fake_manager)
+        assert resp.get('id') == 'bidi-ctx'
+        assert resp.get('error') is None
+        assert resp['result']['result'] == {'context': caller}
+    finally:
+        await _stop_client(client, task)

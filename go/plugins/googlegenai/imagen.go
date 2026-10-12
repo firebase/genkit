@@ -19,37 +19,12 @@ package googlegenai
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
+
+	"google.golang.org/genai"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/base"
-	"google.golang.org/genai"
+	"github.com/firebase/genkit/go/core/status"
 )
-
-// imagenConfigFromRequest translates an [*ai.ModelRequest] configuration to [*genai.GenerateImagesConfig]
-func imagenConfigFromRequest(input *ai.ModelRequest) (*genai.GenerateImagesConfig, error) {
-	var result genai.GenerateImagesConfig
-
-	switch config := input.Config.(type) {
-	case genai.GenerateImagesConfig:
-		result = config
-	case *genai.GenerateImagesConfig:
-		result = *config
-	case map[string]any:
-		var err error
-		result, err = base.MapToStruct[genai.GenerateImagesConfig](config)
-		if err != nil {
-			return nil, core.NewPublicError(core.INVALID_ARGUMENT, fmt.Sprintf("The image configuration settings are not in the correct format. Check that the names and values match what the model expects: %v", err), nil)
-		}
-	case nil:
-		// empty but valid config
-	default:
-		return nil, core.NewPublicError(core.INVALID_ARGUMENT, fmt.Sprintf("Invalid configuration type: %T. Expected *genai.GenerateImagesConfig. Ensure you are using the correct ModelRef helper (e.g., ImageModelRef) or passing the correct configuration struct.", input.Config), nil)
-	}
-
-	return &result, nil
-}
 
 // translateImagenCandidates translates the image generation response to [*ai.ModelResponse]
 func translateImagenCandidates(images []*genai.GeneratedImage) *ai.ModelResponse {
@@ -79,13 +54,9 @@ func generateImage(
 	client *genai.Client,
 	model string,
 	input *ai.ModelRequest,
+	gic *genai.GenerateImagesConfig,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
-	gic, err := imagenConfigFromRequest(input)
-	if err != nil {
-		return nil, err
-	}
-
 	var userPrompt string
 	for _, m := range input.Messages {
 		if m.Role == ai.RoleUser {
@@ -93,16 +64,16 @@ func generateImage(
 		}
 	}
 	if userPrompt == "" {
-		return nil, fmt.Errorf("error generating images: empty prompt detected")
+		return nil, status.Errorf(status.ErrInvalidArgument, "empty prompt detected")
 	}
 
 	if cb != nil {
-		return nil, fmt.Errorf("streaming mode not supported for image generation")
+		return nil, status.Errorf(status.ErrUnimplemented, "streaming mode not supported for image generation")
 	}
 
 	resp, err := client.Models.GenerateImages(ctx, model, userPrompt, gic)
 	if err != nil {
-		return nil, err
+		return nil, wrapAPIError(err)
 	}
 
 	r := translateImagenResponse(resp)

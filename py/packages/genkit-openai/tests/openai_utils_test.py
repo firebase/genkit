@@ -1,0 +1,971 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+"""Exhaustive tests for models/utils.py utility functions."""
+
+import base64
+import json
+from collections.abc import Callable
+
+import httpx
+import pytest
+from genkit_openai._models._utils import (
+    DictMessageAdapter,
+    MessageAdapter,
+    MessageConverter,
+    _extract_media,
+    _extract_text,
+    _find_text,
+    decode_data_uri_bytes,
+    extract_config_dict,
+    extract_response_metadata,
+    parse_data_uri_content_type,
+    reraise_openai_error,
+)
+from openai import APIConnectionError, APIError, APIResponseValidationError, APIStatusError, APITimeoutError
+from openai.types.chat import ChatCompletion, ChatCompletionChunk
+from pydantic import BaseModel
+
+from genkit import GenkitError, Message, Part, Role
+from genkit.model import ModelRequest, ToolRequest, ToolResponse
+from genkit.plugin_api import StatusName
+
+
+class TestParseDataUriContentType:
+    """Tests for parse_data_uri_content_type."""
+
+    def test_audio_mpeg_with_base64(self) -> None:
+        """Parse content type from a standard audio data URI."""
+        url = 'data:audio/mpeg;base64,AAAA'
+        assert parse_data_uri_content_type(url) == 'audio/mpeg'
+
+    def test_text_plain_without_base64(self) -> None:
+        """Parse content type from a data URI without ;base64 qualifier."""
+        url = 'data:text/plain,hello world'
+        assert parse_data_uri_content_type(url) == 'text/plain'
+
+    def test_image_png_with_base64(self) -> None:
+        """Parse content type from an image data URI."""
+        url = 'data:image/png;base64,iVBOR...'
+        assert parse_data_uri_content_type(url) == 'image/png'
+
+    def test_empty_content_type_with_base64(self) -> None:
+        """Return empty string when content type is missing from data URI."""
+        url = 'data:;base64,AAAA'
+        assert parse_data_uri_content_type(url) == ''
+
+    def test_no_data_prefix(self) -> None:
+        """Return empty string for non-data-URI URLs."""
+        assert parse_data_uri_content_type('https://example.com/file.mp3') == ''
+
+    def test_raw_base64_string(self) -> None:
+        """Return empty string for raw base64 strings."""
+        assert parse_data_uri_content_type('AAAA') == ''
+
+    def test_empty_string(self) -> None:
+        """Return empty string for empty input."""
+        assert parse_data_uri_content_type('') == ''
+
+    def test_data_prefix_no_comma(self) -> None:
+        """Return empty string for malformed data URI without comma."""
+        assert parse_data_uri_content_type('data:audio/mpeg;base64') == ''
+
+    def test_application_json(self) -> None:
+        """Parse content type from a JSON data URI."""
+        url = 'data:application/json;base64,eyJ0ZXN0IjogdHJ1ZX0='
+        assert parse_data_uri_content_type(url) == 'application/json'
+
+    def test_audio_wav_with_extra_params(self) -> None:
+        """Parse content type from a data URI with extra parameters."""
+        url = 'data:audio/wav;rate=44100;base64,AAAA'
+        assert parse_data_uri_content_type(url) == 'audio/wav'
+
+    def test_content_type_with_charset(self) -> None:
+        """Parse content type from a data URI with charset parameter."""
+        url = 'data:text/html;charset=utf-8,<h1>hi</h1>'
+        assert parse_data_uri_content_type(url) == 'text/html'
+
+
+class TestDecodeDataUriBytes:
+    """Tests for decode_data_uri_bytes."""
+
+    def test_valid_data_uri(self) -> None:
+        """Decode bytes from a valid base64 data URI."""
+        payload = b'hello world'
+        b64 = base64.b64encode(payload).decode('ascii')
+        url = f'data:audio/mpeg;base64,{b64}'
+        assert decode_data_uri_bytes(url) == payload
+
+    def test_raw_base64(self) -> None:
+        """Decode bytes from a raw base64 string without data: prefix."""
+        payload = b'test data'
+        b64 = base64.b64encode(payload).decode('ascii')
+        assert decode_data_uri_bytes(b64) == payload
+
+    def test_remote_http_url_raises(self) -> None:
+        """Raise ValueError for http:// URLs."""
+        with pytest.raises(ValueError, match='Remote URLs are not supported'):
+            decode_data_uri_bytes('http://example.com/audio.mp3')
+
+    def test_remote_https_url_raises(self) -> None:
+        """Raise ValueError for https:// URLs."""
+        with pytest.raises(ValueError, match='Remote URLs are not supported'):
+            decode_data_uri_bytes('https://example.com/audio.mp3')
+
+    def test_invalid_data_uri_format_raises(self) -> None:
+        """Raise ValueError for data URI with invalid base64 payload."""
+        with pytest.raises(ValueError, match='Invalid data URI format'):
+            decode_data_uri_bytes('data:audio/mpeg;base64,NOT_VALID_B64!!!')
+
+    def test_invalid_raw_base64_raises(self) -> None:
+        """Raise ValueError for invalid raw base64 strings."""
+        with pytest.raises(ValueError, match='Invalid base64 data'):
+            decode_data_uri_bytes('NOT_VALID_B64!!!')
+
+    def test_empty_payload_data_uri(self) -> None:
+        """Decode empty bytes from a data URI with empty payload."""
+        url = 'data:audio/mpeg;base64,'
+        assert decode_data_uri_bytes(url) == b''
+
+    def test_data_uri_without_base64_qualifier(self) -> None:
+        """Decode bytes from a data URI that omits ;base64 qualifier."""
+        payload = b'test'
+        b64 = base64.b64encode(payload).decode('ascii')
+        url = f'data:text/plain,{b64}'
+        assert decode_data_uri_bytes(url) == payload
+
+    def test_data_uri_with_no_content_type(self) -> None:
+        """Decode bytes from a data URI with empty content type."""
+        payload = b'data'
+        b64 = base64.b64encode(payload).decode('ascii')
+        url = f'data:;base64,{b64}'
+        assert decode_data_uri_bytes(url) == payload
+
+
+class TestExtractConfigDict:
+    """Tests for extract_config_dict."""
+
+    def _make_request(self, config: object = None) -> ModelRequest:
+        """Create a minimal ModelRequest with the given config."""
+        return ModelRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part.from_text('hello')],
+                )
+            ],
+            config=config,
+        )
+
+    def test_no_config_returns_empty_dict(self) -> None:
+        """Return empty dict when request has no config."""
+        request = self._make_request(config=None)
+        assert extract_config_dict(request) == {}
+
+    def test_dict_config_returns_copy(self) -> None:
+        """Return a copy of the config when it is a dict."""
+        original = {'temperature': 0.5, 'model': 'gpt-4'}
+        request = self._make_request(config=original)
+        result = extract_config_dict(request)
+        assert result == original
+        assert result is not original
+
+    def test_dict_config_mutation_does_not_affect_original(self) -> None:
+        """Verify that mutating the returned dict does not affect the original."""
+        original = {'temperature': 0.5}
+        request = self._make_request(config=original)
+        result = extract_config_dict(request)
+        result['temperature'] = 1.0
+        assert original['temperature'] == 0.5
+
+    def test_empty_dict_config(self) -> None:
+        """Return empty dict when config is an empty dict."""
+        request = self._make_request(config={})
+        assert extract_config_dict(request) == {}
+
+
+class TestFindText:
+    """Tests for _find_text."""
+
+    def test_returns_text_from_first_message(self) -> None:
+        """Find and return text from the first message's text part."""
+        request = ModelRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part.from_text('hello')],
+                )
+            ]
+        )
+        assert _find_text(request) == 'hello'
+
+    def test_returns_none_for_no_messages(self) -> None:
+        """Return None when there are no messages."""
+        request = ModelRequest(messages=[])
+        assert _find_text(request) is None
+
+    def test_returns_none_for_no_text_parts(self) -> None:
+        """Return None when message has only media parts."""
+        request = ModelRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part.from_media('data:audio/mpeg;base64,AAAA')],
+                )
+            ]
+        )
+        assert _find_text(request) is None
+
+    def test_returns_first_text_part(self) -> None:
+        """Return the first text part when multiple exist."""
+        request = ModelRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[
+                        Part.from_text('first'),
+                        Part.from_text('second'),
+                    ],
+                )
+            ]
+        )
+        assert _find_text(request) == 'first'
+
+
+class TestExtractText:
+    """Tests for _extract_text."""
+
+    def test_returns_text_when_present(self) -> None:
+        """Extract and return text when present."""
+        request = ModelRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part.from_text('hello')],
+                )
+            ]
+        )
+        assert _extract_text(request) == 'hello'
+
+    def test_raises_for_no_messages(self) -> None:
+        """Raise ValueError when request has no messages."""
+        request = ModelRequest(messages=[])
+        with pytest.raises(ValueError, match='No messages found'):
+            _extract_text(request)
+
+    def test_raises_for_no_text_content(self) -> None:
+        """Raise ValueError when no text parts exist."""
+        request = ModelRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part.from_media('data:audio/mpeg;base64,AAAA')],
+                )
+            ]
+        )
+        with pytest.raises(ValueError, match='No text content found'):
+            _extract_text(request)
+
+
+class TestExtractMedia:
+    """Tests for _extract_media."""
+
+    def test_extracts_media_url_and_content_type(self) -> None:
+        """Extract URL and content type from a media part."""
+        request = ModelRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part.from_media('data:audio/mpeg;base64,AAAA', content_type='audio/mpeg')],
+                )
+            ]
+        )
+        url, ct = _extract_media(request)
+        assert url == 'data:audio/mpeg;base64,AAAA'
+        assert ct == 'audio/mpeg'
+
+    def test_parses_content_type_from_data_uri_when_missing(self) -> None:
+        """Parse content type from data URI when not explicitly provided."""
+        request = ModelRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part.from_media('data:audio/wav;base64,AAAA')],
+                )
+            ]
+        )
+        url, ct = _extract_media(request)
+        assert url == 'data:audio/wav;base64,AAAA'
+        assert ct == 'audio/wav'
+
+    def test_raises_for_no_messages(self) -> None:
+        """Raise ValueError when request has no messages."""
+        request = ModelRequest(messages=[])
+        with pytest.raises(ValueError, match='No messages found'):
+            _extract_media(request)
+
+    def test_raises_for_no_media_parts(self) -> None:
+        """Raise ValueError when message has no media parts."""
+        request = ModelRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part.from_text('just text')],
+                )
+            ]
+        )
+        with pytest.raises(ValueError, match='No media content found'):
+            _extract_media(request)
+
+    def test_skips_text_parts_finds_media(self) -> None:
+        """Find media part even when text parts come first."""
+        request = ModelRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[
+                        Part.from_text('instructions'),
+                        Part.from_media('data:image/png;base64,iVBOR', content_type='image/png'),
+                    ],
+                )
+            ]
+        )
+        _, ct = _extract_media(request)
+        assert ct == 'image/png'
+
+    def test_content_type_from_data_uri_without_base64_qualifier(self) -> None:
+        """Parse content type from data URI that omits ;base64 qualifier."""
+        request = ModelRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part.from_media('data:text/plain,hello')],
+                )
+            ]
+        )
+        _, ct = _extract_media(request)
+        assert ct == 'text/plain'
+
+
+class TestDictMessageAdapterReasoningContent:
+    """Tests for DictMessageAdapter.reasoning_content property."""
+
+    def test_returns_reasoning_content_when_present(self) -> None:
+        """Return reasoning_content from the dict."""
+        adapter = DictMessageAdapter({
+            'content': 'The answer is 42.',
+            'reasoning_content': 'Let me think step by step...',
+            'role': 'assistant',
+        })
+        assert adapter.reasoning_content == 'Let me think step by step...'
+
+    def test_returns_none_when_missing(self) -> None:
+        """Return None when reasoning_content is not in the dict."""
+        adapter = DictMessageAdapter({
+            'content': 'Hello',
+            'role': 'assistant',
+        })
+        assert adapter.reasoning_content is None
+
+
+class TestMessageAdapterReasoningContent:
+    """Tests for MessageAdapter.reasoning_content property."""
+
+    def test_returns_reasoning_content_when_present(self) -> None:
+        """Return reasoning_content from the object."""
+
+        class FakeMessage:
+            content = 'The answer is 42.'
+            reasoning_content = 'Let me think step by step...'
+            tool_calls = None
+            role = 'assistant'
+
+        adapter = MessageAdapter(FakeMessage())
+        assert adapter.reasoning_content == 'Let me think step by step...'
+
+    def test_returns_none_when_missing(self) -> None:
+        """Return None when object has no reasoning_content attribute."""
+
+        class FakeMessage:
+            content = 'Hello'
+            tool_calls = None
+            role = 'assistant'
+
+        adapter = MessageAdapter(FakeMessage())
+        assert adapter.reasoning_content is None
+
+    def test_returns_none_for_pydantic_model_without_field(self) -> None:
+        """Return None for Pydantic models that raise AttributeError on unknown attrs.
+
+        The openai library's ChatCompletionMessage is a Pydantic model whose
+        __getattr__ raises AttributeError for unknown fields, bypassing
+        Python's getattr(obj, name, default) fallback. This test verifies
+        the try/except pattern handles this correctly.
+        """
+
+        class PydanticMessage(BaseModel):
+            content: str | None = None
+            tool_calls: list | None = None
+            role: str = 'assistant'
+
+        adapter = MessageAdapter(PydanticMessage(content='Hello'))
+        assert adapter.reasoning_content is None
+
+
+class TestMessageConverterReasoningContent:
+    """Tests for reasoning_content handling in MessageConverter.to_genkit()."""
+
+    def test_reasoning_content_only(self) -> None:
+        """Convert message with only reasoning_content to ReasoningPart."""
+        adapter = DictMessageAdapter({
+            'content': None,
+            'reasoning_content': 'Let me think about this step by step...',
+            'role': 'assistant',
+        })
+        msg = MessageConverter.to_genkit(adapter)
+        assert len(msg.content) == 1
+        assert msg.content[0].reasoning is not None
+        assert msg.content[0].reasoning == 'Let me think about this step by step...'
+
+    def test_reasoning_and_text_content(self) -> None:
+        """Convert message with both reasoning_content and content."""
+        adapter = DictMessageAdapter({
+            'content': 'The answer is 42.',
+            'reasoning_content': 'Let me think...',
+            'role': 'assistant',
+        })
+        msg = MessageConverter.to_genkit(adapter)
+        # Reasoning comes first, then text (matching JS order).
+        assert len(msg.content) == 2
+        assert msg.content[0].reasoning is not None
+        assert msg.content[0].reasoning == 'Let me think...'
+        assert msg.content[1].text is not None
+        assert msg.content[1].text == 'The answer is 42.'
+
+    def test_text_content_without_reasoning(self) -> None:
+        """Convert a regular message without reasoning_content."""
+        adapter = DictMessageAdapter({
+            'content': 'Hello!',
+            'role': 'assistant',
+        })
+        msg = MessageConverter.to_genkit(adapter)
+        assert len(msg.content) == 1
+        assert msg.content[0].text is not None
+        assert msg.content[0].text == 'Hello!'
+
+    def test_empty_reasoning_content_is_ignored(self) -> None:
+        """Ignore reasoning_content when it is an empty string."""
+        adapter = DictMessageAdapter({
+            'content': 'Hello!',
+            'reasoning_content': '',
+            'role': 'assistant',
+        })
+        msg = MessageConverter.to_genkit(adapter)
+        # Empty reasoning is falsy, so only text part is created.
+        assert len(msg.content) == 1
+        assert msg.content[0].text is not None
+
+    def test_empty_message_has_empty_content(self) -> None:
+        """A message with no content fields converts to a message with no parts."""
+        adapter = DictMessageAdapter({
+            'content': None,
+            'role': 'assistant',
+        })
+        assert MessageConverter.to_genkit(adapter).content == []
+
+    def test_reasoning_text_and_tool_calls_are_all_kept(self) -> None:
+        """Keep reasoning, text, and tool call parts together, in that order."""
+        adapter = DictMessageAdapter({
+            'content': 'Checking the weather.',
+            'reasoning_content': 'Some reasoning',
+            'tool_calls': [
+                {
+                    'id': 'call_1',
+                    'function': {
+                        'name': 'get_weather',
+                        'arguments': '{"location": "NYC"}',
+                    },
+                }
+            ],
+            'role': 'assistant',
+        })
+        msg = MessageConverter.to_genkit(adapter)
+        assert len(msg.content) == 3
+        assert msg.content[0].reasoning == 'Some reasoning'
+        assert msg.content[1].text == 'Checking the weather.'
+        req = msg.content[2].tool_request
+        assert req is not None
+        assert req.ref == 'call_1'
+        assert req.name == 'get_weather'
+        assert req.input == {'location': 'NYC'}
+
+    def test_text_and_tool_calls_without_reasoning(self) -> None:
+        """Keep text alongside tool calls when there is no reasoning."""
+        adapter = DictMessageAdapter({
+            'content': 'Let me look that up.',
+            'tool_calls': [
+                {
+                    'id': 'call_1',
+                    'function': {
+                        'name': 'get_weather',
+                        'arguments': '{"location": "NYC"}',
+                    },
+                }
+            ],
+            'role': 'assistant',
+        })
+        msg = MessageConverter.to_genkit(adapter)
+        assert len(msg.content) == 2
+        assert msg.content[0].text == 'Let me look that up.'
+        req = msg.content[1].tool_request
+        assert req is not None
+        assert req.input == {'location': 'NYC'}
+
+    def test_zero_argument_tool_call_has_empty_input(self) -> None:
+        """A tool call whose arguments are an empty string parses to an empty input."""
+        adapter = DictMessageAdapter({
+            'content': None,
+            'tool_calls': [{'id': 'call_1', 'function': {'name': 'ping', 'arguments': ''}}],
+            'role': 'assistant',
+        })
+        msg = MessageConverter.to_genkit(adapter)
+        assert len(msg.content) == 1
+        req = msg.content[0].tool_request
+        assert req is not None
+        assert req.name == 'ping'
+        assert req.input == {}
+
+    def test_role_defaults_to_model(self) -> None:
+        """Default role should be MODEL when not provided."""
+        adapter = DictMessageAdapter({
+            'content': None,
+            'reasoning_content': 'Thinking...',
+        })
+        msg = MessageConverter.to_genkit(adapter)
+        assert msg.role == Role.MODEL
+
+
+class TestMessageConverterToOpenAI:
+    """Tests for MessageConverter.to_openai()."""
+
+    def test_text_only_message_uses_string_content(self) -> None:
+        """Text-only messages should produce a plain string content field."""
+        message = Message(
+            role=Role.USER,
+            content=[Part.from_text('Hello world')],
+        )
+        result = MessageConverter.to_openai(message)
+        assert len(result) == 1
+        assert result[0] == {'role': 'user', 'content': 'Hello world'}
+
+    def test_multiple_text_parts_concatenated(self) -> None:
+        """Multiple text parts should be concatenated into one string."""
+        message = Message(
+            role=Role.USER,
+            content=[
+                Part.from_text('Hello '),
+                Part.from_text('world'),
+            ],
+        )
+        result = MessageConverter.to_openai(message)
+        assert len(result) == 1
+        assert result[0]['content'] == 'Hello world'
+
+    def test_media_part_produces_image_url_block(self) -> None:
+        """A MediaPart should produce an image_url content block."""
+        message = Message(
+            role=Role.USER,
+            content=[
+                Part.from_media('https://example.com/cat.jpg', content_type='image/jpeg'),
+            ],
+        )
+        result = MessageConverter.to_openai(message)
+        assert len(result) == 1
+        assert result[0]['role'] == 'user'
+        content = result[0]['content']
+        assert isinstance(content, list)
+        assert len(content) == 1
+        assert content[0] == {
+            'type': 'image_url',
+            'image_url': {'url': 'https://example.com/cat.jpg'},
+        }
+
+    def test_text_and_media_produces_content_array(self) -> None:
+        """Mixed text + media should produce an array of content blocks.
+
+        This is the multimodal vision format required by the OpenAI Chat
+        Completions API, matching the JS canonical toOpenAIMessages().
+        """
+        message = Message(
+            role=Role.USER,
+            content=[
+                Part.from_text('Describe this image'),
+                Part.from_media('https://example.com/cat.jpg', content_type='image/jpeg'),
+            ],
+        )
+        result = MessageConverter.to_openai(message)
+        assert len(result) == 1
+        content = result[0]['content']
+        assert isinstance(content, list)
+        assert len(content) == 2
+        assert content[0] == {'type': 'text', 'text': 'Describe this image'}
+        assert content[1] == {
+            'type': 'image_url',
+            'image_url': {'url': 'https://example.com/cat.jpg'},
+        }
+
+    def test_tool_request_parts(self) -> None:
+        """ToolRequestParts should produce tool_calls entries."""
+        message = Message(
+            role=Role.MODEL,
+            content=[
+                Part(
+                    tool_request=ToolRequest(
+                        ref='call_1',
+                        name='get_weather',
+                        input={'location': 'NYC'},
+                    )
+                )
+            ],
+        )
+        result = MessageConverter.to_openai(message)
+        assert len(result) == 1
+        assert result[0]['role'] == 'assistant'
+        assert 'tool_calls' in result[0]
+        tc = result[0]['tool_calls'][0]
+        assert tc['id'] == 'call_1'
+        assert tc['function']['name'] == 'get_weather'
+
+    def test_tool_response_parts(self) -> None:
+        """ToolResponseParts should produce tool role messages."""
+        message = Message(
+            role=Role.TOOL,
+            content=[
+                Part(
+                    tool_response=ToolResponse(
+                        ref='call_1',
+                        name='get_weather',
+                        output='Sunny, 72F',
+                    )
+                )
+            ],
+        )
+        result = MessageConverter.to_openai(message)
+        assert len(result) == 1
+        assert result[0]['role'] == 'tool'
+        assert result[0]['tool_call_id'] == 'call_1'
+        assert result[0]['content'] == 'Sunny, 72F'
+
+    def test_model_role_maps_to_assistant(self) -> None:
+        """Role.MODEL should map to 'assistant' in OpenAI format."""
+        message = Message(
+            role=Role.MODEL,
+            content=[Part.from_text('Hi there')],
+        )
+        result = MessageConverter.to_openai(message)
+        assert result[0]['role'] == 'assistant'
+
+    def test_data_uri_media_url_preserved(self) -> None:
+        """Data URI media URLs should be passed through unchanged."""
+        data_uri = 'data:image/png;base64,iVBORw0KGgo='
+        message = Message(
+            role=Role.USER,
+            content=[
+                Part.from_text('What is this?'),
+                Part.from_media(data_uri),
+            ],
+        )
+        result = MessageConverter.to_openai(message)
+        content = result[0]['content']
+        assert isinstance(content, list)
+        assert content[1]['image_url']['url'] == data_uri
+
+    def test_reasoning_part_stripped_from_assistant_message(self) -> None:
+        """ReasoningPart should be stripped when converting back to OpenAI format.
+
+        DeepSeek's API rejects reasoning_content in context messages. The JS
+        canonical implementation naturally excludes it by using msg.text (which
+        only returns text parts) for assistant messages. We must explicitly skip
+        ReasoningPart instances.
+        """
+        message = Message(
+            role=Role.MODEL,
+            content=[
+                Part.from_reasoning('Let me think step by step...'),
+                Part.from_text('The answer is 42.'),
+            ],
+        )
+        result = MessageConverter.to_openai(message)
+        assert len(result) == 1
+        assert result[0] == {'role': 'assistant', 'content': 'The answer is 42.'}
+
+    def test_reasoning_only_message_produces_empty_result(self) -> None:
+        """A message with only ReasoningPart should produce an empty result.
+
+        This can happen when a DeepSeek R1 model returns only reasoning_content
+        without any text content. The reasoning must not be sent back.
+        """
+        message = Message(
+            role=Role.MODEL,
+            content=[
+                Part.from_reasoning('Let me think about this...'),
+            ],
+        )
+        result = MessageConverter.to_openai(message)
+        assert result == []
+
+    def test_multi_turn_with_reasoning_strips_all_reasoning(self) -> None:
+        """In a multi-turn conversation, all ReasoningParts should be stripped.
+
+        Simulates a multi-turn context where a previous assistant message
+        contained both reasoning and text content.
+        """
+        # Previous assistant message with reasoning + text
+        assistant_msg = Message(
+            role=Role.MODEL,
+            content=[
+                Part.from_reasoning('Step 1: analyze the question...'),
+                Part.from_reasoning('Step 2: formulate answer...'),
+                Part.from_text('Paris is the capital of France.'),
+            ],
+        )
+        result = MessageConverter.to_openai(assistant_msg)
+        assert len(result) == 1
+        assert result[0] == {'role': 'assistant', 'content': 'Paris is the capital of France.'}
+
+    def test_empty_message_produces_no_result(self) -> None:
+        """A message with no content parts should produce an empty result."""
+        message = Message(role=Role.USER, content=[])
+        result = MessageConverter.to_openai(message)
+        assert result == []
+
+
+def test_reraise_openai_error_marks_503_unavailable() -> None:
+    """A provider 503 must stay retryable, not collapse to INTERNAL."""
+    error = APIStatusError(
+        'overloaded',
+        response=httpx.Response(503, request=httpx.Request('POST', 'https://api.openai.com/v1/chat')),
+        body=None,
+    )
+    with pytest.raises(GenkitError) as raised:
+        reraise_openai_error(error)
+    assert raised.value.status == 'UNAVAILABLE'
+
+
+def test_reraise_openai_error_marks_request_shaping_invalid_argument() -> None:
+    """A request we could never send is INVALID_ARGUMENT so retry skips it."""
+    with pytest.raises(GenkitError) as raised:
+        reraise_openai_error(ValueError('No text content found in the first message'))
+    assert raised.value.status == 'INVALID_ARGUMENT'
+
+
+def test_reraise_openai_error_marks_empty_model_reply_internal() -> None:
+    """An empty model reply is not a bad request — retry can try again."""
+    with pytest.raises(GenkitError) as raised:
+        reraise_openai_error(ValueError('Unable to determine content part'))
+    assert raised.value.status == 'INTERNAL'
+
+
+def test_reraise_openai_error_marks_malformed_tool_json_internal() -> None:
+    """Malformed tool-call JSON from the model is INTERNAL so retry can try again."""
+    try:
+        json.loads('{')
+    except json.JSONDecodeError as error:
+        with pytest.raises(GenkitError) as raised:
+            reraise_openai_error(error)
+        assert raised.value.status == 'INTERNAL'
+        return
+    raise AssertionError('expected JSONDecodeError')
+
+
+def _in_band_error(body: dict[str, object]) -> APIError:
+    """The error the SDK raises when a 200 stream sends an SSE chunk with an `error` object."""
+    request = httpx.Request('POST', 'https://api.openai.com/v1/chat/completions')
+    return APIError(str(body.get('message')), request, body=body)
+
+
+@pytest.mark.parametrize(
+    ('body', 'expected_status'),
+    [
+        (
+            {'message': 'Rate limit reached for gpt-4o', 'type': 'requests', 'code': 'rate_limit_exceeded'},
+            'RESOURCE_EXHAUSTED',
+        ),
+        (
+            {'message': 'You exceeded your current quota', 'type': 'insufficient_quota', 'code': 'insufficient_quota'},
+            'RESOURCE_EXHAUSTED',
+        ),
+        ({'message': 'The server had an error', 'type': 'server_error', 'code': None}, 'INTERNAL'),
+        (
+            {'message': 'Invalid tool schema', 'type': 'invalid_request_error', 'code': 'invalid_value'},
+            'INVALID_ARGUMENT',
+        ),
+    ],
+    ids=['rate-limit-code', 'quota', 'server-error-type', 'invalid-request-type'],
+)
+def test_reraise_openai_error_classifies_known_in_band_errors(
+    body: dict[str, object], expected_status: StatusName
+) -> None:
+    """A mid-stream error the provider typed is classified by its code, then its type."""
+    error = _in_band_error(body)
+
+    with pytest.raises(GenkitError) as raised:
+        reraise_openai_error(error)
+
+    assert raised.value.status == expected_status
+    assert raised.value.original_message == body['message']
+    assert raised.value.cause is error
+    assert raised.value.__cause__ is error
+
+
+@pytest.mark.parametrize(
+    'error',
+    [
+        _in_band_error({'message': 'Something new went wrong', 'type': 'brand_new_error', 'code': 'brand_new'}),
+        _in_band_error({'message': 'An error occurred during streaming'}),
+    ],
+    ids=['unknown-in-band-type', 'untyped-in-band'],
+)
+def test_reraise_openai_error_marks_unknown_in_band_errors_unknown(error: APIError) -> None:
+    """A mid-stream error the plugin does not know is an UNKNOWN GenkitError that keeps its message and cause."""
+    with pytest.raises(GenkitError) as raised:
+        reraise_openai_error(error)
+
+    assert raised.value.status == 'UNKNOWN'
+    assert raised.value.original_message == error.message
+    assert raised.value.__cause__ is error
+
+
+def test_connection_refused_is_unavailable() -> None:
+    """A connection the SDK could not open is UNAVAILABLE, so retry and fallback act on it."""
+    error = APIConnectionError(request=httpx.Request('POST', 'https://api.openai.com/v1/chat/completions'))
+
+    with pytest.raises(GenkitError) as raised:
+        reraise_openai_error(error)
+
+    assert raised.value.status == 'UNAVAILABLE'
+    assert raised.value.__cause__ is error
+
+
+def test_timeout_is_deadline_exceeded() -> None:
+    """A request the SDK timed out is DEADLINE_EXCEEDED, not the broader connection UNAVAILABLE."""
+    error = APITimeoutError(request=httpx.Request('POST', 'https://api.openai.com/v1/chat/completions'))
+
+    with pytest.raises(GenkitError) as raised:
+        reraise_openai_error(error)
+
+    assert raised.value.status == 'DEADLINE_EXCEEDED'
+    assert raised.value.__cause__ is error
+
+
+@pytest.mark.parametrize('status_code', [413, 418])
+def test_unmapped_4xx_is_unknown_genkit_error(status_code: int) -> None:
+    """A 4xx with no matching Genkit status is an UNKNOWN GenkitError that keeps the provider message."""
+    error = APIStatusError(
+        'payload too large',
+        response=httpx.Response(status_code, request=httpx.Request('POST', 'https://api.openai.com/v1/chat')),
+        body=None,
+    )
+
+    with pytest.raises(GenkitError) as raised:
+        reraise_openai_error(error)
+
+    assert raised.value.status == 'UNKNOWN'
+    assert raised.value.original_message == 'payload too large'
+    assert raised.value.__cause__ is error
+
+
+def test_reraise_openai_error_marks_unreadable_response_internal() -> None:
+    """A 200 whose body fails SDK validation is a malformed provider reply."""
+    request = httpx.Request('POST', 'https://api.openai.com/v1/chat/completions')
+    error = APIResponseValidationError(httpx.Response(200, request=request), body={'unexpected': True})
+
+    with pytest.raises(GenkitError) as raised:
+        reraise_openai_error(error)
+
+    assert raised.value.status == 'INTERNAL'
+    assert raised.value.cause is error
+
+
+class TestExtractResponseMetadata:
+    """Tests for extract_response_metadata."""
+
+    def test_ids_and_fingerprint(self, make_completion: Callable[..., ChatCompletion]) -> None:
+        """The fingerprint, model and id are collected under camelCase keys."""
+        completion = make_completion(system_fingerprint='fp_44709d6fcb')
+        assert extract_response_metadata(completion) == {
+            'systemFingerprint': 'fp_44709d6fcb',
+            'model': 'gpt-4o-2024-08-06',
+            'id': 'chatcmpl-abc',
+        }
+
+    def test_ids_without_fingerprint(self, make_completion: Callable[..., ChatCompletion]) -> None:
+        """Providers that omit the fingerprint still report their model and id."""
+        assert extract_response_metadata(make_completion()) == {
+            'model': 'gpt-4o-2024-08-06',
+            'id': 'chatcmpl-abc',
+        }
+
+    def test_citations(self, make_completion: Callable[..., ChatCompletion]) -> None:
+        """Citations pass through in the shape the provider returned them."""
+        citations = ['https://a.example', 'https://b.example']
+        metadata = extract_response_metadata(make_completion(citations=citations))
+        assert metadata['citations'] == citations
+
+    def test_null_citations_are_absent(self, make_completion: Callable[..., ChatCompletion]) -> None:
+        """A citations field that arrived as null is treated as absent."""
+        assert 'citations' not in extract_response_metadata(make_completion(citations=None))
+
+    def test_choice_error_object(self, make_completion: Callable[..., ChatCompletion]) -> None:
+        """The error object a failing choice carries is kept whole."""
+        failure = {
+            'message': 'Provider returned error',
+            'code': 429,
+            'metadata': {'provider_name': 'xai'},
+        }
+        metadata = extract_response_metadata(make_completion(choice={'finish_reason': 'error', 'error': failure}))
+        assert metadata['error'] == failure
+
+    def test_non_object_choice_error_is_dropped(self, make_completion: Callable[..., ChatCompletion]) -> None:
+        """An error field that is not an object is not metadata."""
+        metadata = extract_response_metadata(make_completion(choice={'error': 'boom'}))
+        assert 'error' not in metadata
+
+    def test_empty_choices(self, make_completion: Callable[..., ChatCompletion]) -> None:
+        """A response with no choices still reports its top-level metadata."""
+        metadata = extract_response_metadata(make_completion(choices=[], citations=['u']))
+        assert metadata == {'model': 'gpt-4o-2024-08-06', 'id': 'chatcmpl-abc', 'citations': ['u']}
+
+    def test_chunk(self, make_chunk: Callable[..., ChatCompletionChunk]) -> None:
+        """A streamed chunk reports the same metadata a completion does."""
+        chunk = make_chunk(
+            content='hi',
+            system_fingerprint='fp_stream',
+            citations=['https://x.example'],
+            choice={'finish_reason': 'error', 'error': {'message': 'boom'}},
+        )
+        assert extract_response_metadata(chunk) == {
+            'systemFingerprint': 'fp_stream',
+            'model': 'grok-4',
+            'id': 'chatcmpl-stream',
+            'citations': ['https://x.example'],
+            'error': {'message': 'boom'},
+        }
+
+    def test_empty_strings_are_absent(self, make_completion: Callable[..., ChatCompletion]) -> None:
+        """An empty id, model or fingerprint is treated as absent."""
+        completion = make_completion(id='', model='', system_fingerprint='')
+        assert extract_response_metadata(completion) == {}

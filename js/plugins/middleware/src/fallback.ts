@@ -15,13 +15,18 @@
  */
 
 import {
+  GENKIT_UI_METADATA,
+  GENKIT_UI_WIDGETS,
   GenkitError,
   ModelReferenceSchema,
+  StatusNameSchema,
+  annotateSchema,
   generateMiddleware,
   z,
   type GenerateMiddleware,
   type StatusName,
 } from 'genkit';
+import { logger } from 'genkit/logging';
 import { ModelAction } from 'genkit/model';
 import { Registry } from 'genkit/registry';
 
@@ -40,15 +45,18 @@ export const FallbackOptionsSchema = z
     /**
      * An array of models to try in order.
      */
-    models: z
-      .array(ModelReferenceSchema)
-      .describe('An array of models to try in order.'),
+    models: annotateSchema(
+      z
+        .array(ModelReferenceSchema)
+        .describe('An array of models to try in order.'),
+      { [GENKIT_UI_METADATA.WIDGET]: GENKIT_UI_WIDGETS.MODEL_LIST }
+    ),
     /**
      * An array of `StatusName` values that should trigger a fallback.
      * @default ['UNAVAILABLE', 'DEADLINE_EXCEEDED', 'RESOURCE_EXHAUSTED', 'ABORTED', 'INTERNAL', 'NOT_FOUND', 'UNIMPLEMENTED']
      */
     statuses: z
-      .array(z.string())
+      .array(StatusNameSchema)
       .optional()
       .describe(
         'An array of StatusName values that should trigger a fallback.'
@@ -102,18 +110,26 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
         model: async (req, ctx, next) => {
           try {
             return await next(req, ctx);
-          } catch (e) {
-            if (
+          } catch (e: any) {
+            const isHandled =
               e instanceof GenkitError &&
-              statuses.includes(e.status as StatusName)
-            ) {
+              statuses.includes(e.status as StatusName);
+            if (isHandled) {
               let lastError: any = e;
               for (const model of models) {
-                const normalizedModel = await resolveModel(
-                  options.ai.registry,
-                  model
+                logger.warn(
+                  `Falling back to model ${model.name} due to error: ${lastError.status} ${lastError.message}`,
+                  {
+                    'genkit.middleware.name': 'fallback',
+                    'genkit.middleware.fallback.target_model': model.name,
+                  },
+                  lastError
                 );
                 try {
+                  const normalizedModel = await resolveModel(
+                    options.ai.registry,
+                    model
+                  );
                   return await normalizedModel.model(
                     {
                       ...req,
@@ -123,7 +139,7 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
                     },
                     ctx
                   );
-                } catch (e2) {
+                } catch (e2: any) {
                   lastError = e2;
                   if (
                     e2 instanceof GenkitError &&
@@ -131,12 +147,35 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
                   ) {
                     continue;
                   }
+                  logger.warn(
+                    `Aborting fallback sequence for unrecoverable error: ${e2.message || String(e2)}`,
+                    {
+                      'genkit.middleware.name': 'fallback',
+                      'genkit.middleware.fallback.target_model': model.name,
+                    },
+                    e2
+                  );
                   throw e2;
                 }
               }
+              logger.warn(
+                `Fallback options exhausted. Last error: ${lastError.message || String(lastError)}`,
+                {
+                  'genkit.middleware.name': 'fallback',
+                },
+                lastError
+              );
               throw lastError;
+            } else {
+              logger.warn(
+                `Skipping fallback for unhandled error: ${e.message || String(e)}`,
+                {
+                  'genkit.middleware.name': 'fallback',
+                },
+                e
+              );
+              throw e;
             }
-            throw e;
           }
         },
       };

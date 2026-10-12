@@ -17,23 +17,21 @@
 [project]
 authors = [{ name = "Google" }]
 dependencies = [
-  "dotpromptz==0.1.5",
   "genkit",
-  "genkit-plugin-anthropic",
-  "genkit-plugin-compat-oai",
-  "genkit-plugin-fastapi",
-  "genkit-plugin-flask",
-  "genkit-plugin-google-cloud",
-  "genkit-plugin-google-genai",
-  "genkit-plugin-ollama",
-  "genkit-plugin-evaluators",
-  "genkit-plugin-vertex-ai",
-  # Internal tools (private, not published)
-  "liccheck>=0.9.2",
-  "setuptools>=75.0.0,<82",                   # Required by liccheck (provides pkg_resources, removed in setuptools 82+)
-  "mcp>=1.25.0",
-  "python-multipart>=0.0.22",
-  "strenum>=0.4.15; python_version < '3.11'",
+  "genkit-amazon-bedrock",
+  "genkit-anthropic",
+  "genkit-openai",
+  "genkit-django",
+  "genkit-evaluators",
+  "genkit-fastapi",
+  "genkit-flask",
+  "genkit-google-cloud",
+  "genkit-google-genai",
+  "genkit-middleware",
+  "genkit-otel",
+  "genkit-a2ui",
+  "genkit-ollama",
+  "genkit-vertexai",
 ]
 description = "Workspace for Genkit packages"
 license = "Apache-2.0"
@@ -48,22 +46,21 @@ dev = [
   "ipython~=8.22; python_version <= '3.10'",
   "ipython~=9.0.2; python_version >= '3.11'",
   "jupyter>=1.1.1",
+  "mcp>=1.25.0",
   "pytest-asyncio>=0.25.3",
   "pytest>=8.3.4",
   "pytest-cov>=6.0.0",
   "datamodel-code-generator>=0.27.3",
-  "pytest-watcher>=0.4.3",
   "pytest-mock>=3.14.0",
-  "twine>=6.1.0",
-  "poethepoet>=0.33.1",
+  "twine>=7.0.0",
   "pip>=25.0.1",
-  "tox>=4.25.0",
-  "tox-uv>=1.25.0",
   "nox>=2025.2.9",
   "nox-uv>=0.2.2",
 ]
 
 lint = [
+  "liccheck>=0.9.2",
+  "setuptools>=75.0.0,<82",                   # Required by liccheck (provides pkg_resources, removed in setuptools 82+)
   "bandit>=1.7.0",
   "deptry>=0.22.0",
   "litestar>=2.20.0",         # For web/typing.py type resolution
@@ -77,38 +74,30 @@ lint = [
   "strenum>=0.4.15",
   "streamlit>=1.41.0",
   "ty>=0.0.1",
-  "typos>=1.42.0",
   "fastapi>=0.115.0",
   "grpcio>=1.68.0",
   "grpcio-reflection>=1.68.0",
   "gunicorn>=22.0.0",
   "hypercorn>=0.17.0",
+  "opentelemetry-exporter-otlp>=1.29.0",
   "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
   "opentelemetry-instrumentation-asgi>=0.41b0",
   "opentelemetry-instrumentation-fastapi>=0.41b0",
   "opentelemetry-instrumentation-grpc>=0.41b0",
+  "opentelemetry-sdk>=1.29.0",
   "quart>=0.19.0",
   "secure>=1.0.0",
   "sentry-sdk>=2.0.0",
   "structlog>=24.0.0",
 ]
 
-[tool.hatch.build.targets.wheel]
-
-
-[tool.setuptools]
-py-modules = []
-
 # Pytest for unit testing and coverage.
-[tool.pytest]
-
 [tool.pytest.ini_options]
 addopts = [
   "--cov",
   #"--cov-report=", # Disable terminal report generation by pytest-cov
   "-ra",
   "-vv",
-  "--ignore=testapps",
   "--import-mode=importlib",
 ]
 asyncio_default_fixture_loop_scope = "session"
@@ -119,11 +108,10 @@ filterwarnings = [
     # dotpromptz uses the same pattern; not our code, suppress it too.
     "ignore:Field name .schema. in .Prompt.*Config. shadows:UserWarning",
 ]
-norecursedirs = ["testapps", ".git", ".tox", ".nox", ".venv", "build", "dist"]
+norecursedirs = [".git", ".tox", ".nox", ".venv", "build", "dist"]
 python_files = ["*_test.py"]
 pythonpath = ["."]
-testpaths = ["packages", "plugins", "samples", "tests", "tools"]
-#asyncio_mode = "auto"
+testpaths = ["packages", "samples", "tests", "tools"]
 asyncio_mode = "strict"
 
 [tool.coverage.report]
@@ -137,75 +125,78 @@ omit = [
   "**/typing.py",    # Often auto-generated or complex types
   "**/types.py",     # Often auto-generated or complex types
 ]
-source = ["packages", "plugins"]
+source = ["packages"]
 
 # uv based package management.
 [tool.uv]
 default-groups = ["dev", "lint"]
 override-dependencies = ["werkzeug>=3.1.6"]
 
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+default = true
+
 [tool.uv.sources]
 # Samples (alphabetical by package name from pyproject.toml)
+agents               = { workspace = true }
+amazon-bedrock-sample = { workspace = true }
+anthropic-sample     = { workspace = true }
 basic-flows          = { workspace = true }
 context              = { workspace = true }
+django-hello         = { workspace = true }
 dynamic-tools        = { workspace = true }
 evaluators           = { workspace = true }
 fastapi-bugbot       = { workspace = true }
 flask-hello          = { workspace = true }
 gemini-code-execution = { workspace = true }
 gemini-context-caching = { workspace = true }
+google-genai-deep-research = { workspace = true }
 google-genai-media   = { workspace = true }
 middleware           = { workspace = true }
+middleware-coding-agent = { workspace = true }
+ollama-sample        = { workspace = true }
+otel-jaeger          = { workspace = true }
 output-formats       = { workspace = true }
 prompts              = { workspace = true }
 tool-interrupts      = { workspace = true }
 tracing              = { workspace = true }
-vertexai-imagen      = { workspace = true }
+vertexai-image       = { workspace = true }
 
 # Core packages
 genkit = { workspace = true }
-# Plugins (alphabetical)
-genkit-plugin-anthropic             = { workspace = true }
-genkit-plugin-compat-oai            = { workspace = true }
-genkit-plugin-fastapi               = { workspace = true }
-genkit-plugin-flask                 = { workspace = true }
-genkit-plugin-google-cloud          = { workspace = true }
-genkit-plugin-google-genai          = { workspace = true }
-genkit-plugin-ollama                = { workspace = true }
-genkit-plugin-evaluators            = { workspace = true }
-genkit-plugin-vertex-ai             = { workspace = true }
+genkit-amazon-bedrock = { workspace = true }
+genkit-anthropic    = { workspace = true }
+genkit-openai       = { workspace = true }
+genkit-django       = { workspace = true }
+genkit-evaluators   = { workspace = true }
+genkit-fastapi      = { workspace = true }
+genkit-flask        = { workspace = true }
+genkit-google-cloud  = { workspace = true }
+genkit-google-genai     = { workspace = true }
+genkit-middleware   = { workspace = true }
+genkit-otel         = { workspace = true }
+genkit-a2ui         = { workspace = true }
+genkit-ollama       = { workspace = true }
+genkit-vertexai     = { workspace = true }
+
 [tool.uv.workspace]
-exclude = ["*/shared", "testapps/*"]
-members = ["packages/*", "plugins/*", "samples/*"]
+exclude = ["*/shared"]
+members = ["packages/*", "samples/*"]
 
 
 # Ruff checks and formatting.
 [tool.ruff]
 exclude = [
   "packages/genkit/src/genkit/_core/_typing.py",  # Generated by generate_schema_typing
-  "tools/schema_to_typing",  # Internal generator script
-  ".bzr",
-  ".direnv",
-  ".eggs",
+  "scripts/schema_to_typing.py",  # Internal generator script
   ".git",
-  ".git-rewrite",
-  ".hg",
-  ".ipynb_checkpoints",
   ".mypy_cache",
   ".nox",
-  ".pants.d",
-  ".pyenv",
   ".pytest_cache",
-  ".pytype",
   ".ruff_cache",
-  ".svn",
   ".tox",
   ".venv",
-  ".vscode",
-  "__pypackages__",
-  "_build",
-  "bazel-*",
-  "buck-out",
   "build",
   "dist",
   "node_modules",
@@ -243,9 +234,6 @@ select = [
   "S",     # flake8-bandit (security)
   "ASYNC", # flake8-async (async best practices)
   "T20",   # flake8-print (no print statements)
-  # TODO(https://github.com/genkit-ai/genkit/issues/4398): Enable PLC0415 after
-  # completing cleanup of remaining in-function imports in core framework.
-  # "PLC0415",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -253,26 +241,22 @@ select = [
 "packages/genkit/src/genkit/_core/_typing.py" = ["E501"]
 # Base model uses **kwargs: Any to match pydantic signatures
 "packages/genkit/src/genkit/_core/_base.py" = ["ANN401"]
+# JSON Patch diff/apply operations require manipulating arbitrary Any JSON structures
+"packages/genkit/src/genkit/_ai/_json_patch.py" = ["ANN401"]
 # HTTP client uses **httpx_kwargs: Any to forward arbitrary options
-"packages/genkit/src/genkit/_core/_http_client.py" = ["ANN401"]
 # Span wrapper uses __getattr__ -> Any for dynamic delegation
-"packages/genkit/src/genkit/_core/trace/_adjusting_exporter.py" = ["ANN401"]
+"packages/genkit-google-cloud/src/genkit_google_cloud/_telemetry/_adjusting_exporter.py" = ["ANN401"]
+# Private telemetry folder; helpers here are not a public docstring surface
+"packages/genkit/src/genkit/_core/_telemetry/*.py" = ["D"]
 # Re-export modules (F401 would flag imports used only for re-export)
-"packages/genkit/src/genkit/_ai/__init__.py" = ["F401"]
 "packages/genkit/src/genkit/_ai/_document.py" = ["F401"]
 "packages/genkit/src/genkit/_ai/_model.py" = ["F401"]
-"packages/genkit/src/genkit/_ai/_formats/__init__.py" = ["F401"]
-"packages/genkit/src/genkit/_core/trace/__init__.py" = ["F401"]
-# Test files don't need docstrings; test method names are self-documenting
-"**/tests/**/*.py" = ["D", "ANN401"]
+"packages/genkit/src/genkit/_ai/_testing.py" = ["F401"]
+# Test files don't need docstrings or type ceremony; test names/bodies are self-documenting
+"**/tests/**/*.py" = ["D", "ANN"]
 "packages/genkit/tests/typing/*.py" = ["D", "F821", "F841", "B018", "ANN"]
-# Validation/provenance/safe-defaults test methods are self-documenting via names;
-# S108 false positives on Path('/tmp/x') used as dummy non-existent paths in tests.
-# Samples have install_rich_traceback() call after imports, before other code
-# Samples are demo code and can use blocking I/O for simplicity
-"samples/*/*.py"     = ["ANN", "D", "E402", "ASYNC", "T201"]
-"samples/*/**/*.py"  = ["ANN", "D", "E402", "ASYNC", "T201"]
-"samples/*/src/*.py" = ["ANN", "D", "E402", "ASYNC", "T201"]
+# Samples are demo code and can use blocking I/O, prints, top-level execution
+"samples/**/*.py" = ["ANN", "D", "E402", "ASYNC", "T201"]
 
 
 [tool.ruff.lint.isort]
@@ -364,7 +348,7 @@ aiohappyeyeballs      = "2.6.1"    # Python Software Foundation (transitive dep 
 aiohttp               = "3.13.3"   # Apache-2.0 AND MIT (transitive dep of xai-sdk)
 certifi               = "2026.1.4" # TODO: Verify.
 dependencies          = true
-dotpromptz-handlebars = "0.1.8"    # Apache-2.0 "https://github.com/google/dotprompt/blob/main/LICENSE"
+dotpromptz-handlebars = "0.2.0"    # Apache-2.0 "https://github.com/google/dotprompt/blob/main/LICENSE"
 google-crc32c         = "1.8.0"    # Apache-2.0
 mistralai             = ">=1.9.11" # Apache-2.0 "https://github.com/mistralai/client-python/blob/main/LICENSE"
 multidict             = "6.7.0"    # Apache-2.0
@@ -384,14 +368,21 @@ exclude = [
 root = [
   # Core package
   "packages/genkit/src",
-  # Plugins
-  "plugins/anthropic/src",
-  "plugins/compat-oai/src",
-  "plugins/flask/src",
-  "plugins/google-cloud/src",
-  "plugins/google-genai/src",
-  "plugins/ollama/src",
-  "plugins/vertex-ai/src",
+  # Integration packages
+  "packages/genkit-amazon-bedrock/src",
+  "packages/genkit-anthropic/src",
+  "packages/genkit-openai/src",
+  "packages/genkit-django/src",
+  "packages/genkit-evaluators/src",
+  "packages/genkit-fastapi/src",
+  "packages/genkit-flask/src",
+  "packages/genkit-google-cloud/src",
+  "packages/genkit-google-genai/src",
+  "packages/genkit-middleware/src",
+  "packages/genkit-otel/src",
+  "packages/genkit-a2ui/src",
+  "packages/genkit-ollama/src",
+  "packages/genkit-vertexai/src",
   ".",  # For samples.shared and other root-level imports
 ]
 
@@ -410,14 +401,20 @@ exclude = [
 ]
 extraPaths = [
   "packages/genkit/src",
-  "plugins/anthropic/src",
-  "plugins/compat-oai/src",
-  "plugins/fastapi/src",
-  "plugins/flask/src",
-  "plugins/google-cloud/src",
-  "plugins/google-genai/src",
-  "plugins/ollama/src",
-  "plugins/vertex-ai/src",
+  "packages/genkit-amazon-bedrock/src",
+  "packages/genkit-anthropic/src",
+  "packages/genkit-openai/src",
+  "packages/genkit-django/src",
+  "packages/genkit-evaluators/src",
+  "packages/genkit-fastapi/src",
+  "packages/genkit-flask/src",
+  "packages/genkit-google-cloud/src",
+  "packages/genkit-google-genai/src",
+  "packages/genkit-middleware/src",
+  "packages/genkit-otel/src",
+  "packages/genkit-a2ui/src",
+  "packages/genkit-ollama/src",
+  "packages/genkit-vertexai/src",
 ]
 pythonVersion = "3.10"
 reportMissingImports = true
@@ -427,16 +424,6 @@ venv = ".venv"
 venvPath = "."
 
 # Pyrefly type checking configuration (Meta's new type checker).
-#
-# Import Resolution Note:
-# Pyrefly doesn't fully support PEP 420 namespace packages. The genkit plugins use
-# namespace packages (genkit.plugins.*) where intermediate directories (genkit/ and
-# genkit/plugins/) don't have __init__.py files. This is intentional for allowing
-# multiple packages to contribute to the same namespace, but pyrefly can't resolve
-# these imports statically. We use ignore-missing-imports for "genkit.plugins.*" to
-# suppress false positive import errors while still catching real type errors.
-# At runtime, these imports work correctly because Python's import system handles
-# PEP 420 namespace packages natively.
 [tool.pyrefly]
 project_excludes = [
   "**/__pycache__",
@@ -449,37 +436,39 @@ project_excludes = [
   ".venv",
   "build",
   "dist",
-  "testapps",
-  "testapps",
 ]
 project_includes = [
-  # Core package (source and tests)
+  # Core package
   "packages/genkit/src/**/*.py",
-  "packages/genkit/tests/**/*.py",
-  # Plugins (source and tests)
-  "plugins/*/src/**/*.py",
-  "plugins/*/tests/**/*.py",
-  # Samples
-  "samples/*/src/**/*.py",
-  "samples/*/tests/**/*.py",
 ]
 
-# Search path for first-party code import resolution.
-search-path = ["."]
-# Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420
-# namespace packages but these imports work at runtime.
-# model_performance_test is local to sample-test (excluded from workspace).
-ignore-missing-imports = ["genkit.plugins.*"]
-python_version         = "3.10"
+# Search path for first-party code import resolution. "." comes last so
+# package modules keep their import names (genkit._ai._aio), not their file
+# paths (packages.genkit.src.genkit._ai._aio).
+search-path = [
+  "packages/genkit/src",
+  "packages/genkit-amazon-bedrock/src",
+  "packages/genkit-anthropic/src",
+  "packages/genkit-openai/src",
+  "packages/genkit-django/src",
+  "packages/genkit-evaluators/src",
+  "packages/genkit-fastapi/src",
+  "packages/genkit-flask/src",
+  "packages/genkit-google-cloud/src",
+  "packages/genkit-google-genai/src",
+  "packages/genkit-middleware/src",
+  "packages/genkit-otel/src",
+  "packages/genkit-a2ui/src",
+  "packages/genkit-ollama/src",
+  "packages/genkit-vertexai/src",
+  ".",
+]
+python_version = "3.10"
 
 # Treat warnings as errors.
 [tool.pyrefly.errors]
 deprecated     = "error"
 redundant-cast = "error"
-
-# Ty analysis: suppress unresolved-import for plugins (PEP 420 namespace packages).
-[tool.ty.analysis]
-allowed-unresolved-imports = ["genkit.plugins.**"]
 
 # Downgrade unused-type-ignore to avoid noise from comments that pyright needed but ty doesn't.
 [tool.ty.rules]
@@ -491,12 +480,6 @@ include = ["**/tests/**", "**/*_test.py", "samples/**", "tools/**"]
 [tool.ty.overrides.rules]
 invalid-argument-type = "ignore"
 no-matching-overload = "ignore"
-
-# Vertex AI model_garden has relative imports ty struggles to resolve (PEP 420 / namespace).
-[[tool.ty.overrides]]
-include = ["plugins/vertex-ai/**"]
-[tool.ty.overrides.rules]
-unresolved-import = "ignore"
 
 # genkit._ai._formats._schema: dict.get with str keys from JSON schema traversal.
 [[tool.ty.overrides]]
