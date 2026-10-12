@@ -666,6 +666,10 @@ async def test_started_operation_dump_round_trips_through_check(ai: Genkit) -> N
     assert updated.done is True
     assert updated.action == '/background-model/bg-model'
 
+    # The dict itself polls too, with the same result.
+    from_dict = await ai.check_operation(dumped)
+    assert from_dict == updated
+
 
 @pytest.mark.asyncio
 async def test_generate_operation_passes_context_to_start(ai: Genkit) -> None:

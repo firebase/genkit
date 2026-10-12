@@ -251,22 +251,23 @@ class BackgroundModel:
 
     async def check(
         self,
-        operation: Operation,
+        operation: Operation | Mapping[str, Any],
         *,
         context: dict[str, Any] | None = None,
     ) -> Operation[ModelResponse]:
         """Check the status of a background operation.
 
         Args:
-            operation: The operation to check.
+            operation: The operation to check, or the dict a stored one
+                dumped to.
             context: Optional run context (secrets, folded client config).
 
         Returns:
             Updated Operation with current status.
 
         Raises:
-            GenkitError: INVALID_ARGUMENT if ``operation`` is not a live
-                ``Operation`` (e.g. a dump or a ``ModelResponse``).
+            GenkitError: INVALID_ARGUMENT if ``operation`` is not an
+                ``Operation`` or a dict that validates as one.
         """
         operation = require_operation(value=operation)
         result = await self.check_action.run(operation, context=context)
@@ -274,14 +275,15 @@ class BackgroundModel:
 
     async def cancel(
         self,
-        operation: Operation,
+        operation: Operation | Mapping[str, Any],
         *,
         context: dict[str, Any] | None = None,
     ) -> Operation[ModelResponse]:
         """Cancel a background operation.
 
         Args:
-            operation: The operation to cancel.
+            operation: The operation to cancel, or the dict a stored one
+                dumped to.
             context: Optional run context (secrets, folded client config).
 
         Returns:
@@ -289,8 +291,8 @@ class BackgroundModel:
 
         Raises:
             GenkitError: UNIMPLEMENTED if this action does not implement
-                cancel, INVALID_ARGUMENT if ``operation`` is not a live
-                ``Operation``.
+                cancel, INVALID_ARGUMENT if ``operation`` is not an
+                ``Operation`` or a dict that validates as one.
         """
         operation = require_operation(value=operation)
         # Raising here is deliberate: returning the operation unchanged would
@@ -479,8 +481,26 @@ async def lookup_background_model(
     )
 
 
+# Keys a ModelResponse dump carries. An Operation dump always has 'id'.
+_MODEL_RESPONSE_KEYS = frozenset({'message', 'finishReason', 'finish_reason', 'operation'})
+
+
+def _first_validation_error(error: ValidationError) -> str:
+    """One line naming the first bad field, e.g. ``Done: Extra inputs are not permitted``."""
+    errors = error.errors()
+    first = errors[0]
+    loc = '.'.join(str(part) for part in first['loc']) or '<root>'
+    more = f' (+{len(errors) - 1} more)' if len(errors) > 1 else ''
+    return f'{loc}: {first["msg"]}{more}'
+
+
 def require_operation(*, value: object) -> Operation:
-    """A poll handle is an Operation. A dump or generate() box is not."""
+    """A poll handle: a live Operation, or the dict a stored one dumped to.
+
+    A dict is validated as strictly as the check/cancel action input
+    (``extra='forbid'``), so a typo'd key like ``Done`` fails here with the
+    field named instead of loading as ``done=None``.
+    """
     if isinstance(value, Operation):
         return value
     if isinstance(value, ModelResponse):
@@ -490,11 +510,20 @@ def require_operation(*, value: object) -> Operation:
             reason=RuntimeErrorReason.INVALID_INPUT,
         )
     if isinstance(value, Mapping):
-        raise GenkitError(
-            status='INVALID_ARGUMENT',
-            message='got a dump; pass Operation.model_validate(...)',
-            reason=RuntimeErrorReason.INVALID_INPUT,
-        )
+        if 'id' not in value and not _MODEL_RESPONSE_KEYS.isdisjoint(value):
+            raise GenkitError(
+                status='INVALID_ARGUMENT',
+                message='got a ModelResponse dump; pass response.operation',
+                reason=RuntimeErrorReason.INVALID_INPUT,
+            )
+        try:
+            return Operation.model_validate(dict(value))
+        except ValidationError as e:
+            raise GenkitError(
+                status='INVALID_ARGUMENT',
+                message=f'invalid Operation: {_first_validation_error(e)}',
+                reason=RuntimeErrorReason.INVALID_INPUT,
+            ) from e
     raise GenkitError(
         status='INVALID_ARGUMENT',
         message=f'got {type(value).__name__}, expected Operation',
@@ -536,7 +565,7 @@ async def resolve_operation_model(
 
 async def check_operation(
     registry: Registry,
-    operation: Operation,
+    operation: Operation | Mapping[str, Any],
     *,
     context: dict[str, Any] | None = None,
     config: Mapping[str, Any] | None = None,
@@ -545,7 +574,7 @@ async def check_operation(
 
     Args:
         registry: The registry to look up actions from.
-        operation: The poll handle.
+        operation: The poll handle, or the dict a stored one dumped to.
         context: Optional run context. Per-request keys go in
             ``context['secrets']``.
         config: Optional client knobs (``base_url``, ``location``). Folded
@@ -555,9 +584,11 @@ async def check_operation(
         Updated Operation with current status.
 
     Raises:
-        GenkitError: If the handle is missing action, or the action is
-            not found.
+        GenkitError: If the handle is not an Operation or a dict that
+            validates as one, is missing action, or the action is not found.
     """
+    # Validate a stored dict once; the action only ever sees an Operation.
+    operation = require_operation(value=operation)
     bg_model = await resolve_operation_model(registry, operation)
     return await bg_model.check(
         operation,
@@ -567,7 +598,7 @@ async def check_operation(
 
 async def cancel_operation(
     registry: Registry,
-    operation: Operation,
+    operation: Operation | Mapping[str, Any],
     *,
     context: dict[str, Any] | None = None,
     config: Mapping[str, Any] | None = None,
@@ -576,7 +607,7 @@ async def cancel_operation(
 
     Args:
         registry: The registry to look up actions from.
-        operation: The poll handle.
+        operation: The poll handle, or the dict a stored one dumped to.
         context: Optional run context. Per-request keys go in
             ``context['secrets']``.
         config: Optional client knobs (``base_url``, ``location``). Folded
@@ -586,10 +617,12 @@ async def cancel_operation(
         Updated Operation reflecting the cancel attempt.
 
     Raises:
-        GenkitError: If the handle is missing action, the action is not
-            found, or cancel is not implemented (UNIMPLEMENTED, raised by
+        GenkitError: If the handle is not an Operation or a dict that
+            validates as one, is missing action, the action is not found,
+            or cancel is not implemented (UNIMPLEMENTED, raised by
             ``BackgroundModel.cancel``).
     """
+    operation = require_operation(value=operation)
     bg_model = await resolve_operation_model(registry, operation)
     return await bg_model.cancel(
         operation,

@@ -1962,31 +1962,106 @@ class Genkit:
         attributes = {metadata_key(k): str(v) for k, v in (metadata or {}).items()}
         return await run_in_new_span(name, body, action_type='flowStep', attributes=attributes)
 
+    @overload
     async def check_operation(
         self,
-        operation: Operation,
+        operation: Operation[T],
         *,
         context: dict[str, Any] | None = None,
         config: Mapping[str, Any] | None = None,
-    ) -> Operation[ModelResponse]:
+    ) -> Operation[T]: ...
+
+    @overload
+    async def check_operation(
+        self,
+        operation: Mapping[str, Any],
+        *,
+        context: dict[str, Any] | None = None,
+        config: Mapping[str, Any] | None = None,
+    ) -> Operation[ModelResponse]: ...
+
+    async def check_operation(
+        self,
+        operation: Operation[Any] | Mapping[str, Any],
+        *,
+        context: dict[str, Any] | None = None,
+        config: Mapping[str, Any] | None = None,
+    ) -> Operation[Any]:
         """Poll a background job.
+
+        Returns the same ``Operation[T]`` it was given, like JS
+        ``checkOperation<T>``. A stored handle can be passed as the dict you
+        saved. It is validated as strictly as an ``Operation`` (an unknown
+        key or a missing ``id`` is INVALID_ARGUMENT) and comes back as
+        ``Operation[ModelResponse]``.
 
         Pass ``context={'secrets': {'api_key': ...}}`` again when start used a
         per-request key. ``config`` is client knobs (``base_url``,
         ``location``, ``api_version``), not video settings.
+
+        Example:
+            ```python
+            # 1. Start a job and store the handle as JSON
+            op = await ai.generate_operation(
+                model='googleai/veo-3.1-generate-preview',
+                prompt='A chef plating risotto.',
+            )
+            saved = op.model_dump_json()
+
+            # 2. Later, poll with the dict you saved
+            op = await ai.check_operation(json.loads(saved))
+            print(op.done)
+            # => False
+
+            # 3. Poll until done; output is a ModelResponse
+            while not op.done:
+                op = await ai.check_operation(op)
+            print(op.output.media[0].url)
+            # => https://storage.googleapis.com/.../risotto.mp4
+            ```
         """
         return await check_operation(self._registry, operation, context=context, config=config)
 
+    @overload
     async def cancel_operation(
         self,
-        operation: Operation,
+        operation: Operation[T],
         *,
         context: dict[str, Any] | None = None,
         config: Mapping[str, Any] | None = None,
-    ) -> Operation[ModelResponse]:
+    ) -> Operation[T]: ...
+
+    @overload
+    async def cancel_operation(
+        self,
+        operation: Mapping[str, Any],
+        *,
+        context: dict[str, Any] | None = None,
+        config: Mapping[str, Any] | None = None,
+    ) -> Operation[ModelResponse]: ...
+
+    async def cancel_operation(
+        self,
+        operation: Operation[Any] | Mapping[str, Any],
+        *,
+        context: dict[str, Any] | None = None,
+        config: Mapping[str, Any] | None = None,
+    ) -> Operation[Any]:
         """Cancel a background job.
 
-        Same ``context`` / ``config`` pockets as ``check_operation``.
+        Same input and return types as ``check_operation``: an
+        ``Operation[T]`` comes back as ``Operation[T]``, a stored dict as
+        ``Operation[ModelResponse]``. Same ``context`` / ``config`` pockets.
+
+        Example:
+            ```python
+            # 1. Reload the stored handle and cancel it
+            op = await ai.cancel_operation(json.loads(saved))
+
+            # 2. The returned handle reflects the cancel attempt
+            print(op.id)
+            # => operations/risotto-123
+            ```
         """
         return await cancel_operation(self._registry, operation, context=context, config=config)
 

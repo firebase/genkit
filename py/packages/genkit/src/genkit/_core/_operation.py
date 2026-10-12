@@ -43,7 +43,8 @@ class Operation(GenkitModel, Generic[OutputT]):
     ``done`` is true, then read ``output`` or ``error``. Generic over the
     output type, like JS ``Operation<O>`` and Go ``Operation[Out]``. Background
     models return ``Operation[ModelResponse]``. The wire shape does not depend
-    on ``OutputT``, so a stored handle reloads with
+    on ``OutputT``, so a stored handle goes back to ``ai.check_operation`` as
+    the dict you saved, or reloads with
     ``Operation[ModelResponse].model_validate_json(...)``.
 
     Example:
@@ -53,9 +54,9 @@ class Operation(GenkitModel, Generic[OutputT]):
         print(op.done)
         # => False
 
-        # 2. Store the handle and reload it later
+        # 2. Store the handle; later, check it with the dict you saved
         saved = op.model_dump_json()
-        op = Operation[ModelResponse].model_validate_json(saved)
+        op = await ai.check_operation(json.loads(saved))
 
         # 3. Poll until done; output is a ModelResponse
         while not op.done:
