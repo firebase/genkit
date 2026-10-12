@@ -873,20 +873,6 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
         self._output_schema = value
         self._metadata[ActionMetadataKey.OUTPUT_KEY] = value
 
-    def action_metadata(self) -> ActionMetadata:
-        """Return reflection metadata for this action."""
-        return ActionMetadata(
-            key=create_action_key(self._kind, self._name),
-            action_type=self._kind,
-            name=self._name,
-            description=self._description,
-            input_schema=self._input_schema,
-            input_json_schema=self._input_schema,
-            output_schema=self._output_schema,
-            output_json_schema=self._output_schema,
-            metadata=dict(self._metadata) if self._metadata else None,
-        )
-
     def _override_input_schema(
         self,
         input_schema: type[BaseModel] | dict[str, object],

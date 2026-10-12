@@ -123,17 +123,18 @@ def test_evaluator_action_metadata_carries_display_name_definition_billed() -> N
 
     assert listing.action_type == ActionKind.EVALUATOR
     assert listing.name == 'p/fluency'
-    assert listing.metadata is not None
-    assert listing.metadata['evaluator'] == {
-        'evaluatorDisplayName': 'Fluency',
-        'evaluatorDefinition': 'Assesses the language mastery of an output',
-        'evaluatorIsBilled': True,
-        'label': 'p/fluency',
-        'customOptions': {
-            'properties': {'threshold': {'default': 0.5, 'title': 'Threshold', 'type': 'number'}},
-            'title': 'ThresholdOptions',
-            'type': 'object',
-        },
+    assert listing.metadata == {
+        'evaluator': {
+            'evaluatorDisplayName': 'Fluency',
+            'evaluatorDefinition': 'Assesses the language mastery of an output',
+            'evaluatorIsBilled': True,
+            'label': 'p/fluency',
+            'customOptions': {
+                'properties': {'threshold': {'default': 0.5, 'title': 'Threshold', 'type': 'number'}},
+                'title': 'ThresholdOptions',
+                'type': 'object',
+            },
+        }
     }
 
 
@@ -152,8 +153,8 @@ def test_evaluator_and_metadata_agree_for_same_args(config_schema: type[BaseMode
 
     assert listing.metadata is not None
     assert action.metadata['evaluator'] == listing.metadata['evaluator']
-    assert listing.input_json_schema == action.input_schema
-    assert listing.output_json_schema == action.output_schema
+    assert listing.input_schema == action.input_schema
+    assert listing.output_schema == action.output_schema
 
 
 @pytest.mark.asyncio
@@ -222,8 +223,8 @@ def test_batch_evaluator_and_metadata_agree_for_same_args() -> None:
 
     assert listing.metadata is not None
     assert action.metadata['evaluator'] == listing.metadata['evaluator']
-    assert listing.input_json_schema == action.input_schema
-    assert listing.output_json_schema == action.output_schema
+    assert listing.input_schema == action.input_schema
+    assert listing.output_schema == action.output_schema
 
 
 @pytest.mark.asyncio
