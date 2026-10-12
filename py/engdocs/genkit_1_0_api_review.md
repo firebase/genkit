@@ -1227,7 +1227,7 @@ class AllergyConfig(BaseModel):
 class AllergyGuard(Middleware[AllergyConfig]):
     async def wrap_model(self, params: ModelHookParams, ctx: MiddlewareContext, next_fn):
         # 3. Before: add a system message to the request
-        note = Message(role='system', content=[Part(text=f'The guest is allergic to {self.config.allergen}.')])
+        note = Message(role='system', content=[Part.from_text(f'The guest is allergic to {self.config.allergen}.')])
         params.request.messages.insert(0, note)
 
         # 4. Run the model (or the next middleware in use=[...])
