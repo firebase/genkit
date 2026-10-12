@@ -53,6 +53,7 @@ from genkit._ai._generate import (
 )
 from genkit._ai._model import (
     Message,
+    Model,
     ModelArg,
     ModelFn,
     ModelResponse,
@@ -564,7 +565,7 @@ class Genkit:
         metadata: dict[str, object] | None = None,
         info: ModelInfo | None = None,
         description: str | None = None,
-    ) -> Action:
+    ) -> Model:
         """Register a custom model action."""
         return define_model(self._registry, name, fn, config_schema, metadata, info, description)
 

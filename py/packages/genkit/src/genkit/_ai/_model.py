@@ -347,7 +347,7 @@ def _model_options(
     config_schema: type | dict[str, Any] | None,
     metadata: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
-    """Build ``metadata['model']``. ``model()`` and ``model_action_metadata()`` share it.
+    """Build ``metadata['model']``. ``Model`` and ``model_action_metadata()`` share it.
 
     Sharing keeps listed and resolved models identical in the Dev UI.
     """
@@ -377,7 +377,7 @@ def model_action_metadata(
 ) -> ActionMetadata:
     """Describe a model for ``Plugin.list_actions`` without building it.
 
-    The ``model`` metadata matches what ``model()`` registers for the same input.
+    The ``model`` metadata matches what ``Model`` registers for the same input.
 
     ```python
     meta = model_action_metadata(name='bistro/menu-writer', info=ModelInfo(label='Menu Writer'))
@@ -439,33 +439,38 @@ def claims_long_running(*, model_options: dict[str, object]) -> bool:
     return False
 
 
-def model(
-    name: str,
-    fn: ModelFn,
-    *,
-    config_schema: type[BaseModel] | dict[str, object] | None = None,
-    metadata: dict[str, object] | None = None,
-    info: ModelInfo | None = None,
-    description: str | None = None,
-) -> Action:
-    """Build a model action without registering it.
+class Model(Action[ModelRequest, ModelResponse, ModelResponseChunk]):
+    """A model action returned from a plugin's ``init`` / ``resolve`` or ``define_model``.
 
-    Plugin ``init`` / ``resolve`` return this. ``define_model`` registers it.
-    The config class stays on the action so ``generate(model='name', config=)``
-    can isinstance-check a Pydantic instance against a string model name.
+    Plugin ``init`` / ``resolve`` return this without registering it;
+    ``define_model`` registers it. The config class stays on the action so
+    ``generate(model='name', config=...)`` can ``isinstance``-check a Pydantic
+    instance against a string model name.
     """
-    model_options = _model_options(name=name, info=info, config_schema=config_schema, metadata=metadata)
-    model_meta: dict[str, object] = metadata.copy() if metadata else {}
-    model_meta['model'] = model_options
 
-    return Action(
-        kind=ActionKind.MODEL,
-        name=name,
-        fn=fn,
-        metadata=model_meta,
-        description=get_func_description(fn, description),
-        config_schema=config_schema,
-    )
+    def __init__(
+        self,
+        name: str,
+        fn: ModelFn,
+        *,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
+        info: ModelInfo | None = None,
+        description: str | None = None,
+    ) -> None:
+        """Build a model action."""
+        model_options = _model_options(name=name, info=info, config_schema=config_schema, metadata=metadata)
+        model_meta: dict[str, object] = metadata.copy() if metadata else {}
+        model_meta['model'] = model_options
+
+        super().__init__(
+            kind=ActionKind.MODEL,
+            name=name,
+            fn=fn,
+            metadata=model_meta,
+            description=get_func_description(fn, description),
+            config_schema=config_schema,
+        )
 
 
 def define_model(
@@ -476,10 +481,10 @@ def define_model(
     metadata: dict[str, object] | None = None,
     info: ModelInfo | None = None,
     description: str | None = None,
-) -> Action:
+) -> Model:
     """Register a custom model action."""
     _check_request_annotation(name, fn)
-    action = model(
+    action = Model(
         name,
         fn,
         config_schema=config_schema,

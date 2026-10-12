@@ -23,11 +23,11 @@ from genkit._core._typing import (
 from genkit.model import (
     ConstrainedSupport,
     GenerationUsage,
+    Model,
     ModelInfo,
     ModelRequest,
     ModelSupports,
     get_basic_usage_stats,
-    model,
     model_action_metadata,
 )
 
@@ -379,7 +379,7 @@ def test_model_action_metadata() -> None:
 
 
 def test_model_action_metadata_label_defaults_to_name() -> None:
-    """With no label, the listed model shows its action name like model() does."""
+    """With no label, the listed model shows its action name like Model() does."""
     action_metadata = model_action_metadata(name='bistro/menu-writer')
 
     assert action_metadata.metadata == {'model': {'label': 'bistro/menu-writer'}}
@@ -406,8 +406,9 @@ def test_model_action_metadata_matches_model(info: ModelInfo | None, config_sche
         return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('Smoked Salmon Tartine')]))
 
     listed = model_action_metadata(name='bistro/menu-writer', info=info, config_schema=config_schema)
-    resolved = model('bistro/menu-writer', menu_writer, info=info, config_schema=config_schema)
+    resolved = Model('bistro/menu-writer', menu_writer, info=info, config_schema=config_schema)
 
+    assert isinstance(resolved, Model)
     assert listed.metadata == {'model': resolved.metadata['model']}
 
 

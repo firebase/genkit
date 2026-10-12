@@ -28,7 +28,7 @@ import structlog
 
 from genkit import ActionRunContext, ModelResponse
 from genkit.embedder import EmbedRequest, EmbedResponse, embedder, embedder_action_metadata
-from genkit.model import ModelRequest, model as create_model, model_action_metadata
+from genkit.model import Model, ModelRequest, model_action_metadata
 from genkit.plugin_api import (
     Action,
     ActionKind,
@@ -215,7 +215,7 @@ class Bedrock(Plugin):
             model = BedrockModel(model_id=model_id, transport=self._transport)
             return await model.generate(request, ctx)
 
-        return create_model(
+        return Model(
             _action_name(model_id),
             _generate,
             config_schema=config_schema,

@@ -22,7 +22,7 @@ import structlog
 from anthropic import AsyncAnthropic
 
 from genkit import ActionRunContext, GenkitError, ModelResponse
-from genkit.model import ModelRef, ModelRequest, model as create_model, model_action_metadata
+from genkit.model import Model, ModelRef, ModelRequest, model_action_metadata
 from genkit.plugin_api import (
     Action,
     ActionKind,
@@ -193,7 +193,7 @@ class Anthropic(Plugin):
             )
             return await model.generate(request, ctx)
 
-        return create_model(
+        return Model(
             anthropic_name(name),
             _generate,
             config_schema=AnthropicConfig,
