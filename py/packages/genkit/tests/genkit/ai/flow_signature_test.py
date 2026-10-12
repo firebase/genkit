@@ -266,3 +266,27 @@ async def test_flow_with_type_checking_only_parameterized_flow_context_gets_cont
     assert plate.input_schema == {'type': 'string'}
     assert chunks == ['searing']
     assert result.response == 'salmon for 4'
+
+
+@pytest.mark.asyncio
+async def test_bare_flow_decorator_without_parentheses_registers_and_streams() -> None:
+    """Bare `@ai.flow` (without parentheses) registers the flow by function name and infers `FlowContext[ChunkT]`."""
+    ai = Genkit()
+
+    @ai.flow
+    async def greet(name: str) -> str:
+        return f'hello {name}'
+
+    @ai.flow
+    async def plate(dish: str, ctx: FlowContext[str]) -> str:
+        ctx.send_chunk('searing')
+        return f'{dish} for {ctx.context["table"]}'
+
+    assert greet.name == 'greet'
+    assert await greet('ada') == 'hello ada'
+
+    chunks: list[str] = []
+    result = await plate.run('salmon', on_chunk=chunks.append, context={'table': 4})
+    assert plate.name == 'plate'
+    assert chunks == ['searing']
+    assert result.response == 'salmon for 4'
