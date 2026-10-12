@@ -219,13 +219,14 @@ class Middleware(Generic[TConfig]):
             use=[Retry(config=RetryConfig(max_retries=5))]
         )
 
-    Keep in mind that config are not meant to be mutated from within hooks.
+    ``self.config`` is set once at construction. The attribute is read-only;
+    treat the config object as read-only too (Pydantic models are not frozen).
     """
 
     name: ClassVar[str] = ''
     description: ClassVar[str | None] = None
     Config: ClassVar[type[BaseModel]] = _EmptyMiddlewareConfig
-    config: TConfig
+    _config: TConfig
 
     def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: ANN401
         super().__init_subclass__(**kwargs)
@@ -262,9 +263,14 @@ class Middleware(Generic[TConfig]):
                 raise TypeError('pass either config= or keyword config fields, not both')
             if not isinstance(config, self.Config):
                 raise TypeError(f'expected config type {self.Config.__name__}, got {type(config).__name__}')
-            self.config = config
+            self._config = config
         else:
-            self.config = cast(Any, self.Config(**kwargs))
+            self._config = cast(Any, self.Config(**kwargs))
+
+    @property
+    def config(self) -> TConfig:
+        """The validated config this instance was constructed with (read-only)."""
+        return self._config
 
     @classmethod
     def _middleware_metadata(
@@ -323,7 +329,7 @@ class Middleware(Generic[TConfig]):
 
 def _copy_middleware_instance(impl: Middleware[Any]) -> Middleware[Any]:
     """Return a fresh instance with the same config; internal hook state is not copied."""
-    return type(impl)(config=impl.config.model_copy(deep=True))
+    return type(impl)(config=impl._config.model_copy(deep=True))
 
 
 class MiddlewareDef(Protocol):

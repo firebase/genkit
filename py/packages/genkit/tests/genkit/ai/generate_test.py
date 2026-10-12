@@ -796,6 +796,18 @@ def test_middleware_validation_raises_correct_errors() -> None:
         ConfiguredPrefixMiddleware(config=_WrongConfig())  # type: ignore[arg-type]
 
 
+def test_middleware_config_is_read_only() -> None:
+    """``mw.config`` is set at construction and cannot be reassigned."""
+    by_kwargs = ConfiguredPrefixMiddleware(prefix='a')
+    by_config = ConfiguredPrefixMiddleware(config=_PrefixConfig(prefix='b'))
+    assert by_kwargs.config.prefix == 'a'
+    assert by_config.config.prefix == 'b'
+
+    with pytest.raises(AttributeError):
+        by_kwargs.config = _PrefixConfig(prefix='z')  # type: ignore[misc]
+    assert by_kwargs.config.prefix == 'a'
+
+
 def test_base_middleware_rejects_explicit_config_class() -> None:
     with pytest.raises(TypeError, match='must not define Config'):
 
