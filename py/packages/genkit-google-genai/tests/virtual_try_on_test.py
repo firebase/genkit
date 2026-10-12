@@ -362,6 +362,15 @@ class TestResponseShape:
         assert media.content_type == 'image/png'
 
     @pytest.mark.asyncio
+    async def test_inline_image_in_raw_is_base64_text(self) -> None:
+        """raw carries the inline image as base64 text, so the response serializes to JSON."""
+        client = _client(response=_sdk_response([{'bytesBase64Encoded': PNG_B64, 'mimeType': 'image/png'}]))
+        response = await _generate(VirtualTryOnModel('virtual-try-on-001', client), _request())
+
+        assert response.raw['generatedImages'][0]['image']['imageBytes'] == PNG_B64
+        assert PNG_B64 in response.model_dump_json()
+
+    @pytest.mark.asyncio
     async def test_two_predictions_become_two_media_parts(self) -> None:
         """Every generated image is a media part on the one model message."""
         client = _client(
