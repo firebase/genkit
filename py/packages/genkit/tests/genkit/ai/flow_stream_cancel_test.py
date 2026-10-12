@@ -9,7 +9,8 @@ from typing import TypeVar
 
 import pytest
 
-from genkit import ActionRunContext, Flow, Genkit, GenkitError
+from genkit import ActionRunContext, Genkit, GenkitError
+from genkit._core._action import Action
 
 T = TypeVar('T')
 
@@ -37,7 +38,7 @@ class SlowFlow:
         return 'done'
 
 
-def setup(**kwargs: bool) -> tuple[Flow, SlowFlow]:
+def setup(**kwargs: bool) -> tuple[Action, SlowFlow]:
     ai = Genkit()
     body = SlowFlow(**kwargs)
 
