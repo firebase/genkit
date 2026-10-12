@@ -545,7 +545,7 @@ async def quarterly_report(quarter: str, ctx: FlowContext[ReportChunk]) -> Repor
 
 # 3. Caller: chunks are ReportChunk, response is Report
 stream = quarterly_report.stream('Q3')
-async for chunk in stream:
+async for chunk in stream.stream:
     print(chunk.stage, chunk.text)
     # => fetching Pulling Q3 ledger
     # => drafting Revenue grew 12%
@@ -925,7 +925,7 @@ stream = ai.generate_stream(
 )
 
 # 2. Cards arrive as data parts while the model is still writing
-async for chunk in stream:
+async for chunk in stream.stream:
     for part in chunk.content:
         if is_a2ui_part(part):
             render_card(part)
