@@ -74,7 +74,7 @@ from genkit._ai._prompt import (
     register_prompt_actions,
     to_generate_options,
 )
-from genkit._ai._tools import ORIGINAL_OUTPUT_SCHEMA_KEY, ToolContext, define_interrupt
+from genkit._ai._tools import ToolContext, define_interrupt
 from genkit._core._action import Action, ActionKind, ActionRunContext, get_current_context
 from genkit._core._background import (
     BackgroundAction,
@@ -420,23 +420,23 @@ class Genkit:
     @overload
     def tool(
         self,
-        func: Callable[[InputT, ToolContext], Awaitable[OutputT]],
+        func: Callable[[InputT, ToolContext[ChunkT]], Awaitable[OutputT]],
         /,
-    ) -> Tool[InputT, OutputT]: ...
+    ) -> Tool[InputT, OutputT, ChunkT]: ...
 
     @overload
     def tool(
         self,
-        func: Callable[[ToolContext, InputT], Awaitable[OutputT]],
+        func: Callable[[ToolContext[ChunkT], InputT], Awaitable[OutputT]],
         /,
-    ) -> Tool[InputT, OutputT]: ...
+    ) -> Tool[InputT, OutputT, ChunkT]: ...
 
     @overload
     def tool(
         self,
-        func: Callable[[ToolContext], Awaitable[OutputT]],
+        func: Callable[[ToolContext[ChunkT]], Awaitable[OutputT]],
         /,
-    ) -> Tool[Any, OutputT]: ...
+    ) -> Tool[Any, OutputT, ChunkT]: ...
 
     @overload
     def tool(
@@ -718,10 +718,10 @@ class Genkit:
         action = await self._registry.resolve_action(ActionKind.TOOL, name)
         if action is None:
             return None
-        schema = action.metadata.get(ORIGINAL_OUTPUT_SCHEMA_KEY)
-        return Tool(
-            action, original_output_schema=cast(dict[str, object], schema) if isinstance(schema, dict) else None
-        )
+        if isinstance(action, Tool):
+            return action
+        # A tool action from a plugin, a DAP, or register_action wasn't built as a Tool.
+        return Tool._from_action(action)
 
     def lookup_value(self, *, kind: str, name: str) -> object | None:
         """Return the value defined under ``kind`` and ``name``, or None."""

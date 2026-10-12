@@ -101,12 +101,15 @@ async def _generate_tool_turn(
 
 @pytest.mark.asyncio
 async def test_await_tool_built_from_raw_action_returning_response_returns_multipart_tool_response() -> None:
-    """`await Tool(Action(fn=raw_shot))()` returns raw_shot's `response(ShotOut(...), parts=[png])` as built."""
+    """A tool action registered without ``define_tool`` and found by ``lookup_tool`` returns the envelope as built."""
 
     async def raw_shot() -> MultipartToolResponse[ShotOut]:
         return MultipartToolResponse(output=ShotOut(ok=True, label='lab'), content=[_png()], metadata={'src': 'cam'})
 
-    handle = Tool(Action(name='shot', kind=ActionKind.TOOL, fn=raw_shot))
+    ai = Genkit()
+    ai._registry.register_action_from_instance(Action(name='shot', kind=ActionKind.TOOL, fn=raw_shot))
+    handle = await ai.lookup_tool('shot')
+    assert isinstance(handle, Tool)
     out = await handle()
     assert isinstance(out, MultipartToolResponse)
     assert out.output == ShotOut(ok=True, label='lab')
@@ -136,7 +139,7 @@ async def test_await_str_tool_returns_string() -> None:
         return f'Sunny in {city}'
 
     assert await weather('Austin') == 'Sunny in Austin'
-    assert weather.output_schema == {'type': 'string'}
+    assert weather.definition().output_schema == {'type': 'string'}
 
 
 @pytest.mark.asyncio
@@ -186,19 +189,22 @@ async def test_generate_str_tool_message_has_string_and_no_media() -> None:
     assert pm.last_request is not None
     assert pm.last_request.tools is not None
     assert pm.last_request.tools[0].output_schema == {'type': 'string'}
-    assert weather.output_schema == {'type': 'string'}
+    assert weather.definition().output_schema == {'type': 'string'}
 
 
 @pytest.mark.asyncio
-async def test_action_run_str_tool_still_returns_multipart_tool_response() -> None:
-    """`await weather.action().run('Austin')`, what the Dev UI runs, still returns a MultipartToolResponse."""
+async def test_tool_v2_run_str_tool_still_returns_multipart_tool_response() -> None:
+    """Running `/tool.v2/weather`, what the Dev UI runs, still returns a MultipartToolResponse."""
     ai = Genkit()
 
     @ai.tool(name='weather')
     async def weather(city: str) -> str:
         return f'Sunny in {city}'
 
-    ran = await weather.action().run('Austin')
+    assert (await weather.run('Austin')).response == 'Sunny in Austin'
+    wire = await ai._registry.resolve_action_by_key('/tool.v2/weather')
+    assert wire is not None
+    ran = await wire.run('Austin')
     assert isinstance(ran.response, MultipartToolResponse)
     assert ran.response.output == 'Sunny in Austin'
     assert ran.response.content is None
@@ -217,7 +223,7 @@ async def test_await_pydantic_tool_returns_the_model_instance() -> None:
     out = await shot()
     assert isinstance(out, ShotOut)
     assert out == ShotOut(ok=True, label='lab')
-    assert shot.output_schema == to_json_schema(ShotOut)
+    assert shot.definition().output_schema == to_json_schema(ShotOut)
 
 
 @pytest.mark.asyncio
@@ -240,7 +246,7 @@ async def test_generate_pydantic_tool_message_still_has_json_dump() -> None:
     assert pm.last_request is not None
     assert pm.last_request.tools is not None
     assert pm.last_request.tools[0].output_schema == to_json_schema(ShotOut)
-    assert shot.output_schema == to_json_schema(ShotOut)
+    assert shot.definition().output_schema == to_json_schema(ShotOut)
 
 
 @pytest.mark.asyncio
@@ -258,7 +264,7 @@ async def test_await_tool_returning_response_with_png_returns_multipart_tool_res
     assert out.output == ShotOut(ok=True, label='lab')
     assert out.content == [_png()]
     assert out.metadata == {'src': 'cam'}
-    assert screenshot.output_schema == to_json_schema(ShotOut)
+    assert screenshot.definition().output_schema == to_json_schema(ShotOut)
 
 
 @pytest.mark.asyncio
@@ -281,7 +287,7 @@ async def test_generate_tool_returning_tool_response_with_image_gives_model_outp
     assert pm.last_request is not None
     assert pm.last_request.tools is not None
     assert pm.last_request.tools[0].output_schema == to_json_schema(ShotOut)
-    assert screenshot.output_schema == to_json_schema(ShotOut)
+    assert screenshot.definition().output_schema == to_json_schema(ShotOut)
 
 
 @pytest.mark.asyncio
@@ -298,7 +304,7 @@ async def test_await_bare_multipart_returns_png_and_tells_model_no_schema() -> N
     assert out.output == SHOT
     assert out.content == [_png()]
     assert out.metadata == {'src': 'cam'}
-    assert screenshot.output_schema is None
+    assert screenshot.definition().output_schema is None
 
 
 @pytest.mark.asyncio
@@ -321,7 +327,7 @@ async def test_generate_bare_multipart_puts_png_on_the_tool_message_with_no_sche
     assert pm.last_request is not None
     assert pm.last_request.tools is not None
     assert pm.last_request.tools[0].output_schema is None
-    assert screenshot.output_schema is None
+    assert screenshot.definition().output_schema is None
 
 
 @pytest.mark.asyncio
@@ -336,7 +342,7 @@ async def test_await_multipart_annotated_tool_with_bare_return_returns_the_bare_
     out: object = await shot()
     assert isinstance(out, ShotOut)
     assert out == ShotOut(ok=True, label='lab')
-    assert shot.output_schema == to_json_schema(ShotOut)
+    assert shot.definition().output_schema == to_json_schema(ShotOut)
 
 
 @pytest.mark.asyncio
@@ -375,7 +381,7 @@ async def test_await_tool_returning_response_without_parts_returns_multipart_too
     assert out.output == ShotOut(ok=True, label='lab')
     assert out.content is None
     assert out.metadata is None
-    assert shot.output_schema == to_json_schema(ShotOut)
+    assert shot.definition().output_schema == to_json_schema(ShotOut)
 
 
 @pytest.mark.asyncio
@@ -401,15 +407,17 @@ async def test_generate_response_without_parts_has_dump_and_no_media() -> None:
 
 
 @pytest.mark.asyncio
-async def test_action_run_multipart_shotout_returns_dump_and_png() -> None:
-    """`await screenshot.action().run()` still returns a MultipartToolResponse with the {ok, label} dump and the PNG."""
+async def test_tool_v2_run_multipart_shotout_returns_dump_and_png() -> None:
+    """Running `/tool.v2/screenshot` still returns a MultipartToolResponse with the {ok, label} dump and the PNG."""
     ai = Genkit()
 
     @ai.tool(name='screenshot')
     async def screenshot() -> MultipartToolResponse[ShotOut]:
         return MultipartToolResponse(output=ShotOut(ok=True, label='lab'), content=[_png()], metadata={'src': 'cam'})
 
-    ran = await screenshot.action().run()
+    wire = await ai._registry.resolve_action_by_key('/tool.v2/screenshot')
+    assert wire is not None
+    ran = await wire.run()
     assert isinstance(ran.response, MultipartToolResponse)
     assert ran.response.output == SHOT
     assert ran.response.content == [_png()]
@@ -452,7 +460,7 @@ async def test_await_str_tool_returning_response_returns_multipart_tool_response
     assert out.output == 'Sunny in Austin'
     assert out.content == [_png()]
     assert out.metadata is None
-    assert weather.output_schema == {'type': 'string'}
+    assert weather.definition().output_schema == {'type': 'string'}
 
 
 @pytest.mark.asyncio
@@ -475,7 +483,7 @@ async def test_generate_str_tool_may_put_png_on_the_tool_message_without_changin
     assert pm.last_request is not None
     assert pm.last_request.tools is not None
     assert pm.last_request.tools[0].output_schema == {'type': 'string'}
-    assert weather.output_schema == {'type': 'string'}
+    assert weather.definition().output_schema == {'type': 'string'}
 
 
 @pytest.mark.asyncio
@@ -498,7 +506,7 @@ async def test_optional_multipart_shotout_annotation_tells_model_shotout() -> No
     assert pm.last_request is not None
     assert pm.last_request.tools is not None
     assert pm.last_request.tools[0].output_schema == to_json_schema(ShotOut)
-    assert screenshot.output_schema == to_json_schema(ShotOut)
+    assert screenshot.definition().output_schema == to_json_schema(ShotOut)
 
 
 @pytest.mark.asyncio
