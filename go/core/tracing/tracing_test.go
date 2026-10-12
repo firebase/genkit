@@ -140,6 +140,115 @@ func TestSpanMetadataInit(t *testing.T) {
 	}
 }
 
+func TestSpanMetadataInlineMedia(t *testing.T) {
+	media := func(url string) map[string]any {
+		return map[string]any{"media": map[string]string{"url": url}}
+	}
+	sm := &spanMetadata{
+		Input:  media("data:image/png;base64,input-bytes"),
+		Init:   media("data:image/png;base64,init-bytes"),
+		Output: media("data:image/png;base64,output-bytes"),
+	}
+
+	tests := []struct {
+		env  string
+		want map[string]string
+	}{
+		{
+			env: "prod",
+			want: map[string]string{
+				"genkit:input":  `{"media":{"url":"data:image/png;base64,[redacted]"}}`,
+				"genkit:init":   `{"media":{"url":"data:image/png;base64,[redacted]"}}`,
+				"genkit:output": `{"media":{"url":"data:image/png;base64,[redacted]"}}`,
+			},
+		},
+		{
+			// The Dev UI renders media from these attributes.
+			env: "dev",
+			want: map[string]string{
+				"genkit:input":  `{"media":{"url":"data:image/png;base64,input-bytes"}}`,
+				"genkit:init":   `{"media":{"url":"data:image/png;base64,init-bytes"}}`,
+				"genkit:output": `{"media":{"url":"data:image/png;base64,output-bytes"}}`,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.env, func(t *testing.T) {
+			t.Setenv("GENKIT_ENV", tt.env)
+			for _, kv := range append(sm.attributes(), sm.inputAttributes()...) {
+				want, ok := tt.want[string(kv.Key)]
+				if !ok {
+					continue
+				}
+				if got := kv.Value.AsString(); got != want {
+					t.Errorf("%s = %s, want %s", kv.Key, got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestRedactInlineMedia(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "data URL keeps header and field order",
+			in:   `{"url":"data:image/png;base64,AAAA","contentType":"image/png"}`,
+			want: `{"url":"data:image/png;base64,[redacted]","contentType":"image/png"}`,
+		},
+		{
+			name: "every data URL in arrays",
+			in:   `["data:image/png;base64,AAAA",1,"data:audio/wav;base64,BBBB"]`,
+			want: `["data:image/png;base64,[redacted]",1,"data:audio/wav;base64,[redacted]"]`,
+		},
+		{
+			name: "header is case-insensitive",
+			in:   `"DATA:image/png;BASE64,AAAA"`,
+			want: `"DATA:image/png;BASE64,[redacted]"`,
+		},
+		{
+			name: "header with parameters",
+			in:   `"data:text/plain;charset=utf-8;base64,AAAA"`,
+			want: `"data:text/plain;charset=utf-8;base64,[redacted]"`,
+		},
+		{
+			name: "escaped quote does not end a string",
+			in:   `{"a":"x\"data:image/png;base64,AAAA","b":"data:image/png;base64,BBBB"}`,
+			want: `{"a":"x\"data:image/png;base64,AAAA","b":"data:image/png;base64,[redacted]"}`,
+		},
+		{
+			name: "remote URL",
+			in:   `{"url":"https://example.com/image.png"}`,
+			want: `{"url":"https://example.com/image.png"}`,
+		},
+		{
+			name: "data URL inside text",
+			in:   `"see data:image/png;base64,AAAA"`,
+			want: `"see data:image/png;base64,AAAA"`,
+		},
+		{
+			name: "prose with a space in the header",
+			in:   `"data: see notes;base64, then decode"`,
+			want: `"data: see notes;base64, then decode"`,
+		},
+		{
+			name: "data URL without base64",
+			in:   `"data:text/plain,hello"`,
+			want: `"data:text/plain,hello"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := redactInlineMedia(tt.in); got != tt.want {
+				t.Errorf("redactInlineMedia(%s) = %s, want %s", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestSpanMetadataWithTypeAndSubtype(t *testing.T) {
 	const (
 		testInput  = "test input"
