@@ -54,10 +54,10 @@ from genkit._ai._evaluator import (
 from genkit._core._model import EvalRequest
 from genkit._core._typing import (
     BaseDataPoint,
-    Details,
     EvalFnResponse,
-    EvalStatusEnum,
     Score,
+    ScoreDetails,
+    ScoreStatus,
 )
 
 __all__ = [
@@ -68,9 +68,9 @@ __all__ = [
     'EvalFnResponse',
     # Score types
     'Score',
-    'Details',
+    'ScoreDetails',
     # Status
-    'EvalStatusEnum',
+    'ScoreStatus',
     # Factory functions
     'evaluator_ref',
     # Reference types

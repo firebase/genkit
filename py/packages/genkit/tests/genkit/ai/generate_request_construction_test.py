@@ -176,7 +176,7 @@ async def test_strict_config_rejects_unknown_keys_at_call_time(ai_and_seen: tupl
 async def test_invalid_config_from_a_raw_run_raises_at_the_boundary(ai_and_seen: tuple[Genkit, dict]) -> None:
     """A Dev UI-shaped run skips generate's check; the action boundary still names the model."""
     ai, _ = ai_and_seen
-    action = await ai.registry.resolve_model('strict')
+    action = await ai._registry.resolve_model('strict')
     assert action is not None
     with pytest.raises(GenkitError, match="Invalid input for model 'strict'"):
         await action.run(cast(Any, {'messages': [], 'config': {'thinking': True}}))

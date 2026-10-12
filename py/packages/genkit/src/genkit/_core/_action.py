@@ -180,11 +180,8 @@ class ActionKind(StrEnum):
     EVALUATOR = 'evaluator'
     EXECUTABLE_PROMPT = 'executable-prompt'
     FLOW = 'flow'
-    INDEXER = 'indexer'
     MODEL = 'model'
     PROMPT = 'prompt'
-    RERANKER = 'reranker'
-    RETRIEVER = 'retriever'
     # Catalog key for tools. Action.run / Dev UI see the multipart envelope.
     TOOL = 'tool.v2'
     UTIL = 'util'
@@ -848,11 +845,10 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
         self._strict_io: bool = _strict_io
         self._metadata: dict[str, object] = metadata if metadata else {}
         self._description: str | None = description
-        # Python class for generate's isinstance check. Not in metadata —
-        # that bag is JSON for the Dev UI.
-        self._config_schema: type[BaseModel] | None = (
-            config_schema if isinstance(config_schema, type) and issubclass(config_schema, BaseModel) else None
-        )
+        # What config_schema= declared: a Pydantic class or a JSON-schema dict.
+        # generate checks config against it. Not in metadata — that bag is
+        # JSON for the Dev UI.
+        self._config_schema: type[BaseModel] | dict[str, object] | None = config_schema
         self._span_metadata: dict[str, SpanAttributeValue] = span_metadata or {}
 
         # All action handlers must be async
@@ -871,11 +867,13 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
         self._config_schema = self._resolve_config_class(self._config_schema)
         # Which fields can contribute a default; the values are copied per run.
         self._config_default_fields: list[tuple[str, FieldInfo]] = (
-            config_default_fields(self._config_schema) if self._config_schema is not None else []
+            config_default_fields(self._config_schema) if isinstance(self._config_schema, type) else []
         )
         self._initialize_init_schema(init_schema)
 
-    def _resolve_config_class(self, declared: type[BaseModel] | None) -> type[BaseModel] | None:
+    def _resolve_config_class(
+        self, declared: type[BaseModel] | dict[str, object] | None
+    ) -> type[BaseModel] | dict[str, object] | None:
         """The one config class this action takes, from ``config_schema=`` and/or the fn annotation.
 
         Both must name the same class. With a subclass, a dict would validate
@@ -886,7 +884,7 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
         annotated = declared_config_type(self._input_class) if field and self._input_class is not None else None
         if annotated is None:
             return declared
-        if declared is not None and declared is not annotated:
+        if isinstance(declared, type) and declared is not annotated:
             raise GenkitError(
                 status='INVALID_ARGUMENT',
                 message=(
@@ -898,7 +896,7 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
         return annotated
 
     @property
-    def config_schema(self) -> type[BaseModel] | None:
+    def config_schema(self) -> type[BaseModel] | dict[str, object] | None:
         """The config class set at definition time, from ``config_schema=`` or the fn annotation."""
         return self._config_schema
 
@@ -1185,7 +1183,7 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
         """
         field = config_field(self._kind)
         schema = self._config_schema
-        if field is None or schema is None:
+        if field is None or not (isinstance(schema, type) and issubclass(schema, BaseModel)):
             return input
         if isinstance(input, Mapping):
             current = cast(Mapping[str, Any], input).get(field)

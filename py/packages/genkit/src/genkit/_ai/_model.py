@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import functools
 import inspect
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -32,6 +33,13 @@ from genkit._core._action import (
     get_func_description,
 )
 from genkit._core._background import BackgroundAction
+from genkit._core._config_check import (
+    check_config_json_schema,
+    check_config_values,
+    check_request_config,
+    config_field_names as config_field_names,
+    config_values,
+)
 from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._logger import get_logger
 from genkit._core._model import (
@@ -44,8 +52,8 @@ from genkit._core._model import (
     ModelResponse,
     ModelResponseChunk,
     check_config_dict as check_config_dict,
-    config_field_names as config_field_names,
     config_type_path,
+    declared_config_type,
     fold_config_aliases as fold_config_aliases,
     get_basic_usage_stats,
     normalize_config as normalize_config,
@@ -84,6 +92,12 @@ class ResolvedModel:
 def python_config_schema(schema: object) -> type[BaseModel] | None:
     """The class a call's config is checked against, or None for no check."""
     return schema if isinstance(schema, type) and issubclass(schema, BaseModel) else None
+
+
+def annotated_config_class(action: object | None) -> type[BaseModel] | None:
+    """The class on the model function's ``ModelRequest[...]`` annotation, if any."""
+    input_class = getattr(action, 'input_class', None) if action is not None else None
+    return declared_config_type(input_class) if isinstance(input_class, type) else None
 
 
 def ref_defers_to_registered_class(schema: type[BaseModel] | None) -> bool:
@@ -322,6 +336,34 @@ async def resolve_for_generate(
     resolved = resolve_call_model(model=arg, config=config, registry=registry, message=message, schema=schema)
     reject_config_api_key(resolved.config)
     return replace(resolved, config_schema=schema)
+
+
+async def config_class_for_generate(*, model: object | None, registry: Registry) -> type[BaseModel] | None:
+    """The config class a generate call to ``model`` folds and checks against.
+
+    The ``config_schema=`` class (or a ref's plugin class) when there is
+    one, else the class on the model function's ``ModelRequest[...]``.
+    """
+    resolved = await resolve_for_generate(model=model, registry=registry)
+    if resolved.config_schema is not None:
+        return resolved.config_schema
+    return annotated_config_class(await registry.resolve_model(resolved.name))
+
+
+async def check_config_before_turn(*, model: str, config: object, registry: Registry) -> None:
+    """Raise before the turn when a value in ``config`` can't reach the model.
+
+    Covers the two schemas the call-time check doesn't see: the class on the
+    model function's ``ModelRequest[...]`` annotation, and a JSON-schema dict
+    passed as ``config_schema=``. A missing top-level field passes:
+    ``wrap_model`` middleware can still fill it, and the model action reports
+    it if nothing does.
+    """
+    action = await registry.resolve_model(model)
+    check_config_values(config=config, schema=annotated_config_class(action), model=model)
+    declared = getattr(action, '_config_schema', None) if action is not None else None
+    if isinstance(declared, dict):
+        check_config_values(config=config, schema=cast(dict[str, Any], declared), model=model)
 
 
 def config_schema_at_define(*, model: object | None, registry: Registry) -> tuple[str | None, type[BaseModel] | None]:
@@ -624,7 +666,7 @@ class MiddlewareConfigCheck:
         """Start from ``config`` as generate built it; ``schema`` is the model's config class."""
         self._schema = schema
         self._model = model
-        self._checked = _config_values(config)
+        self._checked = config_values(config)
         self._rejected: list[tuple[object, GenkitError]] = []
 
     def check(self, config: object, middleware: str) -> None:
@@ -632,7 +674,7 @@ class MiddlewareConfigCheck:
 
         On success, changed fields on ``config`` hold their parsed values.
         """
-        dumped = _config_values(config) if isinstance(config, self._schema) else None
+        dumped = config_values(config) if isinstance(config, self._schema) else None
         typed = dumped is not None
         # Middleware edits a config of the right class in place, so it's
         # matched by its keys and values. Anything else is matched by identity.
@@ -702,4 +744,4 @@ class MiddlewareConfigCheck:
         # middleware left it, so ``exclude_unset`` dumps don't change.
         for name in changed:
             values[name] = parsed.__dict__[name]
-        self._checked = _config_values(config) if changed else dumped
+        self._checked = config_values(config) if changed else dumped

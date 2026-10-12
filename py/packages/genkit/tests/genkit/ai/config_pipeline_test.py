@@ -342,7 +342,7 @@ async def test_untyped_fns_see_schema_defaults_from_a_dev_ui_run() -> None:
         ('evaluator', 'row', eval_payload),
         ('evaluator', 'batch', eval_payload),
     ]:
-        action = await ai.registry.resolve_action_by_key(f'/{kind}/{name}')
+        action = await ai._registry.resolve_action_by_key(f'/{kind}/{name}')
         assert action is not None
         await action.run(payload)
 
@@ -357,7 +357,7 @@ async def test_untyped_fns_see_schema_defaults_from_a_dev_ui_run() -> None:
 @pytest.mark.asyncio
 async def test_dev_ui_run_overlays_set_fields_and_keeps_unknown_keys() -> None:
     ai, seen = _pipeline_app()
-    action = await ai.registry.resolve_action_by_key('/model/bistro')
+    action = await ai._registry.resolve_action_by_key('/model/bistro')
     assert action is not None
 
     await action.run({'messages': [], 'config': {'allergens': ['shellfish'], 'seat': 'patio'}})
@@ -369,7 +369,7 @@ async def test_dev_ui_run_overlays_set_fields_and_keeps_unknown_keys() -> None:
 async def test_none_defaults_are_not_injected() -> None:
     """A class whose defaults are all None contributes nothing; a missing config is {}."""
     ai, seen = _pipeline_app(config_schema=NotSetConfig)
-    action = await ai.registry.resolve_action_by_key('/model/bistro')
+    action = await ai._registry.resolve_action_by_key('/model/bistro')
     assert action is not None
 
     await action.run({'messages': [], 'config': None})
@@ -394,7 +394,7 @@ async def test_typed_fns_see_the_class_with_defaults() -> None:
 
     ai.define_model(name='bistro', fn=bistro)
     ai.define_evaluator(name='row', display_name='Row', definition='d', fn=allergy_check)
-    model = await ai.registry.resolve_action_by_key('/model/bistro')
+    model = await ai._registry.resolve_action_by_key('/model/bistro')
     assert model is not None
 
     await model.run({'messages': [], 'config': None})
@@ -487,7 +487,7 @@ async def test_explicit_none_overrides_ref_and_default_for_an_optional_field() -
 async def test_explicit_none_on_a_non_optional_field_raises_on_every_path() -> None:
     """Validation happens iff the action has a config class, typed fn or not."""
     ai, seen = _pipeline_app(config_schema=KitchenConfig)
-    action = await ai.registry.resolve_action_by_key('/model/bistro')
+    action = await ai._registry.resolve_action_by_key('/model/bistro')
     assert action is not None
 
     with pytest.raises(GenkitError, match=r"bistro: config 'temperature'"):
@@ -519,7 +519,7 @@ async def test_untyped_fn_without_a_class_receives_none() -> None:
 async def test_slot_level_none_still_means_nothing_set() -> None:
     ai, seen = _pipeline_app(config_schema=KitchenConfig)
     eval_payload = {'dataset': [{'input': 'satay', 'testCaseId': 'row-1'}], 'evalRunId': 'run-1', 'options': None}
-    batch = await ai.registry.resolve_action_by_key('/evaluator/batch')
+    batch = await ai._registry.resolve_action_by_key('/evaluator/batch')
     assert batch is not None
 
     await ai.generate(model='bistro', prompt='hi', config=None)
@@ -786,7 +786,7 @@ async def test_alias_only_class_keeps_ref_and_call_values_on_every_path() -> Non
         config={'outputDimensionality': 256},
     )
     assert seen['model'] == expected_model
-    model = await ai.registry.resolve_action_by_key('/model/bistro')
+    model = await ai._registry.resolve_action_by_key('/model/bistro')
     assert model is not None
     await model.run({'messages': [], 'config': {'taskType': 'QUERY', 'outputDimensionality': 256}})
     assert seen['model'] == expected_model
@@ -799,7 +799,7 @@ async def test_alias_only_class_keeps_ref_and_call_values_on_every_path() -> Non
         config={'outputDimensionality': 256},
     )
     assert seen['embedder'] == expected_options
-    embedder = await ai.registry.resolve_action_by_key('/embedder/crm')
+    embedder = await ai._registry.resolve_action_by_key('/embedder/crm')
     assert embedder is not None
     await embedder.run({'input': [], 'options': {'task_type': 'QUERY', 'outputDimensionality': 256}})
     assert seen['embedder'] == expected_options
@@ -819,7 +819,7 @@ async def test_untyped_fn_gets_one_dict_shape_by_name_ref_and_run() -> None:
         config={'outputDimensionality': 256},
     )
     shapes.append(seen['embedder'])
-    action = await ai.registry.resolve_action_by_key('/embedder/crm')
+    action = await ai._registry.resolve_action_by_key('/embedder/crm')
     assert action is not None
     await action.run({'input': [], 'options': {'taskType': 'QUERY', 'outputDimensionality': 256}})
     shapes.append(seen['embedder'])
@@ -874,7 +874,7 @@ async def test_fn_mutating_options_does_not_leak_into_the_ref_or_next_call() -> 
 @pytest.mark.asyncio
 async def test_untyped_fn_with_a_class_gets_validation_on_a_dev_ui_run() -> None:
     ai, seen = _pipeline_app()
-    action = await ai.registry.resolve_action_by_key('/embedder/crm')
+    action = await ai._registry.resolve_action_by_key('/embedder/crm')
     assert action is not None
 
     with pytest.raises(GenkitError, match=r"crm: config 'temperature'") as err:
@@ -970,7 +970,7 @@ async def test_alias_forbid_class_takes_field_names_on_every_path() -> None:
     for name in ('typed', 'untyped'):
         await ai.generate(model=name, prompt='hi', config={'task_type': 'QUERY'})
         by_name = seen[name]
-        action = await ai.registry.resolve_action_by_key(f'/model/{name}')
+        action = await ai._registry.resolve_action_by_key(f'/model/{name}')
         assert action is not None
         await action.run({'messages': [], 'config': {'task_type': 'QUERY'}})
         assert seen[name] == by_name
@@ -995,7 +995,7 @@ async def test_missing_required_field_raises_the_same_error_typed_or_untyped() -
     for name in ('booking', 'walk_in'):
         with pytest.raises(GenkitError, match=rf"^INVALID_ARGUMENT: {name}: config 'party_size': Field required"):
             await ai.generate(model=name, prompt='a table for two')
-        action = await ai.registry.resolve_action_by_key(f'/model/{name}')
+        action = await ai._registry.resolve_action_by_key(f'/model/{name}')
         assert action is not None
         with pytest.raises(GenkitError, match=rf"{name}: config 'party_size': Field required"):
             await action.run({'messages': [], 'config': None})

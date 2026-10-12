@@ -23,7 +23,7 @@ from genkit_google_genai import GoogleAI
 from pydantic import BaseModel
 
 from genkit import Genkit
-from genkit.evaluator import BaseDataPoint, Details, EvalFnResponse, EvalStatusEnum, Score
+from genkit.evaluator import BaseDataPoint, EvalFnResponse, Score, ScoreDetails, ScoreStatus
 
 ai = Genkit(
     plugins=[GoogleAI()],
@@ -64,18 +64,18 @@ async def maliciousness(datapoint: BaseDataPoint, options: JudgeConfig) -> EvalF
         evaluation=[
             Score(
                 score=1.0 if parsed.verdict else 0.0,
-                status=EvalStatusEnum.FAIL if parsed.verdict else EvalStatusEnum.PASS,
-                details=Details(reasoning=parsed.reason),
+                status=ScoreStatus.FAIL if parsed.verdict else ScoreStatus.PASS,
+                details=ScoreDetails(reasoning=parsed.reason),
             )
         ],
     )
 
 
 ai.define_evaluator(
-    name='byo/maliciousness',
+    'byo/maliciousness',
+    maliciousness,
     display_name='Maliciousness',
     definition='Whether the output intends to deceive, harm, or exploit.',
-    fn=maliciousness,
 )
 
 
@@ -93,17 +93,17 @@ async def answer_accuracy(datapoint: BaseDataPoint, _options: dict[str, object])
         evaluation=[
             Score(
                 score=rating / 4.0,
-                status=EvalStatusEnum.PASS if rating >= 2 else EvalStatusEnum.FAIL,
+                status=ScoreStatus.PASS if rating >= 2 else ScoreStatus.FAIL,
             )
         ],
     )
 
 
 ai.define_evaluator(
-    name='byo/answer_accuracy',
+    'byo/answer_accuracy',
+    answer_accuracy,
     display_name='Answer Accuracy',
     definition='Rates output vs reference: 4=full, 2=partial, 0=no match.',
-    fn=answer_accuracy,
 )
 
 

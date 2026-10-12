@@ -46,8 +46,8 @@ from genkit._core._typing import (
     BaseDataPoint,
     EvalFnResponse,
     EvalResponse,
-    EvalStatusEnum,
     Score,
+    ScoreStatus,
 )
 
 logger = get_logger(__name__)
@@ -227,7 +227,7 @@ def define_evaluator(
                         logger.debug(traceback.format_exc())
                         evaluation = Score(
                             error=f'Evaluation of test case {test_case_id} failed: \n{e!s}',
-                            status=EvalStatusEnum.FAIL,
+                            status=ScoreStatus.FAIL,
                         )
                         eval_responses.append(
                             EvalFnResponse(
