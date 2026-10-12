@@ -25,6 +25,7 @@ from typing import Any, Generic
 from pydantic import BaseModel
 
 # Internal imports from sibling modules
+from genkit._ai import _aio
 from genkit._ai._agents._client import AgentClient
 from genkit._ai._agents._preamble import (
     apply_preamble_tags,
@@ -222,7 +223,7 @@ class Agent(
 
 
 def define_custom_agent(
-    registry: Registry,
+    ai: _aio.Genkit,
     name: str,
     fn: AgentFn,
     *,
@@ -289,6 +290,7 @@ def define_custom_agent(
         state_transform=state_transform,
         state_schema=state_schema,
     )
+    registry = ai._registry
     registry.register_action_from_instance(agent)
 
     if store is not None:
@@ -339,7 +341,7 @@ def register_snapshot_actions(*, registry: Registry, name: str, agent: Agent) ->
 
 
 def define_agent(
-    registry: Registry,
+    ai: _aio.Genkit,
     name: str,
     *,
     model: ModelRef[ModelRefConfigT] | Action | str | None = None,
@@ -366,8 +368,9 @@ def define_agent(
     read and write via the session — the chat's ``state``, ``response.state``,
     and streamed ``chunk.custom`` come back as that model instead of a dict.
     """
+    registry = ai._registry
     executable_prompt = Prompt(
-        registry,
+        ai,
         name=name,
         model=model,
         config=config,
@@ -379,7 +382,7 @@ def define_agent(
     )
     register_prompt_actions(registry, executable_prompt, name, None)
     return define_prompt_agent(
-        registry=registry,
+        ai,
         name=name,
         store=store,
         state_transform=state_transform,
@@ -391,7 +394,7 @@ def define_agent(
 
 
 def define_prompt_agent(
-    registry: Registry,
+    ai: _aio.Genkit,
     name: str,
     *,
     store: SessionStore[StateT] | None = None,
@@ -422,7 +425,7 @@ def define_prompt_agent(
                 resume_restart = inp.resume.restart or None
                 resume_metadata = inp.resume.metadata or None
 
-            executable = await lookup_prompt(registry, name)
+            executable = await lookup_prompt(ai._registry, name)
             call_opts: PromptGenerateOptions = {
                 'messages': tag_history_for_render(history),
                 'resume_respond': resume_respond,
@@ -440,7 +443,7 @@ def define_prompt_agent(
             return await generate_prompt_agent_turn(
                 session_runner=session_runner,
                 ctx=ctx,
-                registry=prepared.registry,
+                scope=prepared.scope,
                 options=options,
                 history=history,
             )
@@ -449,7 +452,7 @@ def define_prompt_agent(
         return await session_runner.result()
 
     return define_custom_agent(
-        registry=registry,
+        ai,
         name=name,
         fn=agent_fn,
         store=store,
