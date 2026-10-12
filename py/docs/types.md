@@ -76,8 +76,6 @@ Types exported from genkit, genkit.model, genkit.embedder, genkit.plugin_api, ge
 
 ::: genkit.model.GenerationUsage
 
-::: genkit.model.Candidate
-
 ::: genkit.model.OperationError
 
 ::: genkit.model.ToolRequest

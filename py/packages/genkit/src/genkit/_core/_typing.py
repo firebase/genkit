@@ -380,27 +380,6 @@ class MiddlewareRef(GenkitModel):
     config: Any | None = Field(default=None)
 
 
-class CandidateError(GenkitModel):
-    """Model for candidateerror data."""
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
-    index: float = Field(...)
-    code: Literal['blocked', 'other', 'unknown'] = Field(...)
-    message: str | None = None
-
-
-class Candidate(GenkitModel):
-    """Model for candidate data."""
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
-    index: float = Field(...)
-    message: MessageData = Field(...)
-    usage: GenerationUsage | None = None
-    finish_reason: FinishReason = Field(...)
-    finish_message: str | None = None
-    custom: Any | None = Field(default=None)
-
-
 class CustomPart(GenkitModel):
     """Model for custompart data."""
 

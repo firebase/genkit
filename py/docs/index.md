@@ -77,8 +77,6 @@
 
 ::: genkit.model.GenerationUsage
 
-::: genkit.model.Candidate
-
 ::: genkit.model.OperationError
 
 ::: genkit.model.ToolRequest
