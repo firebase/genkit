@@ -109,6 +109,7 @@ from genkit._core._model import (
     Part,
     ToolChoice,
 )
+from genkit._core._operation import Operation
 from genkit._core._plugin import Plugin
 from genkit._core._reflection import ReflectionServer, ServerSpec, create_reflection_asgi_app
 from genkit._core._reflection_config import (
@@ -130,7 +131,6 @@ from genkit._core._typing import (
     EvaluatorResponse,
     MiddlewareRef,
     ModelInfo,
-    Operation,
     Role,
 )
 

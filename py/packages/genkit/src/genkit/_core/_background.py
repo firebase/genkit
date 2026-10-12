@@ -29,12 +29,10 @@ from genkit._core._action import Action, ActionKind, ActionRunContext, get_curre
 from genkit._core._config_check import check_config_json_schema, check_request_config
 from genkit._core._error import GenkitError, RuntimeErrorReason, StatusName
 from genkit._core._model import ModelRequest, ModelResponse
+from genkit._core._operation import Operation
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
-from genkit._core._typing import (
-    ModelInfo,
-    Operation,
-)
+from genkit._core._typing import ModelInfo
 
 
 def _make_action_key(action_type: ActionKind | str, name: str) -> str:

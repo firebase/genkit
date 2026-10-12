@@ -28,14 +28,8 @@ from genkit._core._action import ActionRunContext, _action_context
 from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._middleware import BaseMiddleware, GenerateHookParams, GenerateMiddlewareContext, ModelHookParams
 from genkit._core._model import ModelRequest, ModelResponse, ModelResponseChunk
-from genkit._core._typing import (
-    FinishReason,
-    Media,
-    Operation,
-    OperationError,
-    Role,
-    ToolRequest,
-)
+from genkit._core._operation import Operation
+from genkit._core._typing import FinishReason, Media, OperationError, Role, ToolRequest
 from genkit.plugin_api import ActionKind
 
 
