@@ -54,7 +54,6 @@ from genkit._ai._model import (
     ModelResponseChunk,
     assert_correct_config_class,
     check_call_config,
-    check_merged_config,
     config_class_for_generate,
     config_schema_at_define,
     fold_config_aliases,
@@ -70,7 +69,7 @@ from genkit._core._action import (
     get_current_context,
 )
 from genkit._core._channel import Channel
-from genkit._core._config_check import check_config_values, config_field_names
+from genkit._core._config_check import check_config_values
 from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._logger import get_logger
 from genkit._core._middleware import BaseMiddleware, middleware_class_index
@@ -81,6 +80,7 @@ from genkit._core._model import (
     OutputConfig,
     Part,
     ToolChoice,
+    config_field_names,
     resume_options_to_resume,
 )
 from genkit._core._registry import Registry
@@ -432,7 +432,6 @@ class Prompt(Generic[InputT, OutputT]):
             schema=resolved.config_schema,
             model=resolved.name,
         )
-        check_merged_config(config=resolved.config, schema=resolved.config_schema, model=resolved.name)
         return call.model_copy(update={'model': resolved.name, 'config': resolved.config})
 
     async def __call__(

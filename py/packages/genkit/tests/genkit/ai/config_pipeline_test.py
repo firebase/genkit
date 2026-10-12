@@ -31,7 +31,7 @@ import pytest
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
-from genkit import Genkit, GenkitError
+from genkit import FinishReason, Genkit, GenkitError
 from genkit._ai._embedding import EmbedderInfo, EmbedderRef, create_embedder_ref
 from genkit._ai._evaluator import EvaluatorRef
 from genkit._ai._model import model_ref
@@ -443,8 +443,10 @@ async def test_typed_class_that_cannot_build_from_defaults_raises() -> None:
     with pytest.raises(GenkitError, match=r"booking: config 'party_size': Field required") as err:
         await action.run(cast(Any, {'messages': [], 'config': None}))
     assert err.value.status == 'INVALID_ARGUMENT'
-    with pytest.raises(GenkitError, match=r"booking: config 'party_size': Field required"):
-        await ai.generate(model='booking', prompt='a table for two')
+    response = await ai.generate(model='booking', prompt='a table for two')
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.error is not None
+    assert "booking: config 'party_size': Field required" in response.error.message
     assert seen == {}
 
 
@@ -980,7 +982,8 @@ async def test_alias_forbid_class_takes_field_names_on_every_path() -> None:
 
 
 @pytest.mark.asyncio
-async def test_missing_required_field_raises_the_same_error_typed_or_untyped() -> None:
+async def test_missing_required_field_fails_the_same_way_typed_or_untyped() -> None:
+    """Nothing fills party_size: a failed turn from generate, a raise from a direct run, same message."""
     ai = Genkit()
 
     async def typed(request: ModelRequest[ReservationConfig], ctx: ActionRunContext) -> ModelResponse:
@@ -993,8 +996,11 @@ async def test_missing_required_field_raises_the_same_error_typed_or_untyped() -
     ai.define_model(name='walk_in', fn=untyped, config_schema=ReservationConfig)
 
     for name in ('booking', 'walk_in'):
-        with pytest.raises(GenkitError, match=rf"^INVALID_ARGUMENT: {name}: config 'party_size': Field required"):
-            await ai.generate(model=name, prompt='a table for two')
+        response = await ai.generate(model=name, prompt='a table for two')
+        assert response.finish_reason == FinishReason.FAILED
+        assert response.error is not None
+        assert response.error.status == 'INVALID_ARGUMENT'
+        assert response.error.message == f"{name}: config 'party_size': Field required"
         action = await ai._registry.resolve_action_by_key(f'/model/{name}')
         assert action is not None
         with pytest.raises(GenkitError, match=rf"{name}: config 'party_size': Field required"):

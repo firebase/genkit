@@ -47,6 +47,7 @@ from typing_extensions import TypeVar
 
 from genkit._core._channel import Channel, CloseableQueue
 from genkit._core._compat import StrEnum
+from genkit._core._config_check import check_config_json_schema, validate_whole_config
 from genkit._core._error import GenkitError, Interrupt, RuntimeErrorReason, mark_request_error
 from genkit._core._model import (
     EmbedRequest,
@@ -57,11 +58,9 @@ from genkit._core._model import (
     config_defaults,
     config_type_path,
     declared_config_type,
-    fold_config_aliases,
     normalize_config,
     overlay_config,
     reject_config_api_key,
-    validate_config_dict,
 )
 from genkit._core._schema import to_json_schema
 from genkit._core._telemetry._attrs import Attr, metadata_key
@@ -856,6 +855,8 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
         # generate checks config against it. Not in metadata — that bag is
         # JSON for the Dev UI.
         self._config_schema: type[BaseModel] | dict[str, object] | None = config_schema
+        if isinstance(config_schema, dict):
+            check_config_json_schema(cast(dict[str, Any], config_schema), model=name)
         self._span_metadata: dict[str, SpanAttributeValue] = span_metadata or {}
 
         # All action handlers must be async
@@ -1207,7 +1208,7 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
         """
         field = config_field(self._kind)
         schema = self._config_schema
-        if field is None or not (isinstance(schema, type) and issubclass(schema, BaseModel)):
+        if field is None or schema is None:
             return input
         if isinstance(input, Mapping):
             current = cast(Mapping[str, Any], input).get(field)
@@ -1225,15 +1226,21 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
             return cast(InputT, {**cast(Mapping[str, Any], input), field: value})
         return cast(InputT, cast(BaseModel, input).model_copy(update={field: value}))
 
-    def _normalized_config(self, current: object, *, schema: type[BaseModel], field: str) -> object:
+    def _normalized_config(self, current: object, *, schema: type[BaseModel] | dict[str, Any], field: str) -> object:
         """The config value _layer_config_defaults puts on the request (``current`` when unchanged)."""
+        if isinstance(schema, dict):
+            # A JSON-schema dict has no defaults to layer; it is only checked.
+            validate_whole_config(config=current, schema=schema, model=self.name)
+            return current
         if self._input_class is not None and declared_config_type(self._input_class) is not None:
             if current is None:
-                return validate_config_dict(config={}, schema=schema, label=self.name)
+                return validate_whole_config(config={}, schema=schema, model=self.name)
             if isinstance(current, Mapping) and not isinstance(current, BaseModel):
-                # Fold to the keys the class accepts, as ai.* does, so an
-                # alias-only class with extra='forbid' takes field names here too.
-                return fold_config_aliases(config=dict(cast(Mapping[str, Any], current)), schema=schema)
+                # The same check an untyped fn gets, so a typed fn reports
+                # problems in the same words; the fn gets the validated instance.
+                return validate_whole_config(
+                    config=dict(cast(Mapping[str, Any], current)), schema=schema, model=self.name
+                )
             return current
         if isinstance(current, BaseModel) and not isinstance(current, schema):
             raise GenkitError(
@@ -1248,7 +1255,7 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
             return current  # request validation reports the wrong type
         defaults = config_defaults(schema, self._config_default_fields)
         merged = overlay_config(layers=[defaults, normalize_config(config=current)], schema=schema)
-        validate_config_dict(config=merged, schema=schema, label=self.name)
+        validate_whole_config(config=merged, schema=schema, model=self.name)
         return merged
 
     def _validate_input(self, input: InputT | None) -> InputT | None:
