@@ -1314,33 +1314,6 @@ With `use=[A(), B()]`, `A` runs first and wraps `B`: A before, B before, model, 
 - `ctx.abort_signal`: an `asyncio.Event` set when the call is cancelled.
 - `ctx.telemetry_labels`: labels added to the spans.
 
-### When a chunk callback raises
-
-Middleware can swap the stream callback with `ctx.replace_on_chunk(fn)`. If `fn` raises, Genkit fails the turn with `ErrorReason.STREAM_CALLBACK_FAILED` and doesn't retry, because the model didn't fail. The caller's own callback is treated the same way.
-
-```python
-# 1. A middleware with a bug in its chunk rewrite
-class Redact(Middleware):
-    async def wrap_model(self, params, ctx, next_fn):
-        def on_chunk(chunk):
-            raise KeyError('redaction table missing')
-        previous = ctx.replace_on_chunk(on_chunk)
-        try:
-            return await next_fn(params, ctx)
-        finally:
-            ctx.replace_on_chunk(previous)
-
-# 2. The caller's loop ends early, without raising
-stream = ai.generate_stream(prompt='Suggest a dish.', use=[Retry(), Redact()])
-async for chunk in stream.stream:
-    print(chunk.text)
-
-# 3. The final response says what broke; the model ran once
-response = await stream.response
-print(response.finish_reason, response.error.reason)
-# => failed STREAM_CALLBACK_FAILED
-```
-
 ---
 
 ## 11. Runtime Architecture: Actions, Reflection, Event Loops
