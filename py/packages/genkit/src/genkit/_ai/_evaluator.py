@@ -33,7 +33,6 @@ from genkit._core._schema import to_json_schema
 from genkit._core._telemetry._attrs import metadata_key
 from genkit._core._telemetry._instrumentation import SpanContext, run_in_new_span
 from genkit._core._typing import (
-    ActionMetadata,
     BaseDataPoint,
     EvalFnResponse,
     EvalRequest,
@@ -92,28 +91,6 @@ def _evaluator_metadata(
     return evaluator_meta
 
 
-def evaluator_action_metadata(
-    name: str,
-    *,
-    display_name: str,
-    definition: str,
-    is_billed: bool = False,
-    config_schema: type[BaseModel] | dict[str, object] | None = None,
-) -> ActionMetadata:
-    """Describe an evaluator in a plugin's list_actions.
-
-    The metadata matches what define_evaluator registers, so the Dev UI shows
-    the same display name and definition before and after the action resolves.
-    """
-    return ActionMetadata(
-        action_type=ActionKind.EVALUATOR,
-        name=name,
-        input_json_schema=to_json_schema(EvalRequest),
-        output_json_schema=to_json_schema(list[EvalFnResponse]),
-        metadata=_evaluator_metadata(name, display_name, definition, is_billed, config_schema),
-    )
-
-
 def _get_func_description(func: Callable[..., Any], description: str | None = None) -> str:
     """Return description if provided, otherwise use the function's docstring."""
     if description is not None:
@@ -126,7 +103,8 @@ def _get_func_description(func: Callable[..., Any], description: str | None = No
 class Evaluator(Action[EvalRequest, EvalResponse, Never]):
     """Evaluator action that runs ``fn`` on each dataset sample, without registering it.
 
-    Plugin ``init`` / ``resolve`` return this. ``define_evaluator`` registers it.
+    Plugin ``init`` / ``resolve`` return this; ``list_actions`` returns ``self.action_metadata()``.
+    ``define_evaluator`` registers it.
     """
 
     def __init__(

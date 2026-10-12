@@ -45,7 +45,6 @@ from genkit.evaluator import (
     EvaluatorRef,
     ScoreDetails,
     ScoreStatus,
-    evaluator_action_metadata,
 )
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, MiddlewareRef, ModelHookParams
 from genkit.testing import (
@@ -1674,14 +1673,9 @@ def test_define_evaluator_custom_config(setup_test: SetupFixture) -> None:
         },
     }
 
-    listed = evaluator_action_metadata(
-        'my_eval',
-        display_name='Test evaluator',
-        definition='Test evaluator that always returns True',
-        config_schema=CustomOption,
-    )
+    listed = action.action_metadata()
     assert listed.action_type == ActionKind.EVALUATOR
-    assert listed.metadata == {'evaluator': action.metadata['evaluator']}
+    assert listed.metadata == action.metadata
 
 
 def test_define_batch_evaluator(setup_test: SetupFixture) -> None:

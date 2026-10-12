@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Plugin authors build evaluators with Evaluator / BatchEvaluator and list them with evaluator_action_metadata."""
+"""Plugin authors build evaluators with Evaluator / BatchEvaluator and list them with .action_metadata()."""
 
 from typing import Any, cast
 
@@ -29,7 +29,6 @@ from genkit.evaluator import (
     EvalRequest,
     Evaluator,
     Score,
-    evaluator_action_metadata,
 )
 from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin
 
@@ -66,7 +65,11 @@ class ExactMatchPlugin(Plugin):
         return Evaluator('p/e', _exact_match, display_name='Exact match', definition='output equals reference')
 
     async def list_actions(self) -> list[ActionMetadata]:
-        return [evaluator_action_metadata('p/e', display_name='Exact match', definition='output equals reference')]
+        return [
+            Evaluator(
+                'p/e', _exact_match, display_name='Exact match', definition='output equals reference'
+            ).action_metadata()
+        ]
 
 
 @pytest.mark.asyncio
@@ -109,28 +112,28 @@ def test_evaluator_sync_fn_raises_type_error() -> None:
 
 def test_evaluator_action_metadata_carries_display_name_definition_billed() -> None:
     """The listing for an evaluator carries the display name, definition, billed flag and options the Dev UI shows."""
-    listing = evaluator_action_metadata(
+    listing = Evaluator(
         'p/fluency',
+        _exact_match,
         display_name='Fluency',
         definition='Assesses the language mastery of an output',
         is_billed=True,
         config_schema=ThresholdOptions,
-    )
+    ).action_metadata()
 
     assert listing.action_type == ActionKind.EVALUATOR
     assert listing.name == 'p/fluency'
-    assert listing.metadata == {
-        'evaluator': {
-            'evaluatorDisplayName': 'Fluency',
-            'evaluatorDefinition': 'Assesses the language mastery of an output',
-            'evaluatorIsBilled': True,
-            'label': 'p/fluency',
-            'customOptions': {
-                'properties': {'threshold': {'default': 0.5, 'title': 'Threshold', 'type': 'number'}},
-                'title': 'ThresholdOptions',
-                'type': 'object',
-            },
-        }
+    assert listing.metadata is not None
+    assert listing.metadata['evaluator'] == {
+        'evaluatorDisplayName': 'Fluency',
+        'evaluatorDefinition': 'Assesses the language mastery of an output',
+        'evaluatorIsBilled': True,
+        'label': 'p/fluency',
+        'customOptions': {
+            'properties': {'threshold': {'default': 0.5, 'title': 'Threshold', 'type': 'number'}},
+            'title': 'ThresholdOptions',
+            'type': 'object',
+        },
     }
 
 
@@ -145,16 +148,12 @@ def test_evaluator_and_metadata_agree_for_same_args(config_schema: type[BaseMode
         is_billed=True,
         config_schema=config_schema,
     )
-    listing = evaluator_action_metadata(
-        'p/e',
-        display_name='Exact match',
-        definition='output equals reference',
-        is_billed=True,
-        config_schema=config_schema,
-    )
+    listing = action.action_metadata()
 
     assert listing.metadata is not None
     assert action.metadata['evaluator'] == listing.metadata['evaluator']
+    assert listing.input_json_schema == action.input_schema
+    assert listing.output_json_schema == action.output_schema
 
 
 @pytest.mark.asyncio
@@ -219,12 +218,12 @@ def test_batch_evaluator_and_metadata_agree_for_same_args() -> None:
     action = BatchEvaluator(
         'p/b', _exact_match_batch, display_name='Exact match', definition='output equals reference', is_billed=True
     )
-    listing = evaluator_action_metadata(
-        'p/b', display_name='Exact match', definition='output equals reference', is_billed=True
-    )
+    listing = action.action_metadata()
 
     assert listing.metadata is not None
     assert action.metadata['evaluator'] == listing.metadata['evaluator']
+    assert listing.input_json_schema == action.input_schema
+    assert listing.output_json_schema == action.output_schema
 
 
 @pytest.mark.asyncio

@@ -159,8 +159,6 @@
 
 ::: genkit.evaluator.BatchEvaluator
 
-::: genkit.evaluator.evaluator_action_metadata
-
 ::: genkit.evaluator.EvaluatorRef
 
 ## genkit.telemetry

@@ -40,7 +40,7 @@ from google.auth import default as google_auth_default
 from google.auth.transport.requests import Request
 
 from genkit import GenkitError
-from genkit.evaluator import BaseDataPoint, EvalFnResponse, Evaluator, Score, ScoreDetails, evaluator_action_metadata
+from genkit.evaluator import BaseDataPoint, EvalFnResponse, Evaluator, Score, ScoreDetails
 from genkit.plugin_api import GENKIT_CLIENT_HEADER, Action, ActionMetadata, StrEnum, loop_local_client, provider_error
 
 
@@ -404,15 +404,11 @@ def vertex_evaluator_name(metric_type: VertexAIEvaluationMetricType) -> str:
 
 
 def vertex_evaluator_action_metadata(metric_type: VertexAIEvaluationMetricType) -> ActionMetadata:
-    """Listing entry for a Vertex metric, without building its evaluator."""
-    config = METRIC_CONFIGS[metric_type]
-    return evaluator_action_metadata(
-        vertex_evaluator_name(metric_type),
-        display_name=config['display_name'],
-        definition=config['definition'],
-        # every metric is a call to the paid Vertex Evaluation API.
-        is_billed=True,
-    )
+    """Listing entry for a Vertex metric."""
+    return _create_evaluator_for_metric(
+        factory=EvaluatorFactory('', ''),
+        metric_type=metric_type,
+    ).action_metadata()
 
 
 def create_vertex_evaluators(

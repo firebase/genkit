@@ -50,7 +50,6 @@ from genkit._ai._evaluator import (
     BatchEvaluator,
     Evaluator,
     EvaluatorRef,
-    evaluator_action_metadata,
 )
 from genkit._core._typing import (
     BaseDataPoint,
@@ -74,8 +73,7 @@ __all__ = [
     'ScoreStatus',
     # Reference types
     'EvaluatorRef',
-    # Plugins: build in init/resolve, describe in list_actions
+    # Plugins: build in init/resolve, describe in list_actions via .action_metadata()
     'Evaluator',
     'BatchEvaluator',
-    'evaluator_action_metadata',
 ]
