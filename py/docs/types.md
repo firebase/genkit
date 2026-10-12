@@ -128,6 +128,8 @@ Types exported from genkit, genkit.model, genkit.embedder, genkit.plugin_api, ge
 
 ::: genkit.evaluator.EvaluatorRequest
 
+::: genkit.evaluator.BatchEvaluatorRequest
+
 ::: genkit.evaluator.EvaluatorResponse
 
 ::: genkit.evaluator.Score

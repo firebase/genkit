@@ -44,8 +44,8 @@ from genkit._core._dap import DapFn, DapMetadata, DynamicActionProvider
 from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._logger import get_logger
 from genkit._core._model import (
+    BatchEvaluatorRequest,
     EmbedRequest,
-    EvaluatorRequest,
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,
@@ -889,7 +889,7 @@ class Registry:
             action,
         )
 
-    async def resolve_evaluator(self, name: str) -> Action[EvaluatorRequest, EvalResponse, Never] | None:
+    async def resolve_evaluator(self, name: str) -> Action[BatchEvaluatorRequest, EvalResponse, Never] | None:
         """Resolve an evaluator action by name with full type information.
 
         Args:
@@ -901,7 +901,7 @@ class Registry:
         action = await self.resolve_action(ActionKind.EVALUATOR, name)
         if action is None:
             return None
-        return cast(Action[EvaluatorRequest, EvalResponse, Never], action)
+        return cast(Action[BatchEvaluatorRequest, EvalResponse, Never], action)
 
 
 def define_dynamic_action_provider(

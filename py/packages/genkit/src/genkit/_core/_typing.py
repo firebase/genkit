@@ -323,8 +323,8 @@ class EvaluatorResponse(GenkitModel):
         return [value] if isinstance(value, dict) else value
 
 
-class EvaluatorRequest(GenkitModel):
-    """Model for evaluatorrequest data."""
+class BatchEvaluatorRequest(GenkitModel):
+    """Model for batchevaluatorrequest data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     dataset: list[BaseDataPoint] = Field(...)

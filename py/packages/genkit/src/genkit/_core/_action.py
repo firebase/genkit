@@ -50,6 +50,7 @@ from genkit._core._compat import StrEnum
 from genkit._core._config_check import check_config_json_schema, validate_whole_config
 from genkit._core._error import GenkitError, Interrupt, RuntimeErrorReason, mark_request_error
 from genkit._core._model import (
+    BatchEvaluatorRequest,
     EmbedRequest,
     EvaluatorRequest,
     ModelRequest,
@@ -420,6 +421,7 @@ def known_annotation_names(kind: ActionKind) -> dict[str, object]:
         return {'EmbedRequest': EmbedRequest, 'EmbedResponse': EmbedResponse}
     if kind == ActionKind.EVALUATOR:
         return {
+            'BatchEvaluatorRequest': BatchEvaluatorRequest,
             'EvaluatorRequest': EvaluatorRequest,
             'EvalResponse': EvalResponse,
             'EvaluatorResponse': EvaluatorResponse,
