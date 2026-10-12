@@ -46,7 +46,6 @@ from opentelemetry.util._once import Once
 from pydantic import BaseModel
 
 from genkit import (
-    ActionRunContext,
     FinishReason,
     Genkit,
     GenkitError,
@@ -60,7 +59,7 @@ from genkit import (
 from genkit._ai._tools import run_tool_after_restart
 from genkit._core._action import Action
 from genkit.model import ModelRequest, ModelUsage
-from genkit.plugin_api import ActionKind
+from genkit.plugin_api import ActionKind, ActionRunContext
 from genkit.telemetry import (
     DirectHttpInstrumentation,
     configure_instrumentation,
