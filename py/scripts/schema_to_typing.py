@@ -52,9 +52,21 @@ TRANSFORMATIONS = {
     # Documents take the same Part as messages. The schema names a
     # text|media subset; we do not emit a second type for that.
     'DocumentPart': {'output_name': 'PartData'},
+    # config is recorded in traces, so a per-request key goes in
+    # context.secrets instead and model config has no slot for one.
+    'GenerationCommonConfig': {'omit': ['apiKey']},
     # docs= always goes into the prompt and nothing in Python reads
     # supports.context, so the field isn't emitted.
     'Supports': {'omit': ['context']},
+    # Models declare config with config_schema= and publish it as
+    # customOptions. ModelInfo.configSchema was a second, unread slot for the
+    # same thing, so it isn't emitted.
+    'ModelInfo': {'omit': ['configSchema']},
+    # Evaluator authors type these names when building a Score. Only the
+    # Python class names differ; the JSON ('PASS', details.reasoning) follows the schema.
+    'EvalStatusEnum': {'output_name': 'ScoreStatus'},
+    # Inline Score.details object. Only Score has an object-typed details.
+    'Details': {'output_name': 'ScoreDetails'},
 }
 
 
@@ -98,7 +110,7 @@ from __future__ import annotations
 
 from typing import Any, ClassVar, Literal
 
-from pydantic import ConfigDict, Field, RootModel
+from pydantic import ConfigDict, Field, RootModel, field_validator
 from pydantic.alias_generators import to_camel
 
 from genkit._core._base import GenkitModel
@@ -176,7 +188,7 @@ def _typed_map_aliases(defs: dict) -> dict[str, str]:
 
 
 def _extract_inline_classes(schema: dict) -> dict[str, dict]:
-    """Extract inline object schemas to named classes (e.g. Score.details -> Details).
+    """Extract inline object schemas to named classes (e.g. Score.details -> ScoreDetails).
 
     When two inline schemas across different parents share a derived class
     name (e.g. ``resume`` on both ``AgentInput`` and ``GenerateActionOptions``),
@@ -348,6 +360,11 @@ def _emit_model(
             py_type_str = 'Role | str'
         desc = v.get('description')
         desc_extra = f', description={repr(desc)}' if desc else ''
+        if name == 'EvalFnResponse' and field_name == 'evaluation':
+            # Callers read row.evaluation as a list. Saved JSON that stored one
+            # score object is wrapped; a Score built in code must already be
+            # a list so the type checker and runtime agree.
+            py_type_str = 'list[Score]'
         if k in req:
             lines.append(f'    {field_name}: {py_type_str} = Field(...{desc_extra}{alias_extra})')
         else:
@@ -361,6 +378,16 @@ def _emit_model(
         lines.extend([
             '    # Store Pydantic type for runtime validation (excluded from JSON)',
             '    schema_type: Any = Field(default=None, exclude=True)',
+        ])
+    if name == 'EvalFnResponse':
+        lines.extend([
+            '',
+            "    @field_validator('evaluation', mode='before')",
+            '    @classmethod',
+            '    def _wrap_single_score_object(cls, value: Any) -> Any:  # noqa: ANN401',
+            '        # saved runs may store one score object. wrap that dict;',
+            '        # a Score built in code must already be a list.',
+            '        return [value] if isinstance(value, dict) else value',
         ])
     return lines + ['']
 

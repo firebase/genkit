@@ -17,6 +17,8 @@
 
 """Prompt management and templating."""
 
+from __future__ import annotations
+
 import asyncio
 import os
 import weakref
@@ -25,16 +27,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar, Generic, NamedTuple, TypedDict, TypeVar, cast
 
-from dotpromptz.typing import (
+from dotpromptz import (
     DataArgument,
     PromptFunction,
     PromptInputConfig,
     PromptMetadata,
 )
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 from typing_extensions import Never, Self
 
+from genkit._ai import _aio
 from genkit._ai._generate import (
+    CallScope,
     generate_action,
     register_middleware,
     register_tools,
@@ -49,7 +53,10 @@ from genkit._ai._model import (
     ModelResponse,
     ModelResponseChunk,
     assert_correct_config_class,
+    check_call_config,
+    config_class_for_generate,
     config_schema_at_define,
+    fold_config_aliases,
     normalize_config,
     resolve_call_model,
     resolve_for_generate,
@@ -62,6 +69,7 @@ from genkit._core._action import (
     get_current_context,
 )
 from genkit._core._channel import Channel
+from genkit._core._config_check import check_config_values, config_field_names
 from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._logger import get_logger
 from genkit._core._middleware import BaseMiddleware, middleware_class_index
@@ -75,7 +83,7 @@ from genkit._core._model import (
     resume_options_to_resume,
 )
 from genkit._core._registry import Registry
-from genkit._core._schema import to_json_schema
+from genkit._core._schema import InvalidOutputSchemaError, check_output_schema, parse_schema, to_json_schema
 from genkit._core._tool import Tool
 from genkit._core._typing import (
     GenerateActionOutputConfig,
@@ -117,7 +125,7 @@ class ModelSettings(TypedDict, total=False):
     key. Applied in ``Prompt._resolve_model``.
     """
 
-    model: ModelArg | None
+    model: ModelArg | Action | None
     config: Mapping[str, Any] | BaseModel | None
 
 
@@ -250,7 +258,7 @@ class GenerateCall(BaseModel):
     resume_metadata: dict[str, Any] | None = None
 
     # ModelSettings
-    model: str | ModelRef[BaseModel] | None = None
+    model: ModelArg | Action | None = None
     config: Mapping[str, Any] | BaseModel | None = None
 
     def with_overrides(self, opts: PromptSettings) -> Self:
@@ -268,12 +276,13 @@ class Prompt(Generic[InputT, OutputT]):
 
     def __init__(
         self,
-        registry: Registry,
+        ai: _aio.Genkit,
         variant: str | None = None,
-        model: ModelArg | None = None,
+        model: ModelArg | Action | None = None,
         config: Mapping[str, Any] | BaseModel | None = None,
         description: str | None = None,
         input_schema: type | dict[str, Any] | str | None = None,
+        input_default: dict[str, Any] | None = None,
         system: str | list[Part] | None = None,
         prompt: str | list[Part] | None = None,
         messages: str | list[Message] | None = None,
@@ -293,7 +302,12 @@ class Prompt(Generic[InputT, OutputT]):
         ns: str | None = None,
     ) -> None:
         """Initialize prompt with configuration, templates, and schema options."""
-        self._registry = registry
+        self._ai = ai
+        # Keys the caller leaves out take these values before the template runs.
+        self._input_default = dict(input_default) if input_default else None
+        # Set when a lookup also passed input_schema=; the file's schema still
+        # has to pass so a required file field can't slip through.
+        self._file_input_schema: type | dict[str, Any] | str | None = None
         # Identity: how the prompt is registered and looked up. Not part of _def,
         # which only holds what goes into a generate.
         self._name = name
@@ -326,7 +340,7 @@ class Prompt(Generic[InputT, OutputT]):
         # Compiled system/messages/prompt templates, filled on first render and reused.
         self._compiled_templates: PromptCache = PromptCache()
         self._prompt_action: Action | None = None
-        define_name, define_schema = config_schema_at_define(model=model, registry=registry)
+        define_name, define_schema = config_schema_at_define(model=model, registry=ai._registry)
         # Hop identity is what we knew at define time, not today's defaultModel.
         # Not a GenerateCall field, so _ensure_resolved copies it explicitly.
         self._defined_model_name = define_name
@@ -344,15 +358,22 @@ class Prompt(Generic[InputT, OutputT]):
         if self._prompt_action or not self._name:
             return
 
-        resolved = await lookup_prompt(self._registry, self._name, self._variant)
-        # Keep a Pydantic output type the caller passed: the .prompt file only
-        # carries a dict schema, and the type is what gives typed output at runtime.
+        resolved = await lookup_prompt(self._ai._registry, self._name, self._variant)
+        # Keep a Pydantic output type the caller passed: it wins over the file's
+        # dict schema or registered name, and the type is what gives typed output.
         keep: dict[str, Any] = {}
         schema = self._def.output_schema
         if isinstance(schema, type) and issubclass(schema, BaseModel):
             keep['output_schema'] = schema
+        original_input = self._def.input_schema
+        if original_input is not None:
+            keep['input_schema'] = original_input
+            self._file_input_schema = resolved._file_input_schema or resolved._def.input_schema
+        else:
+            self._file_input_schema = resolved._file_input_schema
         self._def = resolved._def.model_copy(update=keep)
         self._defined_model_name = resolved._defined_model_name
+        self._input_default = resolved._input_default
         self._prompt_action = resolved._prompt_action
 
     async def _resolve_model(self, call: GenerateCall, opts: ModelSettings) -> GenerateCall:
@@ -362,6 +383,8 @@ class Prompt(Generic[InputT, OutputT]):
         to the merged, resolved config.
         """
         override_config = opts.get('config')
+        override_model = opts.get('model')
+        model = override_model if override_model is not None else self._def.model
         merged_config: Mapping[str, Any] | BaseModel | None
         if override_config is not None:
             # exclude_unset semantics via normalize_config: untouched fields are
@@ -369,36 +392,52 @@ class Prompt(Generic[InputT, OutputT]):
             # the merge and clears the lower-precedence value downstream.
             base = normalize_config(config=self._def.config)
             override = normalize_config(config=override_config)
+            # `maxOutputTokens` in the prompt and `max_output_tokens` in the
+            # call are one setting: fold both to field names so the call wins.
+            # A model typed only by its ModelRequest[...] annotation folds too.
+            schema = await config_class_for_generate(model=model, registry=self._ai._registry)
+            if schema is not None:
+                base = fold_config_aliases(config=base, schema=schema)
+                override = fold_config_aliases(config=override, schema=schema)
             merged_config = {**base, **override} if base or override else None
         else:
             merged_config = self._def.config
 
-        override_model = opts.get('model')
         resolved = await resolve_for_generate(
-            model=override_model if override_model is not None else self._def.model,
+            model=model,
             config=merged_config,
-            registry=self._registry,
+            registry=self._ai._registry,
         )
-        assert_correct_config_class(
+        check_call_config(
             config=override_config,
             schema=resolved.config_schema,
             model=resolved.name,
         )
         # Re-check the stored typed config unless this call hops models.
-        # Extra keys overlay in overlay_config, not here.
+        # A None override clears that default, so the prompt's copy of the
+        # key is not checked against the model this call hits.
         if self._defined_model_name is None or self._defined_model_name == resolved.name:
             assert_correct_config_class(
                 config=self._def.config,
                 schema=resolved.config_schema,
                 model=resolved.name,
             )
+        check_config_values(
+            config=prompt_config_after_clears(
+                stored=self._def.config,
+                override=override_config,
+                schema=resolved.config_schema,
+            ),
+            schema=resolved.config_schema,
+            model=resolved.name,
+        )
         return call.model_copy(update={'model': resolved.name, 'config': resolved.config})
 
     async def __call__(
         self,
         input: InputT | dict[str, Any] | None = None,
         *,
-        model: ModelArg | None = None,
+        model: ModelArg | Action | None = None,
         config: Mapping[str, Any] | BaseModel | None = None,
         messages: list[Message] | None = None,
         tools: Sequence[str | Tool] | None = None,
@@ -436,7 +475,7 @@ class Prompt(Generic[InputT, OutputT]):
         )
         prepared = await prepare_prompt(prompt=self, input=input, opts=opts)
         result = await generate_action(
-            prepared.registry,
+            prepared.scope,
             prepared.options,
             on_chunk=on_chunk,
             # Same context the template already rendered, so {{@auth}} and tools agree.
@@ -448,7 +487,7 @@ class Prompt(Generic[InputT, OutputT]):
         self,
         input: InputT | dict[str, Any] | None = None,
         *,
-        model: ModelArg | None = None,
+        model: ModelArg | Action | None = None,
         config: Mapping[str, Any] | BaseModel | None = None,
         messages: list[Message] | None = None,
         tools: Sequence[str | Tool] | None = None,
@@ -497,7 +536,7 @@ class Prompt(Generic[InputT, OutputT]):
         self,
         input: InputT | dict[str, Any] | None = None,
         *,
-        model: ModelArg | None = None,
+        model: ModelArg | Action | None = None,
         config: Mapping[str, Any] | BaseModel | None = None,
         messages: list[Message] | None = None,
         tools: Sequence[str | Tool] | None = None,
@@ -531,7 +570,7 @@ class Prompt(Generic[InputT, OutputT]):
 
 
 class PreparedPrompt(NamedTuple):
-    registry: Registry
+    scope: CallScope
     options: GenerateActionOptions
     context: dict[str, Any] | None
 
@@ -541,6 +580,7 @@ async def prepare_prompt(
     prompt: Prompt[Any, Any],
     input: Any | None = None,  # noqa: ANN401
     opts: PromptGenerateOptions | None = None,
+    validate_input: bool = True,
 ) -> PreparedPrompt:
     """Build the model request for one call of this prompt.
 
@@ -558,7 +598,8 @@ async def prepare_prompt(
     call = prompt._def.with_overrides(call_opts)
     # Tools and middleware passed inline (e.g. use=[Foo()]) are registered on a
     # child registry so they exist for this call only.
-    registry = prompt._registry.new_child()
+    scope = CallScope(prompt._ai)
+    registry = scope.registry
     await register_tools(registry, call.tools)
     if call.use is not None:
         call = call.model_copy(update={'use': register_middleware(registry, call.use)})
@@ -572,10 +613,31 @@ async def prepare_prompt(
         input=input,
         context=context,
         history=call_opts.get('messages'),
+        validate_input=validate_input,
     )
 
     options = await to_generate_options(registry=registry, call=call)
-    return PreparedPrompt(registry=registry, options=options, context=context)
+    return PreparedPrompt(scope=scope, options=options, context=context)
+
+
+def prompt_config_after_clears(
+    *,
+    stored: Mapping[str, Any] | BaseModel | None,
+    override: object,
+    schema: type[BaseModel] | None,
+) -> dict[str, Any]:
+    """The prompt's config minus keys this call set to None.
+
+    None means "clear the default". The prompt still names the key, but
+    this call does not send it, so it must not fail the model's check.
+    """
+    stored_bag = normalize_config(config=stored)
+    if override is None:
+        return {key: value for key, value in stored_bag.items() if value is not None}
+    override_bag = normalize_config(config=override)
+    names = config_field_names(schema) if schema is not None else {}
+    cleared = {names.get(key, key) for key, value in override_bag.items() if value is None}
+    return {key: value for key, value in stored_bag.items() if value is not None and names.get(key, key) not in cleared}
 
 
 def _register_prompt_action_pair(
@@ -604,7 +666,7 @@ def _register_prompt_action_pair(
     async def prompt_action_fn(input: Any = None) -> ModelRequest:  # noqa: ANN401
         ep = await ep_factory()
         prepared = await prepare_prompt(prompt=ep, input=input)
-        return await to_prompt_model_request(registry=prepared.registry, options=prepared.options)
+        return await to_prompt_model_request(registry=prepared.scope.registry, options=prepared.options)
 
     async def executable_prompt_action_fn(input: Any = None) -> GenerateActionOptions:  # noqa: ANN401
         ep = await ep_factory()
@@ -794,6 +856,140 @@ def coerce_prompt_template_input(template_input: Any) -> dict[str, Any]:  # noqa
         dict_func = getattr(template_input, 'dict', None)
         return cast(Callable[[], dict[str, Any]], dict_func)()
     return cast(dict[str, Any], template_input)
+
+
+def filled_prompt_input(*, input: Any, defaults: dict[str, Any] | None) -> dict[str, Any]:  # noqa: ANN401
+    """Merge the file's ``input.default`` under keys the caller left out.
+
+    For a model instance: fields the caller set > file default > class default.
+    """
+    passed = coerce_prompt_template_input(input)
+    if not defaults:
+        return passed
+    if isinstance(input, BaseModel):
+        caller_set = {k: passed[k] for k in input.model_fields_set if k in passed}
+        return {**passed, **defaults, **caller_set}
+    return {**defaults, **passed}
+
+
+def resolve_prompt_input_schema(
+    *,
+    schema: type | dict[str, Any] | str | None,
+    registry: Registry,
+) -> type | dict[str, Any] | None:
+    """Turn a class, JSON schema, or registered name into something we can check."""
+    if schema is None:
+        return None
+    if isinstance(schema, str):
+        schema_type = registry.lookup_schema_type(schema)
+        if schema_type is not None:
+            return schema_type
+        return registry.lookup_schema(schema)
+    return schema
+
+
+_ANY_ADAPTER: TypeAdapter[Any] = TypeAdapter(Any)
+
+
+def json_form(data: dict[str, Any]) -> dict[str, Any]:
+    """``data`` with dates, UUIDs, enums, and models in their JSON form.
+
+    The template engine JSON-encodes its input, and the file schema is JSON
+    Schema, so both see what the value serializes to. A value pydantic can't
+    serialize is left as-is.
+    """
+    try:
+        return cast(dict[str, Any], _ANY_ADAPTER.dump_python(data, mode='json'))
+    except ValueError:
+        return data
+
+
+def caller_input_keys(input: Any) -> set[str]:  # noqa: ANN401
+    """Keys the caller actually passed: dict keys, or the fields set on a model instance."""
+    if isinstance(input, BaseModel):
+        return set(input.model_fields_set)
+    return set(coerce_prompt_template_input(input))
+
+
+def check_prompt_input(
+    *,
+    name: str,
+    input: Any,  # noqa: ANN401
+    data: dict[str, Any],
+    defaults: dict[str, Any] | None,
+    schema: type | dict[str, Any],
+) -> dict[str, Any]:
+    """Raise ``INVALID_ARGUMENT`` naming the prompt and field when input doesn't match.
+
+    Returns the template data. A Pydantic class adds its defaults for keys a
+    dict input left out; a JSON schema returns ``data`` unchanged.
+    """
+    if isinstance(schema, type) and issubclass(schema, BaseModel):
+        # An instance of the class already passed it. Re-validating the dumped
+        # dict would miss aliased fields, since model_dump keys by field name.
+        if isinstance(input, schema):
+            return data
+        try:
+            validated = schema.model_validate(data)
+        except ValidationError as error:
+            raise GenkitError(
+                message=f"Invalid input for action '{name}': {error}",
+                status='INVALID_ARGUMENT',
+                cause=error,
+                reason=RuntimeErrorReason.INVALID_INPUT,
+            ) from error
+        return {**data, **validated.model_dump()}
+    if isinstance(schema, dict):
+        try:
+            check_output_schema(schema)
+        except InvalidOutputSchemaError as error:
+            raise GenkitError(
+                message=f"Invalid input_schema for prompt '{name}': {error.cause}",
+                status='INVALID_ARGUMENT',
+                cause=error.cause,
+                reason=RuntimeErrorReason.INVALID_SCHEMA,
+            ) from error
+        # Keys only a class default filled in don't count against a file that
+        # doesn't declare them; the caller never passed them.
+        declared = set(schema.get('properties') or {}) | set(schema.get('required') or [])
+        passed = caller_input_keys(input) | set(defaults or {})
+        checked = {k: v for k, v in data.items() if k in passed or k in declared}
+        try:
+            # JSON form, so a date or UUID checks as the string it renders as.
+            parse_schema(data=json_form(checked), json_schema=schema)
+        except GenkitError as error:
+            raise GenkitError(
+                message=f"Invalid input for action '{name}': {error.original_message}",
+                status='INVALID_ARGUMENT',
+                cause=error,
+                reason=RuntimeErrorReason.INVALID_INPUT,
+            ) from error
+    return data
+
+
+def validated_prompt_input(
+    *,
+    name: str,
+    input: Any,  # noqa: ANN401
+    defaults: dict[str, Any] | None,
+    schema: type | dict[str, Any] | str | None,
+    file_schema: type | dict[str, Any] | str | None,
+    registry: Registry,
+) -> dict[str, Any]:
+    """Fill file defaults, then check against the lookup/define schema and the file's schema.
+
+    Returns the template data. Precedence: keys the caller passed > file
+    ``input.default`` > class default.
+    """
+    data = filled_prompt_input(input=input, defaults=defaults)
+    seen: list[object] = []
+    for candidate in (schema, file_schema):
+        resolved = resolve_prompt_input_schema(schema=candidate, registry=registry)
+        if resolved is None or resolved in seen:
+            continue
+        seen.append(resolved)
+        data = check_prompt_input(name=name, input=input, data=data, defaults=defaults, schema=resolved)
+    return data
 
 
 async def to_prompt_model_request(*, registry: Registry, options: GenerateActionOptions) -> ModelRequest:
@@ -988,15 +1184,29 @@ async def render_call(
     input: Any,  # noqa: ANN401
     context: dict[str, Any] | None = None,
     history: list[Message] | None = None,
+    validate_input: bool = True,
 ) -> GenerateCall:
     """Expand dotprompt with the call's input into one merged :class:`GenerateCall`.
 
     ``context`` is what templates see (``{{@auth}}``, ``{{@state}}``).
     ``history`` is this call's chat history (``messages=`` on the call).
+    ``validate_input=False`` skips the input schema check (prompt agents have
+    no input to pass); file defaults still fill.
     Sets final ``messages`` and clears template source fields, before
     :func:`to_generate_options`.
     """
-    template_input = coerce_prompt_template_input(input)
+    if validate_input:
+        template_input = validated_prompt_input(
+            name=registry_definition_key(prompt._name, prompt._variant, prompt._ns) if prompt._name else 'prompt',
+            input=input,
+            defaults=prompt._input_default,
+            schema=prompt._def.input_schema,
+            file_schema=prompt._file_input_schema,
+            registry=registry,
+        )
+    else:
+        template_input = filled_prompt_input(input=input, defaults=prompt._input_default)
+    template_input = json_form(template_input)
     render_context = context
     # {{@state}} is written only when metadata has state; a non-empty
     # metadata bag without that key must not wipe the call's context state.
@@ -1144,7 +1354,7 @@ def _use_to_wire_metadata(
     actually run with. The registered name is resolved off ``registry`` so a
     class can live under multiple names without us tying it to a single
     identity. Unregistered instances — subclasses passed inline without going
-    through ``@ai.middleware``, ``new_middleware``, or a middleware plugin —
+    through ``@ai.middleware``, ``GenerateMiddleware(...)``, or a middleware plugin —
     are dropped because the Dev UI has no name to address them by.
     """
     if use is None:
@@ -1307,8 +1517,9 @@ def _transform_prompt_metadata(
     }
 
 
-def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '', ns: str = '') -> None:
+def load_prompt(ai: _aio.Genkit, path: Path, filename: str, prefix: str = '', ns: str = '') -> None:
     """Load a .prompt file and register it as a lazy-loaded prompt."""
+    registry = ai._registry
     if not filename.endswith('.prompt'):
         raise ValueError(f"Invalid prompt filename: {filename}. Must end with '.prompt'")
 
@@ -1340,14 +1551,28 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
         raw_metadata = await registry.dotprompt.render_metadata(parsed_prompt)
         metadata = _transform_prompt_metadata(raw_metadata, variant, parsed_prompt.template, registry_key, name)
 
+        raw = raw_metadata.raw if hasattr(raw_metadata, 'raw') else None
+        raw_output = raw.get('output') if isinstance(raw, dict) else None
+        raw_output_schema = raw_output.get('schema') if isinstance(raw_output, dict) else None
+        file_default = metadata.get('input', {}).get('default')
+        # A bare registered class name stays a name so the class becomes .output.
+        # Anything else (`schema: string`, `schema: Recipe, the dish`, inline
+        # picoschema) uses the JSON schema dotprompt resolved.
+        output_schema = (
+            raw_output_schema
+            if isinstance(raw_output_schema, str) and registry.lookup_schema_type(raw_output_schema) is not None
+            else metadata.get('output', {}).get('jsonSchema')
+        )
+
         executable_prompt = Prompt(
-            registry=registry,
+            ai,
             variant=metadata.get('variant'),
             model=metadata.get('model'),
             config=metadata.get('config'),
             description=metadata.get('description'),
             input_schema=metadata.get('input', {}).get('jsonSchema'),
-            output_schema=metadata.get('output', {}).get('jsonSchema'),
+            input_default=file_default if isinstance(file_default, dict) else None,
+            output_schema=output_schema,
             output_constrained=True if metadata.get('output', {}).get('jsonSchema') else None,
             output_format=metadata.get('output', {}).get('format'),
             output_instructions=metadata.get('output', {}).get('instructions'),
@@ -1406,11 +1631,11 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
     logger.debug(f'Registered prompt "{registry_key}" from "{file_path}"')
 
 
-def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, sub_dir: str = '') -> None:
+def load_prompt_folder_recursively(ai: _aio.Genkit, dir_path: Path, ns: str, sub_dir: str = '') -> None:
     """Recursively load all prompt files from a directory.
 
     Args:
-        registry: The registry to register prompts in.
+        ai: The app whose registry the prompts are registered in.
         dir_path: Base path to the prompts directory.
         ns: Namespace for prompts.
         sub_dir: Current subdirectory being processed (for recursion).
@@ -1436,30 +1661,30 @@ def load_prompt_folder_recursively(registry: Registry, dir_path: Path, ns: str, 
                         if end_frontmatter != -1:
                             source = source[end_frontmatter + 3 :].strip()
 
-                    define_partial(registry, partial_name, source)
+                    define_partial(ai._registry, partial_name, source)
                     logger.debug(f'Registered Dotprompt partial "{partial_name}" from "{entry.path}"')
                 else:
                     # This is a regular prompt
                     prefix_with_slash = f'{sub_dir}/' if sub_dir else ''
-                    load_prompt(registry, dir_path, entry.name, prefix_with_slash, ns)
+                    load_prompt(ai, dir_path, entry.name, prefix_with_slash, ns)
             elif entry.is_dir():
                 # Recursively process subdirectories
                 new_sub_dir = os.path.join(sub_dir, entry.name) if sub_dir else entry.name
-                load_prompt_folder_recursively(registry, dir_path, ns, new_sub_dir)
+                load_prompt_folder_recursively(ai, dir_path, ns, new_sub_dir)
     except PermissionError:
         logger.warning(f'Permission denied accessing directory: {full_path}')
     except Exception as e:
         logger.exception(f'Error loading prompts from {full_path}', exc_info=e)
 
 
-def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', ns: str = '') -> None:
+def load_prompt_folder(ai: _aio.Genkit, dir_path: str | Path = './prompts', ns: str = '') -> None:
     """Load all prompt files from a directory.
 
     This is the main entry point for loading prompts from a directory.
     It recursively processes all `.prompt` files and registers them.
 
     Args:
-        registry: The registry to register prompts in.
+        ai: The app whose registry the prompts are registered in.
         dir_path: Path to the prompts directory. Defaults to './prompts'.
         ns: Namespace for prompts. Defaults to 'dotprompt'.
     """
@@ -1473,7 +1698,7 @@ def load_prompt_folder(registry: Registry, dir_path: str | Path = './prompts', n
         logger.warning(f'Prompt path is not a directory: {path}')
         return
 
-    load_prompt_folder_recursively(registry, path, ns, '')
+    load_prompt_folder_recursively(ai, path, ns, '')
     logger.info(f'Loaded prompts from directory: {path}')
 
 

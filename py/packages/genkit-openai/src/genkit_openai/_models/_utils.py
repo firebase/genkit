@@ -23,12 +23,58 @@ import re
 from collections.abc import Callable
 from typing import Any, NoReturn
 
-from openai import APIStatusError, BaseModel
+import httpx
+from openai import (
+    APIConnectionError,
+    APIError,
+    APIResponseValidationError,
+    APIStatusError,
+    APITimeoutError,
+    BaseModel,
+)
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
 from genkit import GenkitError, Message, Part, Role
 from genkit.model import ModelRequest, ToolRequest
-from genkit.plugin_api import wrap_http_error
+from genkit.plugin_api import StatusName, provider_error
+
+# The SDK wraps httpx failures in APITimeoutError / APIConnectionError only
+# while sending. A connection that drops while the SSE stream is being read
+# comes out of ``async for`` as a raw httpx error, so catch these too.
+STREAM_TRANSPORT_ERRORS: tuple[type[Exception], ...] = (
+    httpx.TimeoutException,
+    httpx.NetworkError,
+    httpx.RemoteProtocolError,
+)
+
+# Everything reraise_openai_error classifies; model calls catch exactly this.
+OPENAI_CALL_ERRORS: tuple[type[Exception], ...] = (APIError, ValueError, *STREAM_TRANSPORT_ERRORS)
+
+# Codes and types OpenAI reports in an error body. A stream that already
+# returned 200 reports a later failure only this way, as an SSE chunk with
+# an `error` object. The code is more specific, so it is checked first.
+_ERROR_CODE_TO_STATUS: dict[str, StatusName] = {
+    'rate_limit_exceeded': 'RESOURCE_EXHAUSTED',
+    'insufficient_quota': 'RESOURCE_EXHAUSTED',
+    'context_length_exceeded': 'INVALID_ARGUMENT',
+    'server_error': 'INTERNAL',
+}
+_ERROR_TYPE_TO_STATUS: dict[str, StatusName] = {
+    'invalid_request_error': 'INVALID_ARGUMENT',
+    'insufficient_quota': 'RESOURCE_EXHAUSTED',
+    'server_error': 'INTERNAL',
+}
+
+
+def _in_band_error_status(error: APIError) -> StatusName | None:
+    """Status for an error body's code or type, or None if the plugin does not know it."""
+    code = error.code
+    if isinstance(code, str) and code in _ERROR_CODE_TO_STATUS:
+        return _ERROR_CODE_TO_STATUS[code]
+    error_type = getattr(error, 'type', None)
+    if isinstance(error_type, str):
+        return _ERROR_TYPE_TO_STATUS.get(error_type)
+    return None
 
 
 def reraise_openai_error(error: Exception) -> NoReturn:
@@ -37,9 +83,26 @@ def reraise_openai_error(error: Exception) -> NoReturn:
     A bad request (missing text, wrong config type) is INVALID_ARGUMENT so
     retry does not burn attempts on it. A model reply we could not read
     (malformed tool JSON, empty content) is INTERNAL so retry can try again.
+    A timeout is DEADLINE_EXCEEDED and a connection failure is UNAVAILABLE,
+    so retry and fallback treat a flaky network like a busy provider; that
+    includes a raw httpx error from a stream that dropped mid-read. An error
+    reported inside a stream is classified by its code or type; one the
+    plugin does not know is UNKNOWN.
     """
     if isinstance(error, APIStatusError):
-        raise wrap_http_error(error, status_code=error.status_code) from error
+        raise provider_error(error, http_status=error.status_code, headers=error.response.headers) from error
+    if isinstance(error, APITimeoutError):
+        raise provider_error(error, status='DEADLINE_EXCEEDED') from error
+    if isinstance(error, APIConnectionError):
+        raise provider_error(error, status='UNAVAILABLE') from error
+    if isinstance(error, APIResponseValidationError):
+        raise provider_error(error, status='INTERNAL', message=error.message) from error
+    if isinstance(error, APIError):
+        raise provider_error(error, status=_in_band_error_status(error) or 'UNKNOWN', message=error.message) from error
+    if isinstance(error, httpx.TimeoutException):
+        raise provider_error(error, status='DEADLINE_EXCEEDED') from error
+    if isinstance(error, (httpx.NetworkError, httpx.RemoteProtocolError)):
+        raise provider_error(error, status='UNAVAILABLE') from error
     if isinstance(error, json.JSONDecodeError):
         raise GenkitError(status='INTERNAL', message=str(error), cause=error) from error
     if isinstance(error, ValueError):
@@ -170,6 +233,50 @@ def decode_data_uri_bytes(url: str) -> bytes:
         return base64.b64decode(url)
     except (ValueError, TypeError) as e:
         raise ValueError('Invalid base64 data provided in media URL') from e
+
+
+_CLIENT_SETTING_FIELDS = ('timeout', 'extra_headers', 'extra_query', 'extra_body')
+
+
+def check_extra_body(extra: dict[str, Any], *, managed: tuple[str, ...], label: str) -> dict[str, Any]:
+    """Return ``extra`` as an ``extra_body``, or raise when it names a field Genkit builds or a client setting."""
+    for field in _CLIENT_SETTING_FIELDS:
+        if field in extra:
+            raise GenkitError(
+                status='INVALID_ARGUMENT',
+                message=(
+                    f'{label}: {field!r} is a client setting, not a request field; '
+                    "pass it as OpenAI(client_options={'timeout': ..., 'default_headers': ...})"
+                ),
+            )
+    for field in managed:
+        if field in extra:
+            hint = '; pin a model with version' if field == 'model' else ''
+            raise GenkitError(
+                status='INVALID_ARGUMENT',
+                message=(
+                    f'{label}: extra field {field!r} is built by Genkit from the request '
+                    f'and cannot be set from config{hint}'
+                ),
+            )
+    return dict(extra)
+
+
+def pop_extra_body(config: dict[str, Any], *, managed: tuple[str, ...], label: str) -> dict[str, Any] | None:
+    """Pop ``extra`` off a dumped config as an ``extra_body``, rejecting fields Genkit builds.
+
+    Args:
+        config: The dumped config; ``extra`` is removed from it.
+        managed: Body fields this endpoint builds from the request.
+        label: Names the endpoint in the error.
+
+    Returns:
+        A copy of ``extra`` to pass as ``extra_body``, or None when unset.
+    """
+    extra = config.pop('extra', None)
+    if not extra:
+        return None
+    return check_extra_body(extra, managed=managed, label=label)
 
 
 def extract_config_dict(request: ModelRequest) -> dict[str, Any]:

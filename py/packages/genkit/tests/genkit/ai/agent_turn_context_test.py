@@ -22,14 +22,13 @@ from pathlib import Path
 
 import pytest
 
-from genkit import Part
+from genkit import Genkit, Part
 from genkit._ai._agents._base import define_custom_agent
 from genkit._ai._agents._runtime import SessionRunner
 from genkit._ai._agents._session import reserve_snapshot_id
 from genkit._ai._agents._types import TurnContext, TurnResult
 from genkit._core._action import ActionRunContext
 from genkit._core._model import AgentInput, AgentResult, Message
-from genkit._core._registry import Registry
 from genkit.exp.agent import AgentFinishReason, InMemorySessionStore
 
 
@@ -42,7 +41,7 @@ def test_reserve_snapshot_id_is_unique_uuid() -> None:
 
 @pytest.mark.asyncio
 async def test_handler_receives_reserved_id_reused_on_persisted_snapshot() -> None:
-    registry = Registry()
+    ai = Genkit()
     store = InMemorySessionStore()
     seen: dict[str, object] = {}
 
@@ -57,7 +56,7 @@ async def test_handler_receives_reserved_id_reused_on_persisted_snapshot() -> No
         await session_runner.run(handle_turn)
         return await session_runner.result()
 
-    agent = define_custom_agent(registry, 'reserveTest', fn, store=store)
+    agent = define_custom_agent(ai, 'reserveTest', fn, store=store)
     out = await agent.chat().send('hi')
 
     assert seen['snapshot_id']
@@ -71,7 +70,7 @@ async def test_handler_receives_reserved_id_reused_on_persisted_snapshot() -> No
 
 @pytest.mark.asyncio
 async def test_second_turn_parent_is_first_turn_snapshot() -> None:
-    registry = Registry()
+    ai = Genkit()
     store = InMemorySessionStore()
     snapshot_ids: list[str] = []
     parent_ids: list[str | None] = []
@@ -87,7 +86,7 @@ async def test_second_turn_parent_is_first_turn_snapshot() -> None:
         await session_runner.run(handle_turn)
         return await session_runner.result()
 
-    agent = define_custom_agent(registry, 'parentTest', fn, store=store)
+    agent = define_custom_agent(ai, 'parentTest', fn, store=store)
     chat = agent.chat()
     await chat.send('one')
     await chat.send('two')
@@ -99,7 +98,7 @@ async def test_second_turn_parent_is_first_turn_snapshot() -> None:
 
 @pytest.mark.asyncio
 async def test_no_store_means_no_reserved_snapshot_id() -> None:
-    registry = Registry()
+    ai = Genkit()
     seen: dict[str, object] = {'snapshot_id': 'sentinel'}
 
     async def fn(session_runner: SessionRunner, _: ActionRunContext) -> AgentResult:
@@ -111,7 +110,7 @@ async def test_no_store_means_no_reserved_snapshot_id() -> None:
         await session_runner.run(handle_turn)
         return await session_runner.result()
 
-    agent = define_custom_agent(registry, 'clientManaged', fn, store=None)
+    agent = define_custom_agent(ai, 'clientManaged', fn, store=None)
     await agent.chat().send('hi')
     assert seen['snapshot_id'] is None
 
@@ -119,7 +118,7 @@ async def test_no_store_means_no_reserved_snapshot_id() -> None:
 @pytest.mark.asyncio
 async def test_handler_can_name_external_dir_after_reserved_id(tmp_path: Path) -> None:
     """The product reason for reserved ids: bind external resources before save."""
-    registry = Registry()
+    ai = Genkit()
     store = InMemorySessionStore()
     workspace_root = tmp_path / 'workspaces'
 
@@ -140,7 +139,7 @@ async def test_handler_can_name_external_dir_after_reserved_id(tmp_path: Path) -
         await session_runner.run(handle_turn)
         return await session_runner.result()
 
-    agent = define_custom_agent(registry, 'workspaceAgent', fn, store=store)
+    agent = define_custom_agent(ai, 'workspaceAgent', fn, store=store)
     out = await agent.chat().send('start')
     assert out.snapshot_id is not None
     notes = workspace_root / out.snapshot_id / 'notes.txt'

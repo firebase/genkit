@@ -68,6 +68,7 @@ from genkit.model import (
     ToolRequest,
     ToolResponse,
 )
+from genkit.plugin_api import StatusName, provider_error
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +92,26 @@ CONTENT_BLOCK_TYPES = frozenset({'text', 'image'})
 CODE_LANGUAGE: Literal['python'] = 'python'
 
 FAILED_MESSAGE = 'Interaction failed'
+# Step errors report a google.rpc code; its position here is that code.
+GRPC_STATUS_NAMES: tuple[StatusName, ...] = (
+    'OK',
+    'CANCELLED',
+    'UNKNOWN',
+    'INVALID_ARGUMENT',
+    'DEADLINE_EXCEEDED',
+    'NOT_FOUND',
+    'ALREADY_EXISTS',
+    'PERMISSION_DENIED',
+    'RESOURCE_EXHAUSTED',
+    'FAILED_PRECONDITION',
+    'ABORTED',
+    'OUT_OF_RANGE',
+    'UNIMPLEMENTED',
+    'INTERNAL',
+    'UNAVAILABLE',
+    'DATA_LOSS',
+    'UNAUTHENTICATED',
+)
 # Chat generate can pause for a tool; a background job cannot.
 BACKGROUND_INTERRUPT_UNSUPPORTED = 'Background models do not support interrupts'
 
@@ -134,6 +155,46 @@ def interaction_error_message(interaction: Interaction) -> str | None:
         if isinstance(step, ModelOutputStep) and step.error is not None and step.error.message:
             return step.error.message
     return None
+
+
+def error_from_provider_code(code: object, cause: BaseException) -> GenkitError | None:
+    """Turn an error code the Interactions API reported into a GenkitError.
+
+    Top-level errors carry a string code (a canonical name like
+    ``RESOURCE_EXHAUSTED``, or a number); step errors carry a gRPC int.
+    Numbers 1-16 are gRPC codes and 400-599 are HTTP codes. Anything else,
+    and any code that only maps to OK or UNKNOWN, returns None so the caller
+    can look at the next error.
+    """
+    text = str(code).strip() if code is not None and not isinstance(code, bool) else ''
+    if text.isdigit():
+        number = int(text)
+        if 400 <= number <= 599:
+            error = provider_error(cause, http_status=number)
+        elif number < len(GRPC_STATUS_NAMES):
+            error = provider_error(cause, status=GRPC_STATUS_NAMES[number])
+        else:
+            return None
+    elif text.upper() in GRPC_STATUS_NAMES:
+        error = provider_error(cause, status=cast(StatusName, text.upper()))
+    else:
+        return None
+    if error.status in ('OK', 'UNKNOWN'):
+        return None
+    return error
+
+
+def interaction_error(interaction: Interaction, cause: BaseException) -> GenkitError:
+    """The error for the first failure on an Interaction that has a usable code, else UNKNOWN."""
+    for err in interaction.errors or []:
+        code = err.get('code') if isinstance(err, dict) else getattr(err, 'code', None)
+        if error := error_from_provider_code(code, cause):
+            return error
+    for step in interaction.steps or []:
+        if isinstance(step, ModelOutputStep) and step.error is not None:
+            if error := error_from_provider_code(step.error.code, cause):
+                return error
+    return provider_error(cause, status='UNKNOWN')
 
 
 def clean_schema(schema: dict[str, Any]) -> dict[str, Any]:
@@ -223,20 +284,23 @@ def to_interaction_content(part: Part) -> ContentParam | None:
 def to_interaction_media(part: Part) -> ContentParam:
     """Convert a media part to an Interactions image/audio/video/document block."""
     if part.media is None:
-        raise ValueError('Media part missing media')
+        raise GenkitError(status='INVALID_ARGUMENT', message='Media part missing media')
     content_type = part.media.content_type
     if not content_type:
-        raise ValueError('Media part missing contentType')
+        raise GenkitError(status='INVALID_ARGUMENT', message='Media part missing contentType')
     block_type = next((name for prefix, name in MEDIA_CONTENT_TYPES if content_type.startswith(prefix)), None)
     if block_type is None:
-        raise ValueError(f'Unsupported media type: {content_type}')
+        raise GenkitError(status='INVALID_ARGUMENT', message=f'Unsupported media type: {content_type}')
 
     block: dict[str, Any] = {'type': block_type, 'mime_type': content_type}
     # Inline data URLs travel as base64; anything else is a reference the API fetches.
     url = part.media.url
     if url.startswith('data:'):
         if ',' not in url:
-            raise ValueError('Malformed data URL for media part: missing payload separator')
+            raise GenkitError(
+                status='INVALID_ARGUMENT',
+                message='Malformed data URL for media part: missing payload separator',
+            )
         block['data'] = url.split(',', 1)[1]
     else:
         block['uri'] = url
@@ -246,7 +310,10 @@ def to_interaction_media(part: Part) -> ContentParam:
 def to_interaction_role(role: str) -> InteractionRole:
     """Map a Genkit message role to the Interactions API role."""
     if role == 'system':
-        raise ValueError('System role should be handled as system_instruction, not part of turns.')
+        raise GenkitError(
+            status='INVALID_ARGUMENT',
+            message='System role should be handled as system_instruction, not part of turns.',
+        )
     return INTERACTION_ROLES.get(role, 'user')
 
 
@@ -790,15 +857,21 @@ def from_interaction_sync(interaction: Interaction) -> ModelResponse:
 
     Truncated or over-budget turns keep their real finish reason so a
     generate that ran out of tokens does not look like a clean stop.
-    In-flight statuses raise — this helper is not a poll loop.
+    In-flight statuses raise FAILED_PRECONDITION — this helper is not a poll
+    loop. A failed interaction raises a GenkitError with the status its
+    error code maps to, or UNKNOWN when there's no usable code.
     """
     status = interaction.status
     if status == 'failed':
-        raise ValueError(interaction_error_message(interaction) or FAILED_MESSAGE)
+        failure = ValueError(interaction_error_message(interaction) or FAILED_MESSAGE)
+        raise interaction_error(interaction, failure) from failure
     if status == 'cancelled':
         return cancelled_response(interaction)
     if status in ('in_progress', 'queued', 'requires_action'):
-        raise ValueError(f'Interaction is still running (status={status!r})')
+        raise GenkitError(
+            status='FAILED_PRECONDITION',
+            message=f'Interaction is still running (status={status!r})',
+        )
     if partial := PARTIAL_TERMINAL_STATUSES.get(cast(str, status)):
         finish_reason, message = partial
         response = steps_response(interaction, finish_reason=finish_reason, finish_message=message)

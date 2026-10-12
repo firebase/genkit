@@ -26,8 +26,6 @@ import httpx
 import ollama as ollama_api
 import pytest
 from genkit_ollama import Ollama
-from genkit_ollama.constants import OllamaAPITypes
-from genkit_ollama.models import ModelDefinition, OllamaSupports
 
 from genkit import FinishReason, Genkit, Message, Part, Role
 
@@ -38,10 +36,14 @@ PNG = b'\x89PNG\r\n\x1a\n' + b'\x00' * 100
 @pytest.fixture
 def ollama() -> tuple[Genkit, MagicMock]:
     """A Genkit app on a local `llava` whose Ollama chat calls are recorded, not sent."""
-    plugin = Ollama(
-        models=[ModelDefinition(name='llava', api_type=OllamaAPITypes.CHAT, supports=OllamaSupports(media=True))]
-    )
+    plugin = Ollama()
     client = MagicMock()
+    client.show = AsyncMock(
+        return_value=ollama_api.ShowResponse.model_validate({
+            'capabilities': ['tools', 'vision'],
+            'model_info': {},
+        })
+    )
     client.chat = AsyncMock(
         return_value=ollama_api.ChatResponse(
             message=ollama_api.Message(role='assistant', content='ok'), done=True, done_reason='stop'
@@ -53,11 +55,10 @@ def ollama() -> tuple[Genkit, MagicMock]:
 
 def _serve(handler: Callable[[httpx.Request], httpx.Response]) -> Any:  # noqa: ANN401
     """Route the plugin's image downloads to `handler` instead of the network."""
-
-    def make_client(*, cache_key: str, **kwargs: Any) -> httpx.AsyncClient:  # noqa: ANN401
-        return httpx.AsyncClient(transport=httpx.MockTransport(handler), **kwargs)
-
-    return patch('genkit_ollama.models.get_cached_client', side_effect=make_client)
+    return patch(
+        'genkit_ollama._models._image_fetch_client',
+        return_value=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
 
 
 async def _describe(ai: Genkit, url: str) -> Any:  # noqa: ANN401

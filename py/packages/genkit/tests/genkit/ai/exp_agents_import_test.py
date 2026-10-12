@@ -164,3 +164,31 @@ async def test_exp_genkit_still_generates() -> None:
     response = await ai.generate(model='scriptedModel', prompt='hello')
 
     assert response.text == 'gen'
+
+
+@pytest.mark.asyncio
+async def test_agent_turn_awaiting_failing_flow_reports_message_without_details() -> None:
+    """A turn that awaits a flow raising RuntimeError('db rejected') records that message and no details."""
+    ai = Genkit()
+
+    @ai.flow()
+    async def lookup(account: str) -> str:
+        raise RuntimeError('db rejected')
+
+    async def fn(session_runner: SessionRunner, _: ActionRunContext) -> AgentResult:
+        async def handle_turn(inp: AgentInput, __: TurnContext) -> TurnResult | None:
+            await lookup('acme')
+            return TurnResult(finish_reason=AgentFinishReason.STOP)
+
+        await session_runner.run(handle_turn)
+        return await session_runner.result()
+
+    agent = ai.define_custom_agent(name='lookupAgent', fn=fn)
+
+    res = await agent.chat().send('hello')
+
+    assert res.finish_reason == AgentFinishReason.FAILED
+    assert res.error is not None
+    assert res.error.message == 'db rejected'
+    assert res.error.details is None
+    assert res.error.status == 'INTERNAL'

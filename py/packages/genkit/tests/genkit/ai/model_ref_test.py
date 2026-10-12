@@ -8,7 +8,7 @@
 from dataclasses import FrozenInstanceError
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from genkit import Genkit, Message, ModelResponse, Part
 from genkit._ai._model import ModelConfigDict
@@ -178,7 +178,6 @@ def test_model_config_dict_accepts_common_knobs() -> None:
         'top_p': 0.9,
         'stop_sequences': ['END'],
         'version': '001',
-        'api_key': 'test-key',
     }
 
     assert config['temperature'] == 0.5
@@ -231,3 +230,9 @@ def test_model_ref_isolates_caller_config_and_info() -> None:
     assert ref.info.label == 'before'
     assert ref.info.supports is not None
     assert ref.info.supports.multiturn is True
+
+
+def test_model_info_has_no_config_schema() -> None:
+    """Config schemas go on config_schema= and reach the Dev UI as customOptions; ModelInfo has no slot."""
+    with pytest.raises(ValidationError, match='config_schema'):
+        ModelInfo(config_schema={'type': 'object'})  # type: ignore[call-arg]

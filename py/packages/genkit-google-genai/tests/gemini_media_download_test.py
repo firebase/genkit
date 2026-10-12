@@ -59,15 +59,17 @@ def gemini() -> Iterator[tuple[Genkit, MagicMock]]:
 
 def _serve(handler: Callable[[httpx.Request], httpx.Response]) -> Any:  # noqa: ANN401
     """Route the plugin's media downloads to `handler` instead of the network."""
-
-    def make_client(*, cache_key: str, **kwargs: Any) -> httpx.AsyncClient:  # noqa: ANN401
-        return httpx.AsyncClient(transport=httpx.MockTransport(handler), **kwargs)
-
-    return patch('genkit_google_genai._models._utils.get_cached_client', side_effect=make_client)
+    return patch(
+        'genkit_google_genai._models._utils._media_client',
+        return_value=httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True),
+    )
 
 
 def _no_download() -> Any:  # noqa: ANN401
-    return patch('genkit_google_genai._models._utils.get_cached_client', side_effect=AssertionError('downloaded'))
+    def refuse() -> httpx.AsyncClient:
+        raise AssertionError('downloaded')
+
+    return patch('genkit_google_genai._models._utils._media_client', side_effect=refuse)
 
 
 async def _chunks(total: int, consumed: list[int] | None = None) -> AsyncIterator[bytes]:
