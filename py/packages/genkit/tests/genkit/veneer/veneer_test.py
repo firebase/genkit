@@ -28,7 +28,6 @@ from genkit._core._action import ActionKind, ActionRunContext
 from genkit._core._model import ModelRequest, OutputConfig
 from genkit._core._schema import to_json_schema
 from genkit._core._typing import (
-    EvaluatorRequest,
     EvaluatorResponse,
     FinishReason,
     ModelInfo,
@@ -42,8 +41,8 @@ from genkit._core._typing import (
 )
 from genkit.evaluator import (
     BaseDataPoint,
-    EvalRequest,
     EvaluatorRef,
+    EvaluatorRequest,
     ScoreDetails,
     ScoreStatus,
 )
@@ -2136,14 +2135,14 @@ async def test_evaluate_with_explicit_none_config_passes_empty_dict(setup_test: 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('batch', [False, True], ids=['per_row', 'batch'])
 async def test_evaluator_action_run_with_none_options_passes_empty_dict(setup_test: SetupFixture, batch: bool) -> None:
-    """A wire EvalRequest with options=None (Dev UI / CLI, bypassing ai.evaluate) still hands the evaluator {}."""
+    """A wire EvaluatorRequest with options=None (Dev UI / CLI, bypassing ai.evaluate) still hands the evaluator {}."""
     ai, *_ = setup_test
     define = _define_recording_batch_evaluator if batch else _define_recording_evaluator
     seen = define(ai, 'wire_none_eval')
     action = await ai._registry.resolve_evaluator('wire_none_eval')
     assert action is not None
 
-    await action.run(EvalRequest(dataset=_one_row(), eval_run_id='run1', options=None))  # type: ignore[arg-type] - wire null
+    await action.run(EvaluatorRequest(dataset=_one_row(), eval_run_id='run1', options=None))  # type: ignore[arg-type] - wire null
 
     assert seen == [{}]
 
@@ -2184,7 +2183,7 @@ async def test_evaluate_with_basemodel_config_passes_dict(setup_test: SetupFixtu
 async def test_evaluator_action_run_with_non_mapping_options_raises_invalid_argument(
     setup_test: SetupFixture, batch: bool
 ) -> None:
-    """A wire EvalRequest whose options is a list fails the whole request, not one score per row."""
+    """A wire EvaluatorRequest whose options is a list fails the whole request, not one score per row."""
     ai, *_ = setup_test
     define = _define_recording_batch_evaluator if batch else _define_recording_evaluator
     seen = define(ai, 'wire_bad_eval')
@@ -2776,21 +2775,21 @@ async def test_evaluate_with_basemodel_config_passes_only_set_fields(setup_test:
 async def test_evaluator_action_run_with_basemodel_options_matches_ai_evaluate(
     setup_test: SetupFixture, batch: bool
 ) -> None:
-    """EvalRequest(options=Cfg(...)) on the action gives the evaluator what ai.evaluate(config=Cfg(...)) does."""
+    """EvaluatorRequest(options=Cfg(...)) on the action gives the evaluator what ai.evaluate(config=Cfg(...)) does."""
     ai, *_ = setup_test
     define = _define_recording_batch_evaluator if batch else _define_recording_evaluator
     seen = define(ai, 'action_cfg_eval')
     action = await ai._registry.resolve_evaluator('action_cfg_eval')
     assert action is not None
 
-    await action.run(EvalRequest(dataset=_one_row(), eval_run_id='run1', options=_AllergyCheckConfig(strict=True)))  # type: ignore[arg-type]
+    await action.run(EvaluatorRequest(dataset=_one_row(), eval_run_id='run1', options=_AllergyCheckConfig(strict=True)))  # type: ignore[arg-type]
 
     assert seen == [{'strict': True}]
 
 
 def test_eval_request_options_is_typed_dict() -> None:
     """options is dict[str, Any]: .get needs no None guard, and the schema says object."""
-    request = EvalRequest(dataset=_one_row(), eval_run_id='run1')
+    request = EvaluatorRequest(dataset=_one_row(), eval_run_id='run1')
 
     assert request.options.get('strict', False) is False
-    assert to_json_schema(EvalRequest)['properties']['options']['type'] == 'object'
+    assert to_json_schema(EvaluatorRequest)['properties']['options']['type'] == 'object'

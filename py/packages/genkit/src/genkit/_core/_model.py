@@ -952,10 +952,10 @@ class EmbedRequest(GenkitModel):
         return options_dict(v)
 
 
-class EvalRequest(GenkitModel):
+class EvaluatorRequest(GenkitModel):
     """Evaluator request whose options are always a dict.
 
-    Same fields as the wire ``EvalRequest``; ``options`` is ``dict[str, Any]``
+    Same fields as the wire ``EvaluatorRequest``; ``options`` is ``dict[str, Any]``
     instead of ``Any | None`` so evaluators read it without a None guard.
     """
 

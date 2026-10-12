@@ -51,10 +51,9 @@ from genkit._ai._evaluator import (
     Evaluator,
     EvaluatorRef,
 )
-from genkit._core._model import EvalRequest
+from genkit._core._model import EvaluatorRequest
 from genkit._core._typing import (
     BaseDataPoint,
-    EvaluatorRequest,
     EvaluatorResponse,
     Score,
     ScoreDetails,

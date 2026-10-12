@@ -28,7 +28,7 @@ from typing_extensions import Never
 
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._logger import get_logger
-from genkit._core._model import EvalRequest
+from genkit._core._model import EvaluatorRequest
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
 from genkit._core._telemetry._attrs import metadata_key
@@ -36,7 +36,6 @@ from genkit._core._telemetry._instrumentation import SpanContext, run_in_new_spa
 from genkit._core._typing import (
     BaseDataPoint,
     EvalResponse,
-    EvaluatorRequest,
     EvaluatorResponse,
     Score,
     ScoreStatus,

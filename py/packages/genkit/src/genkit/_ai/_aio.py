@@ -102,7 +102,7 @@ from genkit._core._middleware import (
 from genkit._core._model import (
     Document,
     EmbedRequest,
-    EvalRequest,
+    EvaluatorRequest,
     ModelConfigDict,
     ModelRef,
     ModelRefConfigT,
@@ -127,7 +127,6 @@ from genkit._core._tool import Tool
 from genkit._core._typing import (
     BaseDataPoint,
     Embedding,
-    EvaluatorRequest,
     EvaluatorResponse,
     MiddlewareRef,
     ModelInfo,

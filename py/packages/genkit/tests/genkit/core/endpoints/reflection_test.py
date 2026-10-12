@@ -52,7 +52,8 @@ from genkit._core._middleware import BaseMiddleware
 from genkit._core._model import ModelConfig
 from genkit._core._reflection import create_reflection_asgi_app
 from genkit._core._registry import Registry
-from genkit._core._typing import ActionMetadata, BaseDataPoint, EvaluatorRequest, EvaluatorResponse, Score
+from genkit._core._typing import ActionMetadata, BaseDataPoint, EvaluatorResponse, Score
+from genkit.evaluator import EvaluatorRequest
 from genkit.model import model_ref
 
 
