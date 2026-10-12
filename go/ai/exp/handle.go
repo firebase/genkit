@@ -306,6 +306,9 @@ func nilHandleError(method string) error {
 // agent has no session store and INVALID_ARGUMENT when snapshotID is empty; a
 // missing snapshot is NOT_FOUND.
 func (h *AgentHandle) GetSnapshot(ctx context.Context, snapshotID string, opts ...SnapshotReadOption) (*SessionSnapshot[json.RawMessage], error) {
+	if h == nil {
+		return nil, nilHandleError("GetSnapshot")
+	}
 	if snapshotID == "" {
 		return nil, status.Errorf(status.ErrInvalidArgument, "agent %q: GetSnapshot: snapshotID is required", h.name)
 	}
@@ -332,6 +335,9 @@ func (h *AgentHandle) GetSnapshot(ctx context.Context, snapshotID string, opts .
 // agent has no session store and INVALID_ARGUMENT when snapshotID is empty; a
 // missing snapshot is NOT_FOUND.
 func (h *AgentHandle) WaitForSnapshot(ctx context.Context, snapshotID string) (*SessionSnapshot[json.RawMessage], error) {
+	if h == nil {
+		return nil, nilHandleError("WaitForSnapshot")
+	}
 	if snapshotID == "" {
 		return nil, status.Errorf(status.ErrInvalidArgument, "agent %q: WaitForSnapshot: snapshotID is required", h.name)
 	}
@@ -370,6 +376,9 @@ var waitReaskFloor = time.Second
 // agent has no session store and INVALID_ARGUMENT when sessionID is empty; an
 // unknown session is NOT_FOUND.
 func (h *AgentHandle) GetLatestSnapshot(ctx context.Context, sessionID string, opts ...SnapshotReadOption) (*SessionSnapshot[json.RawMessage], error) {
+	if h == nil {
+		return nil, nilHandleError("GetLatestSnapshot")
+	}
 	if sessionID == "" {
 		return nil, status.Errorf(status.ErrInvalidArgument, "agent %q: GetLatestSnapshot: sessionID is required", h.name)
 	}
@@ -391,6 +400,9 @@ func (h *AgentHandle) GetLatestSnapshot(ctx context.Context, sessionID string, o
 // [SnapshotSubscriber]; see [AgentMetadata.Abortable]), and INVALID_ARGUMENT
 // when snapshotID is empty.
 func (h *AgentHandle) Abort(ctx context.Context, snapshotID string) (SnapshotStatus, error) {
+	if h == nil {
+		return "", nilHandleError("Abort")
+	}
 	if snapshotID == "" {
 		return "", status.Errorf(status.ErrInvalidArgument, "agent %q: Abort: snapshotID is required", h.name)
 	}
