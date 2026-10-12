@@ -943,60 +943,6 @@ async def track_endpoint(request: Request):
         return JSONResponse(error_body(e), status_code=error_status(e))
 ```
 
-### Authenticating the caller
-
-A served flow usually needs to know who is calling, and should turn away bad callers before it runs. Do that in one function that reads the request and returns the flow's context. Genkit calls it before the flow, and the dict it returns becomes `ctx.context`.
-
-- **FastAPI:** pass your existing `Depends` function as `context_dependency=` (Levels 1 and 2). You don't need anything else.
-- **Flask and Django:** pass `context_provider=`. The function gets a `RequestData` and returns a dict. It can be sync or async.
-- **To reject:** raise `PublicError`. The client gets its status and message (`UNAUTHENTICATED` is a 401) and the flow never runs. Any other exception is logged and returned as a redacted 500. The framework's own exceptions (Flask `abort(401)`, Django `PermissionDenied`) go to the framework as usual.
-- **Read `headers` when you can:** `method`, `headers` (lowercase names) and `input` look the same in every adapter, so the provider is plain Python you can reuse and unit test.
-- **Read `request.request` when you need the framework:** it's the raw Flask/Django request, for cookies, sessions or the logged-in user. That provider only works with that one framework.
-- **Tenant API keys go in `context['secrets']`**, not next to the user id. See Per-tenant API keys.
-
-```python
-from genkit import PublicError
-from genkit.web import RequestData
-from genkit_flask import genkit_flask_handler
-
-# 1. Bearer token: reject with a 401 or return the flow's context
-async def auth_context(request: RequestData) -> dict[str, object]:
-    token = request.headers.get('authorization')
-    if token is None:
-        raise PublicError('UNAUTHENTICATED', 'Missing Authorization header')
-    return {'user_id': verify_token(token)}
-
-# 2. Attach it to the served flow
-@genkit_flask_handler(ai, context_provider=auth_context)
-@ai.flow
-async def track_order(order_id: str, ctx: FlowContext[str]) -> str:
-    # 3. Read it inside the flow
-    return f'tracking {order_id} for {ctx.context["user_id"]}'
-    # => tracking ORD-9921 for u_42
-
-# POST /track_order without Authorization
-# => 401 {"message": "Missing Authorization header", "status": "UNAUTHENTICATED"}
-```
-
-Django session auth is the common case for `request.request`. The logged-in user is only available from Django's own request:
-
-```python
-from genkit_django import genkit_django_handler
-
-# 1. AuthenticationMiddleware set the user; auser() because the view is async (Django 5.0+)
-async def django_user(request: RequestData) -> dict[str, object]:
-    user = await request.request.auser()
-    if not user.is_authenticated:
-        raise PublicError('UNAUTHENTICATED', 'Sign in first')
-    return {'user_id': user.pk}
-
-@genkit_django_handler(ai, context_provider=django_user)
-@ai.flow
-async def reorder(order_id: str, ctx: FlowContext) -> str:
-    return f'reordered {order_id} for {ctx.context["user_id"]}'
-    # => reordered ORD-9921 for 42
-```
-
 ### Per-tenant API keys
 
 A tenant's provider key goes in one place: `context={'secrets': {'api_key': ...}}`. The Google GenAI models read it from there and fall back to the plugin's key when it's absent.
