@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from _ai import ai
+from _ai import ai, reply_text
 from pydantic import BaseModel
 
 from genkit import ActionRunContext
@@ -144,7 +144,7 @@ async def test_task_agent(text: str, ctx: ActionRunContext) -> dict[str, Any]:
             ctx.send_chunk(chunk.text)
     res = await turn
     state = res.state
-    return {'text': res.text, 'tasks': state.model_dump()['tasks'] if state else []}
+    return {'text': reply_text(res), 'tasks': state.model_dump()['tasks'] if state else []}
 
 
 if __name__ == '__main__':

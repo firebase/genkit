@@ -345,8 +345,8 @@ class BaseEvalDataPoint(GenkitModel):
     trace_ids: list[str] | None = None
 
 
-class EvalFnResponse(GenkitModel):
-    """Model for evalfnresponse data."""
+class EvaluatorResponse(GenkitModel):
+    """Model for evaluatorresponse data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
         alias_generator=to_camel, extra='forbid', validate_by_name=True, validate_by_alias=True
@@ -365,8 +365,8 @@ class EvalFnResponse(GenkitModel):
         return [value] if isinstance(value, dict) else value
 
 
-class EvalRequest(GenkitModel):
-    """Model for evalrequest data."""
+class EvaluatorRequest(GenkitModel):
+    """Model for evaluatorrequest data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
         alias_generator=to_camel, extra='forbid', validate_by_name=True, validate_by_alias=True
@@ -611,7 +611,6 @@ class ModelInfo(GenkitModel):
     )
     versions: list[str] | None = None
     label: str | None = None
-    config_schema: ConfigSchema | None = None
     supports: Supports | None = None
     stage: Stage | None = None
 
@@ -823,14 +822,8 @@ class ActionMetadata(GenkitModel):
     action_type: str | None = None
     name: str = Field(...)
     description: str | None = None
-    input_schema: Any | None = Field(default=None)
-    input_json_schema: Any | dict[str, Any] | None = Field(
-        default=None, description='A JSON Schema Draft 7 (http://json-schema.org/draft-07/schema) object.'
-    )
-    output_schema: Any | None = Field(default=None)
-    output_json_schema: Any | None = Field(
-        default=None, description='A JSON Schema Draft 7 (http://json-schema.org/draft-07/schema) object.'
-    )
+    input_schema: dict[str, Any] | None = None
+    output_schema: dict[str, Any] | None = None
     stream_schema: Any | None = Field(default=None)
     metadata: Metadata | None = None
 
@@ -1250,10 +1243,10 @@ class JsonPatch(RootModel[list[JsonPatchOperation]]):
     root: list[JsonPatchOperation]
 
 
-class EvalResponse(RootModel[list[EvalFnResponse]]):
+class EvalResponse(RootModel[list[EvaluatorResponse]]):
     """Root model for evalresponse."""
 
-    root: list[EvalFnResponse]
+    root: list[EvaluatorResponse]
 
 
 class Constrained(StrEnum):

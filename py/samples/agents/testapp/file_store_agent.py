@@ -34,7 +34,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from _ai import LITE_MODEL, ai
+from _ai import LITE_MODEL, ai, reply_text
 from pydantic import BaseModel
 
 from genkit import ActionRunContext
@@ -87,7 +87,7 @@ async def test_file_store_agent(user_name: str, ctx: ActionRunContext) -> FileSt
             ctx.send_chunk(chunk.text)
     res2 = await turn2
 
-    return FileStoreResult(snapshot_id1=res1.snapshot_id, reply1=res1.text, reply2=res2.text)
+    return FileStoreResult(snapshot_id1=res1.snapshot_id, reply1=reply_text(res1), reply2=reply_text(res2))
 
 
 @ai.flow()
