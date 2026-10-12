@@ -106,10 +106,15 @@ def _config_key_spellings(config_cls: type[BaseModel]) -> dict[str, str] | None:
     """
     if config_cls.model_config.get('extra') in ('allow', 'ignore'):
         return None
+    accepts_field_name = bool(
+        config_cls.model_config.get('validate_by_name') or config_cls.model_config.get('populate_by_name')
+    )
     spellings: dict[str, str] = {}
     for name, info in config_cls.model_fields.items():
         shown = info.alias or name
-        spellings[name] = shown
+        has_validation_alias = info.alias is not None or info.validation_alias is not None
+        if not has_validation_alias or accepts_field_name:
+            spellings[name] = shown
         if info.alias:
             spellings[info.alias] = shown
         validation_alias = info.validation_alias
@@ -123,6 +128,40 @@ def _config_key_spellings(config_cls: type[BaseModel]) -> dict[str, str] | None:
         elif validation_alias is not None:
             return None
     return spellings
+
+
+def _dump_middleware_ref_config(config: BaseModel) -> dict[str, Any] | None:
+    """Dump a middleware config for ``MiddlewareRef`` using keys the class validates.
+
+    Excludes ``@computed_field``s and falls back to the validation alias or
+    field name when ``serialization_alias`` is output-only.
+    """
+    cfg_cls = type(config)
+    computed = set(cfg_cls.model_computed_fields)
+    dumped = config.model_dump(exclude_none=True, by_alias=True, mode='json', exclude=computed)
+    spellings = _config_key_spellings(cfg_cls)
+    if spellings is None or all(k in spellings for k in dumped):
+        return dumped or None
+    raw = config.model_dump(exclude_none=True, by_alias=False, mode='json', exclude=computed)
+    out: dict[str, Any] = {}
+    for name, val in raw.items():
+        info = cfg_cls.model_fields.get(name)
+        if info is None:
+            out[name] = val
+            continue
+        candidates: list[str] = []
+        if info.serialization_alias:
+            candidates.append(info.serialization_alias)
+        if info.alias:
+            candidates.append(info.alias)
+        if isinstance(info.validation_alias, str):
+            candidates.append(info.validation_alias)
+        elif isinstance(info.validation_alias, AliasChoices):
+            candidates.extend(c for c in info.validation_alias.choices if isinstance(c, str))
+        candidates.append(name)
+        key = next((c for c in candidates if c in spellings), name)
+        out[key] = val
+    return out or None
 
 
 def _unknown_config_keys(config_cls: type[BaseModel], keys: Iterable[str]) -> tuple[list[str], list[str]]:
