@@ -168,21 +168,18 @@ print(len(response.message.content))
 #### Every part, by kind
 
 ```python
-from genkit import Part
-
 for part in response.message.content:
-    match part:
-        case Part(text=str() as text):
-            print('text:', text)
-            # => text: Seared scallops over pea purée, finished with mint oil.
-        case Part(media=media) if media is not None:
-            save_image(media.url, media.content_type)
-        case Part(reasoning=str() as thought):
-            print('thinking:', thought)
-        case Part(tool_request=req) if req is not None:
-            print('tool call:', req.name, req.input)
-        case Part(data=data) if data is not None:
-            print('data:', data)
+    if part.text is not None:
+        print('text:', part.text)
+        # => text: Seared scallops over pea purée, finished with mint oil.
+    elif part.media is not None:
+        save_image(part.media.url, part.media.content_type)
+    elif part.reasoning is not None:
+        print('thinking:', part.reasoning)
+    elif part.tool_request is not None:
+        print('tool call:', part.tool_request.name, part.tool_request.input)
+    elif part.data is not None:
+        print('data:', part.data)
 ```
 
 #### Walking the whole conversation
