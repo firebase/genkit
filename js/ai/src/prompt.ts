@@ -34,7 +34,7 @@ import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import { Message as DpMessage, PromptFunction } from 'dotprompt';
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import type Handlebars from 'handlebars';
-import { basename, join, resolve, sep } from 'path';
+import { basename, join, resolve } from 'path';
 import type { DocumentData } from './document.js';
 import {
   generate,
@@ -778,50 +778,74 @@ export function loadPromptFolder(
     loadPromptFolderRecursively(registry, dir, ns, '');
   }
 }
+
+/**
+ * Loads the prompts and partials in `subDir` of `dir`, then recurses into its
+ * subdirectories.
+ *
+ * A partial file `_name.prompt` in subdirectory `sub` registers as `sub/name`.
+ * It also registers as `name` if no other partial has that name yet. Root-level
+ * partials load first, so they keep their name. When two nested partials share
+ * a base name, only the first one in walk order gets the short name.
+ */
 export function loadPromptFolderRecursively(
   registry: Registry,
   dir: string,
   ns: string,
-  subDir: string
+  subDir: string,
+  partials = new Set<string>()
 ): void {
   const promptsPath = resolve(dir);
-  const dirEnts = readdirSync(join(promptsPath, subDir), {
-    withFileTypes: true,
-  });
+  const parentPath = join(promptsPath, subDir);
+  // Sorted so that the walk order, and with it which partial gets a short
+  // name, does not depend on the filesystem.
+  const dirEnts = readdirSync(parentPath, { withFileTypes: true }).sort(
+    (a, b) => (a.name < b.name ? -1 : 1)
+  );
+  // Files load before subdirectories so that a shallower partial claims its
+  // short name first.
   for (const dirEnt of dirEnts) {
-    const parentPath = join(promptsPath, subDir);
     const fileName = dirEnt.name;
-    if (dirEnt.isFile() && fileName.endsWith('.prompt')) {
-      if (fileName.startsWith('_')) {
-        const partialBaseName = fileName.substring(1, fileName.length - 7);
-        // Include subdirectory in the partial name to prevent naming conflicts,
-        // matching how executable prompts are namespaced.
-        const partialName = subDir
-          ? `${subDir.split(sep).join('/')}/${partialBaseName}`
-          : partialBaseName;
-        definePartial(
-          registry,
-          partialName,
-          readFileSync(join(parentPath, fileName), {
-            encoding: 'utf8',
-          })
-        );
+    if (!dirEnt.isFile() || !fileName.endsWith('.prompt')) {
+      continue;
+    }
+    if (!fileName.startsWith('_')) {
+      // If this prompt is in a subdirectory, we need to include that
+      // in the namespace to prevent naming conflicts.
+      loadPrompt(
+        registry,
+        promptsPath,
+        fileName,
+        subDir ? `${subDir}/` : '',
+        ns
+      );
+      continue;
+    }
+    const filePath = join(parentPath, fileName);
+    const shortName = fileName.substring(1, fileName.length - 7);
+    const names = [subDir ? `${subDir}/${shortName}` : shortName];
+    if (subDir) {
+      if (partials.has(shortName)) {
         logger.debug(
-          `Registered Dotprompt partial "${partialName}" from "${join(parentPath, fileName)}"`
+          `Dotprompt partial name "${shortName}" is taken, registering "${names[0]}" from "${filePath}" only`
         );
       } else {
-        // If this prompt is in a subdirectory, we need to include that
-        // in the namespace to prevent naming conflicts.
-        loadPrompt(
-          registry,
-          promptsPath,
-          fileName,
-          subDir ? `${subDir}/` : '',
-          ns
-        );
+        names.push(shortName);
       }
-    } else if (dirEnt.isDirectory()) {
-      loadPromptFolderRecursively(registry, dir, ns, join(subDir, fileName));
+    }
+    const source = readFileSync(filePath, { encoding: 'utf8' });
+    for (const name of names) {
+      definePartial(registry, name, source);
+      partials.add(name);
+      logger.debug(`Registered Dotprompt partial "${name}" from "${filePath}"`);
+    }
+  }
+  for (const dirEnt of dirEnts) {
+    if (dirEnt.isDirectory()) {
+      // Subdirectory paths use "/" on every platform because they become
+      // prompt and partial names.
+      const childDir = subDir ? `${subDir}/${dirEnt.name}` : dirEnt.name;
+      loadPromptFolderRecursively(registry, dir, ns, childDir, partials);
     }
   }
 }

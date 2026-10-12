@@ -1100,6 +1100,18 @@ describe('prompt', () => {
     });
   });
 
+  it('loads partials from sub folders', async () => {
+    // See tests/prompts. Full names always resolve; short names go to the root
+    // partial first, then to the first sub folder partial in walk order.
+    const { messages } = await ai.prompt('partials').render({});
+
+    assert.strictEqual(
+      messages[0].content[0].text,
+      'sub system|other system|other system|root greeting|sub greeting',
+      'rendered partials'
+    );
+  });
+
   it('loads from from the folder with all the options', async () => {
     const testPrompt = ai.prompt('kitchensink'); // see tests/prompts folder
 
