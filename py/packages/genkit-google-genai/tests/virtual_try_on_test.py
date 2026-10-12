@@ -416,6 +416,16 @@ class TestResponseShape:
         assert response.usage.custom == {'generations': 1}
 
     @pytest.mark.asyncio
+    async def test_empty_prediction_is_skipped_without_a_reason(self) -> None:
+        """A prediction with no image and no filter reason adds nothing to finish_message."""
+        client = _client(response=_sdk_response([{}, {'bytesBase64Encoded': PNG_B64, 'mimeType': 'image/png'}]))
+        response = await _generate(VirtualTryOnModel('virtual-try-on-001', client), _request())
+
+        assert response.finish_reason == FinishReason.STOP
+        assert len(response.message.content) == 1
+        assert response.finish_message is None
+
+    @pytest.mark.asyncio
     async def test_all_filtered_is_blocked(self) -> None:
         """When every sample is filtered, say so instead of returning an empty success."""
         client = _client(response=_sdk_response([{'raiFilteredReason': 'blocked by safety'}]))
