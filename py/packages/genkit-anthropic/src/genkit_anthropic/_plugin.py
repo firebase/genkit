@@ -26,12 +26,11 @@ import structlog
 from anthropic import AsyncAnthropic
 
 from genkit import GenkitError, ModelResponse
-from genkit.model import ModelRef, ModelRequest, model as create_model, model_action_metadata, model_ref
+from genkit.model import ModelContext, ModelRef, ModelRequest, model as create_model, model_action_metadata, model_ref
 from genkit.plugin_api import (
     Action,
     ActionKind,
     ActionMetadata,
-    ActionRunContext,
     Plugin,
     loop_local_client,
     to_json_schema,
@@ -232,7 +231,7 @@ class Anthropic(Plugin):
         """
         model_info = get_model_info(name)
 
-        async def _generate(request: ModelRequest[AnthropicConfig], ctx: ActionRunContext) -> ModelResponse:
+        async def _generate(request: ModelRequest[AnthropicConfig], ctx: ModelContext) -> ModelResponse:
             # A key in config is the more specific error, so it wins over a missing plugin key.
             reject_config_api_key(request.config)
             client = self._runtime_client()

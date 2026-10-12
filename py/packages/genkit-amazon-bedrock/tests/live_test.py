@@ -39,8 +39,7 @@ from genkit_amazon_bedrock._transport import BedrockTransport
 
 from genkit import Document, FinishReason, GenkitError, Message, ModelResponse, Part, Role
 from genkit.embedder import EmbedRequest
-from genkit.model import ModelRequest, ToolDefinition
-from genkit.plugin_api import ActionRunContext
+from genkit.model import ModelContext, ModelRequest, ToolDefinition
 
 pytestmark = [
     pytest.mark.asyncio,
@@ -232,9 +231,9 @@ def cacheable_prefix() -> str:
     return 'Answer only from this handbook.\n\n' + '\n\n'.join(articles)
 
 
-def streaming_ctx() -> tuple[ActionRunContext, list]:
+def streaming_ctx() -> tuple[ModelContext, list]:
     chunks: list = []
-    return ActionRunContext(streaming_callback=chunks.append), chunks
+    return ModelContext(streaming_callback=chunks.append), chunks
 
 
 def undocumented_weather_tool() -> ToolDefinition:

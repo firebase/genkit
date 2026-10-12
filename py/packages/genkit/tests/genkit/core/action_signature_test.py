@@ -12,11 +12,11 @@ import pytest
 from pydantic import TypeAdapter
 
 from genkit import Document, Genkit, GenkitError, Message, ModelResponse, Operation, Part
-from genkit._core._action import Action, ActionKind
+from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._background import CheckModelOpFn, StartModelOpFn
 from genkit._core._typing import ActionMetadata, Role
 from genkit.model import ModelRequest
-from genkit.plugin_api import ActionRunContext, Plugin
+from genkit.plugin_api import Plugin
 
 _REPLY = ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('Smoked Salmon Tartine')]))
 
@@ -276,8 +276,7 @@ from genkit import Message, ModelResponse as _ModelResponse, Part, Role
 
 if TYPE_CHECKING:
     from genkit import ModelResponse
-    from genkit.plugin_api import ActionRunContext
-    from genkit.model import ModelRequest
+    from genkit.model import ModelContext, ModelRequest
 
     class AllergyRequest(ModelRequest):
         pass
@@ -293,7 +292,7 @@ def _plate(text: str) -> _ModelResponse:
     return _ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text(text)]))
 
 
-async def chef(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+async def chef(request: ModelRequest, ctx: ModelContext) -> ModelResponse:
     seen.append(request)
     return _plate('Smoked Salmon Tartine')
 

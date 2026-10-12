@@ -40,8 +40,8 @@ from anthropic import (
 from anthropic.types import Message as AnthropicMessage
 
 from genkit import FinishReason, GenkitError, Message, ModelResponse, ModelResponseChunk, Part, Role
-from genkit.model import Constrained, ModelRequest, ModelUsage, ToolRequest, get_basic_usage_stats
-from genkit.plugin_api import ActionRunContext, StatusName, provider_error
+from genkit.model import Constrained, ModelContext, ModelRequest, ModelUsage, ToolRequest, get_basic_usage_stats
+from genkit.plugin_api import StatusName, provider_error
 from genkit_anthropic._config import AnthropicConfig
 from genkit_anthropic._model_info import get_model_info
 from genkit_anthropic._secrets import context_api_key
@@ -322,7 +322,7 @@ class AnthropicModel:
         self.client = client
         self._default_api_version = default_api_version
 
-    async def generate(self, request: ModelRequest, ctx: ActionRunContext | None = None) -> ModelResponse:
+    async def generate(self, request: ModelRequest, ctx: ModelContext | None = None) -> ModelResponse:
         """Generate response from Anthropic.
 
         Args:
@@ -576,7 +576,7 @@ class AnthropicModel:
     async def _generate_streaming(
         self,
         params: dict[str, Any],
-        ctx: ActionRunContext,
+        ctx: ModelContext,
         client: object | None = None,
         use_beta: bool = False,
     ) -> AnthropicMessage:

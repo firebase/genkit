@@ -31,6 +31,7 @@ from typing import (
     ClassVar,
     Generic,
     NamedTuple,
+    TypeAlias,
     Union,
     cast,
     get_args,
@@ -50,6 +51,7 @@ from genkit._core._model import (
     EmbedRequest,
     ModelRequest,
     ModelResponse,
+    ModelResponseChunk,
     config_type_path,
     declared_config_type,
     reject_config_api_key,
@@ -415,19 +417,20 @@ def find_input_and_context(
 def known_annotation_names(kind: ActionKind) -> dict[str, object]:
     """Genkit types a handler of this kind always takes or returns, by name.
 
-    A model gets a ModelRequest and returns a ModelResponse, an embedder
-    gets an EmbedRequest and returns an EmbedResponse, and a background
-    model's start, check, and cancel deal in Operations. When the handler
-    imports these only under TYPE_CHECKING, resolve_type_hints looks the
-    missing names up here, so ``ModelRequest[GardenConfig]`` keeps its
-    config type and any other missing name still raises.
+    A model gets a ModelRequest and ModelContext and returns a ModelResponse,
+    an embedder gets an EmbedRequest and returns an EmbedResponse, and a
+    background model's start, check, and cancel deal in Operations and
+    ModelContext. When the handler imports these only under TYPE_CHECKING,
+    resolve_type_hints looks the missing names up here, so
+    ``ModelRequest[GardenConfig]`` keeps its config type and any other missing
+    name still raises.
     """
     if kind == ActionKind.MODEL:
-        return {'ModelRequest': ModelRequest, 'ModelResponse': ModelResponse}
+        return {'ModelRequest': ModelRequest, 'ModelResponse': ModelResponse, 'ModelContext': ModelContext}
     if kind == ActionKind.BACKGROUND_MODEL:
-        return {'ModelRequest': ModelRequest, 'Operation': Operation}
+        return {'ModelRequest': ModelRequest, 'Operation': Operation, 'ModelContext': ModelContext}
     if kind in (ActionKind.CHECK_OPERATION, ActionKind.CANCEL_OPERATION):
-        return {'Operation': Operation}
+        return {'Operation': Operation, 'ModelContext': ModelContext}
     if kind == ActionKind.EMBEDDER:
         return {'EmbedRequest': EmbedRequest, 'EmbedResponse': EmbedResponse}
     return {}
@@ -577,10 +580,10 @@ def _is_context_annotation(annotation: object) -> bool:
     return isinstance(cls, type) and issubclass(cls, ActionRunContext)
 
 
-# Public names for the run-context classes. FlowContext and AgentContext are
-# aliases, so their __name__ is 'ActionRunContext'; ToolContext is listed so a
+# Public names for the run-context classes. FlowContext, ModelContext, and
+# AgentContext are aliases over ActionRunContext; ToolContext is listed so a
 # string annotation matches even before genkit._ai._tools is imported.
-_CONTEXT_ALIAS_NAMES = frozenset({'FlowContext', 'ToolContext', 'AgentContext'})
+_CONTEXT_ALIAS_NAMES = frozenset({'FlowContext', 'ToolContext', 'AgentContext', 'ModelContext'})
 
 
 def _string_names_context(annotation: str) -> bool:
@@ -726,8 +729,8 @@ def input_from_json(value: object) -> object:
 class ActionRunContext(Generic[ChunkT]):
     """What an action sees while it runs: request context, streaming, and an abort signal.
 
-    Apps use it as ``genkit.FlowContext``; model and plugin code imports it from
-    ``genkit.plugin_api``. ``ChunkT`` is the type ``send_chunk`` accepts.
+    Apps use it as ``genkit.FlowContext``; model and background-model plugins
+    use ``genkit.model.ModelContext``. ``ChunkT`` is the type ``send_chunk`` accepts.
 
         @ai.flow(chunk_type=str)
         async def plate_dish(dish: str, ctx: FlowContext[str]) -> str:
@@ -786,6 +789,9 @@ class ActionRunContext(Generic[ChunkT]):
 
 # The app-facing name for a flow's ctx. Same class, so FlowContext[str] works.
 FlowContext = ActionRunContext
+
+# The context parameter passed to model and background-model functions.
+ModelContext: TypeAlias = ActionRunContext[ModelResponseChunk]
 
 
 class Action(Generic[InputT, OutputT, ChunkT, InitT]):

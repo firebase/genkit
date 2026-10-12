@@ -38,12 +38,19 @@ from genkit.embedder import (
     embedder as create_embedder,
     embedder_action_metadata,
 )
-from genkit.model import Constrained, ModelInfo, ModelRequest, Supports, model as create_model, model_action_metadata
+from genkit.model import (
+    Constrained,
+    ModelContext,
+    ModelInfo,
+    ModelRequest,
+    Supports,
+    model as create_model,
+    model_action_metadata,
+)
 from genkit.plugin_api import (
     Action,
     ActionKind,
     ActionMetadata,
-    ActionRunContext,
     Plugin,
     loop_local_client,
     provider_error,
@@ -385,7 +392,7 @@ class Ollama(Plugin):
             info=ollama_model_info(model_ref, f'Ollama - {name}'),
         )
 
-        async def _run(request: ModelRequest, ctx: ActionRunContext | None = None) -> ModelResponse:
+        async def _run(request: ModelRequest, ctx: ModelContext | None = None) -> ModelResponse:
             # OllamaModel wraps connection errors at the SDK boundary, so a failed
             # media-URL fetch isn't misreported as an Ollama server outage.
             return await model.generate(request, ctx)

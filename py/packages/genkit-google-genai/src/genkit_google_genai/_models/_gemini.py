@@ -60,6 +60,7 @@ from genkit.model import (
     Candidate,
     Constrained,
     ModelConfig,
+    ModelContext,
     ModelInfo,
     ModelRequest,
     ModelUsage,
@@ -67,7 +68,7 @@ from genkit.model import (
     ToolDefinition,
     get_basic_usage_stats,
 )
-from genkit.plugin_api import ActionRunContext, StrEnum
+from genkit.plugin_api import StrEnum
 
 
 def _to_dict(obj: JsonAny) -> JsonAny:  # noqa: ANN401
@@ -1472,7 +1473,7 @@ class GeminiModel:
             raise transport_error(e) from e
         return cache
 
-    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+    async def generate(self, request: ModelRequest, ctx: ModelContext) -> ModelResponse:
         """Handle a generation request.
 
         Args:
@@ -1759,7 +1760,7 @@ class GeminiModel:
         self,
         request_contents: list[genai_types.Content],
         request_cfg: genai_types.GenerateContentConfig | None,
-        ctx: ActionRunContext,
+        ctx: ModelContext,
         model_name: str,
         client: genai.Client | None = None,
         tools: ToolTable | None = None,
