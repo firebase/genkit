@@ -21,8 +21,8 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar, overload
 
-from genkit._core._action import Action, ActionRunContext
-from genkit._core._flow import define_flow
+from genkit._core._action import ActionRunContext
+from genkit._core._flow import Flow, define_flow
 from genkit._core._registry import Registry
 
 # TypeVars for generic input/output typing
@@ -47,26 +47,26 @@ class _FlowDecorator:
     @overload
     def __call__(
         self, func: Callable[[InputT, ActionRunContext[ChunkT]], Awaitable[OutputT]]
-    ) -> Action[InputT, OutputT, ChunkT]: ...
+    ) -> Flow[InputT, OutputT, ChunkT]: ...
 
     @overload
     def __call__(
         self, func: Callable[[ActionRunContext[ChunkT], InputT], Awaitable[OutputT]]
-    ) -> Action[InputT, OutputT, ChunkT]: ...
+    ) -> Flow[InputT, OutputT, ChunkT]: ...
 
     @overload
     def __call__(
         self, func: Callable[[ActionRunContext[ChunkT]], Awaitable[OutputT]]
-    ) -> Action[None, OutputT, ChunkT]: ...
+    ) -> Flow[None, OutputT, ChunkT]: ...
 
     @overload
-    def __call__(self, func: Callable[[InputT], Awaitable[OutputT]]) -> Action[InputT, OutputT]: ...
+    def __call__(self, func: Callable[[InputT], Awaitable[OutputT]]) -> Flow[InputT, OutputT]: ...
 
     @overload
-    def __call__(self, func: Callable[[], Awaitable[OutputT]]) -> Action[None, OutputT]: ...
+    def __call__(self, func: Callable[[], Awaitable[OutputT]]) -> Flow[None, OutputT]: ...
 
     @overload
-    def __call__(self, func: Callable[..., Awaitable[OutputT]]) -> Action[Any, OutputT, Any]: ...
+    def __call__(self, func: Callable[..., Awaitable[OutputT]]) -> Flow[Any, OutputT, Any]: ...
 
-    def __call__(self, func: Callable[..., Awaitable[Any]]) -> Action[Any, Any, Any]:
+    def __call__(self, func: Callable[..., Awaitable[Any]]) -> Flow[Any, Any, Any]:
         return define_flow(self._registry, func, self._name, self._description)
