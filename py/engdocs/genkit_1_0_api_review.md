@@ -53,7 +53,7 @@ from genkit.middleware import (
 )
 
 from genkit.formats import (
-    # Custom output formats (JS/Go names).
+    # Custom output formats.
     Formatter, FormatterConfig, FormatHandler,
 )
 
