@@ -47,8 +47,9 @@ Example:
 """
 
 from genkit._ai._evaluator import (
+    BatchEvaluator,
+    Evaluator,
     EvaluatorRef,
-    evaluator_action_metadata,
 )
 from genkit._core._typing import (
     BaseDataPoint,
@@ -70,9 +71,9 @@ __all__ = [
     'ScoreDetails',
     # Status
     'ScoreStatus',
-    # Factory functions
     # Reference types
     'EvaluatorRef',
-    # Plugin list_actions
-    'evaluator_action_metadata',
+    # Plugins: build in init/resolve, describe in list_actions via .action_metadata()
+    'Evaluator',
+    'BatchEvaluator',
 ]

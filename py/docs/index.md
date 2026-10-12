@@ -153,7 +153,9 @@
 
 ::: genkit.evaluator.ScoreStatus
 
-::: genkit.evaluator.evaluator_action_metadata
+::: genkit.evaluator.Evaluator
+
+::: genkit.evaluator.BatchEvaluator
 
 ::: genkit.evaluator.EvaluatorRef
 

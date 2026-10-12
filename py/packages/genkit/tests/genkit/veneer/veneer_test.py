@@ -45,7 +45,6 @@ from genkit.evaluator import (
     EvaluatorRef,
     ScoreDetails,
     ScoreStatus,
-    evaluator_action_metadata,
 )
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, MiddlewareRef, ModelHookParams
 from genkit.testing import (
@@ -1602,8 +1601,9 @@ def test_define_model_with_info(setup_test: SetupFixture) -> None:
     }
 
 
-def test_define_evaluator_simple(setup_test: SetupFixture) -> None:
-    """Test that the define evaluator function works."""
+@pytest.mark.asyncio
+async def test_define_evaluator_simple(setup_test: SetupFixture) -> None:
+    """ai.define_evaluator(...) registers the evaluator, so ai.evaluate(evaluator='my_eval') scores each row."""
     ai, _, _, *_ = setup_test
 
     async def my_eval_fn(datapoint: BaseDataPoint, options: dict[str, Any] | None = None) -> EvalFnResponse:
@@ -1625,6 +1625,10 @@ def test_define_evaluator_simple(setup_test: SetupFixture) -> None:
         'evaluatorDisplayName': 'Test evaluator',
         'evaluatorIsBilled': False,
     }
+    results = await ai.evaluate(evaluator='my_eval', dataset=_two_rows())
+    assert [row.test_case_id for row in results] == ['case1', 'case2']
+    assert [score.score for score in results[0].evaluation] == [True]
+    assert [score.score for score in results[1].evaluation] == [True]
 
 
 def test_define_evaluator_custom_config(setup_test: SetupFixture) -> None:
@@ -1669,14 +1673,9 @@ def test_define_evaluator_custom_config(setup_test: SetupFixture) -> None:
         },
     }
 
-    listed = evaluator_action_metadata(
-        'my_eval',
-        display_name='Test evaluator',
-        definition='Test evaluator that always returns True',
-        config_schema=CustomOption,
-    )
+    listed = action.action_metadata()
     assert listed.action_type == ActionKind.EVALUATOR
-    assert listed.metadata == {'evaluator': action.metadata['evaluator']}
+    assert listed.metadata == action.metadata
 
 
 def test_define_batch_evaluator(setup_test: SetupFixture) -> None:

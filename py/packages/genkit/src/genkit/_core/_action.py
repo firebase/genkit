@@ -830,6 +830,17 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
     def metadata(self) -> dict[str, object]:
         return self._metadata
 
+    def action_metadata(self) -> ActionMetadata:
+        """Return the ActionMetadata descriptor for Plugin.list_actions()."""
+        return ActionMetadata(
+            action_type=self._kind,
+            name=self._name,
+            description=self._description,
+            input_json_schema=self._input_schema,
+            output_json_schema=self._output_schema,
+            metadata=self._metadata,
+        )
+
     @property
     def input_type(self) -> TypeAdapter[InputT] | None:
         return self._input_type

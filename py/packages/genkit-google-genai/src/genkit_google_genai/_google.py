@@ -64,7 +64,6 @@ from pydantic import BaseModel
 import genkit_google_genai._constants as const
 from genkit import ActionRunContext, GenkitError, ModelResponse, Operation
 from genkit.embedder import Embedder, EmbedderRef
-from genkit.evaluator import evaluator_action_metadata
 from genkit.model import (
     BackgroundAction,
     ModelInfo,
@@ -85,9 +84,9 @@ from genkit.plugin_api import (
 )
 from genkit_google_genai._auth import GOOGLE_AUTH_ERRORS, raise_auth_error
 from genkit_google_genai._evaluators._evaluation import (
-    METRIC_INFO,
     VertexAIEvaluationMetricType,
     create_vertex_evaluators,
+    vertex_evaluator_action_metadata,
 )
 from genkit_google_genai._interactions._options import ClientOptions
 from genkit_google_genai._models._antigravity import AntigravityConfig, create_antigravity_action
@@ -1078,13 +1077,8 @@ class VertexAI(GoogleFamilyRefs, Plugin):
         if not self._project:
             logger.debug('VertexAI has no project; skipping Vertex evaluator registration')
         else:
-            # Deferred import to avoid circular dependency
-            from genkit import Genkit
-
-            registry = Genkit()
             actions.extend(
                 create_vertex_evaluators(
-                    registry,
                     list(VertexAIEvaluationMetricType),
                     project=self._project,
                     location=self._location,
@@ -1174,17 +1168,12 @@ class VertexAI(GoogleFamilyRefs, Plugin):
                 status='FAILED_PRECONDITION',
             )
 
-        from genkit import Genkit
-
-        registry = Genkit()
-
-        actions = create_vertex_evaluators(
-            registry,
+        [action] = create_vertex_evaluators(
             [metric_type],
             project=self._project,
             location=self._location,
         )
-        return actions[0] if actions else None
+        return action
 
     def _resolve_model(self, name: str) -> Action | None:
         """Create an Action object for a Vertex AI model.
@@ -1291,15 +1280,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
 
         if self._project:
             for metric in VertexAIEvaluationMetricType:
-                display_name, definition = METRIC_INFO[metric]
-                actions_list.append(
-                    evaluator_action_metadata(
-                        vertexai_name(metric.lower()),
-                        display_name=display_name,
-                        definition=definition,
-                        is_billed=True,
-                    )
-                )
+                actions_list.append(vertex_evaluator_action_metadata(metric))
 
         self._list_actions_cache = actions_list
         return actions_list
