@@ -22,7 +22,6 @@ from genkit import (
     ModelResponseChunk,
     Part,
 )
-from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
 from genkit._ai._model import text_from_message
 from genkit._core._action import ActionKind, ActionRunContext
 from genkit._core._model import ModelRequest, OutputConfig
@@ -47,6 +46,7 @@ from genkit.evaluator import (
     ScoreStatus,
     evaluator_action_metadata,
 )
+from genkit.formats import FormatHandler, Formatter, FormatterConfig
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, MiddlewareRef, ModelHookParams
 from genkit.testing import (
     EchoModel,
@@ -1387,7 +1387,7 @@ async def test_generate_simulates_doc_grounding(
     assert resp.request.messages[0] == clean_msg
 
 
-class MockBananaFormat(FormatDef):
+class MockBananaFormat(Formatter):
     """Mock format for testing the format."""
 
     def __init__(self) -> None:
@@ -1401,7 +1401,7 @@ class MockBananaFormat(FormatDef):
             ),
         )
 
-    def handle(self, schema: dict[str, Any] | None) -> Formatter:
+    def handle(self, schema: dict[str, Any] | None) -> FormatHandler:
         """Handle the format."""
 
         def message_parser(msg: Message) -> Any:  # noqa: ANN401
@@ -1421,7 +1421,7 @@ class MockBananaFormat(FormatDef):
         if schema:
             instructions = f'schema: {json.dumps(schema)}'
 
-        return Formatter(
+        return FormatHandler(
             chunk_parser=chunk_parser,
             message_parser=message_parser,
             instructions=instructions,
