@@ -26,7 +26,6 @@ from genkit.model import (
     ModelInfo,
     ModelRequest,
     ModelSupports,
-    get_basic_usage_stats,
     model,
     model_action_metadata,
 )
@@ -267,13 +266,27 @@ def test_chunk_wrapper_output_uses_parser() -> None:
         ],
     ),
 )
-def test_get_basic_usage_stats(
+def test_generation_usage_from_messages(
     test_input: list[Message],
     test_response: Message,
     expected_output: GenerationUsage,
 ) -> None:
-    """Test get_basic_usage_stats utility."""
-    assert get_basic_usage_stats(input_=test_input, response=test_response) == expected_output
+    """Test GenerationUsage.from_messages utility."""
+    assert GenerationUsage.from_messages(test_input, test_response) == expected_output
+    assert GenerationUsage.from_messages(messages=test_input, response=test_response) == expected_output
+
+
+def test_finish_reason_is_abnormal() -> None:
+    """Test FinishReason.is_abnormal property."""
+    abnormal = {
+        FinishReason.BLOCKED,
+        FinishReason.ABORTED,
+        FinishReason.FAILED,
+        FinishReason.INTERRUPTED,
+        FinishReason.OTHER,
+    }
+    for reason in FinishReason:
+        assert reason.is_abnormal == (reason in abnormal)
 
 
 def test_response_wrapper_tool_requests() -> None:

@@ -73,7 +73,6 @@ from genkit.model import (
     ModelRequest,
     ModelSupports,
     ToolDefinition,
-    get_basic_usage_stats,
 )
 from genkit.plugin_api import StrEnum
 
@@ -2108,7 +2107,7 @@ class GeminiModel:
             usage.total_tokens = 0
             return usage
 
-        usage = get_basic_usage_stats(input_=request.messages, response=response.message)
+        usage = GenerationUsage.from_messages(request.messages, response.message)
         if response.usage:
             for field in ('input_tokens', 'output_tokens', 'total_tokens', 'thoughts_tokens', 'cached_content_tokens'):
                 val = getattr(response.usage, field, None)

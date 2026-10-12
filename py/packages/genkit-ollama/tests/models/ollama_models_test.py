@@ -138,14 +138,14 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         client.chat.assert_not_called()
 
     @patch(
-        'genkit_ollama._models.get_basic_usage_stats',
+        'genkit_ollama._models.GenerationUsage.from_messages',
         return_value=GenerationUsage(
             input_tokens=10,
             output_tokens=20,
             total_tokens=30,
         ),
     )
-    async def test_generate_chat_non_streaming(self, mock_get_basic_usage_stats: MagicMock) -> None:
+    async def test_generate_chat_non_streaming(self, mock_from_messages: MagicMock) -> None:
         """Test generate method with CHAT API type in non-streaming mode."""
         model_def = _ResolvedModel(name='chat-model')
         ollama_model = OllamaModel(
@@ -197,10 +197,10 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cast(GenerationUsage, response.usage).output_tokens, 10)
 
     @patch(
-        'genkit_ollama._models.get_basic_usage_stats',
+        'genkit_ollama._models.GenerationUsage.from_messages',
         return_value=GenerationUsage(),
     )
-    async def test_generate_chat_streaming(self, mock_get_basic_usage_stats: MagicMock) -> None:
+    async def test_generate_chat_streaming(self, mock_from_messages: MagicMock) -> None:
         """Test generate method with CHAT API type in streaming mode."""
         model_def = _ResolvedModel(name='chat-model')
         ollama_model = OllamaModel(client=self.mock_client, model_definition=model_def)
@@ -246,10 +246,10 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         )
 
     @patch(
-        'genkit_ollama._models.get_basic_usage_stats',
+        'genkit_ollama._models.GenerationUsage.from_messages',
         return_value=GenerationUsage(),
     )
-    async def test_generate_chat_api_response_none(self, mock_get_basic_usage_stats: MagicMock) -> None:
+    async def test_generate_chat_api_response_none(self, mock_from_messages: MagicMock) -> None:
         """Test generate method when _chat_with_ollama returns None."""
         model_def = _ResolvedModel(name='chat-model')
         ollama_model = OllamaModel(client=self.mock_client, model_definition=model_def)
@@ -270,10 +270,10 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cast(GenerationUsage, response.usage).output_tokens, None)
 
     @patch(
-        'genkit_ollama._models.get_basic_usage_stats',
+        'genkit_ollama._models.GenerationUsage.from_messages',
         return_value=GenerationUsage(),
     )
-    async def test_generate_chat_streaming_zero_chunks(self, mock_get_basic_usage_stats: MagicMock) -> None:
+    async def test_generate_chat_streaming_zero_chunks(self, mock_from_messages: MagicMock) -> None:
         """Streaming with zero chunks returns empty content, not the error default."""
         model_def = _ResolvedModel(name='chat-model')
         ollama_model = OllamaModel(client=self.mock_client, model_definition=model_def)

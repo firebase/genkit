@@ -52,7 +52,6 @@ from genkit._core._model import (
     ModelResponseChunk,
     config_type_path,
     declared_config_type,
-    get_basic_usage_stats,
     reject_config_api_key,
     text_from_content,
     text_from_message,

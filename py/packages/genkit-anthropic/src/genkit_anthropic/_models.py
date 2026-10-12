@@ -40,7 +40,7 @@ from anthropic import (
 from anthropic.types import Message as AnthropicMessage
 
 from genkit import ActionRunContext, FinishReason, GenkitError, Message, ModelResponse, ModelResponseChunk, Part, Role
-from genkit.model import ConstrainedSupport, GenerationUsage, ModelRequest, ToolRequest, get_basic_usage_stats
+from genkit.model import ConstrainedSupport, GenerationUsage, ModelRequest, ToolRequest
 from genkit.plugin_api import StatusName, provider_error
 from genkit_anthropic._config import AnthropicConfig
 from genkit_anthropic._model_info import get_model_info
@@ -377,7 +377,7 @@ class AnthropicModel:
         content = maybe_strip_fences(request, content)
 
         response_message = Message(role=Role.MODEL, content=content)
-        basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
+        basic_usage = GenerationUsage.from_messages(request.messages, response_message)
 
         finish_reason_map: dict[str, FinishReason] = {
             'compaction': FinishReason.OTHER,

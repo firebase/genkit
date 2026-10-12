@@ -95,8 +95,6 @@
 
 ::: genkit.model.model_action_metadata
 
-::: genkit.model.get_basic_usage_stats
-
 ::: genkit.model.ModelRef
 
 ::: genkit.model.ModelConfig

@@ -23,14 +23,12 @@ from genkit._ai._model import (
 )
 from genkit._core._background import BackgroundModel, background_model
 from genkit._core._model import (
-    ABNORMAL_FINISH_REASONS,
     GenerateActionOptions,
     GenerationUsage,
     ModelConfig,
     ModelRef,
     ModelRequest,
     OutputConfig,
-    get_basic_usage_stats,
 )
 from genkit._core._typing import (
     ConstrainedSupport,
@@ -44,8 +42,6 @@ from genkit._core._typing import (
 )
 
 __all__ = [
-    # Finish reasons
-    'ABNORMAL_FINISH_REASONS',
     # Errors
     'StreamingCallbackError',
     # Request types
@@ -70,7 +66,6 @@ __all__ = [
     'model',
     'background_model',
     'model_action_metadata',
-    'get_basic_usage_stats',
     # Reference types
     'ModelRef',
     # Config
