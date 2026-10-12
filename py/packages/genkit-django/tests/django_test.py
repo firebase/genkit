@@ -25,6 +25,7 @@ from typing import Any
 
 import pytest
 from django.core.exceptions import PermissionDenied
+from django.http import HttpRequest
 from django.test import AsyncClient
 from django.test.utils import override_settings
 from django.urls import path
@@ -122,6 +123,17 @@ def _build_views() -> dict[str, Any]:
     async def forbidden(_: str) -> str:
         return 'ok'
 
+    async def from_django_request(request_data: RequestData) -> dict[str, Any]:
+        # The raw HttpRequest carries what the shared fields don't, e.g. cookies.
+        django_request = request_data.request
+        assert isinstance(django_request, HttpRequest)
+        return {'table': django_request.COOKIES.get('table')}
+
+    @genkit_django_handler(ai, context_provider=from_django_request)
+    @ai.flow()
+    async def table_from_cookie(_: str, ctx: ActionRunContext) -> str:
+        return f'table {ctx.context["table"]}'
+
     @genkit_django_handler(ai)
     @ai.flow()
     async def greet(name: str = 'world') -> str:
@@ -154,6 +166,7 @@ def _build_views() -> dict[str, Any]:
         'gated': gated,
         'forbidden': forbidden,
         'raise_provider': raise_provider,
+        'table_from_cookie': table_from_cookie,
     }
 
 
@@ -177,6 +190,7 @@ def urlconf(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         path('close_tab', views['close_tab']),
         path('forbidden', views['forbidden']),
         path('provider_flow', views['raise_provider']),
+        path('table_from_cookie', views['table_from_cookie']),
     ]
     monkeypatch.setitem(sys.modules, 'genkit_django_tests_urls', module)
 
@@ -478,3 +492,14 @@ async def test_django_stream_provider_401_sends_sse_internal_error(urlconf: None
     error = _sse_error_event(chunks)
     assert error == {'message': 'Internal Error', 'status': 'INTERNAL'}
     assert b'API key not valid' not in b''.join(chunks)
+
+
+@pytest.mark.asyncio
+async def test_context_provider_reads_raw_django_request(urlconf: None) -> None:  # noqa: ARG001
+    """RequestData.request is the Django HttpRequest, for cookies, sessions and request.user."""
+    client = AsyncClient()
+    client.cookies['table'] = 'T7'
+    response = await client.post('/table_from_cookie', data=json.dumps({'data': 'x'}), content_type='application/json')
+
+    assert response.status_code == 200
+    assert json.loads(response.content) == {'result': 'table T7'}
