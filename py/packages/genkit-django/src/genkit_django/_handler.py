@@ -27,9 +27,9 @@ from django.http import Http404, HttpRequest, HttpResponse, HttpResponseBase, Js
 from django.views.decorators.csrf import csrf_exempt
 from pydantic import BaseModel
 
-from genkit import ContextProvider, Genkit, GenkitError, PublicError, RequestData
+from genkit import Genkit, GenkitError, PublicError
 from genkit.plugin_api import Action
-from genkit.web import error_body, error_status, read_body, wants_stream
+from genkit.web import ContextProvider, RequestData, error_body, error_status, read_body, wants_stream
 
 logger = logging.getLogger(__name__)
 

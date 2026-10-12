@@ -24,8 +24,9 @@ from flask import Flask, abort
 from genkit_flask import genkit_flask_handler
 from pydantic import BaseModel
 
-from genkit import ActionRunContext, Genkit, GenkitError, PublicError, RequestData
+from genkit import ActionRunContext, Genkit, GenkitError, PublicError
 from genkit.plugin_api import provider_error
+from genkit.web import RequestData
 
 
 def sse_error_event(chunks: list[bytes]) -> dict:

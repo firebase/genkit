@@ -31,8 +31,9 @@ from django.urls import path
 from genkit_django import genkit_django_handler
 from pydantic import BaseModel
 
-from genkit import ActionRunContext, Genkit, GenkitError, PublicError, RequestData
+from genkit import ActionRunContext, Genkit, GenkitError, PublicError
 from genkit.plugin_api import provider_error
+from genkit.web import RequestData
 
 
 class Receipt(BaseModel):

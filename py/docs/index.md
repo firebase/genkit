@@ -55,10 +55,6 @@
 
 ::: genkit.RuntimeErrorReason
 
-::: genkit.ContextProvider
-
-::: genkit.RequestData
-
 ::: genkit.FormatDef
 
 ::: genkit.FormatterConfig
@@ -166,6 +162,10 @@
 ::: genkit.telemetry.SpanMetadata
 
 ## genkit.web
+
+::: genkit.web.ContextProvider
+
+::: genkit.web.RequestData
 
 ::: genkit.web.error_body
 

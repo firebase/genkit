@@ -16,7 +16,7 @@
 
 """Tests for action context definitions."""
 
-from genkit import RequestData
+from genkit.web import RequestData
 
 
 def test_request_data_subclass_with_super_init_still_builds() -> None:

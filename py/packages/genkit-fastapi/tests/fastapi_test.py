@@ -27,8 +27,9 @@ from genkit_fastapi import genkit_fastapi_handler, serve_flow
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from genkit import ActionRunContext, Genkit, GenkitError, PublicError, RequestData
+from genkit import ActionRunContext, Genkit, GenkitError, PublicError
 from genkit.plugin_api import provider_error
+from genkit.web import RequestData
 
 
 def assert_is_error_response(parsed: dict) -> None:

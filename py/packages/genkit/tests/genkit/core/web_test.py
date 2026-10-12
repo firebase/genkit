@@ -18,6 +18,8 @@
 
 import pytest
 
+import genkit
+import genkit.web
 from genkit import Genkit, PublicError
 from genkit.plugin_api import Action
 from genkit.web import read_body, wants_stream
@@ -33,6 +35,20 @@ def _greet_flow() -> Action:
         return f'hello {name}'
 
     return greet
+
+
+def test_request_context_types_live_on_genkit_web_only() -> None:
+    """ContextProvider and RequestData import from genkit.web, not the root package."""
+    assert sorted(genkit.web.__all__) == [
+        'ContextProvider',
+        'RequestData',
+        'error_body',
+        'error_status',
+        'read_body',
+        'wants_stream',
+    ]
+    assert not {'ContextProvider', 'RequestData'} & set(genkit.__all__)
+    assert not hasattr(genkit, 'RequestData')
 
 
 @pytest.mark.asyncio
