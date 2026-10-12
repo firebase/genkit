@@ -425,10 +425,6 @@ class Genkit:
     ) -> type[MiddlewareT]:
         """Register a middleware class on this app's registry."""
         desc = cls._middleware_metadata(name, description=description)
-        if not cls.name:
-            cls.name = desc.name
-        if cls.description is None and desc.description is not None:
-            cls.description = desc.description
         self._registry.register_value('middleware', desc.name, desc)
         return cls
 

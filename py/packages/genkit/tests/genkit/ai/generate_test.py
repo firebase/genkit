@@ -552,6 +552,8 @@ define_echo_model(ai)
 
 @ai.middleware(name='pre_mw')
 class PreMiddleware(Middleware):
+    name = 'pre_mw'
+
     async def wrap_model(
         self,
         params: ModelHookParams,
@@ -573,6 +575,8 @@ class PreMiddleware(Middleware):
 
 @ai.middleware(name='post_mw')
 class PostMiddleware(Middleware):
+    name = 'post_mw'
+
     async def wrap_model(
         self,
         params: ModelHookParams,
@@ -652,6 +656,8 @@ class _PrefixConfig(BaseModel):
 @ai.middleware(name='configured_prefix_mw')
 class ConfiguredPrefixMiddleware(Middleware[_PrefixConfig]):
     """Inline middleware driven purely by a pydantic config field."""
+
+    name = 'configured_prefix_mw'
 
     async def wrap_model(
         self,
@@ -862,6 +868,8 @@ def test_middleware_and_plugin_api_surface_and_metadata_symmetry() -> None:
         PreMiddleware, name='defined_pre', description='Defined via define_middleware'
     )
     assert returned_cls is PreMiddleware
+    assert PreMiddleware.name == 'pre_mw'
+    assert PreMiddleware.description is None
     meta = local_ai._registry.lookup_value('middleware', 'defined_pre')
     assert isinstance(meta, _MiddlewareMetadata)
     assert meta.name == 'defined_pre'
@@ -1117,6 +1125,8 @@ async def test_a_turn_that_never_reached_the_model_reports_no_tokens() -> None:
 
 @ai.middleware(name='add_ctx')
 class AddContextMiddleware(Middleware):
+    name = 'add_ctx'
+
     async def wrap_model(
         self,
         params: ModelHookParams,
@@ -1129,6 +1139,8 @@ class AddContextMiddleware(Middleware):
 
 @ai.middleware(name='inject_ctx')
 class InjectContextMiddleware(Middleware):
+    name = 'inject_ctx'
+
     async def wrap_model(
         self,
         params: ModelHookParams,
