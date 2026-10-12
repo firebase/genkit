@@ -193,7 +193,7 @@ async def test_local_delay_wins_when_larger_than_retry_after(ctx: GenerateMiddle
             raise GenkitError(
                 message='Rate limited',
                 status='RESOURCE_EXHAUSTED',
-                response_metadata={'retry_after_ms': 10},
+                retry_after_ms=10,
             )
         return ModelResponse(message=None)
 
@@ -219,7 +219,7 @@ async def test_zero_retry_after_preserves_local_delay(ctx: GenerateMiddlewareCon
             raise GenkitError(
                 message='Rate limited',
                 status='RESOURCE_EXHAUSTED',
-                response_metadata={'retry_after_ms': 0},
+                retry_after_ms=0,
             )
         return ModelResponse(message=None)
 
@@ -245,7 +245,7 @@ async def test_retry_after_floor_is_applied_before_jitter(ctx: GenerateMiddlewar
             raise GenkitError(
                 message='Rate limited',
                 status='RESOURCE_EXHAUSTED',
-                response_metadata={'retry_after_ms': 5000},
+                retry_after_ms=5000,
             )
         return ModelResponse(message=None)
 
@@ -274,7 +274,7 @@ async def test_retry_after_is_capped_by_max_delay(ctx: GenerateMiddlewareContext
             raise GenkitError(
                 message='Rate limited',
                 status='RESOURCE_EXHAUSTED',
-                response_metadata={'retry_after_ms': 86_400_000},
+                retry_after_ms=86_400_000,
             )
         return ModelResponse(message=None)
 
@@ -304,7 +304,7 @@ async def test_small_retry_after_preserves_local_delay_cap(
             raise GenkitError(
                 message='Rate limited',
                 status='RESOURCE_EXHAUSTED',
-                response_metadata={'retry_after_ms': retry_after_ms},
+                retry_after_ms=retry_after_ms,
             )
         return ModelResponse(message=None)
 
@@ -332,7 +332,7 @@ async def test_retry_does_not_retry_unauthenticated_error(ctx: GenerateMiddlewar
         raise GenkitError(
             message='Invalid API key',
             status='UNAUTHENTICATED',
-            response_metadata={'retry_after_ms': 5000},
+            retry_after_ms=5000,
         )
 
     with (

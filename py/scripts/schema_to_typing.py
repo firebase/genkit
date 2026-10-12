@@ -45,8 +45,9 @@ TRANSFORMATIONS = {
     'Message': {'output_name': 'MessageData'},
     'Part': {'output_name': 'PartData'},
     'GenerateActionOptions': {'suffix': 'Data', 'omit': ['messages']},
-    # RuntimeError would shadow Python's builtin exception.
-    'RuntimeError': {'output_name': 'GenkitRuntimeError'},
+    # RuntimeError would shadow Python's builtin exception. Private: the public
+    # type is genkit.Failure, a hand-written subclass in genkit._core._error.
+    'RuntimeError': {'output_name': '_RuntimeErrorWire'},
     # Error would shadow Python's builtin exception / generic naming.
     'Error': {'output_name': 'OperationError'},
     # Documents take the same Part as messages. The schema names a
@@ -318,7 +319,7 @@ def _emit_model(
     cfg = f"ConfigDict(alias_generator=to_camel, extra='{'allow' if name in allow else 'forbid'}', populate_by_name=True{ext}{frz})"
     lines = [
         f'class {name}(GenkitModel):',
-        f'    """Model for {name.lower().replace("_", " ")} data."""',
+        f'    """Model for {name.lstrip("_").lower().replace("_", " ")} data."""',
         f'    model_config: ClassVar[ConfigDict] = {cfg}',
     ]
     for k, v in props.items():

@@ -163,7 +163,7 @@ class AgentOutput(GenkitModel):
     message: MessageData | None = None
     artifacts: list[Artifact] | None = None
     finish_reason: AgentFinishReason | None = None
-    error: GenkitRuntimeError | None = None
+    error: _RuntimeErrorWire | None = None
     usage: GenerationUsage | None = None
 
 
@@ -226,7 +226,7 @@ class SessionSnapshot(GenkitModel):
     heartbeat_at: str | None = None
     status: SnapshotStatus | None = None
     finish_reason: AgentFinishReason | None = None
-    error: GenkitRuntimeError | None = None
+    error: _RuntimeErrorWire | None = None
     state: SessionState | None = None
 
 
@@ -353,8 +353,8 @@ class GenkitError(GenkitModel):
     data: Data | None = None
 
 
-class GenkitRuntimeError(GenkitModel):
-    """Model for genkitruntimeerror data."""
+class _RuntimeErrorWire(GenkitModel):
+    """Model for runtimeerrorwire data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     status: str | None = None
