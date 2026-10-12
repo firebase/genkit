@@ -61,7 +61,7 @@ from genkit._core._telemetry._instrumentation import (
     run_in_new_span,
     to_json_attr,
 )
-from genkit._core._typing import EmbedResponse, Operation
+from genkit._core._typing import ActionMetadata, EmbedResponse, Operation
 
 # =============================================================================
 # Span attribute types and tracing helpers
@@ -869,6 +869,18 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
             self._input_type = None
         else:
             self._input_type = cast(TypeAdapter[InputT], TypeAdapter(input_schema))
+
+    def _action_metadata(self) -> ActionMetadata:
+        """Build the internal Dev UI catalog descriptor for this action."""
+        return ActionMetadata(
+            key=create_action_key(self.kind, self.name),
+            action_type=self.kind,
+            name=self.name,
+            description=self.description,
+            input_schema=self.input_schema,
+            output_schema=self.output_schema,
+            metadata=dict(self.metadata) if self.metadata else None,
+        )
 
     async def __call__(self, input: InputT | None = NO_INPUT, *, context: dict[str, Any] | None = None) -> OutputT:
         """Call the action directly, returning just the response value."""

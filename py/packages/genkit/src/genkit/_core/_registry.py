@@ -92,15 +92,7 @@ ActionFn = (
 
 def _action_metadata_for_registered_action(action: Action) -> ActionMetadata:
     """Build an ``ActionMetadata`` row for a directly-registered :class:`Action`."""
-    return ActionMetadata(
-        key=create_action_key(action.kind, action.name),
-        action_type=action.kind,
-        name=action.name,
-        description=action.description,
-        input_schema=action.input_schema,
-        output_schema=action.output_schema,
-        metadata=dict(action.metadata) if action.metadata else None,
-    )
+    return action._action_metadata()
 
 
 # The event loop holds only a weak reference to a running task.

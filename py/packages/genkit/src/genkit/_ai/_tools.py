@@ -28,7 +28,7 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 from genkit._core._action import Action, ActionKind, ActionRunContext, resolve_type_hints
 from genkit._core._error import GenkitError, Interrupt, RuntimeErrorReason
 from genkit._core._logger import get_logger
-from genkit._core._middleware import GenerateMiddlewareContext
+from genkit._core._middleware import MiddlewareContext
 from genkit._core._model import MultipartToolResponse, Part, as_part, as_resumed
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
@@ -288,11 +288,11 @@ async def run_tool_request(
     *,
     tool: Action,
     tool_request_part: Part,
-    ctx: GenerateMiddlewareContext | None = None,
+    ctx: MiddlewareContext | None = None,
 ) -> Any:  # noqa: ANN401 - tool output follows registered handler
     """Execute a tool request with generate-scoped context and resume metadata.
 
-    Pipes ``GenerateMiddlewareContext.custom_context`` and ``telemetry_labels``
+    Pipes ``MiddlewareContext.custom_context`` and ``telemetry_labels``
     into ``tool.run``, and sets resume ContextVars from ``tool_request_part``
     metadata so ``ToolRunContext`` reflects ``resumed`` / ``replacedInput``.
     """
@@ -350,7 +350,7 @@ async def run_tool_after_restart(
     *,
     tool: Action,
     restart_trp: Part,
-    ctx: GenerateMiddlewareContext | None = None,
+    ctx: MiddlewareContext | None = None,
 ) -> Part:
     """Run a tool for ``resume_restart``: applies ``resumed`` / ``replacedInput`` from metadata.
 
