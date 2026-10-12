@@ -480,6 +480,13 @@ async def test_googleai_list_actions(googleai_plugin_instance: GoogleAI) -> None
                 'user-agent': GENKIT_USER_AGENT,
             },
         ),
+        (
+            HttpOptions(headers={'X-Goog-Api-Client': 'custom-client', 'User-Agent': 'custom-agent'}),
+            {
+                'X-Goog-Api-Client': f'custom-client {GENKIT_USER_AGENT}',
+                'User-Agent': f'custom-agent {GENKIT_USER_AGENT}',
+            },
+        ),
     ],
 )
 def test_inject_attribution_headers(
