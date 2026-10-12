@@ -142,6 +142,8 @@ Types exported from genkit, genkit.model, genkit.embedder, genkit.plugin_api, ge
 
 ## genkit.web
 
+::: genkit.web.ContextProvider
+
 ::: genkit.web.RequestData
 
 ## genkit.exp.agent

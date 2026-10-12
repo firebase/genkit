@@ -29,11 +29,9 @@ from pydantic import BaseModel
 
 from genkit import Genkit, GenkitError, PublicError
 from genkit.plugin_api import Action
-from genkit.web import RequestData, error_body, error_status, read_body, wants_stream
+from genkit.web import ContextProvider, RequestData, error_body, error_status, read_body, wants_stream
 
 logger = logging.getLogger(__name__)
-
-_ContextProvider = Callable[[RequestData], dict[str, Any] | Awaitable[dict[str, Any]]]
 
 # Compact JSON (no spaces) for smaller wire payload.
 _JSON_SEPARATORS = (',', ':')
@@ -99,7 +97,7 @@ class _DjangoRequestData(RequestData):
 
 def genkit_django_handler(
     ai: Genkit,
-    context_provider: _ContextProvider | None = None,
+    context_provider: ContextProvider | None = None,
 ) -> Callable[[Action], Callable[[HttpRequest], Awaitable[HttpResponseBase]]]:
     """A decorator for serving Genkit flows via a Django ASGI app.
 

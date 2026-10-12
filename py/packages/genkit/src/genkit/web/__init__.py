@@ -21,7 +21,7 @@ r"""For serving flows over HTTP or writing a web framework adapter.
 answer with server-sent events. When a flow fails, send ``error_body`` as the
 JSON body and ``error_status`` as the HTTP status. Only a PublicError's text
 reaches the caller; anything else is a generic ``Internal Error`` so server
-details stay in your logs. A ``context_provider`` reads the ``RequestData`` for
+details stay in your logs. A ``ContextProvider`` reads the ``RequestData`` for
 one request and returns what goes into the flow's context.
 
 Example:
@@ -56,8 +56,8 @@ Example:
     ```
 """
 
-from genkit._core._context import RequestData
+from genkit._core._context import ContextProvider, RequestData
 from genkit._core._error import error_body, error_status
 from genkit._core._web import read_body, wants_stream
 
-__all__ = ['RequestData', 'error_body', 'error_status', 'read_body', 'wants_stream']
+__all__ = ['ContextProvider', 'RequestData', 'error_body', 'error_status', 'read_body', 'wants_stream']
