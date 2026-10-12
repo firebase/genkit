@@ -18,7 +18,7 @@
 
 import pytest
 
-from genkit import ActionRunContext, Genkit, Message, ModelResponse, ModelResponseChunk, Part
+from genkit import Genkit, Message, ModelResponse, ModelResponseChunk, Part
 from genkit._ai._testing import (
     GablorkenInput,
     SkipTestError,
@@ -27,6 +27,7 @@ from genkit._ai._testing import (
 )
 from genkit._core._typing import FinishReason, Role
 from genkit.model import ModelConfig, ModelRequest
+from genkit.plugin_api import ActionRunContext
 from genkit.testing import (
     EchoModel,
     ScriptedModel,

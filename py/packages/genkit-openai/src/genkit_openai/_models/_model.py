@@ -37,8 +37,9 @@ from openai.lib._pydantic import _ensure_strict_json_schema
 from openai.types import CompletionUsage
 from openai.types.completion_usage import CompletionTokensDetails, PromptTokensDetails
 
-from genkit import ActionRunContext, FinishReason, GenkitError, Message, ModelResponse, ModelResponseChunk, Part, Role
+from genkit import FinishReason, GenkitError, Message, ModelResponse, ModelResponseChunk, Part, Role
 from genkit.model import ModelConfig, ModelRequest, ModelUsage, Supports, ToolDefinition
+from genkit.plugin_api import ActionRunContext
 
 logger = structlog.get_logger(__name__)
 

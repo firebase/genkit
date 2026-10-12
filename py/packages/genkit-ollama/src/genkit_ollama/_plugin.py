@@ -27,7 +27,7 @@ import httpx
 import ollama as ollama_api
 import structlog
 
-from genkit import ActionRunContext, ModelResponse
+from genkit import ModelResponse
 from genkit.embedder import (
     EmbedderInfo,
     EmbedderSupports,
@@ -41,6 +41,7 @@ from genkit.plugin_api import (
     Action,
     ActionKind,
     ActionMetadata,
+    ActionRunContext,
     Plugin,
     loop_local_client,
     provider_error,

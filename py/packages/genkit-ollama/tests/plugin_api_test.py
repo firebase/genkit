@@ -31,10 +31,10 @@ from genkit_ollama._errors import wrap_connection_errors
 from genkit_ollama._models import OllamaConfig, OllamaModel, _ResolvedModel
 from pydantic import BaseModel
 
-from genkit import ActionRunContext, Document, Genkit, GenkitError, Message, ModelResponse, Part, Role
+from genkit import Document, Genkit, GenkitError, Message, ModelResponse, Part, Role
 from genkit.embedder import EmbedRequest
 from genkit.model import ModelRequest
-from genkit.plugin_api import ActionKind, to_json_schema
+from genkit.plugin_api import ActionKind, ActionRunContext, to_json_schema
 
 
 def test_init_with_options() -> None:

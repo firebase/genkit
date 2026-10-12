@@ -25,20 +25,10 @@ import pytest
 from genkit_middleware import Retry
 from pydantic import ValidationError
 
-from genkit import (
-    ActionRunContext,
-    FinishReason,
-    Genkit,
-    GenkitError,
-    Message,
-    ModelResponse,
-    ModelResponseChunk,
-    Part,
-    Role,
-)
+from genkit import FinishReason, Genkit, GenkitError, Message, ModelResponse, ModelResponseChunk, Part, Role
 from genkit.middleware import GenerateMiddlewareContext, ModelHookParams
 from genkit.model import ModelRequest
-from genkit.plugin_api import provider_error
+from genkit.plugin_api import ActionRunContext, provider_error
 from genkit.testing import define_scripted_model
 
 

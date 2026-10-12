@@ -25,7 +25,7 @@ from openai import APIError, AsyncOpenAI
 from openai.types import Model
 from pydantic import BaseModel
 
-from genkit import ActionRunContext, Embedding, GenkitError, ModelResponse
+from genkit import Embedding, GenkitError, ModelResponse
 from genkit.embedder import (
     EmbedderInfo,
     EmbedderSupports,
@@ -47,6 +47,7 @@ from genkit.plugin_api import (
     Action,
     ActionKind,
     ActionMetadata,
+    ActionRunContext,
     Plugin,
     loop_local_client,
     to_json_schema,

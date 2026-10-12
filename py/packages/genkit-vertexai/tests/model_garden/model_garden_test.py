@@ -36,10 +36,10 @@ from genkit_vertexai._model_garden._plugin import ModelGardenModel
 from google.auth.exceptions import DefaultCredentialsError
 from openai.types.chat import ChatCompletion
 
-from genkit import ActionRunContext, Genkit, GenkitError, Message, Part, Role
+from genkit import Genkit, GenkitError, Message, Part, Role
 from genkit._ai._formats._builtin import built_in_formats
 from genkit.model import ModelRequest, OutputConfig
-from genkit.plugin_api import ActionKind
+from genkit.plugin_api import ActionKind, ActionRunContext
 
 CLAUDE = 'modelgarden/anthropic/claude-sonnet-4@20250514'
 _ADC = 'genkit_vertexai._model_garden._plugin.google_auth_default'

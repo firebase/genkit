@@ -36,9 +36,9 @@ from genkit_vertexai._model_garden._model_info import (
 from google.auth import default as google_auth_default
 from google.auth.exceptions import DefaultCredentialsError
 
-from genkit import ActionRunContext, GenkitError, ModelResponse
+from genkit import GenkitError, ModelResponse
 from genkit.model import ModelInfo, ModelRequest, model as create_model, model_action_metadata
-from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin, loop_local_client
+from genkit.plugin_api import Action, ActionKind, ActionMetadata, ActionRunContext, Plugin, loop_local_client
 
 if TYPE_CHECKING:
     from genkit_vertexai._model_garden._client import CachedOpenAI

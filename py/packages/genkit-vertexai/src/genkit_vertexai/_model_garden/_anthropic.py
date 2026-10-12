@@ -28,9 +28,9 @@ from genkit_anthropic import AnthropicConfig
 # model class instead of copying it.
 from genkit_anthropic._models import AnthropicModel
 
-from genkit import ActionRunContext, ModelResponse
+from genkit import ModelResponse
 from genkit.model import ModelConfig, ModelInfo, ModelRequest, Supports
-from genkit.plugin_api import loop_local_client
+from genkit.plugin_api import ActionRunContext, loop_local_client
 
 
 class AnthropicModelGarden:

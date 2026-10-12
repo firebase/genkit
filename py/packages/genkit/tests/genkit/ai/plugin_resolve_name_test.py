@@ -25,10 +25,10 @@ from collections.abc import Callable
 
 import pytest
 
-from genkit import ActionRunContext, Genkit, GenkitError, Message, ModelResponse, Operation, Part, Role
+from genkit import Genkit, GenkitError, Message, ModelResponse, Operation, Part, Role
 from genkit.embedder import EmbedRequest, EmbedResponse, embedder
 from genkit.model import ModelRequest, background_model, model
-from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin
+from genkit.plugin_api import Action, ActionKind, ActionMetadata, ActionRunContext, Plugin
 
 
 def _answering_model(name: str, text: str) -> Action:

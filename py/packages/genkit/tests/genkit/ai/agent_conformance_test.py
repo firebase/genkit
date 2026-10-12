@@ -44,7 +44,7 @@ from genkit._ai._agents._client import TERMINAL_SNAPSHOT_STATUSES
 from genkit._ai._agents._runtime import SessionRunner
 from genkit._ai._agents._session_stores._inmemory_store import InMemorySessionStore
 from genkit._ai._agents._types import TurnContext, TurnResult
-from genkit._ai._tools import Interrupt, ToolRunContext
+from genkit._ai._tools import Interrupt, ToolContext
 from genkit._core._action import ActionRunContext
 from genkit._core._error import GenkitError, GenkitRuntimeError
 from genkit._core._model import (
@@ -448,7 +448,7 @@ def _register_tools(*, ai: Genkit) -> None:
     # restartTool interrupts on first call, succeeds when restarted with
     # resumed metadata.
     @ai.tool(name='restartTool', description='A tool that requires confirmation before executing')
-    async def restart_tool(input: RestartInput, ctx: ToolRunContext) -> RestartOutput:  # noqa: A002
+    async def restart_tool(input: RestartInput, ctx: ToolContext) -> RestartOutput:  # noqa: A002
         if not ctx.is_resumed():
             raise Interrupt({'requiresConfirmation': True})
         return RestartOutput(result=f'confirmed: {input.action}')

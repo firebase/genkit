@@ -11,8 +11,9 @@ from genkit_google_genai._models._gemini import GeminiModel
 from google.genai import types as genai_types
 from pytest_mock import MockerFixture
 
-from genkit import ActionRunContext, Message, Part, Role
+from genkit import Message, Part, Role
 from genkit.model import ModelRequest, ToolDefinition, ToolRequest
+from genkit.plugin_api import ActionRunContext
 
 STRING_INPUT = {'type': 'string'}
 CITY_OBJECT_INPUT = {

@@ -10,10 +10,10 @@ from collections.abc import Awaitable, Callable
 
 import pytest
 
-from genkit import ActionRunContext, FinishReason, Genkit, Message, ModelResponse, Operation, Part, Role, Tool
+from genkit import FinishReason, Genkit, Message, ModelResponse, Operation, Part, Role, Tool
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, MiddlewareRef, ModelHookParams
 from genkit.model import GenerateActionOptions, ModelRequest, model
-from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin
+from genkit.plugin_api import Action, ActionKind, ActionMetadata, ActionRunContext, Plugin
 
 NextModel = Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]]
 

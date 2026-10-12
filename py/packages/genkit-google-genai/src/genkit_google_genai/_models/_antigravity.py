@@ -38,9 +38,9 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic.alias_generators import to_camel
 from typing_extensions import Never
 
-from genkit import ActionRunContext, ModelResponse
+from genkit import ModelResponse
 from genkit.model import ModelRequest, model_action_metadata
-from genkit.plugin_api import Action, ActionKind
+from genkit.plugin_api import Action, ActionKind, ActionRunContext
 
 DEFAULT_ENVIRONMENT: dict[str, str] = {'type': 'remote'}
 

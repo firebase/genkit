@@ -17,7 +17,7 @@
 """Framework primitives for plugin authors."""
 
 # Base class and framework primitives
-from genkit._core._action import Action, ActionKind
+from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._compat import StrEnum
 from genkit._core._constants import GENKIT_CLIENT_HEADER
 from genkit._core._environment import is_dev_environment
@@ -34,6 +34,8 @@ __all__ = [
     'Action',
     'ActionMetadata',
     'ActionKind',
+    # Run context for model, background-model and agent fns
+    'ActionRunContext',
     'StatusName',
     # String enum that behaves the same on Python 3.10 through 3.14
     'StrEnum',

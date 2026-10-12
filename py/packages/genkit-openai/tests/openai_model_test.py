@@ -33,9 +33,10 @@ from openai.types import CompletionUsage
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pydantic import BaseModel
 
-from genkit import ActionRunContext, FinishReason, GenkitError, Message, ModelResponse, ModelResponseChunk, Part, Role
+from genkit import FinishReason, GenkitError, Message, ModelResponse, ModelResponseChunk, Part, Role
 from genkit._core._typing import GenerationUsage, Operation
 from genkit.model import ModelConfig, ModelRequest, OutputConfig, Supports, ToolRequest
+from genkit.plugin_api import ActionRunContext
 
 
 def test_unknown_chat_id_json_mode_uses_json_object() -> None:

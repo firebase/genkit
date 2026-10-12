@@ -11,12 +11,12 @@ from typing import Optional, cast
 import pytest
 from pydantic import TypeAdapter
 
-from genkit import ActionRunContext, Document, Genkit, GenkitError, Message, ModelResponse, Operation, Part
+from genkit import Document, Genkit, GenkitError, Message, ModelResponse, Operation, Part
 from genkit._core._action import Action, ActionKind
 from genkit._core._background import CheckModelOpFn, StartModelOpFn
 from genkit._core._typing import ActionMetadata, Role
 from genkit.model import ModelRequest
-from genkit.plugin_api import Plugin
+from genkit.plugin_api import ActionRunContext, Plugin
 
 _REPLY = ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('Smoked Salmon Tartine')]))
 
@@ -72,24 +72,24 @@ async def test_action_with_postponed_context_annotations_gets_context() -> None:
 
 
 # A user module that imports its context type only for type checkers, so the
-# annotation stays the string 'ToolRunContext | None' at runtime.
+# annotation stays the string 'ToolContext | None' at runtime.
 _TYPE_CHECKING_CONTEXT_MODULE = """
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from genkit import ToolRunContext
+    from genkit import ToolContext
 
 
-async def plate(order: str, ctx: ToolRunContext | None) -> str:
+async def plate(order: str, ctx: ToolContext | None) -> str:
     return f'{order} for table {ctx.context["table"]}'
 """
 
 
 @pytest.mark.asyncio
 async def test_action_with_unresolvable_context_subclass_union_gets_context() -> None:
-    """An unresolvable `'ToolRunContext | None'` still marks the context, by class name."""
+    """An unresolvable `'ToolContext | None'` still marks the context, by class name."""
     module_globals: dict[str, object] = {}
     exec(_TYPE_CHECKING_CONTEXT_MODULE, module_globals)  # noqa: S102 - builds a module with postponed annotations
     plate = cast(Callable[[str, ActionRunContext], Awaitable[str]], module_globals['plate'])
@@ -102,7 +102,7 @@ async def test_action_with_unresolvable_context_subclass_union_gets_context() ->
 @pytest.mark.skipif(sys.version_info < (3, 14), reason='annotations are evaluated lazily from Python 3.14')
 @pytest.mark.asyncio
 async def test_action_with_type_checking_only_context_runs_without_future_import() -> None:
-    """On 3.14, a `TYPE_CHECKING`-only `ToolRunContext` without the `__future__` import still runs."""
+    """On 3.14, a `TYPE_CHECKING`-only `ToolContext` without the `__future__` import still runs."""
     module_globals: dict[str, object] = {}
     source = _TYPE_CHECKING_CONTEXT_MODULE.replace('from __future__ import annotations\n', '')
     exec(source, module_globals)  # noqa: S102 - builds a module whose annotations are evaluated lazily
@@ -255,7 +255,8 @@ from pydantic import BaseModel
 from genkit import Message, ModelResponse as _ModelResponse, Part, Role
 
 if TYPE_CHECKING:
-    from genkit import ActionRunContext, ModelResponse
+    from genkit import ModelResponse
+    from genkit.plugin_api import ActionRunContext
     from genkit.model import ModelRequest
 
     class AllergyRequest(ModelRequest):

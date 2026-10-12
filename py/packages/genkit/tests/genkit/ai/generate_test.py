@@ -28,7 +28,7 @@ from genkit._ai._generate import (
     generate_action,
 )
 from genkit._ai._model import text_from_content, text_from_message
-from genkit._ai._tools import Interrupt, ToolRunContext, define_tool
+from genkit._ai._tools import Interrupt, ToolContext, define_tool
 from genkit._core._action import ActionRunContext
 from genkit._core._error import GenkitError, PublicError, RuntimeErrorReason
 from genkit._core._model import GenerateActionOptions, ModelRequest, Resume
@@ -1504,14 +1504,14 @@ def test_wrap_tool_params_text_part_raises() -> None:
 
 @pytest.mark.asyncio
 async def test_generate_context_reaches_tool_run() -> None:
-    """``generate(context=...)`` is piped into ``tool.run`` as ``ToolRunContext.context``."""
+    """``generate(context=...)`` is piped into ``tool.run`` as ``ToolContext.context``."""
     seen: list[dict[str, object]] = []
 
     ai = Genkit()
     pm, _ = define_scripted_model(ai)
 
     @ai.tool(name='ctxTool')
-    async def ctx_tool(_: dict, ctx: ToolRunContext) -> str:  # noqa: ARG001
+    async def ctx_tool(_: dict, ctx: ToolContext) -> str:  # noqa: ARG001
         seen.append(dict(ctx.context))
         return 'ok'
 
@@ -1567,7 +1567,7 @@ async def test_generate_without_context_uses_enclosing_flow_context() -> None:
             return await next_fn(params, ctx)
 
     @ai.tool(name='check_allergies')
-    async def check_allergies(_: dict, ctx: ToolRunContext) -> str:  # noqa: ARG001
+    async def check_allergies(_: dict, ctx: ToolContext) -> str:  # noqa: ARG001
         seen.append(('tool', dict(ctx.context)))
         return 'no nuts'
 
@@ -1604,13 +1604,13 @@ async def test_generate_without_context_uses_enclosing_flow_context() -> None:
 
 @pytest.mark.asyncio
 async def test_generate_resume_context_reaches_tool_run() -> None:
-    """``generate(resume=..., context=...)`` pipes ``context`` to ``ToolRunContext.context``."""
+    """``generate(resume=..., context=...)`` pipes ``context`` to ``ToolContext.context``."""
     seen: list[dict[str, object]] = []
 
     ai = Genkit()
 
     @ai.tool(name='ctx_res_tool')
-    async def ctx_res_tool(inp: dict, ctx: ToolRunContext) -> str:  # noqa: ARG001
+    async def ctx_res_tool(inp: dict, ctx: ToolContext) -> str:  # noqa: ARG001
         seen.append(dict(ctx.context))
         return 'resumed_value'
 
@@ -1647,7 +1647,7 @@ async def test_generate_resume_context_reaches_tool_run() -> None:
 
 @pytest.mark.asyncio
 async def test_wrap_tool_middleware_custom_context_reaches_tool_run() -> None:
-    """Mutations to ``ctx.custom_context`` in ``wrap_tool`` are visible in ``ToolRunContext``."""
+    """Mutations to ``ctx.custom_context`` in ``wrap_tool`` are visible in ``ToolContext``."""
     seen: list[dict[str, object]] = []
 
     ai = Genkit()
@@ -1666,7 +1666,7 @@ async def test_wrap_tool_middleware_custom_context_reaches_tool_run() -> None:
     pm, _ = define_scripted_model(ai)
 
     @ai.tool(name='ctxTool')
-    async def ctx_tool(_: dict, ctx: ToolRunContext) -> str:  # noqa: ARG001
+    async def ctx_tool(_: dict, ctx: ToolContext) -> str:  # noqa: ARG001
         seen.append(dict(ctx.context))
         return 'ok'
 

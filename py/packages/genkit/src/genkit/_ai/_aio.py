@@ -308,7 +308,7 @@ class Genkit:
         """Decorator to register an async function as a flow.
 
         A flow takes at most one input. To read the request context or stream
-        chunks, add a parameter annotated ``ActionRunContext``, in any position.
+        chunks, add a parameter annotated ``FlowContext``, in any position.
         Any other second parameter raises ``TypeError`` when the flow is defined.
 
         Args:
@@ -329,7 +329,7 @@ class Genkit:
                 return res.text
 
             @ai.flow(chunk_type=str)
-            async def streaming_flow(x: int, ctx: ActionRunContext) -> str:
+            async def streaming_flow(x: int, ctx: FlowContext[str]) -> str:
                 ctx.send_chunk('progress')
                 return 'done'
         """
@@ -388,7 +388,7 @@ class Genkit:
         A tool takes at most one input, and that input's type is the schema the
         model fills in. For several fields, use one Pydantic model. To read the
         request context or interrupt, add a parameter annotated
-        ``ToolRunContext``, in any position. Any other second parameter raises
+        ``ToolContext``, in any position. Any other second parameter raises
         ``TypeError`` when the tool is defined.
 
         Example:
@@ -401,7 +401,7 @@ class Genkit:
                 days: int = 3
 
             @ai.tool()
-            async def forecast(input: Forecast, ctx: ToolRunContext) -> str:
+            async def forecast(input: Forecast, ctx: ToolContext) -> str:
                 user = ctx.context.get('user_id')
                 return f'{input.days}-day forecast for {input.city} ({user})'
 

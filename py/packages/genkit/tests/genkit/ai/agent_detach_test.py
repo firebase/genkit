@@ -26,7 +26,7 @@ from genkit._ai._agents._session_stores._inmemory_store import InMemorySessionSt
 from genkit._ai._agents._snapshot import abort_snapshot_in_store
 from genkit._ai._agents._types import TurnContext
 from genkit._ai._generate import CallScope, generate_action
-from genkit._ai._tools import ToolRunContext
+from genkit._ai._tools import ToolContext
 from genkit._core._action import ActionRunContext
 from genkit._core._channel import CloseableQueue
 from genkit._core._error import GenkitError
@@ -327,7 +327,7 @@ async def test_generate_tool_respects_abort_signal() -> None:
     tool_saw_abort = asyncio.Event()
 
     @ai.tool(name='slowWork')
-    async def slow_work(_: dict, ctx: ToolRunContext) -> dict:
+    async def slow_work(_: dict, ctx: ToolContext) -> dict:
         try:
             for _i in range(200):
                 if ctx.abort_signal.is_set():

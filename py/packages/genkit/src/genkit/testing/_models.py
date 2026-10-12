@@ -26,10 +26,11 @@ from typing import Any, cast
 
 from pydantic import BaseModel
 
-from genkit import ActionRunContext, Genkit, Message, ModelResponse, ModelResponseChunk, Part
+from genkit import Genkit, Message, ModelResponse, ModelResponseChunk, Part
 from genkit._core._action import Action
 from genkit._core._typing import Role
 from genkit.model import ModelRequest
+from genkit.plugin_api import ActionRunContext
 
 ResponseCallback = Callable[[ModelRequest[Any]], Awaitable[ModelResponse[Any]] | ModelResponse[Any]]
 

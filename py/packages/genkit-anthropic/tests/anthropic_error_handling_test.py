@@ -33,10 +33,10 @@ from anthropic import (
 )
 from genkit_anthropic._models import AnthropicModel
 
-from genkit import ActionRunContext, GenkitError, Message, Part, Role
+from genkit import GenkitError, Message, Part, Role
 from genkit._core._error import get_callable_json, get_http_status
 from genkit.model import ModelRequest
-from genkit.plugin_api import StatusName
+from genkit.plugin_api import ActionRunContext, StatusName
 
 _ERROR_MESSAGE = 'Anthropic request failed'
 

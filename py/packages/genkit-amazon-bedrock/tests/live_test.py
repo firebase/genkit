@@ -37,9 +37,10 @@ from genkit_amazon_bedrock._image import BedrockImageModel
 from genkit_amazon_bedrock._models import BedrockModel
 from genkit_amazon_bedrock._transport import BedrockTransport
 
-from genkit import ActionRunContext, Document, FinishReason, GenkitError, Message, ModelResponse, Part, Role
+from genkit import Document, FinishReason, GenkitError, Message, ModelResponse, Part, Role
 from genkit.embedder import EmbedRequest
 from genkit.model import ModelRequest, ToolDefinition
+from genkit.plugin_api import ActionRunContext
 
 pytestmark = [
     pytest.mark.asyncio,

@@ -32,8 +32,9 @@ from google.auth.exceptions import DefaultCredentialsError, RefreshError
 from google.genai import types as genai_types
 from google.genai.errors import APIError
 
-from genkit import ActionRunContext, FinishReason, GenkitError, Message, ModelResponse, Operation, Part, Role
+from genkit import FinishReason, GenkitError, Message, ModelResponse, Operation, Part, Role
 from genkit.model import ModelRequest
+from genkit.plugin_api import ActionRunContext
 
 
 def _sdk_op(

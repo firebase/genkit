@@ -42,8 +42,9 @@ from openai import AsyncOpenAI
 from openai._legacy_response import HttpxBinaryResponseContent
 from openai.types.audio import Transcription, Translation
 
-from genkit import ActionRunContext, FinishReason, GenkitError, Message, ModelResponse, Part, Role
+from genkit import FinishReason, GenkitError, Message, ModelResponse, Part, Role
 from genkit.model import ModelConfig, ModelInfo, ModelRequest, Supports
+from genkit.plugin_api import ActionRunContext
 
 
 class OpenAITtsConfig(ModelConfig):

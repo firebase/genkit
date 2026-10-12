@@ -35,8 +35,9 @@ from openai import AsyncOpenAI
 from openai.types.images_response import ImagesResponse
 from pydantic import Field
 
-from genkit import ActionRunContext, FinishReason, Message, ModelResponse, Part, Role
+from genkit import FinishReason, Message, ModelResponse, Part, Role
 from genkit.model import ModelConfig, ModelInfo, ModelRequest, Supports
+from genkit.plugin_api import ActionRunContext
 
 
 class OpenAIDalleConfig(ModelConfig):

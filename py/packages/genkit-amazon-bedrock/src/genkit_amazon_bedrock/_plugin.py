@@ -26,13 +26,14 @@ from typing import TYPE_CHECKING, Literal
 
 import structlog
 
-from genkit import ActionRunContext, ModelResponse
+from genkit import ModelResponse
 from genkit.embedder import EmbedRequest, EmbedResponse, embedder, embedder_action_metadata
 from genkit.model import ModelRequest, model as create_model, model_action_metadata
 from genkit.plugin_api import (
     Action,
     ActionKind,
     ActionMetadata,
+    ActionRunContext,
     Plugin,
     to_json_schema,
 )

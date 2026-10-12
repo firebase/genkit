@@ -28,8 +28,9 @@ import pytest
 from genkit_ollama._models import OllamaConfig, OllamaModel, _convert_parameters, _image_fetch_client, _ResolvedModel
 from pydantic import ConfigDict, ValidationError
 
-from genkit import ActionRunContext, GenkitError, Message, ModelResponseChunk, Part, Role
+from genkit import GenkitError, Message, ModelResponseChunk, Part, Role
 from genkit.model import ModelConfig, ModelRequest, ModelUsage, ToolDefinition
+from genkit.plugin_api import ActionRunContext
 
 
 class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):

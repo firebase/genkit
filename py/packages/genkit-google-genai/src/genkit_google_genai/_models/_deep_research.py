@@ -42,9 +42,9 @@ from genkit_google_genai._models._secrets import reject_request_config_api_key
 from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic.alias_generators import to_camel
 
-from genkit import ActionRunContext, GenkitError, Operation
+from genkit import GenkitError, Operation
 from genkit.model import BackgroundAction, ModelRef, ModelRequest, model_ref
-from genkit.plugin_api import Action, ActionKind, to_json_schema
+from genkit.plugin_api import Action, ActionKind, ActionRunContext, to_json_schema
 
 AGENT_CONFIG_KEYS = (
     'thinking_summaries',

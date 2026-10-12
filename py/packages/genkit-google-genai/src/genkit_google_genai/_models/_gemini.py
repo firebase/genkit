@@ -55,16 +55,7 @@ from pydantic import (
     model_validator,
 )
 
-from genkit import (
-    ActionRunContext,
-    FinishReason,
-    GenkitError,
-    Message,
-    ModelResponse,
-    ModelResponseChunk,
-    Part,
-    Role,
-)
+from genkit import FinishReason, GenkitError, Message, ModelResponse, ModelResponseChunk, Part, Role
 from genkit.model import (
     Candidate,
     Constrained,
@@ -76,7 +67,7 @@ from genkit.model import (
     ToolDefinition,
     get_basic_usage_stats,
 )
-from genkit.plugin_api import StrEnum
+from genkit.plugin_api import ActionRunContext, StrEnum
 
 
 def _to_dict(obj: JsonAny) -> JsonAny:  # noqa: ANN401
