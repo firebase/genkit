@@ -125,8 +125,8 @@ from genkit._core._tool import Tool
 from genkit._core._typing import (
     BaseDataPoint,
     Embedding,
-    EvalFnResponse,
-    EvalRequest,
+    EvaluatorRequest,
+    EvaluatorResponse,
     MiddlewareRef,
     ModelInfo,
     Operation,
@@ -498,9 +498,9 @@ class Genkit:
         Example:
             ```python
             # 1. Score whether the answer mentions the expected dish
-            async def mentions_dish(row: BaseDataPoint, options: object | None) -> EvalFnResponse:
+            async def mentions_dish(row: BaseDataPoint, options: object | None) -> EvaluatorResponse:
                 hit = row.reference.lower() in str(row.output).lower()
-                return EvalFnResponse(test_case_id=row.test_case_id or '', evaluation=[Score(score=hit)])
+                return EvaluatorResponse(test_case_id=row.test_case_id or '', evaluation=[Score(score=hit)])
 
 
             # 2. Register it under a name
@@ -513,7 +513,7 @@ class Genkit:
 
             # 3. Run it over a dataset
             rows = await ai.evaluate(evaluator='mentions_dish', dataset=dataset)
-            # => [EvalFnResponse(test_case_id='...', evaluation=[Score(score=True)]), ...]
+            # => [EvaluatorResponse(test_case_id='...', evaluation=[Score(score=True)]), ...]
             ```
         """
         return define_evaluator(
@@ -542,7 +542,7 @@ class Genkit:
     ) -> BatchEvaluator:
         """Register a batch evaluator.
 
-        The function takes one ``EvalRequest`` and returns ``list[EvalFnResponse]``.
+        The function takes one ``EvaluatorRequest`` and returns ``list[EvaluatorResponse]``.
         Read options from ``req.options``. A second parameter raises ``TypeError`` when defined.
         """
         return define_batch_evaluator(
@@ -1882,7 +1882,7 @@ class Genkit:
         dataset: list[BaseDataPoint],
         config: dict[str, object] | None = None,
         eval_run_id: str | None = None,
-    ) -> list[EvalFnResponse]:
+    ) -> list[EvaluatorResponse]:
         """Evaluate a dataset using the specified evaluator.
 
         Returns a list of rows. A per-row evaluator gives one row per
@@ -1931,7 +1931,7 @@ class Genkit:
             eval_run_id = str(uuid.uuid4())
 
         response = await eval_action.run(
-            EvalRequest(
+            EvaluatorRequest(
                 dataset=dataset,
                 options=final_options,
                 eval_run_id=eval_run_id,

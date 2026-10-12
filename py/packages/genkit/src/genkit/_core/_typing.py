@@ -305,8 +305,8 @@ class BaseEvalDataPoint(GenkitModel):
     trace_ids: list[str] | None = None
 
 
-class EvalFnResponse(GenkitModel):
-    """Model for evalfnresponse data."""
+class EvaluatorResponse(GenkitModel):
+    """Model for evaluatorresponse data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     sample_index: float | None = None
@@ -323,8 +323,8 @@ class EvalFnResponse(GenkitModel):
         return [value] if isinstance(value, dict) else value
 
 
-class EvalRequest(GenkitModel):
-    """Model for evalrequest data."""
+class EvaluatorRequest(GenkitModel):
+    """Model for evaluatorrequest data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     dataset: list[BaseDataPoint] = Field(...)
@@ -1073,10 +1073,10 @@ class JsonPatch(RootModel[list[JsonPatchOperation]]):
     root: list[JsonPatchOperation]
 
 
-class EvalResponse(RootModel[list[EvalFnResponse]]):
+class EvalResponse(RootModel[list[EvaluatorResponse]]):
     """Root model for evalresponse."""
 
-    root: list[EvalFnResponse]
+    root: list[EvaluatorResponse]
 
 
 class Constrained(StrEnum):

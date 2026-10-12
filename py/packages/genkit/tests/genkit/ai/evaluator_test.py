@@ -25,9 +25,9 @@ from genkit import Genkit, GenkitError
 from genkit.evaluator import (
     BaseDataPoint,
     BatchEvaluator,
-    EvalFnResponse,
-    EvalRequest,
     Evaluator,
+    EvaluatorRequest,
+    EvaluatorResponse,
     Score,
 )
 from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin
@@ -37,8 +37,8 @@ class ThresholdOptions(BaseModel):
     threshold: float = 0.5
 
 
-async def _exact_match(datapoint: BaseDataPoint, options: object | None) -> EvalFnResponse:
-    return EvalFnResponse(
+async def _exact_match(datapoint: BaseDataPoint, options: object | None) -> EvaluatorResponse:
+    return EvaluatorResponse(
         test_case_id=datapoint.test_case_id or '',
         evaluation=[Score(score=datapoint.output == datapoint.reference)],
     )
@@ -88,7 +88,7 @@ async def test_evaluator_action_runs_fn_per_datapoint() -> None:
     """Running the built action over two rows returns two scored rows, in dataset order."""
     action = Evaluator('t/e', _exact_match, display_name='Exact match', definition='output equals reference')
 
-    result = await action.run(EvalRequest(dataset=_two_rows(), eval_run_id='run-1'))
+    result = await action.run(EvaluatorRequest(dataset=_two_rows(), eval_run_id='run-1'))
 
     rows = result.response.root
     assert [row.test_case_id for row in rows] == ['case1', 'case2']
@@ -99,8 +99,8 @@ async def test_evaluator_action_runs_fn_per_datapoint() -> None:
 def test_evaluator_sync_fn_raises_type_error() -> None:
     """Evaluator(...) rejects a sync fn when built, instead of failing every row at run time."""
 
-    def sync_match(datapoint: BaseDataPoint, options: object | None) -> EvalFnResponse:
-        return EvalFnResponse(test_case_id=datapoint.test_case_id or '', evaluation=[Score(score=True)])
+    def sync_match(datapoint: BaseDataPoint, options: object | None) -> EvaluatorResponse:
+        return EvaluatorResponse(test_case_id=datapoint.test_case_id or '', evaluation=[Score(score=True)])
 
     with pytest.raises(TypeError, match="Got sync function for 't/e'"):
         Evaluator('t/e', cast(Any, sync_match), display_name='Exact match', definition='output equals reference')
@@ -169,7 +169,7 @@ async def test_plugin_returning_evaluator_registers_it_on_app() -> None:
     assert [score.score for score in results[1].evaluation] == [False]
 
 
-async def _exact_match_batch(req: EvalRequest) -> list[EvalFnResponse]:
+async def _exact_match_batch(req: EvaluatorRequest) -> list[EvaluatorResponse]:
     return [await _exact_match(datapoint, None) for datapoint in req.dataset]
 
 
@@ -207,7 +207,7 @@ async def test_batch_evaluator_builds_action_without_registering() -> None:
 def test_batch_evaluator_sync_fn_raises_type_error() -> None:
     """BatchEvaluator(...) rejects a sync fn when built."""
 
-    def sync_batch(req: EvalRequest) -> list[EvalFnResponse]:
+    def sync_batch(req: EvaluatorRequest) -> list[EvaluatorResponse]:
         return []
 
     with pytest.raises(TypeError, match="Got sync function for 't/b'"):

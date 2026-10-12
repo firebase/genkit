@@ -53,8 +53,8 @@ from genkit._core._plugin import Plugin, resolved_action_name
 from genkit._core._typing import (
     ActionMetadata,
     EmbedResponse,
-    EvalRequest,
     EvalResponse,
+    EvaluatorRequest,
     Operation,
 )
 
@@ -886,7 +886,7 @@ class Registry:
             action,
         )
 
-    async def resolve_evaluator(self, name: str) -> Action[EvalRequest, EvalResponse, Never] | None:
+    async def resolve_evaluator(self, name: str) -> Action[EvaluatorRequest, EvalResponse, Never] | None:
         """Resolve an evaluator action by name with full type information.
 
         Args:
@@ -898,7 +898,7 @@ class Registry:
         action = await self.resolve_action(ActionKind.EVALUATOR, name)
         if action is None:
             return None
-        return cast(Action[EvalRequest, EvalResponse, Never], action)
+        return cast(Action[EvaluatorRequest, EvalResponse, Never], action)
 
 
 def define_dynamic_action_provider(
