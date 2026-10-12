@@ -1,6 +1,6 @@
 # Genkit 1.0 API Review (Python)
 
-The Python surface we intend to ship as 1.0. It describes the state after the open API PRs land (#6681, #6697, #6698, #6699, #6709, #6757, #6764–#6770, #6775, #6777, #6314, #6655), not `main` today.
+The Python surface we intend to ship as 1.0. It describes the state after the open API PRs land (#6681, #6697, #6698, #6699, #6709, #6757, #6764–#6770, #6775, #6777, #6314, #6655).
 
 ---
 
