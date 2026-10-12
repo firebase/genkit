@@ -327,10 +327,9 @@ function defineOllamaModel(
         try {
           for await (const chunk of readChunks(reader)) {
             buffer += textDecoder.decode(chunk, { stream: true });
-            let newline: number;
-            while ((newline = buffer.indexOf('\n')) !== -1) {
-              const line = buffer.substring(0, newline);
-              buffer = buffer.substring(newline + 1);
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
+            for (const line of lines) {
               handleLine(line);
             }
           }
