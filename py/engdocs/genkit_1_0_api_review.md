@@ -1229,7 +1229,7 @@ Every capability is registered as one or more [`Action`](../packages/genkit/src/
   - `Embedder(Action[EmbedRequest, EmbedResponse])`
   - `Evaluator` / `BatchEvaluator(Action[EvaluatorRequest, EvalResponse])`
   - `Flow(Action[In, Out, Chunk])`
-  - `Tool(Action[In, Out])`: the tool action returns the function's own value, so `await tool(x)` gives a `Quote` or a `str`. Genkit wraps it in a `MultipartToolResponse` only where the result goes to a model, the same split JS makes between its `tool` and `tool.v2` actions.
+  - `Tool(Action[In, Out, Chunk])`: the chunk type comes from `ToolContext[ChunkT]` (see Streaming Tool Chunks). The tool action returns the function's own value, so `await tool(x)` gives a `Quote` or a `str`. Genkit wraps it in a `MultipartToolResponse` only where the result goes to a model, the same split JS makes between its `tool` and `tool.v2` actions.
 - **Composites** (several actions behind one handle, so no single `Action[In, Out]` fits):
   - `BackgroundModel`: `start` (`background-model`), `check` (`check-operation`), and optional `cancel` (`cancel-operation`), each with its own key and types. `.actions` lists them for registration.
   - `Prompt`: a `prompt` action that renders the request and an `executable-prompt` action that runs `generate`. Calling the prompt resolves the model and goes through `generate`.
