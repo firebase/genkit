@@ -26,6 +26,7 @@ config sails through until the API rejects it.
 
 from typing import TypeVar
 
+from genkit_google_genai._models._embedder import EmbeddingConfig
 from genkit_google_genai._models._routing import classify_family, is_imagen_model_name, strip_ref_prefixes
 from pydantic import BaseModel
 
@@ -109,13 +110,14 @@ def family_embedder_ref(
     *,
     namespace: str,
     plugin_class: str,
-    config: dict[str, object] | None,
+    config: EmbeddingConfig | dict[str, object] | None,
     version: str | None,
 ) -> EmbedderRef:
     """Strip, gate, and build an EmbedderRef for ai.embed().
 
     This deliberately returns an EmbedderRef, not a ModelRef: an embedder id
-    must never end up in generate(model=...).
+    must never end up in generate(model=...). A typed ``config`` is stored as
+    a dict, the form ``ai.embed()`` merges with per-call config.
     """
     if not isinstance(name, str):
         raise GenkitError(
@@ -129,4 +131,6 @@ def family_embedder_ref(
         raise wrong_family_error(
             plugin_class=plugin_class, method='embedding', family='embedder', local=local, actual=actual
         )
+    if isinstance(config, EmbeddingConfig):
+        config = config.model_dump(exclude_none=True)
     return EmbedderRef(name=f'{namespace}/{local}', config=config, version=version)

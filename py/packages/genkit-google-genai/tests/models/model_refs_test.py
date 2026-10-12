@@ -23,6 +23,7 @@ from typing import get_args
 import genkit_google_genai
 import pytest
 from genkit_google_genai import (
+    EmbeddingConfig,
     GeminiConfig,
     GeminiImageConfig,
     GeminiTtsConfig,
@@ -228,6 +229,12 @@ class TestEmbeddingConstructor:
         assert isinstance(ref, EmbedderRef)
         assert not isinstance(ref, ModelRef)
         assert ref.name == 'googleai/gemini-embedding-001'
+
+    def test_embedding_stores_a_typed_config_as_a_dict(self) -> None:
+        """A typed EmbeddingConfig lands on the ref as the dict ai.embed() merges."""
+        config = EmbeddingConfig(task_type='RETRIEVAL_QUERY', output_dimensionality=256)
+        ref = GoogleAI.embedding('gemini-embedding-001', config=config)
+        assert ref.config == {'task_type': 'RETRIEVAL_QUERY', 'output_dimensionality': 256}
 
     def test_embedding_strips_and_prefixes(self) -> None:
         """Pasted embedder prefixes are stripped before namespacing."""
