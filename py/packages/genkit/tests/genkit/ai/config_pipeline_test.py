@@ -32,7 +32,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
 from genkit import FinishReason, Genkit, GenkitError
-from genkit._ai._embedding import EmbedderInfo, EmbedderRef, create_embedder_ref
+from genkit._ai._embedding import EmbedderInfo, EmbedderRef
 from genkit._ai._evaluator import EvaluatorRef
 from genkit._ai._model import model_ref
 from genkit._core._action import ActionRunContext
@@ -474,7 +474,7 @@ async def test_explicit_none_overrides_ref_and_default_for_an_optional_field() -
 
     ai_typed.define_model(name='kitchen', fn=kitchen)
 
-    await ai.embed(embedder=create_embedder_ref('crm', config={'seed': 7}), content='acme corp', config={'seed': None})
+    await ai.embed(embedder=EmbedderRef(name='crm', config={'seed': 7}), content='acme corp', config={'seed': None})
     await ai_typed.generate(
         model=model_ref('kitchen', config_schema=KitchenConfig, config=KitchenConfig(seed=7)),
         prompt='hi',
@@ -539,7 +539,7 @@ async def test_slot_level_none_still_means_nothing_set() -> None:
 
 def test_typed_embedder_ref_checks_and_copies_config() -> None:
     config = CrmEmbedConfig(task_type='query')
-    ref = create_embedder_ref('crm', config_schema=CrmEmbedConfig, config=config, version='v2')
+    ref = EmbedderRef(name='crm', config_schema=CrmEmbedConfig, config=config, version='v2')
     config.task_type = 'document'
 
     assert ref.config == CrmEmbedConfig(task_type='query')
@@ -614,7 +614,7 @@ async def test_ref_config_survives_unset_call_fields_and_call_wins_per_field() -
         model=model_ref('bistro', config_schema=TableConfig, config=ref_config), prompt='hi', config=call_config
     )
     await ai.embed(
-        embedder=create_embedder_ref('crm', config_schema=TableConfig, config=ref_config),
+        embedder=EmbedderRef(name='crm', config_schema=TableConfig, config=ref_config),
         content='acme corp',
         config=call_config,
     )
@@ -634,7 +634,7 @@ async def test_untyped_fns_get_ref_and_call_layers_over_defaults() -> None:
     ai, seen = _pipeline_app()
 
     await ai.embed(
-        embedder=create_embedder_ref('crm', config={'temperature': 0.1, 'region': 'emea'}),
+        embedder=EmbedderRef(name='crm', config={'temperature': 0.1, 'region': 'emea'}),
         content='acme corp',
         config={'allergens': ['shellfish']},
     )
@@ -651,7 +651,7 @@ async def test_ref_with_a_foreign_config_schema_raises_at_call_time() -> None:
     with pytest.raises(GenkitError, match=r"model 'bistro' takes config .*TableConfig, but the ref's config_schema"):
         await ai.generate(model=model_ref('bistro', config_schema=MenuOnlyConfig), prompt='hi')
     with pytest.raises(GenkitError, match=r"embedder 'crm' takes config .*TableConfig, but the ref's config_schema"):
-        await ai.embed(embedder=create_embedder_ref('crm', config_schema=MenuOnlyConfig), content='acme corp')
+        await ai.embed(embedder=EmbedderRef(name='crm', config_schema=MenuOnlyConfig), content='acme corp')
     with pytest.raises(GenkitError, match=r"evaluator 'row' takes config .*TableConfig, but the ref's config_schema"):
         await ai.evaluate(evaluator=EvaluatorRef(name='row', config_schema=MenuOnlyConfig), dataset=ROWS)
     assert seen == {}
@@ -700,7 +700,7 @@ async def test_embed_folds_aliases_to_the_embedder_class() -> None:
     ai.define_embedder('crm', crm_search, config_schema=AliasedEmbedConfig)
 
     await ai.embed(
-        embedder=create_embedder_ref('crm', config={'taskType': 'RETRIEVAL_DOCUMENT', 'outputDimensionality': 256}),
+        embedder=EmbedderRef(name='crm', config={'taskType': 'RETRIEVAL_DOCUMENT', 'outputDimensionality': 256}),
         content='acme corp',
         config={'task_type': 'RETRIEVAL_QUERY'},
     )
@@ -713,12 +713,12 @@ async def test_version_is_the_lowest_caller_layer_for_models_and_embedders() -> 
     """ref.version < ref.config['version'] < call config['version'], for both kinds."""
     ai, seen = _pipeline_app(config_schema=NotSetConfig)
 
-    await ai.embed(embedder=create_embedder_ref('crm', version='v1'), content='acme corp')
+    await ai.embed(embedder=EmbedderRef(name='crm', version='v1'), content='acme corp')
     assert seen['embedder'] == {'version': 'v1'}
-    await ai.embed(embedder=create_embedder_ref('crm', version='v1', config={'version': 'v2'}), content='acme corp')
+    await ai.embed(embedder=EmbedderRef(name='crm', version='v1', config={'version': 'v2'}), content='acme corp')
     assert seen['embedder'] == {'version': 'v2'}
     await ai.embed(
-        embedder=create_embedder_ref('crm', version='v1', config={'version': 'v2'}),
+        embedder=EmbedderRef(name='crm', version='v1', config={'version': 'v2'}),
         content='acme corp',
         config={'version': 'v3'},
     )
@@ -796,7 +796,7 @@ async def test_alias_only_class_keeps_ref_and_call_values_on_every_path() -> Non
     await ai.embed(embedder='crm', content='acme corp', config={'task_type': 'QUERY', 'output_dimensionality': 256})
     assert seen['embedder'] == expected_options
     await ai.embed(
-        embedder=create_embedder_ref('crm', config={'task_type': 'QUERY'}),
+        embedder=EmbedderRef(name='crm', config={'task_type': 'QUERY'}),
         content='acme corp',
         config={'outputDimensionality': 256},
     )
@@ -816,7 +816,7 @@ async def test_untyped_fn_gets_one_dict_shape_by_name_ref_and_run() -> None:
     await ai.embed(embedder='crm', content='acme corp', config={'taskType': 'QUERY', 'output_dimensionality': 256})
     shapes.append(seen['embedder'])
     await ai.embed(
-        embedder=create_embedder_ref('crm', config={'task_type': 'QUERY'}),
+        embedder=EmbedderRef(name='crm', config={'task_type': 'QUERY'}),
         content='acme corp',
         config={'outputDimensionality': 256},
     )
@@ -861,7 +861,7 @@ async def test_fn_mutating_options_does_not_leak_into_the_ref_or_next_call() -> 
 
     ai.define_embedder('crm', crm_search)
     ai.define_evaluator(name='row', display_name='Row', definition='d', fn=allergy_check)
-    embedder = create_embedder_ref('crm', config={'allergens': ['peanut']})
+    embedder = EmbedderRef(name='crm', config={'allergens': ['peanut']})
     evaluator = EvaluatorRef(name='row', config={'allergens': ['peanut']})
 
     for _ in range(2):
@@ -906,7 +906,7 @@ async def test_background_model_start_gets_schema_defaults() -> None:
 
 def test_embedder_ref_checks_and_copies_info() -> None:
     info = EmbedderInfo(label='CRM search', dimensions=768)
-    ref = create_embedder_ref('crm', info=info)
+    ref = EmbedderRef(name='crm', info=info)
     info.dimensions = 256
 
     assert ref.info == EmbedderInfo(label='CRM search', dimensions=768)
@@ -1020,7 +1020,7 @@ async def test_config_with_an_uncopyable_leaf_still_runs() -> None:
         return _embedding()
 
     ai.define_embedder('crm', crm_search)
-    ref = create_embedder_ref('crm', config={'client': pos_lock, 'regions': ['emea']})
+    ref = EmbedderRef(name='crm', config={'client': pos_lock, 'regions': ['emea']})
 
     await ai.embed(embedder=ref, content='acme corp')
     await ai.embed(embedder=ref, content='acme corp', config={'lock': pos_lock})

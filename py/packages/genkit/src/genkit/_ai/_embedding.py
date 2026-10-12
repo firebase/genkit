@@ -133,24 +133,6 @@ def embedder_action_metadata(
     )
 
 
-def create_embedder_ref(
-    name: str,
-    *,
-    config: EmbedderRefConfigT | Mapping[str, Any] | None = None,
-    version: str | None = None,
-    config_schema: type[EmbedderRefConfigT] | None = None,
-    info: EmbedderInfo | None = None,
-) -> EmbedderRef[EmbedderRefConfigT]:
-    """Create an EmbedderRef. Settings and version are named.
-
-    A version string in the second position used to be stored as config and
-    silently dropped. Pass config= and version=.
-    """
-    return EmbedderRef[EmbedderRefConfigT](
-        name=name, config_schema=config_schema, info=info, version=version, config=config
-    )
-
-
 def embedder(
     name: str,
     fn: EmbedderFn,
