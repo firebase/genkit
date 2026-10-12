@@ -75,7 +75,7 @@ from genkit.model import (
     model_action_metadata,
 )
 from genkit.plugin_api import (
-    GENKIT_CLIENT_HEADER,
+    GENKIT_USER_AGENT,
     Action,
     ActionKind,
     ActionMetadata,
@@ -1342,13 +1342,13 @@ def _inject_attribution_headers(
         opts.headers = {}
 
     if 'x-goog-api-client' not in opts.headers:
-        opts.headers['x-goog-api-client'] = GENKIT_CLIENT_HEADER
+        opts.headers['x-goog-api-client'] = GENKIT_USER_AGENT
     else:
-        opts.headers['x-goog-api-client'] += f' {GENKIT_CLIENT_HEADER}'
+        opts.headers['x-goog-api-client'] += f' {GENKIT_USER_AGENT}'
 
     if 'user-agent' not in opts.headers:
-        opts.headers['user-agent'] = GENKIT_CLIENT_HEADER
+        opts.headers['user-agent'] = GENKIT_USER_AGENT
     else:
-        opts.headers['user-agent'] += f' {GENKIT_CLIENT_HEADER}'
+        opts.headers['user-agent'] += f' {GENKIT_USER_AGENT}'
 
     return opts
