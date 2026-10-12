@@ -422,19 +422,23 @@ print(response.text)
 
 For jobs that outlive a request (video, deep research), a background model splits into `start` and `check` (plus optional `cancel`). `start` returns an `Operation` handle and `check` polls it. All three get a `ModelContext`; on these functions it's for `ctx.context` (per-request secrets, auth) and `ctx.abort_signal`, not for streaming.
 
-`Operation` is generic over its output, like JS and Go. Background models return `Operation[ModelResponse]`: once `done`, `op.output` is a `ModelResponse`, so you read the video the same way you read a `generate` reply. A model fn that sets any other output fails with `INTERNAL`.
+`Operation` is generic over its output, like JS and Go. Background models return `Operation[ModelResponse]`: once `done`, `op.output` is a `ModelResponse`, so you read the video the same way you read a `generate` reply. A model fn can return a plain `Operation`; Genkit checks the output on the way out, and anything that isn't a `ModelResponse` fails with `INTERNAL`.
+
+`check_operation` and `cancel_operation` return the type they're given (`Operation[T]` in, `Operation[T]` out). A handle you stored as JSON goes back in as the dict you saved; Genkit validates it strictly and returns `Operation[ModelResponse]`.
 
 ```python
+import json
+
 from genkit import FinishReason, Media, Message, ModelResponse, Operation, Part, Role
 from genkit.model import ModelContext, ModelRequest
 
 # 1. start submits the job and returns a handle
-async def start_render(request: ModelRequest, ctx: ModelContext) -> Operation[ModelResponse]:
+async def start_render(request: ModelRequest, ctx: ModelContext) -> Operation:
     job_id = await render_api.submit(prompt=request.messages[-1].text, key=ctx.context['secrets']['api_key'])
-    return Operation[ModelResponse](id=job_id, done=False)
+    return Operation(id=job_id, done=False)
 
 # 2. check polls the job; once done, output is a ModelResponse holding the video
-async def check_render(op: Operation[ModelResponse], ctx: ModelContext) -> Operation[ModelResponse]:
+async def check_render(op: Operation, ctx: ModelContext) -> Operation:
     job = await render_api.status(op.id, key=ctx.context['secrets']['api_key'])
     if not job.done:
         return op
@@ -448,23 +452,23 @@ async def check_render(op: Operation[ModelResponse], ctx: ModelContext) -> Opera
 
 ai.define_background_model('acme/promo-video', start=start_render, check=check_render)
 
-# 3. Caller starts the job; no tool loop, no output parsing
+# 3. Caller starts the job and stores the handle; no tool loop, no output parsing
 secrets = {'secrets': {'api_key': RENDER_KEY}}
 op = await ai.generate_operation(model='acme/promo-video', prompt='15s promo for the spring menu', context=secrets)
+await jobs.save(op.id, op.model_dump_json())
 print(op.id, op.done)
 # => job_7f3a False
 
-# 4. Store the handle; reload it later, e.g. in another request
-saved_json = op.model_dump_json()
-op = Operation[ModelResponse].model_validate_json(saved_json)
-
-# 5. Poll until done; pass the same context again
+# 4. Later, e.g. in another request: pass the stored dict back; pass the same context again
+op = await ai.check_operation(json.loads(await jobs.load('job_7f3a')), context=secrets)
 while not op.done:
     await asyncio.sleep(5)
     op = await ai.check_operation(op, context=secrets)
 print(op.output.media[0].url)
 # => https://cdn.acme.dev/job_7f3a.mp4
 ```
+
+A stored dict with a typo'd or unknown key (`'Done'`) or no `id` fails with `INVALID_ARGUMENT` naming the field.
 
 Plugins build the same thing with `BackgroundModel(name, start=..., check=...)` and return it from `list_actions()`. Gemini's Veo comes back from `GoogleAI.veo('veo-3.1-generate-001')`.
 
