@@ -44,7 +44,7 @@ from genkit.evaluator import (
     # Defining an evaluator: per data point or batch.
     Evaluator, BatchEvaluator, EvaluatorRef,
     # Evaluator input and scored output.
-    EvaluatorRequest, EvaluatorResponse, BaseDataPoint, Score, ScoreDetails, ScoreStatus,
+    EvaluatorRequest, BatchEvaluatorRequest, EvaluatorResponse, BaseDataPoint, Score, ScoreDetails, ScoreStatus,
 )
 
 from genkit.middleware import (
@@ -1180,16 +1180,16 @@ await ai.embed(embedder='crm/vectors', content='...', config={'dimensions': 'two
 
 Evaluators score dataset rows against reference outputs and contexts. Register a per-row evaluator with `ai.define_evaluator(name, fn, ...)` or a whole-dataset evaluator with `ai.define_batch_evaluator(name, fn, ...)`, and run it with `ai.evaluate`.
 
-A batch evaluator fn follows the action rule: it takes the action's input, `EvaluatorRequest[Cfg]`. A per-row fn is the one exception, because it isn't the action's fn. The evaluator action takes the whole dataset, loops over it, and calls your fn once per row with that row and the options: `(row: BaseDataPoint, options: Cfg)`.
+Evaluator fns follow the same rule as every other action: they take a `Request[Cfg]`. A per-row fn takes `EvaluatorRequest[Cfg]` (`req.row`, `req.options`) and returns one `EvaluatorResponse`. A batch fn takes `BatchEvaluatorRequest[Cfg]` (`req.dataset`, `req.options`) and returns one per row.
 
-Either way, Genkit reads `Cfg` from the annotation (or `config_schema=`; given both, they must match), validates `ai.evaluate(config=...)` into it, and renders it as a Dev UI form. Without a `BaseModel` annotation, `options` is a dict.
+Genkit reads `Cfg` from the annotation (or `config_schema=`; given both, they must match), validates `ai.evaluate(config=...)` into it, and renders it as a Dev UI form. A bare `EvaluatorRequest` gives you `options` as a dict. `BatchEvaluatorRequest` is the wire type; the JSON is unchanged.
 
 ### Per-row evaluator
 
 ```python
 from pydantic import BaseModel
 from genkit import Genkit
-from genkit.evaluator import BaseDataPoint, EvaluatorResponse, Score, ScoreDetails, ScoreStatus
+from genkit.evaluator import BaseDataPoint, EvaluatorRequest, EvaluatorResponse, Score, ScoreDetails, ScoreStatus
 
 ai = Genkit()
 
@@ -1197,8 +1197,9 @@ ai = Genkit()
 class RelevanceConfig(BaseModel):
     keyword: str = 'approved'
 
-# 2. Score one dataset row; options arrive as a validated RelevanceConfig
-async def relevance_evaluator(row: BaseDataPoint, options: RelevanceConfig) -> EvaluatorResponse:
+# 2. Score one row; req.options is a validated RelevanceConfig
+async def relevance_evaluator(req: EvaluatorRequest[RelevanceConfig]) -> EvaluatorResponse:
+    row, options = req.row, req.options
     hit = options.keyword in str(row.output).lower()
     return EvaluatorResponse(
         test_case_id=row.test_case_id or '',
@@ -1211,7 +1212,7 @@ async def relevance_evaluator(row: BaseDataPoint, options: RelevanceConfig) -> E
         ],
     )
 
-# 3. Register; the options class comes from the annotation
+# 3. Register; RelevanceConfig comes from the annotation
 ai.define_evaluator(
     'custom/relevance',
     relevance_evaluator,
@@ -1237,13 +1238,13 @@ print(rows[0].evaluation[0].score, rows[0].evaluation[0].details.reasoning)
 
 ### Batch evaluator
 
-A batch fn gets the whole dataset in one `EvaluatorRequest[Cfg]`, so it can batch calls to a judge model. `req.options` is the same validated config.
+A batch fn gets the whole dataset in one `BatchEvaluatorRequest[Cfg]`, so it can batch calls to a judge model. `req.options` is the same validated config.
 
 ```python
-from genkit.evaluator import EvaluatorRequest
+from genkit.evaluator import BatchEvaluatorRequest
 
 # 1. One call per dataset; req.options is a RelevanceConfig
-async def relevance_batch(req: EvaluatorRequest[RelevanceConfig]) -> list[EvaluatorResponse]:
+async def relevance_batch(req: BatchEvaluatorRequest[RelevanceConfig]) -> list[EvaluatorResponse]:
     return [
         EvaluatorResponse(
             test_case_id=row.test_case_id or '',
@@ -1334,14 +1335,14 @@ With `use=[A(), B()]`, `A` runs first and wraps `B`: A before, B before, model, 
 
 Every capability is registered as one or more [`Action`](../packages/genkit/src/genkit/_core/_action.py)s: a typed async function with one input, one output, optional chunks, and a registry key. Plugins register theirs at init or resolve them lazily on first use.
 
-The fn you write takes the action's input and returns its output. A model fn is `ModelRequest[Cfg] -> ModelResponse`, an embedder fn is `EmbedRequest[Cfg] -> EmbedResponse`, and a flow or tool fn takes its own input. Config is always typed as `Request[Cfg]` on that input. The per-row evaluator is the one exception (see Evaluators).
+The fn you write takes one request and returns a response. A model fn is `ModelRequest[Cfg] -> ModelResponse`, an embedder fn is `EmbedRequest[Cfg] -> EmbedResponse`, and a flow or tool fn takes its own input. Evaluators take `EvaluatorRequest[Cfg]` (one row) or `BatchEvaluatorRequest[Cfg]` (the dataset). Config is always typed as `Request[Cfg]`.
 
 The public classes split by how many actions they are:
 
 - One action each. These subclass `Action`, and calling one is `(await obj.run(x)).response`:
   - `Model(Action[ModelRequest, ModelResponse, ModelResponseChunk])`
   - `Embedder(Action[EmbedRequest, EmbedResponse])`
-  - `Evaluator` / `BatchEvaluator(Action[EvaluatorRequest, EvalResponse])`
+  - `Evaluator` / `BatchEvaluator(Action[BatchEvaluatorRequest, EvalResponse])`: both actions take the dataset; a per-row fn is called once per row
   - `Flow(Action[In, Out, Chunk])`
   - `Tool(Action[In, Out, Chunk])`: the chunk type comes from `ToolContext[ChunkT]` (see Streaming Tool Chunks). The tool action returns the function's own value, so `await tool(x)` gives a `Quote` or a `str`. Behaves the same as a Flow when executed directly. When the model calls the tool, `generate` turns that value into the tool response the model reads: the value dumped to JSON as `output`, plus `content` parts if the tool returned a `MultipartToolResponse`. The Dev UI runs a companion `tool.v2` action that returns that same envelope.
 - Several actions behind one handle, so no single `Action[In, Out]` fits:
