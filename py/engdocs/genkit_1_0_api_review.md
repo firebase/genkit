@@ -318,6 +318,12 @@ print(response.text)
 
 A plain `return value` is the same as `MultipartToolResponse(output=value)`.
 
+How it reaches the model:
+
+1. `generate` runs every tool the model requested and builds one `role='tool'` message with a `toolResponse` part per call. Each part carries `output` (JSON-dumped) and `content` (the parts).
+2. That message is appended to the history, and `generate` calls the model again with it. The tool's `content` isn't sent as a separate user message.
+3. The model plugin decides how `content` goes on the wire. Gemini attaches it to the same function result (`FunctionResponse.parts`). The OpenAI, Anthropic, Ollama and Bedrock plugins send only `output` today and drop `content`.
+
 ### Streaming Tool Chunks
 
 A tool declares its chunk type with `ToolContext[ChunkT]`, separate from its return type. The same tool streams two ways.
