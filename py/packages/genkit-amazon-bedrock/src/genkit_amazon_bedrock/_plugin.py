@@ -94,6 +94,7 @@ class Bedrock(Plugin):
 
     def __init__(
         self,
+        *,
         region: str | None = None,
         max_retries: int | None = None,
         read_timeout: float | None = None,

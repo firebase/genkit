@@ -611,7 +611,6 @@ class ModelInfo(GenkitModel):
     )
     versions: list[str] | None = None
     label: str | None = None
-    config_schema: ConfigSchema | None = None
     supports: Supports | None = None
     stage: Stage | None = None
 

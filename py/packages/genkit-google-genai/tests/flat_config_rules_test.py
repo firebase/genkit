@@ -36,7 +36,7 @@ from google.auth.credentials import AnonymousCredentials
 from google.genai import _api_client
 from pydantic import ValidationError
 
-from genkit import Genkit, ModelResponse
+from genkit import Genkit, GenkitError, ModelResponse
 from genkit.model import model_ref
 
 _GEMINI = 'googleai/gemini-2.5-flash'
@@ -109,9 +109,9 @@ async def test_default_budget_plus_call_level_raises_at_generate(sent: _Sent) ->
     """A ModelRef budget and a call level each pass alone; the merged config fails before sending."""
     ref = model_ref(_GEMINI, config_schema=GeminiConfig, config=GeminiConfig(thinking_budget=1024))
 
-    response = await _googleai().generate(model=ref, prompt='hi', config={'thinking_level': 'HIGH'})
+    with pytest.raises(GenkitError, match='thinking_level=None or thinking_budget=None'):
+        await _googleai().generate(model=ref, prompt='hi', config={'thinking_level': 'HIGH'})
 
-    assert re.search('thinking_level=None or thinking_budget=None', _failure(response))
     assert sent.bodies == []
 
 
@@ -234,7 +234,7 @@ async def test_default_voice_plus_call_speakers_raises_at_generate(sent: _Sent) 
         'googleai/gemini-2.5-flash-preview-tts', config_schema=GeminiTtsConfig, config=GeminiTtsConfig(voice='Kore')
     )
 
-    response = await _googleai().generate(model=ref, prompt='hi', config={'speakers': {'Host': 'Kore', 'Chef': 'Puck'}})
+    with pytest.raises(GenkitError, match='voice=None or speakers=None'):
+        await _googleai().generate(model=ref, prompt='hi', config={'speakers': {'Host': 'Kore', 'Chef': 'Puck'}})
 
-    assert re.search('voice=None or speakers=None', _failure(response))
     assert sent.bodies == []
