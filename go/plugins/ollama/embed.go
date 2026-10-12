@@ -178,7 +178,7 @@ func (o *Ollama) DefineEmbedder(g *genkit.Genkit, model string, dimensions int, 
 			}
 		}
 
-		return embed(ctx, o.client, o.ServerAddress, o.Headers, &normalizedReq)
+		return embed(ctx, o.client, o.ServerAddress, o.headers, &normalizedReq)
 	})
 }
 

@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -109,7 +110,7 @@ func (o *Ollama) getModelCapabilities(ctx context.Context, modelName string) ([]
 		return nil, fmt.Errorf("failed to create /api/show request for %q: %w", modelName, err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := send(o.client, req, o.Headers)
+	resp, err := send(o.client, req, o.headers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query capabilities for %q: %w", modelName, err)
 	}
@@ -127,11 +128,11 @@ func (o *Ollama) getModelCapabilities(ctx context.Context, modelName string) ([]
 	return showResp.Capabilities, nil
 }
 
-// send sets headers over the ones req already has and sends it with client,
-// or http.DefaultClient when client is nil.
+// send sets headers, whose keys must be canonical, over the ones req already
+// has and sends it with client, or http.DefaultClient when client is nil.
 func send(client *http.Client, req *http.Request, headers http.Header) (*http.Response, error) {
 	for k, v := range headers {
-		req.Header[http.CanonicalHeaderKey(k)] = slices.Clone(v)
+		req.Header[k] = slices.Clone(v)
 	}
 	return cmp.Or(client, http.DefaultClient).Do(req)
 }
@@ -179,7 +180,7 @@ func (o *Ollama) listLocalModels(ctx context.Context) ([]ollamaLocalModel, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	resp, err := send(o.client, req, o.Headers)
+	resp, err := send(o.client, req, o.headers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch local models from Ollama: %w", err)
 	}
@@ -237,7 +238,7 @@ func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, opts *ai.M
 		serverAddress: o.ServerAddress,
 		timeout:       o.Timeout,
 		client:        o.client,
-		headers:       o.Headers,
+		headers:       o.headers,
 	}
 	return genkit.DefineModel(g, api.NewName(provider, model.Name), meta, gen.generate)
 }
@@ -447,7 +448,9 @@ type Ollama struct {
 
 	// Headers are additional HTTP headers to send with every request, such as
 	// the Authorization header a hosted or proxied server needs. A header set
-	// here wins over the plugin's own. Optional.
+	// here wins over the plugin's own. Without an Authorization header, the
+	// value of the environment variable OLLAMA_API_KEY, when set, is sent as a
+	// bearer token, as Ollama's own clients do. Optional.
 	Headers http.Header
 	// HTTPClient overrides the HTTP client used for every request. Supply a
 	// custom client to configure proxies or TLS, or authentication that
@@ -458,6 +461,7 @@ type Ollama struct {
 	mu      sync.Mutex   // Guards the plugin's own state below.
 	initted bool         // Whether the plugin has been initialized.
 	client  *http.Client // HTTPClient, or a default client when it is nil.
+	headers http.Header  // Headers plus the OLLAMA_API_KEY bearer token.
 
 	// The capabilities cache has its own lock: the discovery goroutines write
 	// to it while DefineModel reads it holding mu, so sharing one lock would
@@ -499,6 +503,13 @@ func (o *Ollama) Init(ctx context.Context) []api.Action {
 		o.Timeout = 30
 	}
 	o.client = cmp.Or(o.HTTPClient, &http.Client{})
+	o.headers = http.Header{}
+	for k, v := range o.Headers {
+		o.headers[http.CanonicalHeaderKey(k)] = slices.Clone(v)
+	}
+	if key := os.Getenv("OLLAMA_API_KEY"); key != "" && o.headers.Get("Authorization") == "" {
+		o.headers.Set("Authorization", "Bearer "+key)
+	}
 	o.capabilitiesCache = make(map[string]modelCapabilitiesCacheEntry)
 	return []api.Action{}
 }
@@ -564,7 +575,7 @@ func (o *Ollama) newModel(name string, opts ai.ModelOptions) ai.Model {
 		serverAddress: o.ServerAddress,
 		timeout:       o.Timeout,
 		client:        o.client,
-		headers:       o.Headers,
+		headers:       o.headers,
 	}
 	return ai.NewModel(api.NewName(provider, name), meta, gen.generate)
 }

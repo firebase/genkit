@@ -1302,3 +1302,38 @@ func TestGenerateTimeoutWithHTTPClient(t *testing.T) {
 		t.Fatalf("generate() error = %v, want context.DeadlineExceeded", err)
 	}
 }
+
+// TestAPIKeyFromEnvironment pins that OLLAMA_API_KEY fills in a missing
+// Authorization header and never overrides one the caller set, whatever the
+// case of its key.
+func TestAPIKeyFromEnvironment(t *testing.T) {
+	t.Setenv("OLLAMA_API_KEY", "env-key")
+	for _, tc := range []struct {
+		name    string
+		headers http.Header
+		want    string
+	}{
+		{name: "no headers", want: "Bearer env-key"},
+		{name: "other headers", headers: http.Header{"X-Proxy": {"1"}}, want: "Bearer env-key"},
+		{name: "explicit authorization", headers: http.Header{"Authorization": {"Bearer explicit"}}, want: "Bearer explicit"},
+		{name: "lowercase authorization", headers: http.Header{"authorization": {"Bearer explicit"}}, want: "Bearer explicit"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var got []string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				got = r.Header.Values("Authorization")
+				fmt.Fprint(w, `{"models":[]}`)
+			}))
+			defer server.Close()
+
+			o := &Ollama{ServerAddress: server.URL, Headers: tc.headers}
+			o.Init(t.Context())
+			if _, err := o.listLocalModels(t.Context()); err != nil {
+				t.Fatalf("listLocalModels() error = %v", err)
+			}
+			if len(got) != 1 || got[0] != tc.want {
+				t.Errorf("Authorization = %q, want [%q]", got, tc.want)
+			}
+		})
+	}
+}

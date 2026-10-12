@@ -50,15 +50,16 @@ func main() {
 }
 ```
 
-A hosted or proxied Ollama server that needs authentication takes `Headers`,
-which go on every request. For credentials that change per request, such as a
-short-lived token, supply an `HTTPClient` whose transport adds them (for
-example `oauth2.NewClient`):
+A hosted Ollama server, such as `https://ollama.com`, authenticates with the
+`OLLAMA_API_KEY` environment variable, which the plugin sends as a bearer token.
+A proxy that needs other headers takes `Headers`, which go on every request. For
+credentials that change per request, such as a short-lived token, supply an
+`HTTPClient` whose transport adds them (for example `oauth2.NewClient`):
 
 ```go
 o := &ollama.Ollama{
  ServerAddress: "https://ollama.example.com",
- Headers:       http.Header{"Authorization": {"Bearer " + os.Getenv("OLLAMA_API_KEY")}},
+ Headers:       http.Header{"X-Api-Key": {apiKey}},
 }
 ```
 
