@@ -38,8 +38,7 @@ from openai.types import CompletionUsage
 from openai.types.completion_usage import CompletionTokensDetails, PromptTokensDetails
 
 from genkit import FinishReason, GenkitError, Message, ModelResponse, ModelResponseChunk, Part, Role
-from genkit.model import ModelConfig, ModelRequest, ModelUsage, Supports, ToolDefinition
-from genkit.plugin_api import ActionRunContext
+from genkit.model import ModelConfig, ModelContext, ModelRequest, ModelUsage, Supports, ToolDefinition
 
 logger = structlog.get_logger(__name__)
 
@@ -644,7 +643,7 @@ class OpenAIModel:
         )
         return self._clean_json_response(result, request)
 
-    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+    async def generate(self, request: ModelRequest, ctx: ModelContext) -> ModelResponse:
         """Processes the request using OpenAI's chat completion API.
 
         Args:

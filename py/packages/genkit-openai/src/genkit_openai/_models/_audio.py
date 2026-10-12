@@ -43,8 +43,7 @@ from openai._legacy_response import HttpxBinaryResponseContent
 from openai.types.audio import Transcription, Translation
 
 from genkit import FinishReason, GenkitError, Message, ModelResponse, Part, Role
-from genkit.model import ModelConfig, ModelInfo, ModelRequest, Supports
-from genkit.plugin_api import ActionRunContext
+from genkit.model import ModelConfig, ModelContext, ModelInfo, ModelRequest, Supports
 
 
 class OpenAITtsConfig(ModelConfig):
@@ -331,7 +330,7 @@ class OpenAITTSModel:
         """The name of the TTS model."""
         return self._model_name
 
-    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+    async def generate(self, request: ModelRequest, ctx: ModelContext) -> ModelResponse:
         """Generate speech audio from the request.
 
         Args:
@@ -373,7 +372,7 @@ class OpenAISTTModel:
         """The name of the STT model."""
         return self._model_name
 
-    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+    async def generate(self, request: ModelRequest, ctx: ModelContext) -> ModelResponse:
         """Transcribe audio from the request.
 
         Args:

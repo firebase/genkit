@@ -24,8 +24,7 @@ from genkit_openai._models._model_info import SUPPORTED_OPENAI_MODELS
 from openai import AsyncOpenAI
 
 from genkit import ModelResponse
-from genkit.model import ModelInfo, ModelRequest
-from genkit.plugin_api import ActionRunContext
+from genkit.model import ModelContext, ModelInfo, ModelRequest
 
 _SUPPORTED_MODELS = cast(Mapping[str, ModelInfo], SUPPORTED_OPENAI_MODELS)
 
@@ -44,7 +43,7 @@ class OpenAIModelHandler:
     @classmethod
     def get_model_handler(
         cls, model: str, client: AsyncOpenAI
-    ) -> Callable[[ModelRequest, ActionRunContext], Awaitable[ModelResponse]]:
+    ) -> Callable[[ModelRequest, ModelContext], Awaitable[ModelResponse]]:
         """Factory method to initialize the model handler for the specified OpenAI model.
 
         OpenAI models in this context are not instantiated as traditional
@@ -83,7 +82,7 @@ class OpenAIModelHandler:
         if model_info.versions is not None and version not in model_info.versions:
             raise ValueError(f"Model version '{version}' is not supported.")
 
-    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+    async def generate(self, request: ModelRequest, ctx: ModelContext) -> ModelResponse:
         """Processes the request using OpenAI's chat completion API.
 
         Args:

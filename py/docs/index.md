@@ -71,6 +71,8 @@
 
 ::: genkit.model.GenerateActionOptions
 
+::: genkit.model.ModelContext
+
 ::: genkit.model.ModelRequest
 
 ::: genkit.model.OutputConfig
@@ -128,8 +130,6 @@
 ::: genkit.plugin_api.ActionMetadata
 
 ::: genkit.plugin_api.ActionKind
-
-::: genkit.plugin_api.ActionRunContext
 
 ::: genkit.plugin_api.StatusName
 
