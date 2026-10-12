@@ -785,11 +785,10 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
         self._strict_io: bool = _strict_io
         self._metadata: dict[str, object] = metadata if metadata else {}
         self._description: str | None = description
-        # Python class for generate's isinstance check. Not in metadata —
-        # that bag is JSON for the Dev UI.
-        self._config_schema: type[BaseModel] | None = (
-            config_schema if isinstance(config_schema, type) and issubclass(config_schema, BaseModel) else None
-        )
+        # What config_schema= declared: a Pydantic class or a JSON-schema dict.
+        # generate checks config against it. Not in metadata — that bag is
+        # JSON for the Dev UI.
+        self._config_schema: type[BaseModel] | dict[str, object] | None = config_schema
         self._span_metadata: dict[str, SpanAttributeValue] = span_metadata or {}
 
         # All action handlers must be async
