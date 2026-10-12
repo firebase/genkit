@@ -40,7 +40,7 @@ from google.auth import default as google_auth_default
 from google.auth.transport.requests import Request
 
 from genkit import GenkitError
-from genkit.evaluator import BaseDataPoint, EvalFnResponse, Score, ScoreDetails, evaluator, evaluator_action_metadata
+from genkit.evaluator import BaseDataPoint, EvalFnResponse, Evaluator, Score, ScoreDetails, evaluator_action_metadata
 from genkit.plugin_api import GENKIT_CLIENT_HEADER, Action, ActionMetadata, StrEnum, loop_local_client, provider_error
 
 
@@ -438,7 +438,7 @@ def _create_evaluator_for_metric(
     *,
     factory: EvaluatorFactory,
     metric_type: VertexAIEvaluationMetricType,
-) -> Action:
+) -> Evaluator:
     """Build the evaluator action for one metric."""
     config = METRIC_CONFIGS[metric_type]
 
@@ -448,7 +448,7 @@ def _create_evaluator_for_metric(
         config['response_handler'],
     )
 
-    return evaluator(
+    return Evaluator(
         vertex_evaluator_name(metric_type),
         evaluator_fn,
         display_name=config['display_name'],

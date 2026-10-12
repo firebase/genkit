@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Plugin authors build evaluators with evaluator / batch_evaluator and list them with evaluator_action_metadata."""
+"""Plugin authors build evaluators with Evaluator / BatchEvaluator and list them with evaluator_action_metadata."""
 
 from typing import Any, cast
 
@@ -24,11 +24,11 @@ from pydantic import BaseModel
 from genkit import Genkit, GenkitError
 from genkit.evaluator import (
     BaseDataPoint,
+    BatchEvaluator,
     EvalFnResponse,
     EvalRequest,
+    Evaluator,
     Score,
-    batch_evaluator,
-    evaluator,
     evaluator_action_metadata,
 )
 from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin
@@ -53,7 +53,7 @@ def _two_rows() -> list[BaseDataPoint]:
 
 
 class ExactMatchPlugin(Plugin):
-    """Plugin that hands Genkit an evaluator built with evaluator(...) on resolve."""
+    """Plugin that hands Genkit an evaluator built with Evaluator(...) on resolve."""
 
     name = 'p'
 
@@ -63,7 +63,7 @@ class ExactMatchPlugin(Plugin):
     async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         if action_type != ActionKind.EVALUATOR or name != 'e':
             return None
-        return evaluator('p/e', _exact_match, display_name='Exact match', definition='output equals reference')
+        return Evaluator('p/e', _exact_match, display_name='Exact match', definition='output equals reference')
 
     async def list_actions(self) -> list[ActionMetadata]:
         return [evaluator_action_metadata('p/e', display_name='Exact match', definition='output equals reference')]
@@ -71,11 +71,12 @@ class ExactMatchPlugin(Plugin):
 
 @pytest.mark.asyncio
 async def test_evaluator_builds_action_without_registering() -> None:
-    """evaluator('t/e', fn, ...) is an EVALUATOR action; an app with no plugin returning it can't evaluate with it."""
+    """Evaluator('t/e', fn, ...) is an EVALUATOR action; an app with no plugin returning it can't evaluate with it."""
     ai = Genkit()
 
-    action = evaluator('t/e', _exact_match, display_name='Exact match', definition='output equals reference')
+    action = Evaluator('t/e', _exact_match, display_name='Exact match', definition='output equals reference')
 
+    assert isinstance(action, Action)
     assert action.kind == ActionKind.EVALUATOR
     assert action.name == 't/e'
     with pytest.raises(GenkitError) as raised:
@@ -86,7 +87,7 @@ async def test_evaluator_builds_action_without_registering() -> None:
 @pytest.mark.asyncio
 async def test_evaluator_action_runs_fn_per_datapoint() -> None:
     """Running the built action over two rows returns two scored rows, in dataset order."""
-    action = evaluator('t/e', _exact_match, display_name='Exact match', definition='output equals reference')
+    action = Evaluator('t/e', _exact_match, display_name='Exact match', definition='output equals reference')
 
     result = await action.run(EvalRequest(dataset=_two_rows(), eval_run_id='run-1'))
 
@@ -97,13 +98,13 @@ async def test_evaluator_action_runs_fn_per_datapoint() -> None:
 
 
 def test_evaluator_sync_fn_raises_type_error() -> None:
-    """evaluator(...) rejects a sync fn when built, instead of failing every row at run time."""
+    """Evaluator(...) rejects a sync fn when built, instead of failing every row at run time."""
 
     def sync_match(datapoint: BaseDataPoint, options: object | None) -> EvalFnResponse:
         return EvalFnResponse(test_case_id=datapoint.test_case_id or '', evaluation=[Score(score=True)])
 
     with pytest.raises(TypeError, match="Got sync function for 't/e'"):
-        evaluator('t/e', cast(Any, sync_match), display_name='Exact match', definition='output equals reference')
+        Evaluator('t/e', cast(Any, sync_match), display_name='Exact match', definition='output equals reference')
 
 
 def test_evaluator_action_metadata_carries_display_name_definition_billed() -> None:
@@ -136,7 +137,7 @@ def test_evaluator_action_metadata_carries_display_name_definition_billed() -> N
 @pytest.mark.parametrize('config_schema', [None, ThresholdOptions], ids=['no_options', 'with_options'])
 def test_evaluator_and_metadata_agree_for_same_args(config_schema: type[BaseModel] | None) -> None:
     """The built evaluator and its listing show the Dev UI the same card for the same args."""
-    action = evaluator(
+    action = Evaluator(
         'p/e',
         _exact_match,
         display_name='Exact match',
@@ -158,7 +159,7 @@ def test_evaluator_and_metadata_agree_for_same_args(config_schema: type[BaseMode
 
 @pytest.mark.asyncio
 async def test_plugin_returning_evaluator_registers_it_on_app() -> None:
-    """A plugin whose resolve() returns evaluator(...) makes ai.evaluate(evaluator='p/e', ...) score every row."""
+    """A plugin whose resolve() returns Evaluator(...) makes ai.evaluate(evaluator='p/e', ...) score every row."""
     ai = Genkit(plugins=[ExactMatchPlugin()])
 
     results = await ai.evaluate(evaluator='p/e', dataset=_two_rows())
@@ -173,13 +174,13 @@ async def _exact_match_batch(req: EvalRequest) -> list[EvalFnResponse]:
 
 
 class ExactMatchBatchPlugin(Plugin):
-    """Plugin that hands Genkit a batch evaluator built with batch_evaluator(...) from init."""
+    """Plugin that hands Genkit a batch evaluator built with BatchEvaluator(...) from init."""
 
     name = 'b'
 
     async def init(self) -> list[Action]:
         return [
-            batch_evaluator('b/e', _exact_match_batch, display_name='Exact match', definition='output equals reference')
+            BatchEvaluator('b/e', _exact_match_batch, display_name='Exact match', definition='output equals reference')
         ]
 
     async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
@@ -191,13 +192,12 @@ class ExactMatchBatchPlugin(Plugin):
 
 @pytest.mark.asyncio
 async def test_batch_evaluator_builds_action_without_registering() -> None:
-    """batch_evaluator('t/b', fn, ...) is an EVALUATOR action that no app knows about until something registers it."""
+    """BatchEvaluator('t/b', fn, ...) is an EVALUATOR action that no app knows about until something registers it."""
     ai = Genkit()
 
-    action = batch_evaluator(
-        't/b', _exact_match_batch, display_name='Exact match', definition='output equals reference'
-    )
+    action = BatchEvaluator('t/b', _exact_match_batch, display_name='Exact match', definition='output equals reference')
 
+    assert isinstance(action, Action)
     assert action.kind == ActionKind.EVALUATOR
     with pytest.raises(GenkitError) as raised:
         await ai.evaluate(evaluator='t/b', dataset=_two_rows())
@@ -205,18 +205,18 @@ async def test_batch_evaluator_builds_action_without_registering() -> None:
 
 
 def test_batch_evaluator_sync_fn_raises_type_error() -> None:
-    """batch_evaluator(...) rejects a sync fn when built."""
+    """BatchEvaluator(...) rejects a sync fn when built."""
 
     def sync_batch(req: EvalRequest) -> list[EvalFnResponse]:
         return []
 
     with pytest.raises(TypeError, match="Got sync function for 't/b'"):
-        batch_evaluator('t/b', cast(Any, sync_batch), display_name='Exact match', definition='output equals reference')
+        BatchEvaluator('t/b', cast(Any, sync_batch), display_name='Exact match', definition='output equals reference')
 
 
 def test_batch_evaluator_and_metadata_agree_for_same_args() -> None:
     """A built batch evaluator and its listing show the Dev UI the same card."""
-    action = batch_evaluator(
+    action = BatchEvaluator(
         'p/b', _exact_match_batch, display_name='Exact match', definition='output equals reference', is_billed=True
     )
     listing = evaluator_action_metadata(
@@ -229,7 +229,7 @@ def test_batch_evaluator_and_metadata_agree_for_same_args() -> None:
 
 @pytest.mark.asyncio
 async def test_plugin_returning_batch_evaluator_registers_it_on_app() -> None:
-    """A plugin whose init() returns batch_evaluator(...) makes ai.evaluate(evaluator='b/e', ...) score every row."""
+    """A plugin whose init() returns BatchEvaluator(...) makes ai.evaluate(evaluator='b/e', ...) score every row."""
     ai = Genkit(plugins=[ExactMatchBatchPlugin()])
 
     results = await ai.evaluate(evaluator='b/e', dataset=_two_rows())

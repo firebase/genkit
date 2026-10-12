@@ -36,7 +36,9 @@ from pydantic import BaseModel
 
 from genkit._ai._embedding import EmbedderFn, EmbedderInfo, EmbedderRef, define_embedder
 from genkit._ai._evaluator import (
+    BatchEvaluator,
     BatchEvaluatorFn,
+    Evaluator,
     EvaluatorFn,
     EvaluatorRef,
     define_batch_evaluator,
@@ -490,7 +492,7 @@ class Genkit:
         config_schema: type[BaseModel] | dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
         description: str | None = None,
-    ) -> Action:
+    ) -> Evaluator:
         """Register an evaluator that scores one dataset row at a time.
 
         Example:
@@ -537,7 +539,7 @@ class Genkit:
         config_schema: type[BaseModel] | dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
         description: str | None = None,
-    ) -> Action:
+    ) -> BatchEvaluator:
         """Register a batch evaluator.
 
         The function is an action: one ``EvalRequest``. Read options from
