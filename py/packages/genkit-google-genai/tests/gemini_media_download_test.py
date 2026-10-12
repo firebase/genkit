@@ -17,7 +17,9 @@
 """What Gemini receives for each kind of media URL passed to `ai.generate`."""
 
 import base64
+import gzip
 from collections.abc import AsyncIterator, Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -26,6 +28,7 @@ import httpx
 import pytest
 from genkit_google_genai import GoogleAI
 from genkit_google_genai._google import GenaiModels
+from genkit_google_genai._models._utils import _media_client
 from google import genai
 
 from genkit import FinishReason, Genkit, Message, Part, Role
@@ -33,6 +36,7 @@ from genkit import FinishReason, Genkit, Message, Part, Role
 MB = 1024 * 1024
 CAP = 20 * MB
 PNG = b'\x89PNG\r\n\x1a\n' + b'\x00' * 100
+_GZIP_25MB_ZEROS = gzip.compress(b'\x00' * (25 * MB))
 
 
 @pytest.fixture
@@ -57,12 +61,12 @@ def gemini() -> Iterator[tuple[Genkit, MagicMock]]:
         yield Genkit(plugins=[GoogleAI(api_key='test-key')]), sdk
 
 
-def _serve(handler: Callable[[httpx.Request], httpx.Response]) -> Any:  # noqa: ANN401
-    """Route the plugin's media downloads to `handler` instead of the network."""
-    return patch(
-        'genkit_google_genai._models._utils._media_client',
-        return_value=httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True),
-    )
+@contextmanager
+def _serve(handler: Callable[[httpx.Request], httpx.Response]) -> Iterator[None]:
+    """Route the plugin's media downloads to `handler` while keeping `_media_client`'s headers and settings."""
+    client = _media_client()
+    with patch.object(client, '_transport', httpx.MockTransport(handler)):
+        yield
 
 
 def _no_download() -> Any:  # noqa: ANN401
@@ -331,3 +335,73 @@ async def test_generate_gemini_local_file_path_media_is_not_opened(
         assert sent.inline_data is None
         assert sent.file_data is not None
         assert sent.file_data.file_uri == url
+
+
+@pytest.mark.asyncio
+async def test_generate_gemini_http_media_rejects_gzip_content_encoding_without_decompressing(
+    gemini: tuple[Genkit, MagicMock],
+) -> None:
+    """`_media_client` sends `Accept-Encoding: identity` and rejects gzip responses before decompressing."""
+    ai, sdk = gemini
+    seen_headers: list[dict[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_headers.append(dict(request.headers))
+        return httpx.Response(
+            200,
+            headers={'content-type': 'image/png', 'content-encoding': 'gzip'},
+            content=_GZIP_25MB_ZEROS,
+        )
+
+    with _serve(handler):
+        response = await _describe(ai, 'https://example.com/bomb.png?X-Goog-Signature=s3cr3t')
+
+    assert seen_headers[0]['accept-encoding'] == 'identity'
+    assert 'genkit' in seen_headers[0]['user-agent'].lower()
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.error is not None
+    assert response.error.status == 'INVALID_ARGUMENT'
+    assert response.finish_message is not None
+    assert 'https://example.com/bomb.png' in response.finish_message
+    assert 's3cr3t' not in response.finish_message
+    sdk.aio.models.generate_content.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_generate_gemini_http_media_status_errors_omit_query_string_and_userinfo(
+    gemini: tuple[Genkit, MagicMock],
+) -> None:
+    """4xx and 5xx media download errors strip userinfo and query parameters from `str(err)` and `finish_message`."""
+    from genkit_google_genai._models._utils import PartConverter
+
+    ai, sdk = gemini
+    url = 'https://user:pw@storage.example.com/bucket/cat.png?X-Goog-Signature=s3cr3t'
+
+    with _serve(lambda request: httpx.Response(403)):
+        r403 = await _describe(ai, url)
+        with pytest.raises(Exception) as exc_403:
+            await PartConverter._download_image(url)
+
+    assert r403.finish_reason == FinishReason.FAILED
+    assert r403.error is not None
+    assert r403.error.status == 'INVALID_ARGUMENT'
+    assert r403.finish_message is not None
+    for text in (r403.finish_message, str(exc_403.value)):
+        assert 'https://storage.example.com/bucket/cat.png' in text
+        assert 's3cr3t' not in text
+        assert 'pw' not in text
+
+    with _serve(lambda request: httpx.Response(503)):
+        r503 = await _describe(ai, url)
+        with pytest.raises(httpx.HTTPStatusError) as exc_503:
+            await PartConverter._download_image(url)
+
+    assert r503.finish_reason == FinishReason.FAILED
+    assert r503.error is not None
+    assert r503.error.status == 'INTERNAL'
+    assert r503.finish_message is not None
+    assert 'https://storage.example.com/bucket/cat.png' in str(exc_503.value)
+    for text in (r503.finish_message, str(exc_503.value)):
+        assert 's3cr3t' not in text
+        assert 'pw' not in text
+    sdk.aio.models.generate_content.assert_not_called()

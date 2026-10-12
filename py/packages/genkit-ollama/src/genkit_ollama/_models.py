@@ -113,7 +113,10 @@ logger = structlog.get_logger(__name__)
 def _image_fetch_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(
         timeout=httpx.Timeout(60.0),
-        headers={'User-Agent': 'Genkit/1.0 (https://github.com/genkit-ai/genkit; genkit@google.com)'},
+        headers={
+            'User-Agent': 'Genkit/1.0 (https://github.com/genkit-ai/genkit; genkit@google.com)',
+            'Accept-Encoding': 'identity',
+        },
         follow_redirects=True,
     )
 
@@ -121,19 +124,28 @@ def _image_fetch_client() -> httpx.AsyncClient:
 # A truncated image is a corrupt file, so a URL over the cap fails instead of
 # sending the first 20MB.
 _MAX_MEDIA_DOWNLOAD_BYTES = 20 * 1024 * 1024
+_ASCII_WHITESPACE = str.maketrans('', '', ' \t\n\r\f\v')
 
 
 async def _download_media(url: str) -> bytes:
     """Download an http(s) image, failing with INVALID_ARGUMENT past 20MB.
 
     Redirects are followed and private or loopback addresses are not
-    blocked, so apps that pass end-user URLs here should vet them first.
+    blocked, so apps that pass end-user URLs here should vet them first;
+    upfront vetting of the initial URL does not cover 302 redirects to
+    loopback or link-local addresses (such as ``169.254.169.254``).
     """
     async with _image_fetch_client().stream('GET', url) as response:
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as e:
             status = e.response.status_code
+            where = _redact_url(str(e.request.url))
+            sanitized = httpx.HTTPStatusError(
+                f'HTTP {status} for {where}',
+                request=e.request,
+                response=e.response,
+            )
             # A 4xx means the caller's URL is bad (missing, forbidden,
             # gone). Not NOT_FOUND: Fallback would switch models over a URL
             # no model can fetch. 408/429 and 5xx stay raw so Retry can try
@@ -141,26 +153,39 @@ async def _download_media(url: str) -> bytes:
             if isinstance(status, int) and 400 <= status < 500 and status not in (408, 429):
                 raise GenkitError(
                     status='INVALID_ARGUMENT',
-                    message=f'ollama: could not fetch media URL (HTTP {status})',
-                    cause=e,
-                ) from e
-            raise
+                    message=f'ollama: could not fetch media URL (HTTP {status} for {where})',
+                    cause=sanitized,
+                ) from sanitized
+            raise sanitized from None
+        encoding = response.headers.get('content-encoding', '').strip().lower()
+        if encoding not in ('', 'identity'):
+            raise GenkitError(
+                status='INVALID_ARGUMENT',
+                message=(
+                    f'media at {_redact_url(url)} sent unsupported '
+                    f'Content-Encoding {encoding!r}; expected uncompressed bytes'
+                ),
+            )
         declared = response.headers.get('content-length', '')
         if declared.isdigit() and int(declared) > _MAX_MEDIA_DOWNLOAD_BYTES:
             raise _media_too_large(url)
         body = bytearray()
-        async for chunk in response.aiter_bytes():
+        chunks = response.aiter_bytes() if response.is_stream_consumed else response.aiter_raw()
+        async for chunk in chunks:
             body.extend(chunk)
             if len(body) > _MAX_MEDIA_DOWNLOAD_BYTES:
                 raise _media_too_large(url)
         return bytes(body)
 
 
-def _media_too_large(url: str) -> GenkitError:
-    # Signed URLs carry credentials in the query string, so the message only names host and path.
+def _redact_url(url: str) -> str:
+    # Signed URLs carry credentials in the query string, so error messages only name host and path.
     parts = urlsplit(url)
-    where = urlunsplit((parts.scheme, parts.netloc.rpartition('@')[2], parts.path, '', ''))
-    return GenkitError(status='INVALID_ARGUMENT', message=f'media at {where} is larger than 20MB')
+    return urlunsplit((parts.scheme, parts.netloc.rpartition('@')[2], parts.path, '', ''))
+
+
+def _media_too_large(url: str) -> GenkitError:
+    return GenkitError(status='INVALID_ARGUMENT', message=f'media at {_redact_url(url)} is larger than 20MB')
 
 
 # Matches <think>/<thinking> blocks case-insensitively (``i``) across newlines
@@ -705,7 +730,11 @@ class OllamaModel:
         - **HTTP/HTTPS URLs**: Downloads the image (up to 20MB).
         - **Bare base64 strings**: Decoded strictly.
 
-        Anything else, including a local file path, raises.
+        Anything else (such as a ``file://`` URL or a path with characters or
+        length outside the base64 alphabet) raises ``INVALID_ARGUMENT``. A
+        string whose characters happen to be valid base64 (for example
+        ``/usr/bin/env``, 12 base64 characters) is decoded as those base64
+        bytes rather than opened from the filesystem.
 
         Args:
             url: The media URL from a ``MediaPart``.
@@ -723,7 +752,7 @@ class OllamaModel:
             if not comma:
                 raise GenkitError(status='INVALID_ARGUMENT', message='Malformed data: URL (missing comma separator).')
             try:
-                return base64.b64decode(''.join(payload.split()), validate=True)
+                return base64.b64decode(payload.translate(_ASCII_WHITESPACE), validate=True)
             except binascii.Error as e:
                 raise GenkitError(
                     status='INVALID_ARGUMENT', message='Malformed data: URL (payload is not valid base64).'
@@ -733,7 +762,7 @@ class OllamaModel:
             return await _download_media(url)
 
         try:
-            return base64.b64decode(''.join(url.split()), validate=True)
+            return base64.b64decode(url.translate(_ASCII_WHITESPACE), validate=True)
         except binascii.Error as e:
             raise GenkitError(
                 status='INVALID_ARGUMENT',
