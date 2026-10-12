@@ -282,7 +282,7 @@ Called without a model, the tool is a `StreamResponse[DeployStep, Rollout]`. Chu
 stream = deploy_service.stream(DeployInput(service='payments'))
 
 # 2. Chunks are DeployStep
-async for step in stream:
+async for step in stream.stream:
     print(f'{step.step} ({step.percent}%)')
     # => building image (25%)
     # => pushing layers (75%)
