@@ -1584,6 +1584,14 @@ async def run_model_until_aborted(
     KeyboardInterrupt from it still unwinds straight through the caller.
     """
     abort_signal = ctx.abort_signal
+    if abort_signal is None:
+        return await model.run(
+            input=request,
+            context=ctx.custom_context,
+            on_chunk=ctx.on_chunk,
+            abort_signal=None,
+        )
+
     this_task = asyncio.current_task()
     cancelled_by_abort = False
 
