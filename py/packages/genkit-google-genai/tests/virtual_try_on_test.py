@@ -590,6 +590,12 @@ class TestRequestClient:
                 VirtualTryOnConfig.model_validate({'outputCompressionQuality': quality})
         assert VirtualTryOnConfig.model_validate({'outputCompressionQuality': 100}).output_compression_quality == 100
 
+    def test_output_mime_type_is_closed(self) -> None:
+        """A misspelled MIME type fails validation before the request is built."""
+        with pytest.raises(ValidationError):
+            VirtualTryOnConfig.model_validate({'outputMimeType': 'image/jepg'})
+        assert VirtualTryOnConfig.model_validate({'outputMimeType': 'image/jpeg'}).output_mime_type == 'image/jpeg'
+
     def test_person_and_safety_levels_are_closed(self) -> None:
         """A misspelled level fails validation before the request is built."""
         for field, bad in (('personGeneration', 'dont-allow'), ('safetySetting', 'nope')):

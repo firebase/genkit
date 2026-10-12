@@ -104,7 +104,7 @@ class VirtualTryOnConfig(BaseModel):
     storage_uri: str | None = Field(
         default=None, alias='storageUri', description='Cloud Storage URI to store the generated images.'
     )
-    output_mime_type: str | None = Field(
+    output_mime_type: Literal['image/png', 'image/jpeg'] | None = Field(
         default=None, alias='outputMimeType', description='MIME type of the returned images.'
     )
     output_compression_quality: int | None = Field(
