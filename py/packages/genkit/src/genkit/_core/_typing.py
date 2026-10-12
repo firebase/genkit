@@ -92,6 +92,17 @@ class FinishReason(StrEnum):
     OTHER = 'other'
     UNKNOWN = 'unknown'
 
+    @property
+    def is_abnormal(self) -> bool:
+        """True when generation stopped abnormally (blocked, aborted, failed, interrupted, other)."""
+        return self in (
+            FinishReason.BLOCKED,
+            FinishReason.ABORTED,
+            FinishReason.FAILED,
+            FinishReason.INTERRUPTED,
+            FinishReason.OTHER,
+        )
+
 
 class Role(StrEnum):
     """Role data type class."""

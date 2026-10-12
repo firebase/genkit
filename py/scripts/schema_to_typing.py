@@ -323,6 +323,20 @@ def _emit_enum(name: str, d: dict) -> list[str]:
         if m and m[0].isdigit():
             m = '_' + m
         lines.append(f'    {m} = {repr(v)}')
+    if name == 'FinishReason':
+        lines.extend([
+            '',
+            '    @property',
+            '    def is_abnormal(self) -> bool:',
+            '        """True when generation stopped abnormally (blocked, aborted, failed, interrupted, other)."""',
+            '        return self in (',
+            '            FinishReason.BLOCKED,',
+            '            FinishReason.ABORTED,',
+            '            FinishReason.FAILED,',
+            '            FinishReason.INTERRUPTED,',
+            '            FinishReason.OTHER,',
+            '        )',
+        ])
     return lines + ['']
 
 

@@ -95,7 +95,7 @@ from pydantic import ConfigDict, ValidationError
 from pydantic.alias_generators import to_camel, to_snake
 
 from genkit import ActionRunContext, GenkitError, Message, ModelResponse, ModelResponseChunk, Part, Role
-from genkit.model import GenerationUsage, ModelConfig, ModelRequest, ToolRequest, get_basic_usage_stats
+from genkit.model import GenerationUsage, ModelConfig, ModelRequest, ToolRequest
 from genkit.plugin_api import loop_local_client, provider_error
 from genkit_ollama._constants import DEFAULT_OLLAMA_SERVER_URL
 from genkit_ollama._errors import wrap_connection_errors
@@ -286,9 +286,9 @@ class OllamaModel:
             content=content,
         )
 
-        basic_generation_usage = get_basic_usage_stats(
-            input_=request.messages,
-            response=response_message,
+        basic_generation_usage = GenerationUsage.from_messages(
+            request.messages,
+            response_message,
         )
 
         return ModelResponse(

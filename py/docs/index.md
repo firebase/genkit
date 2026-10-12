@@ -93,7 +93,7 @@
 
 ::: genkit.model.ModelStage
 
-::: genkit.model.get_basic_usage_stats
+::: genkit.model.model_action_metadata
 
 ::: genkit.model.ModelRef
 

@@ -56,7 +56,7 @@ from genkit._core._typing import (
     FinishReason,
     GenerateActionOutputConfig,
     GenerationCommonConfig,
-    GenerationUsage,
+    GenerationUsage as _GenerationUsageWire,
     JsonPatch,
     Media,
     MessageData,
@@ -893,6 +893,69 @@ class EmbedRequest(GenkitModel):
         return [as_document(d) for d in v]
 
 
+class GenerationUsage(_GenerationUsageWire):
+    """Resource consumption metrics for a model generation."""
+
+    @classmethod
+    def from_messages(
+        cls,
+        messages: Sequence[Message],
+        response: Message,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> GenerationUsage:
+        """Derive character and media counts from input and response messages."""
+        if 'input' in kwargs:
+            messages = kwargs.pop('input')
+        elif 'input_' in kwargs:
+            messages = kwargs.pop('input_')
+
+        request_parts: list[Part] = []
+        for msg in messages:
+            request_parts.extend(msg.content)
+
+        response_parts = response.content
+
+        def count_parts(parts: list[Part]) -> tuple[int, int, int, int]:
+            characters = 0
+            images = 0
+            videos = 0
+            audio = 0
+
+            for part in parts:
+                if part.text:
+                    characters += len(part.text)
+
+                media = part.media
+                if media:
+                    content_type = media.content_type or ''
+                    url = media.url or ''
+
+                    if content_type.startswith('image') or url.startswith('data:image'):
+                        images += 1
+                    elif content_type.startswith('video') or url.startswith('data:video'):
+                        videos += 1
+                    elif content_type.startswith('audio') or url.startswith('data:audio'):
+                        audio += 1
+
+            return characters, images, videos, audio
+
+        in_chars, in_imgs, in_vids, in_audio = count_parts(request_parts)
+        out_chars, out_imgs, out_vids, out_audio = count_parts(response_parts)
+
+        fields: dict[str, Any] = {
+            'input_characters': in_chars,
+            'input_images': in_imgs,
+            'input_videos': in_vids,
+            'input_audio_files': in_audio,
+            'output_characters': out_chars,
+            'output_images': out_imgs,
+            'output_videos': out_vids,
+            'output_audio_files': out_audio,
+        }
+        fields.update(kwargs)
+        return cls(**fields)
+
+
 class SessionState(GenkitModel):
     """Session state whose conversation uses Message and Artifact."""
 
@@ -1262,6 +1325,15 @@ class ModelResponse(GenkitModel, Generic[OutputT]):
         if v is None:
             return v
         return as_model_request(v)
+
+    @field_validator('usage', 'total_usage', mode='before')
+    @classmethod
+    def _wrap_usage(cls, v: object) -> object:
+        if v is None:
+            return v
+        if isinstance(v, _GenerationUsageWire) and not isinstance(v, GenerationUsage):
+            return GenerationUsage(**v.model_dump())
+        return v
 
     def model_post_init(self, __context: object) -> None:
         """Initialize default usage and custom dict if not provided."""
@@ -1692,54 +1764,6 @@ def text_from_content(content: Sequence[Part]) -> str:
         if p.text is not None:
             texts.append(str(p.text))
     return ''.join(texts)
-
-
-def get_basic_usage_stats(input_: list[Message], response: Message) -> GenerationUsage:
-    """Calculate usage stats (characters, media counts) from messages."""
-    request_parts: list[Part] = []
-    for msg in input_:
-        request_parts.extend(msg.content)
-
-    response_parts = response.content
-
-    def count_parts(parts: list[Part]) -> tuple[int, int, int, int]:
-        """Count characters, images, videos, audio in parts."""
-        characters = 0
-        images = 0
-        videos = 0
-        audio = 0
-
-        for part in parts:
-            if part.text:
-                characters += len(part.text)
-
-            media = part.media
-            if media:
-                content_type = media.content_type or ''
-                url = media.url or ''
-
-                if content_type.startswith('image') or url.startswith('data:image'):
-                    images += 1
-                elif content_type.startswith('video') or url.startswith('data:video'):
-                    videos += 1
-                elif content_type.startswith('audio') or url.startswith('data:audio'):
-                    audio += 1
-
-        return characters, images, videos, audio
-
-    in_chars, in_imgs, in_vids, in_audio = count_parts(request_parts)
-    out_chars, out_imgs, out_vids, out_audio = count_parts(response_parts)
-
-    return GenerationUsage(
-        input_characters=in_chars,
-        input_images=in_imgs,
-        input_videos=in_vids,
-        input_audio_files=in_audio,
-        output_characters=out_chars,
-        output_images=out_imgs,
-        output_videos=out_vids,
-        output_audio_files=out_audio,
-    )
 
 
 # Rebuild schema after all types (including Message) are fully defined.
