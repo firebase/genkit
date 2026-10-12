@@ -12,12 +12,12 @@ at ``context.secrets``.
 """
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError
 
-from genkit import Genkit, Message, ModelResponse, Part
+from genkit import FinishReason, Genkit, Message, ModelResponse, Part
 from genkit._core._action import ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._model import ModelRef, ModelRequest
@@ -606,14 +606,17 @@ async def test_generate_incomplete_nested_setting_raises_naming_the_missing_fiel
 
 
 @pytest.mark.asyncio
-async def test_generate_missing_required_top_level_field_in_one_layer_still_runs() -> None:
-    """A required top-level field missing from the call dict still runs; another layer may supply it."""
+async def test_generate_missing_required_top_level_field_fails_the_turn_not_the_call() -> None:
+    """A required top-level field no layer supplies doesn't raise; the model action fails the turn."""
     ai, fn = _ai_with_model(config_schema=RequiredTopConfig, name='needs')
 
     response = await ai.generate(model='needs', prompt='hi', config={'temperature': 0.2})
 
-    assert response.text == 'ok'
-    assert _config_value(fn.requests[-1].config, 'temperature') == 0.2
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.error is not None
+    assert response.error.status == 'INVALID_ARGUMENT'
+    assert "'must'" in response.error.message
+    assert fn.requests == []
 
 
 @pytest.mark.asyncio
@@ -820,7 +823,7 @@ async def test_prompt_call_config_api_key_raises() -> None:
 async def test_util_generate_action_config_api_key_raises(name: str) -> None:
     """The registered `/util/generate` action (Dev UI, reflection) raises the same error; the model never runs."""
     ai, fn = _ai_with_model(config_schema=StrictConfig if name == 'strict' else None, name=name)
-    action = await ai.registry.resolve_action(ActionKind.UTIL, 'generate')
+    action = await ai._registry.resolve_action(ActionKind.UTIL, 'generate')
     assert action is not None
 
     with pytest.raises(GenkitError) as err:
@@ -846,11 +849,12 @@ async def test_util_generate_action_config_api_key_raises(name: str) -> None:
 async def test_model_action_run_directly_with_config_api_key_raises(request_input: object) -> None:
     """Running the model action itself, outside generate, raises the same error; the model fn never runs."""
     ai, fn = _ai_with_model(config_schema=None, name='loose')
-    action = await ai.registry.resolve_action(ActionKind.MODEL, 'loose')
+    action = await ai.lookup_model('loose')
     assert action is not None
 
     with pytest.raises(GenkitError) as err:
-        await action.run(request_input)
+        # Wire-shaped inputs on purpose: run() validates whatever it is handed.
+        await action.run(cast(Any, request_input))
 
     _assert_points_to_secrets(err, fn)
 
@@ -869,7 +873,7 @@ async def test_background_model_action_run_directly_with_config_api_key_raises()
         return op
 
     ai.define_background_model(name='bg', start=start, check=check)
-    action = await ai.registry.resolve_action(ActionKind.BACKGROUND_MODEL, 'bg')
+    action = await ai._registry.resolve_action(ActionKind.BACKGROUND_MODEL, 'bg')
     assert action is not None
 
     with pytest.raises(GenkitError) as err:

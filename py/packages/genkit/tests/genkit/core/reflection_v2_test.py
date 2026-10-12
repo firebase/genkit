@@ -57,6 +57,7 @@ from genkit._core._reflection_v2 import (
 from genkit._core._registry import Registry
 from genkit._core._typing import ReflectionRunActionParams
 from genkit.model import model_ref
+from genkit.plugin_api import ActionMetadata, Plugin
 
 
 @pytest.fixture(autouse=True)
@@ -225,12 +226,48 @@ async def test_reflection_server_v2_list_actions(fake_manager: FakeReflectionMan
                 'actionType': 'custom',
                 'inputSchema': {'type': 'integer'},
                 'outputSchema': {'type': 'integer'},
-                'metadata': {
-                    'inputSchema': {'type': 'integer'},
-                    'outputSchema': {'type': 'integer'},
-                },
             }
         }
+    finally:
+        await _stop_client(client, task)
+
+
+class ListingPlugin(Plugin):
+    """Lists one model row with a request and response schema."""
+
+    name = 'acme'
+
+    async def init(self) -> list[Action]:
+        return []
+
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
+        return None
+
+    async def list_actions(self) -> list[ActionMetadata]:
+        return [
+            ActionMetadata(
+                action_type=ActionKind.MODEL,
+                name='acme/m',
+                input_schema={'type': 'object', 'properties': {'prompt': {'type': 'string'}}},
+                output_schema={'type': 'object', 'properties': {'text': {'type': 'string'}}},
+            )
+        ]
+
+
+@pytest.mark.asyncio
+async def test_reflection_v2_list_actions_uses_input_schema(fake_manager: FakeReflectionManager) -> None:
+    """A plugin row's input_schema and output_schema reach listActions as inputSchema and outputSchema."""
+    ai = Genkit(plugins=[ListingPlugin()])
+
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({'jsonrpc': '2.0', 'method': 'listActions', 'id': '1'})
+        resp = await fake_manager.read_rpc()
+        assert resp.get('id') == '1'
+        listed = resp['result']['actions']['/model/acme/m']
+        assert listed['inputSchema'] == {'type': 'object', 'properties': {'prompt': {'type': 'string'}}}
+        assert listed['outputSchema'] == {'type': 'object', 'properties': {'text': {'type': 'string'}}}
     finally:
         await _stop_client(client, task)
 
@@ -341,7 +378,7 @@ async def test_reflection_server_v2_list_values_serializes_middleware_as_object(
     class _NoOpMiddleware(BaseMiddleware):
         pass
 
-    client, task = await _run_client_lifecycle(ai.registry, fake_manager)
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
     try:
         await ack_register(fake_manager)
         await fake_manager.write_rpc({
@@ -388,7 +425,7 @@ async def test_reflection_server_v2_list_values_includes_derived_config_schema(
     class _Fallback(BaseMiddleware[_FallbackConfig]):
         pass
 
-    client, task = await _run_client_lifecycle(ai.registry, fake_manager)
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
     try:
         await ack_register(fake_manager)
         await fake_manager.write_rpc({
@@ -430,7 +467,7 @@ async def test_reflection_server_v2_list_values_empty_config_schema_for_no_op(
     class _NoOp(BaseMiddleware):
         pass
 
-    client, task = await _run_client_lifecycle(ai.registry, fake_manager)
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
     try:
         await ack_register(fake_manager)
         await fake_manager.write_rpc({
@@ -714,7 +751,9 @@ async def test_reflection_server_v2_bidi_action_cleans_up_active_actions(
 
 
 @pytest.mark.asyncio
-async def test_reflection_server_v2_run_action_not_found(fake_manager: FakeReflectionManager) -> None:
+@pytest.mark.parametrize('key', ['/custom/does-not-exist', '/retriever/x', '/tool/x', '/bogus/x'])
+async def test_reflection_server_v2_run_action_not_found(fake_manager: FakeReflectionManager, key: str) -> None:
+    """runAction for a key naming no runnable action, even one that doesn't parse, gets the not-found error."""
     registry = Registry()
     client, task = await _run_client_lifecycle(registry, fake_manager)
     try:
@@ -722,7 +761,7 @@ async def test_reflection_server_v2_run_action_not_found(fake_manager: FakeRefle
         await fake_manager.write_rpc({
             'jsonrpc': '2.0',
             'method': 'runAction',
-            'params': {'key': '/custom/does-not-exist', 'input': None},
+            'params': {'key': key, 'input': None},
             'id': '5',
         })
         resp = await fake_manager.read_rpc()
@@ -946,7 +985,7 @@ async def test_reflection_server_v2_run_action_context_reaches_flow_and_subflow(
     async def order_dish(dish: str, ctx: ActionRunContext) -> dict[str, Any]:
         return {'flow': dict(ctx.context), 'subflow': await allergy_check(dish)}
 
-    client, task = await _run_client_lifecycle(ai.registry, fake_manager)
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
     try:
         await ack_register(fake_manager)
         await fake_manager.write_rpc({
@@ -977,7 +1016,7 @@ async def test_reflection_server_v2_run_action_rejects_non_object_context(
         calls += 1
         return dish
 
-    client, task = await _run_client_lifecycle(ai.registry, fake_manager)
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
     try:
         await ack_register(fake_manager)
         await fake_manager.write_rpc({

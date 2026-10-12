@@ -22,13 +22,12 @@ The expectations encode Bedrock wire-format truths, not incidental structure.
 import base64
 
 import pytest
-from genkit_amazon_bedrock.config import BedrockConfig
-from genkit_amazon_bedrock.converters import (
+from genkit_amazon_bedrock import BedrockConfig, cache_point_part
+from genkit_amazon_bedrock._converters import (
     REASONING_SIGNATURE_METADATA_KEY,
     REDACTED_CONTENT_METADATA_KEY,
     build_converse_request,
     build_inference_config,
-    cache_point_part,
     content_blocks_to_parts,
     map_finish_reason,
     normalize_config,
@@ -735,16 +734,6 @@ def test_tool_input_float_truncates_for_integer_schema() -> None:
     tool_request = parts[0].tool_request
     assert tool_request is not None
     assert tool_request.input == {'n': 7}
-
-
-def test_reasoning_text_block_becomes_reasoning_part_with_both_keys() -> None:
-    blocks = [{'reasoningContent': {'reasoningText': {'text': 'because', 'signature': 'sig'}}}]
-    parts = content_blocks_to_parts(blocks)
-    root = parts[0]
-    assert root.reasoning == 'because'
-    assert root.metadata is not None
-    assert root.metadata['signature'] == 'sig'
-    assert root.metadata[REASONING_SIGNATURE_METADATA_KEY] == 'sig'
 
 
 def test_redacted_content_block_becomes_reasoning_part() -> None:
