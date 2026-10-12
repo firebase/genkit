@@ -58,8 +58,10 @@ from genkit.formats import (
 )
 
 from genkit.web import (
+    # What an adapter's context_provider receives, and its type.
+    RequestData, ContextProvider,
     # Building blocks for serving flows over HTTP; error_body/error_status redact non-public errors.
-    RequestData, read_body, wants_stream, error_body, error_status,
+    read_body, wants_stream, error_body, error_status,
 )
 
 from genkit.telemetry import (
@@ -799,16 +801,15 @@ No adapter. Use this for another framework or when you're writing an adapter. Fo
 ```python
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from genkit.web import RequestData, error_body, error_status, read_body, wants_stream
+from genkit.web import error_body, error_status, read_body, wants_stream
 
 async def track_endpoint(request: Request):
     try:
         # 1. {"data": x} -> x; {} or {"data": null} -> no input
         order_id = read_body(await request.json())
 
-        # 2. Build context from headers (names lowercased, repeats comma-joined)
-        req = RequestData(request=request, method=request.method, headers=request.headers, input=order_id)
-        context = {'user_id': verify_token(req.headers.get('authorization'))}
+        # 2. Build the flow's context however your framework does auth
+        context = {'user_id': verify_token(request.headers.get('authorization'))}
 
         # 3. Accept: text/event-stream or ?stream=true
         if wants_stream(accept=request.headers.get('accept'), stream=request.query_params.get('stream')):
@@ -821,6 +822,39 @@ async def track_endpoint(request: Request):
         # 4. Redacts everything but PublicError
         return JSONResponse(error_body(e), status_code=error_status(e))
 ```
+
+### Context providers
+
+The Flask, Django and FastAPI adapters take `context_provider=`: a function that reads the request and returns the flow's context. It gets a `RequestData` (`method`, `headers` with lowercased names, parsed `input`, and the framework's raw `request`), so one provider works in every adapter. `ContextProvider` is its type, for when you write a function that returns one.
+
+```python
+from genkit import PublicError
+from genkit.web import RequestData
+from genkit_django import genkit_django_handler
+from genkit_flask import genkit_flask_handler
+
+# 1. Read the request, return the flow's context; raise PublicError to reject
+async def auth_context(request: RequestData) -> dict[str, object]:
+    token = request.headers.get('authorization')
+    if token is None:
+        raise PublicError('UNAUTHENTICATED', 'Missing Authorization header')
+    return {'user_id': verify_token(token)}
+
+# 2. The same function in Flask and Django
+@genkit_flask_handler(ai, context_provider=auth_context)
+@ai.flow
+async def track_order(order_id: str, ctx: FlowContext[str]) -> str: ...
+
+@genkit_django_handler(ai, context_provider=auth_context)
+@ai.flow
+async def refund_order(order_id: str, ctx: FlowContext) -> str: ...
+
+# 3. Inside the flow
+ctx.context['user_id']
+# => u_42
+```
+
+In FastAPI, `serve_flow(..., context_dependency=...)` takes a regular `Depends` function instead, as in Levels 1 and 2.
 
 ### Per-tenant API keys
 
