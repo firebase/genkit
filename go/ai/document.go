@@ -358,8 +358,9 @@ type partSchema struct {
 	Reasoning *string `json:"reasoning,omitempty" yaml:"reasoning,omitempty"`
 }
 
-// unmarshalPartFromSchema updates Part p based on the schema s.
-func (p *Part) unmarshalPartFromSchema(s partSchema, hasData bool) {
+// unmarshalPartFromSchema updates Part p based on the schema s. nullData
+// reports that s holds a null data payload that marks a data part.
+func (p *Part) unmarshalPartFromSchema(s partSchema, nullData bool) {
 	switch {
 	case s.Media != nil:
 		p.Kind = PartMedia
@@ -381,7 +382,7 @@ func (p *Part) unmarshalPartFromSchema(s partSchema, hasData bool) {
 		p.Kind = PartReasoning
 		p.Text = *s.Reasoning
 		p.ContentType = "plain/text"
-	case hasData:
+	case s.Data != nil || nullData:
 		p.Kind = PartData
 		p.Data = s.Data
 	default:
@@ -393,21 +394,52 @@ func (p *Part) unmarshalPartFromSchema(s partSchema, hasData bool) {
 	p.Metadata = s.Metadata
 }
 
+// partJSON decodes a part in one pass. Its fields shadow those of partSchema
+// to also record which keys decide the kind of a part with a null data
+// payload: Text is nil for a missing or null text, and Data records whether
+// the data key is present at all.
+type partJSON struct {
+	partSchema
+	Text *string      `json:"text"`
+	Data jsonPresence `json:"data"`
+}
+
+// jsonPresence decodes any JSON value and records that its key is present.
+type jsonPresence struct {
+	value   any
+	present bool
+}
+
+// UnmarshalJSON is called for every value of the key, including null.
+func (v *jsonPresence) UnmarshalJSON(b []byte) error {
+	v.present = true
+	return json.Unmarshal(b, &v.value)
+}
+
 // UnmarshalJSON is called by the JSON unmarshaler to read a Part.
 func (p *Part) UnmarshalJSON(b []byte) error {
-	var s partSchema
-	if err := json.Unmarshal(b, &s); err != nil {
+	var d partJSON
+	if err := json.Unmarshal(b, &d); err != nil {
 		return err
 	}
-	// Inspect presence separately to preserve schema decoding, including errors
-	// in earlier duplicate values and JSON's case-insensitive field matching.
-	var presence struct {
-		Data json.RawMessage `json:"data"`
+	s := d.partSchema
+	if d.Text != nil {
+		s.Text = *d.Text
 	}
-	if err := json.Unmarshal(b, &presence); err != nil {
-		return err
-	}
-	p.unmarshalPartFromSchema(s, presence.Data != nil)
+	s.Data = d.Data.value
+	// A null data payload marks a data part only when there is no text,
+	// since many encoders write every unset field of a part as null.
+	nullData := d.Data.present && d.Text == nil
+	p.unmarshalPartFromSchema(s, nullData)
+	return nil
+}
+
+// yamlNonNull records that a YAML mapping value is not null, without decoding
+// it. The decoder does not call UnmarshalYAML for a null value.
+type yamlNonNull bool
+
+func (v *yamlNonNull) UnmarshalYAML(func(any) error) error {
+	*v = true
 	return nil
 }
 
@@ -417,12 +449,15 @@ func (p *Part) UnmarshalYAML(unmarshal func(any) error) error {
 	if err := unmarshal(&s); err != nil {
 		return err
 	}
-	var fields map[string]any
-	if err := unmarshal(&fields); err != nil {
+	// go-yaml skips the unmarshaler of a struct field whose value is null, so
+	// key presence comes from a mapping that does not decode the values.
+	var keys map[string]yamlNonNull
+	if err := unmarshal(&keys); err != nil {
 		return err
 	}
-	_, hasData := fields["data"]
-	p.unmarshalPartFromSchema(s, hasData)
+	_, hasData := keys["data"]
+	nullData := hasData && !bool(keys["text"])
+	p.unmarshalPartFromSchema(s, nullData)
 	return nil
 }
 
