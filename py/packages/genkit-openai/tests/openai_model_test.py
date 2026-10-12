@@ -35,8 +35,7 @@ from pydantic import BaseModel
 
 from genkit import ActionRunContext, FinishReason, GenkitError, Message, ModelResponse, ModelResponseChunk, Part, Role
 from genkit._core._operation import Operation
-from genkit._core._typing import GenerationUsage
-from genkit.model import ModelConfig, ModelRequest, ModelSupports, OutputConfig, ToolRequest
+from genkit.model import GenerationUsage, ModelConfig, ModelRequest, ModelSupports, OutputConfig, ToolRequest
 
 
 def test_unknown_chat_id_json_mode_uses_json_object() -> None:
