@@ -1480,11 +1480,24 @@ async def generate_turn(
         schema_type=options.output.schema_type if options.output else None,
     )
 
-    def stream_tool_parts(parts: list[Part]) -> None:
-        """Put one send_chunk onto the generate stream without failing the tool."""
+    def stream_tool_chunk(tool_request_part: Part, value: object) -> None:
+        """Emit a partial tool-response Part onto the generate stream without failing the tool."""
+        tool_req = tool_request_part.tool_request
+        if tool_req is None:
+            return
         try:
             chunks.stream_chunk(
-                chunk=ModelResponseChunk(role=Role.TOOL, content=parts),
+                chunk=ModelResponseChunk(
+                    role=Role.TOOL,
+                    content=[
+                        Part.from_tool_response(
+                            name=tool_req.name,
+                            ref=tool_req.ref,
+                            output=value,
+                            metadata={'partial': True},
+                        )
+                    ],
+                ),
                 role=Role.TOOL,
                 ctx=mw_pipeline.ctx,
             )
@@ -1494,13 +1507,13 @@ async def generate_turn(
                 error=str(e),
             )
 
-    on_tool_parts = stream_tool_parts if mw_pipeline.ctx.on_chunk is not None else None
+    on_tool_chunk = stream_tool_chunk if mw_pipeline.ctx.on_chunk is not None else None
 
     options, paused, resumed_tool_message = await resolve_resume_options(
         options=options,
         mw_pipeline=mw_pipeline,
         resolved=resolved,
-        on_tool_parts=on_tool_parts,
+        on_tool_chunk=on_tool_chunk,
     )
     if paused:
         # The restart paused again. They can answer it the same
@@ -1804,11 +1817,24 @@ async def run_tools_or_stop(
             ),
         )
 
-    def stream_tool_parts(parts: list[Part]) -> None:
-        """Put one send_chunk onto the generate stream without failing the tool."""
+    def stream_tool_chunk(tool_request_part: Part, value: object) -> None:
+        """Emit a partial tool-response Part onto the generate stream without failing the tool."""
+        tool_req = tool_request_part.tool_request
+        if tool_req is None:
+            return
         try:
             chunks.stream_chunk(
-                chunk=ModelResponseChunk(role=Role.TOOL, content=parts),
+                chunk=ModelResponseChunk(
+                    role=Role.TOOL,
+                    content=[
+                        Part.from_tool_response(
+                            name=tool_req.name,
+                            ref=tool_req.ref,
+                            output=value,
+                            metadata={'partial': True},
+                        )
+                    ],
+                ),
                 role=Role.TOOL,
                 ctx=ctx,
             )
@@ -1818,14 +1844,14 @@ async def run_tools_or_stop(
                 error=str(e),
             )
 
-    on_tool_parts = stream_tool_parts if ctx.on_chunk is not None else None
+    on_tool_chunk = stream_tool_chunk if ctx.on_chunk is not None else None
 
     try:
         revised_model_msg, tool_msg = await resolve_tool_requests(
             message=generated_msg,
             mw_pipeline=mw_pipeline,
             tools=resolved.tools,
-            on_tool_parts=on_tool_parts,
+            on_tool_chunk=on_tool_chunk,
         )
     except (Exception, asyncio.CancelledError) as exc:
         raise_if_foreign_cancel(exc=exc, abort_signal=ctx.abort_signal)
@@ -2139,7 +2165,7 @@ async def resolve_tool_requests(
     message: Message,
     mw_pipeline: MiddlewarePipeline,
     tools: list[Action],
-    on_tool_parts: Callable[[list[Part]], None] | None = None,
+    on_tool_chunk: Callable[[Part, object], None] | None = None,
 ) -> tuple[Message | None, Message | None]:
     """Execute tool requests in a message, returning responses or interrupt info."""
     # The door Actions are what run. wrap_tool can wrap them; it cannot
@@ -2186,7 +2212,7 @@ async def resolve_tool_requests(
                 tool=p.tool,
                 tool_request_part=p.tool_request_part,
                 ctx=c,
-                on_tool_parts=on_tool_parts,
+                on_tool_chunk=on_tool_chunk,
             )
 
         try:
@@ -2289,7 +2315,7 @@ async def execute_tool_request(
     tool: Action,
     tool_request_part: Part,
     ctx: GenerateMiddlewareContext,
-    on_tool_parts: Callable[[list[Part]], None] | None = None,
+    on_tool_chunk: Callable[[Part, object], None] | None = None,
 ) -> MultipartToolResponse:
     """Execute a tool and return its response.
 
@@ -2308,7 +2334,7 @@ async def execute_tool_request(
             tool=tool,
             tool_request_part=tool_request_part,
             ctx=ctx,
-            on_tool_parts=on_tool_parts,
+            on_tool_chunk=on_tool_chunk,
         )
     )
 
@@ -2395,7 +2421,7 @@ async def resolve_resume_options(
     options: GenerateActionOptions,
     mw_pipeline: MiddlewarePipeline | None = None,
     resolved: ResolvedTurn,
-    on_tool_parts: Callable[[list[Part]], None] | None = None,
+    on_tool_chunk: Callable[[Part, object], None] | None = None,
 ) -> tuple[GenerateActionOptions, ModelResponse | None, Message | None]:
     """Handle resume options by resolving pending tool calls from a previous turn."""
     if not options.resume:
@@ -2427,7 +2453,7 @@ async def resolve_resume_options(
             tool_request_part=part,
             mw_pipeline=mw_pipeline,
             tools=resolved.tools,
-            on_tool_parts=on_tool_parts,
+            on_tool_chunk=on_tool_chunk,
         )
         for _, part in indexed_requests
     ])
@@ -2491,7 +2517,7 @@ async def resolve_resumed_tool(
     tool_request_part: Part,
     mw_pipeline: MiddlewarePipeline | None = None,
     tools: list[Action],
-    on_tool_parts: Callable[[list[Part]], None] | None = None,
+    on_tool_chunk: Callable[[Part, object], None] | None = None,
 ) -> tuple[Part, Part | None]:
     """Resolve a single tool request from pending output, resume.respond, or resume.restart."""
     if tool_request_part.tool_request is None:
@@ -2584,7 +2610,7 @@ async def resolve_resumed_tool(
                 tool=tool,
                 restart_trp=restart_trp,
                 mw_pipeline=mw_pipeline,
-                on_tool_parts=on_tool_parts,
+                on_tool_chunk=on_tool_chunk,
             )
         except Exception as e:
             intr = interrupt_from_exc(e)
@@ -2621,7 +2647,7 @@ async def run_restart(
     tool: Action,
     restart_trp: Part,
     mw_pipeline: MiddlewarePipeline | None,
-    on_tool_parts: Callable[[list[Part]], None] | None = None,
+    on_tool_chunk: Callable[[Part, object], None] | None = None,
 ) -> Part:
     """Run a restarted tool through the wrap_tool middleware chain.
 
@@ -2639,7 +2665,7 @@ async def run_restart(
             tool=tool,
             restart_trp=restart_trp,
             ctx=mw_pipeline.ctx if mw_pipeline is not None else None,
-            on_tool_parts=on_tool_parts,
+            on_tool_chunk=on_tool_chunk,
         )
 
     params = ToolHookParams(
@@ -2652,7 +2678,7 @@ async def run_restart(
             tool=p.tool,
             restart_trp=p.tool_request_part,
             ctx=ctx,
-            on_tool_parts=on_tool_parts,
+            on_tool_chunk=on_tool_chunk,
         )
         if executed.tool_response is None:
             raise GenkitError(status='INTERNAL', message='Expected a tool response part')
