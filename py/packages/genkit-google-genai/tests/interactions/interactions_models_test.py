@@ -1045,7 +1045,7 @@ async def test_ai_generate_operation_deep_research_uses_context_secrets(
         captured=captured,
     )
     ai = Genkit(plugins=[GoogleAI(api_key='plugin-key')])
-    tenant = {'secrets': {'api_key': 'tenant-key'}}
+    tenant: dict[str, Any] = {'secrets': {'api_key': 'tenant-key'}}
     with patcher:
         operation = await ai.generate_operation(
             model=GoogleAI.deep_research_model('deep-research-preview-04-2026'),
