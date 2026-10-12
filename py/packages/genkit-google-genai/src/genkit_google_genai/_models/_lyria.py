@@ -25,7 +25,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from genkit.model import ModelInfo, Supports
+from genkit.model import ModelInfo, ModelSupports
 
 # Known Lyria models
 KNOWN_LYRIA_MODELS: frozenset[str] = frozenset({'lyria-002'})
@@ -63,7 +63,7 @@ class LyriaConfig(BaseModel):
 
 LYRIA_MODEL_INFO = ModelInfo(
     label='Vertex AI - Lyria',
-    supports=Supports(
+    supports=ModelSupports(
         media=True,
         multiturn=False,
         tools=False,

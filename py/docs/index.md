@@ -75,7 +75,7 @@
 
 ::: genkit.model.OutputConfig
 
-::: genkit.model.ModelUsage
+::: genkit.model.GenerationUsage
 
 ::: genkit.model.Candidate
 
@@ -89,15 +89,13 @@
 
 ::: genkit.model.ModelInfo
 
-::: genkit.model.Supports
+::: genkit.model.ModelSupports
 
-::: genkit.model.Constrained
+::: genkit.model.ConstrainedSupport
 
-::: genkit.model.Stage
+::: genkit.model.ModelStage
 
 ::: genkit.model.model_action_metadata
-
-::: genkit.model.model_ref
 
 ::: genkit.model.get_basic_usage_stats
 

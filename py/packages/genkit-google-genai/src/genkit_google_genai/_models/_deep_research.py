@@ -43,7 +43,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic.alias_generators import to_camel
 
 from genkit import ActionRunContext, GenkitError, Operation
-from genkit.model import BackgroundModel, ModelRef, ModelRequest, model_ref
+from genkit.model import BackgroundModel, ModelRef, ModelRequest
 from genkit.plugin_api import Action, ActionKind, to_json_schema
 
 AGENT_CONFIG_KEYS = (
@@ -119,9 +119,8 @@ class DeepResearchConfig(BaseModel):
 def deep_research_model(version: str) -> ModelRef:
     """Return a ModelRef for a Deep Research version (namespaced or bare)."""
     clean = extract_version(version)
-    return model_ref(
-        name=clean,
-        namespace='googleai',
+    return ModelRef(
+        name=f'googleai/{clean}',
         info=deep_research_model_info(clean),
         config_schema=DeepResearchConfig,
     )

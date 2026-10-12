@@ -33,7 +33,7 @@ from genkit._core._error import GenkitError
 from genkit._core._model import Message, ModelRequest, ModelResponse
 from genkit._core._typing import Operation, Role
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, ModelHookParams
-from genkit.model import model_ref
+from genkit.model import ModelRef
 
 NextModel = Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]]
 
@@ -236,7 +236,7 @@ async def test_missing_field_message_is_the_same_for_class_and_dict(kind: Kind, 
 async def test_model_ref_version_passes_a_schema_that_does_not_name_it(kind: Kind, declared: Declared) -> None:
     """ModelRef.version rides in config; a strict schema without a version field still runs."""
     tts = Tts(Genkit(), kind=kind, declared=declared, config_class=StrictVoice)
-    ref = model_ref('acme/tts', config_schema=StrictVoice, version='v2')
+    ref = ModelRef(name='acme/tts', config_schema=StrictVoice, version='v2')
 
     assert await tts.failure(model=ref, config={'voice': 'echo'}) is None
     assert [dict(config) for config in tts.seen] == [{'voice': 'echo', 'version': 'v2'}]  # type: ignore[call-overload]

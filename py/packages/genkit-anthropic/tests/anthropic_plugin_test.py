@@ -33,7 +33,7 @@ from genkit_anthropic._models import AnthropicModel
 from genkit_anthropic._plugin import anthropic_name
 
 from genkit import Genkit, Message, ModelResponse, Part, Role
-from genkit.model import Constrained, ModelRequest, ToolDefinition
+from genkit.model import ConstrainedSupport, ModelRequest, ToolDefinition
 from genkit.plugin_api import ActionKind
 
 
@@ -190,7 +190,7 @@ def test_supported_models() -> None:
         assert info.versions == [model_name]
         assert info.supports is not None
         assert info.supports.output == ['text', 'json']
-        assert info.supports.constrained == Constrained.ALL
+        assert info.supports.constrained == ConstrainedSupport.ALL
 
 
 def test_mythos_excluded_but_resolvable() -> None:

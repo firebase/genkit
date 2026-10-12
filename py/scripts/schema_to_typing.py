@@ -56,8 +56,9 @@ TRANSFORMATIONS = {
     # context.secrets instead and model config has no slot for one.
     'GenerationCommonConfig': {'omit': ['apiKey']},
     # docs= always goes into the prompt and nothing in Python reads
-    # supports.context, so the field isn't emitted.
-    'Supports': {'omit': ['context']},
+    # supports.context, so the field isn't emitted. Python names match Go's
+    # ModelSupports / ConstrainedSupport / ModelStage; JSON is unchanged.
+    'Supports': {'output_name': 'ModelSupports', 'omit': ['context']},
     # Models declare config with config_schema= and publish it as
     # customOptions. ModelInfo.configSchema was a second, unread slot for the
     # same thing, so it isn't emitted.
@@ -234,9 +235,9 @@ def _py_type(prop: dict, schema: dict, defs: dict, class_name: str, field_name: 
                 # callers type one of these three strings
                 return "Literal['auto', 'required', 'none']"
             if field_name in ('constrained',) and set(vals) == {'none', 'all', 'no-tools'}:
-                return 'Constrained'
+                return 'ConstrainedSupport'
             if field_name in ('stage',) and set(vals) == {'featured', 'stable', 'unstable', 'legacy', 'deprecated'}:
-                return 'Stage'
+                return 'ModelStage'
             return _output_name(ref_name)
         if target.get('type') == 'array':
             inner = _py_type(target.get('items', {}), schema, defs, class_name, field_name) or 'Any'
@@ -290,9 +291,9 @@ def _py_type(prop: dict, schema: dict, defs: dict, class_name: str, field_name: 
             # callers type one of these three strings
             return "Literal['auto', 'required', 'none']"
         if field_name in ('constrained',) and set(vals) == {'none', 'all', 'no-tools'}:
-            return 'Constrained'
+            return 'ConstrainedSupport'
         if field_name in ('stage',) and set(vals) == {'featured', 'stable', 'unstable', 'legacy', 'deprecated'}:
-            return 'Stage'
+            return 'ModelStage'
         return 'Literal[' + ', '.join(repr(v) for v in vals) + ']'
     t = prop.get('type')
     if isinstance(t, list):
@@ -493,14 +494,14 @@ def generate(schema_path: Path, _out: Path) -> str:
     # Supplemental types (Python SDK; from inline schema or SDK-specific)
     out.extend([
         '',
-        'class Constrained(StrEnum):',
+        'class ConstrainedSupport(StrEnum):',
         '    """Constrained generation support (none, all, no-tools)."""',
         '',
         '    NONE = "none"',
         '    ALL = "all"',
         '    NO_TOOLS = "no-tools"',
         '',
-        'class Stage(StrEnum):',
+        'class ModelStage(StrEnum):',
         '    """Model stage (featured, stable, unstable, legacy, deprecated)."""',
         '',
         '    FEATURED = "featured"',

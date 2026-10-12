@@ -20,26 +20,25 @@ from genkit._ai._generate import StreamingCallbackError
 from genkit._ai._model import (
     model,
     model_action_metadata,
-    model_ref,
 )
 from genkit._core._background import BackgroundModel, background_model
 from genkit._core._model import (
     ABNORMAL_FINISH_REASONS,
     Candidate,
     GenerateActionOptions,
+    GenerationUsage,
     ModelConfig,
     ModelRef,
     ModelRequest,
-    ModelUsage,
     OutputConfig,
     get_basic_usage_stats,
 )
 from genkit._core._typing import (
-    Constrained,
+    ConstrainedSupport,
     ModelInfo,
+    ModelStage,
+    ModelSupports,
     OperationError,
-    Stage,
-    Supports,
     ToolDefinition,
     ToolRequest,
     ToolResponse,
@@ -56,7 +55,7 @@ __all__ = [
     'ModelRequest',
     'OutputConfig',
     # Usage and metadata
-    'ModelUsage',
+    'GenerationUsage',
     'Candidate',
     # Long-running operations
     'OperationError',
@@ -66,14 +65,13 @@ __all__ = [
     'ToolResponse',
     # Model info
     'ModelInfo',
-    'Supports',
-    'Constrained',
-    'Stage',
+    'ModelSupports',
+    'ConstrainedSupport',
+    'ModelStage',
     # Factory functions and metadata
     'model',
     'background_model',
     'model_action_metadata',
-    'model_ref',
     'get_basic_usage_stats',
     # Reference types
     'ModelRef',
