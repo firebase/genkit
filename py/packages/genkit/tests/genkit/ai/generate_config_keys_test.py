@@ -17,7 +17,7 @@ from typing import Any, cast
 import pytest
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError
 
-from genkit import Genkit, Message, ModelResponse, Part
+from genkit import FinishReason, Genkit, Message, ModelResponse, Part
 from genkit._core._action import ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._model import ModelRef, ModelRequest
@@ -606,14 +606,17 @@ async def test_generate_incomplete_nested_setting_raises_naming_the_missing_fiel
 
 
 @pytest.mark.asyncio
-async def test_generate_missing_required_top_level_field_in_one_layer_still_runs() -> None:
-    """A required top-level field missing from the call dict still runs; another layer may supply it."""
+async def test_generate_missing_required_top_level_field_fails_the_turn_not_the_call() -> None:
+    """A required top-level field no layer supplies doesn't raise; the model action fails the turn."""
     ai, fn = _ai_with_model(config_schema=RequiredTopConfig, name='needs')
 
     response = await ai.generate(model='needs', prompt='hi', config={'temperature': 0.2})
 
-    assert response.text == 'ok'
-    assert _config_value(fn.requests[-1].config, 'temperature') == 0.2
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.error is not None
+    assert response.error.status == 'INVALID_ARGUMENT'
+    assert "'must'" in response.error.message
+    assert fn.requests == []
 
 
 @pytest.mark.asyncio

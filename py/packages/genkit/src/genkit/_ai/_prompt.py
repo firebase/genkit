@@ -54,8 +54,7 @@ from genkit._ai._model import (
     ModelResponseChunk,
     assert_correct_config_class,
     check_call_config,
-    check_config_dict,
-    config_field_names,
+    config_class_for_generate,
     config_schema_at_define,
     fold_config_aliases,
     normalize_config,
@@ -70,6 +69,7 @@ from genkit._core._action import (
     get_current_context,
 )
 from genkit._core._channel import Channel
+from genkit._core._config_check import check_config_values, config_field_names
 from genkit._core._error import ErrorReason, GenkitError
 from genkit._core._logger import get_logger
 from genkit._core._middleware import BaseMiddleware, middleware_class_index
@@ -394,7 +394,8 @@ class Prompt(Generic[InputT, OutputT]):
             override = normalize_config(config=override_config)
             # `maxOutputTokens` in the prompt and `max_output_tokens` in the
             # call are one setting: fold both to field names so the call wins.
-            schema = (await resolve_for_generate(model=model, registry=self._ai._registry)).config_schema
+            # A model typed only by its ModelRequest[...] annotation folds too.
+            schema = await config_class_for_generate(model=model, registry=self._ai._registry)
             if schema is not None:
                 base = fold_config_aliases(config=base, schema=schema)
                 override = fold_config_aliases(config=override, schema=schema)
@@ -421,7 +422,7 @@ class Prompt(Generic[InputT, OutputT]):
                 schema=resolved.config_schema,
                 model=resolved.name,
             )
-        check_config_dict(
+        check_config_values(
             config=prompt_config_after_clears(
                 stored=self._def.config,
                 override=override_config,
