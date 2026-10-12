@@ -17,13 +17,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from genkit import Genkit, get_logger
+from genkit import Genkit, Message, Part, Role, get_logger
 from genkit._core._action import ActionRunContext, _action_context
 from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._model import ModelRequest, ModelResponse
+from genkit._core._operation import Operation
 from genkit._core._telemetry._log_exporter import build_log_record
-from genkit._core._typing import Operation
-from genkit.evaluator import BaseDataPoint, EvalFnResponse, Score
+from genkit.evaluator import BaseDataPoint, EvaluatorResponse, Score
 from genkit.telemetry import (
     SpanMetadata,
     SpanNext,
@@ -220,7 +220,8 @@ async def test_genkit_check_operation() -> None:
 
     # Create mock background model with check method
     mock_background_model = MagicMock()
-    mock_background_model.check = AsyncMock(return_value=Operation(id='123', done=True, output='result'))
+    finished = ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('result')]))
+    mock_background_model.check = AsyncMock(return_value=Operation(id='123', done=True, output=finished))
 
     # Patch lookup_background_model to return our mock
     with mock.patch(
@@ -230,7 +231,8 @@ async def test_genkit_check_operation() -> None:
         updated_op = await ai.check_operation(op)
 
         assert updated_op.done is True
-        assert updated_op.output == 'result'
+        assert updated_op.output is not None
+        assert updated_op.output.text == 'result'
         mock_lookup.assert_called_once()
 
 
@@ -520,8 +522,8 @@ def test_define_evaluator_takes_name_and_fn_positionally() -> None:
     """define_evaluator(name, fn, *, ...) matches define_model; options stay keyword-only."""
     ai = Genkit()
 
-    async def exact(row: BaseDataPoint, options: object | None) -> EvalFnResponse:
-        return EvalFnResponse(test_case_id=row.test_case_id or '', evaluation=[Score(score=True)])
+    async def exact(row: BaseDataPoint, options: object | None) -> EvaluatorResponse:
+        return EvaluatorResponse(test_case_id=row.test_case_id or '', evaluation=[Score(score=True)])
 
     action = ai.define_evaluator('exact', exact, display_name='Exact', definition='Matches exactly.')
     assert action.name == 'exact'

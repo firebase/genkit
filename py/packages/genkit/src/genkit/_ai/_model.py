@@ -413,8 +413,8 @@ def model_action_metadata(
     return ActionMetadata(
         action_type=ActionKind.MODEL,
         name=name,
-        input_json_schema=to_json_schema(ModelRequest),
-        output_json_schema=to_json_schema(ModelResponse),
+        input_schema=to_json_schema(ModelRequest),
+        output_schema=to_json_schema(ModelResponse),
         metadata={'model': _model_options(name=name, info=info, config_schema=config_schema)},
     )
 

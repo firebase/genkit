@@ -45,14 +45,12 @@ from genkit.model import ModelInfo, ModelRequest, ModelSupports, OperationError
 # Quote autocomplete needs a Literal, so this alias is the Veo catalog.
 # ``veo_model`` takes ``KnownVeo | str`` so unlisted ids still work.
 KnownVeo: TypeAlias = Literal[
-    'veo-2.0-generate-001',
-    'veo-2.0-generate-exp',
-    'veo-3.0-generate-001',
-    'veo-3.0-fast-generate-001',
     'veo-3.1-generate-preview',
     'veo-3.1-fast-generate-preview',
+    'veo-3.1-lite-generate-preview',
     'veo-3.1-generate-001',
     'veo-3.1-fast-generate-001',
+    'veo-3.1-lite-generate-001',
 ]
 
 
