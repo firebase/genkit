@@ -155,6 +155,26 @@ async def test_tool_call_without_stream_is_noop_for_send_chunk() -> None:
 
 
 @pytest.mark.asyncio
+async def test_bare_tool_decorator_streams_typed_chunks_and_output() -> None:
+    """Bare @ai.tool (without parentheses) infers Tool[InputT, OutputT, ChunkT] and streams ChunkT."""
+    ai = Genkit()
+
+    @ai.tool
+    async def deploy(_req: dict[str, Any], ctx: ToolContext[Step]) -> Recipe:
+        ctx.send_chunk(Step(stage='bake', percent=80))
+        return Recipe(title='Sourdough', steps=['mix', 'bake'])
+
+    stream = deploy.stream({})
+    assert_type(stream, StreamResponse[Step, Recipe])
+    got = [chunk async for chunk in stream.stream]
+    recipe = await stream.response
+    assert_type(recipe, Recipe)
+
+    assert got == [Step(stage='bake', percent=80)]
+    assert recipe == Recipe(title='Sourdough', steps=['mix', 'bake'])
+
+
+@pytest.mark.asyncio
 async def test_generate_stream_emits_partial_tool_response_before_final() -> None:
     """ctx.send_chunk(val) during generate_stream emits partial tool_response before the final one."""
     ai = Genkit(model='scriptedModel')

@@ -673,3 +673,22 @@ async def test_tool_with_type_checking_only_tool_context_gets_tool_context() -> 
     assert _advertised_schema(pm) == WEATHER_SCHEMA
     assert seen == [ToolContext, {'user': 'u1'}]
     assert _tool_output(response) == '22C in Paris'
+
+
+@pytest.mark.asyncio
+async def test_bare_tool_decorator_without_parentheses_registers_and_runs() -> None:
+    """Bare `@ai.tool` (without parentheses) registers the tool by function name and supports `ToolContext[ChunkT]`."""
+    ai, pm = _app()
+    seen: list[object] = []
+
+    @ai.tool
+    async def weather(input: WeatherInput, ctx: ToolContext[int]) -> str:
+        seen.extend([type(ctx), ctx.context])
+        return f'22{input.unit} in {input.city}'
+
+    assert weather.name == 'weather'
+    response = await _model_calls_tool(ai, pm, name='weather', tool_input={'city': 'Paris'}, context={'user': 'u1'})
+
+    assert _advertised_schema(pm) == WEATHER_SCHEMA
+    assert seen == [ToolContext, {'user': 'u1'}]
+    assert _tool_output(response) == '22C in Paris'
