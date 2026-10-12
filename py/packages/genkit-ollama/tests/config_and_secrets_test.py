@@ -29,9 +29,8 @@ from typing import Any, cast, get_args
 import httpx
 import ollama as ollama_api
 import pytest
-from genkit_ollama import Ollama, RequestHeaderParams, ollama_name
-from genkit_ollama.constants import OllamaAPITypes
-from genkit_ollama.models import ModelDefinition, OllamaConfig
+from genkit_ollama import Ollama, OllamaConfig
+from genkit_ollama._plugin import ollama_name
 from pydantic import ValidationError
 
 from genkit import FinishReason, Genkit, GenkitError
@@ -58,12 +57,11 @@ class Server:
         return self.requests[-1].headers.get('authorization')
 
     def handle(self, request: httpx.Request) -> httpx.Response:
+        if request.url.path == '/api/show':
+            return httpx.Response(200, json={'capabilities': ['tools', 'vision']})
         self.requests.append(request)
         body = json.loads(request.content)
-        if request.url.path == '/api/generate':
-            reply = {'model': body['model'], 'response': 'ok', 'done': True}
-        else:
-            reply = {'model': body['model'], 'message': {'role': 'assistant', 'content': 'ok'}, 'done': True}
+        reply = {'model': body['model'], 'message': {'role': 'assistant', 'content': 'ok'}, 'done': True}
         if body.get('stream'):
             return httpx.Response(200, content=json.dumps(reply) + '\n')
         return httpx.Response(200, json=reply)
@@ -173,17 +171,6 @@ async def test_generate_ollama_extra_key_overrides_declared_setting(server: Serv
 
 
 @pytest.mark.asyncio
-async def test_generate_ollama_extra_on_generate_api_model_lands_in_options(server: Server) -> None:
-    """A model on Ollama's `/api/generate` endpoint gets `extra` in `options` too."""
-    ai = make_ai(models=[ModelDefinition(name='llama3.2', api_type=OllamaAPITypes.GENERATE)])
-
-    await ai.generate(model=MODEL, prompt='hi', config={'extra': {'mirostat': 2}})
-
-    assert server.requests[-1].url.path == '/api/generate'
-    assert server.last_options == {'mirostat': 2}
-
-
-@pytest.mark.asyncio
 async def test_generate_ollama_think_and_keep_alive_stay_top_level(server: Server) -> None:
     """`think` and `keep_alive` are still request fields, not options."""
     ai = make_ai()
@@ -238,17 +225,6 @@ async def test_generate_stream_ollama_secrets_api_key_sends_bearer_header(server
 
 
 @pytest.mark.asyncio
-async def test_generate_ollama_generate_api_model_secrets_api_key_sends_bearer_header(server: Server) -> None:
-    """A model on `/api/generate` sends the same bearer header."""
-    ai = make_ai(models=[ModelDefinition(name='llama3.2', api_type=OllamaAPITypes.GENERATE)])
-
-    await ai.generate(model=MODEL, prompt='hi', context={'secrets': {'api_key': 'tenant'}})
-
-    assert server.requests[-1].url.path == '/api/generate'
-    assert server.last_authorization == 'Bearer tenant'
-
-
-@pytest.mark.asyncio
 async def test_generate_ollama_without_secrets_sends_configured_headers(server: Server) -> None:
     """No secrets means the plugin's `request_headers` only."""
     ai = make_ai(request_headers={'Authorization': 'Bearer plugin', 'X-Org': 'acme'})
@@ -277,7 +253,7 @@ async def test_generate_ollama_secrets_key_replaces_configured_authorization_hea
 async def test_generate_ollama_secrets_key_replaces_header_callable_authorization(server: Server) -> None:
     """A secrets key also wins over an `Authorization` header from a `request_headers` callable."""
 
-    def headers(_: RequestHeaderParams) -> dict[str, str]:
+    def headers() -> dict[str, str]:
         return {'Authorization': 'Bearer minted', 'X-Org': 'acme'}
 
     ai = make_ai(request_headers=headers)

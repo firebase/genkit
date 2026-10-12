@@ -79,13 +79,16 @@ def string_secret(value: object) -> str | None:
     )
 
 
-def context_api_key(context: dict[str, Any]) -> str | None:
+def context_api_key(context: dict[str, Any] | None) -> str | None:
     """Read the per-request key from ``context.secrets``.
 
     ``api_key`` is the documented slot; ``apiKey`` works too. A key on the
     top-level context or ``context['config']`` raises, because quietly
     running that call on the plugin's own header would bill the wrong account.
     """
+    if not context:
+        return None
+
     nested = context.get('config')
     if isinstance(nested, dict) and (nested.get('api_key') is not None or nested.get('apiKey') is not None):
         raise misplaced_key_error()

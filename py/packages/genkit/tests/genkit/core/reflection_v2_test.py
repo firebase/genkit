@@ -148,7 +148,7 @@ async def _run_client_lifecycle(
 
 
 async def _stop_client(client: ReflectionServerV2, task: asyncio.Task[None]) -> None:
-    client.stop()
+    await client.stop()
     task.cancel()
     try:
         await task
@@ -341,7 +341,7 @@ async def test_reflection_server_v2_list_values_serializes_middleware_as_object(
     class _NoOpMiddleware(BaseMiddleware):
         pass
 
-    client, task = await _run_client_lifecycle(ai.registry, fake_manager)
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
     try:
         await ack_register(fake_manager)
         await fake_manager.write_rpc({
@@ -388,7 +388,7 @@ async def test_reflection_server_v2_list_values_includes_derived_config_schema(
     class _Fallback(BaseMiddleware[_FallbackConfig]):
         pass
 
-    client, task = await _run_client_lifecycle(ai.registry, fake_manager)
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
     try:
         await ack_register(fake_manager)
         await fake_manager.write_rpc({
@@ -430,7 +430,7 @@ async def test_reflection_server_v2_list_values_empty_config_schema_for_no_op(
     class _NoOp(BaseMiddleware):
         pass
 
-    client, task = await _run_client_lifecycle(ai.registry, fake_manager)
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
     try:
         await ack_register(fake_manager)
         await fake_manager.write_rpc({
@@ -714,7 +714,9 @@ async def test_reflection_server_v2_bidi_action_cleans_up_active_actions(
 
 
 @pytest.mark.asyncio
-async def test_reflection_server_v2_run_action_not_found(fake_manager: FakeReflectionManager) -> None:
+@pytest.mark.parametrize('key', ['/custom/does-not-exist', '/retriever/x', '/tool/x', '/bogus/x'])
+async def test_reflection_server_v2_run_action_not_found(fake_manager: FakeReflectionManager, key: str) -> None:
+    """runAction for a key naming no runnable action, even one that doesn't parse, gets the not-found error."""
     registry = Registry()
     client, task = await _run_client_lifecycle(registry, fake_manager)
     try:
@@ -722,7 +724,7 @@ async def test_reflection_server_v2_run_action_not_found(fake_manager: FakeRefle
         await fake_manager.write_rpc({
             'jsonrpc': '2.0',
             'method': 'runAction',
-            'params': {'key': '/custom/does-not-exist', 'input': None},
+            'params': {'key': key, 'input': None},
             'id': '5',
         })
         resp = await fake_manager.read_rpc()
@@ -946,7 +948,7 @@ async def test_reflection_server_v2_run_action_context_reaches_flow_and_subflow(
     async def order_dish(dish: str, ctx: ActionRunContext) -> dict[str, Any]:
         return {'flow': dict(ctx.context), 'subflow': await allergy_check(dish)}
 
-    client, task = await _run_client_lifecycle(ai.registry, fake_manager)
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
     try:
         await ack_register(fake_manager)
         await fake_manager.write_rpc({
@@ -977,7 +979,7 @@ async def test_reflection_server_v2_run_action_rejects_non_object_context(
         calls += 1
         return dish
 
-    client, task = await _run_client_lifecycle(ai.registry, fake_manager)
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
     try:
         await ack_register(fake_manager)
         await fake_manager.write_rpc({
