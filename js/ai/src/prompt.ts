@@ -873,13 +873,16 @@ function loadPrompt(
   prefix = '',
   ns = 'dotprompt'
 ): void {
-  let name = `${prefix ?? ''}${basename(filename, '.prompt')}`;
+  // The variant comes from the file name only, so a directory such as "v1.0/"
+  // stays part of the name.
+  let name = basename(filename, '.prompt');
   let variant: string | null = null;
   if (name.includes('.')) {
     const parts = name.split('.');
     name = parts[0];
     variant = parts[1];
   }
+  name = `${prefix ?? ''}${name}`;
   const source = readFileSync(join(path, prefix ?? '', filename), 'utf8');
   const parsedPrompt = registry.dotprompt.parse(source);
   definePromptAsync(
