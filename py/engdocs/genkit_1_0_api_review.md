@@ -452,21 +452,29 @@ async def check_render(op: Operation, ctx: ModelContext) -> Operation:
 
 ai.define_background_model('acme/promo-video', start=start_render, check=check_render)
 
-# 3. Caller starts the job and stores the handle; no tool loop, no output parsing
+# 3. Caller starts the job; BackgroundModel fills in the type argument
 secrets = {'secrets': {'api_key': RENDER_KEY}}
 op = await ai.generate_operation(model='acme/promo-video', prompt='15s promo for the spring menu', context=secrets)
-await jobs.save(op.id, op.model_dump_json())
+# op: Operation[ModelResponse]
 print(op.id, op.done)
 # => job_7f3a False
 
-# 4. Later, e.g. in another request: pass the stored dict back; pass the same context again
+# 4. Store the handle as JSON
+await jobs.save(op.id, op.model_dump_json())
+
+# 5. Later, e.g. in another request: pass the stored dict back, with the same context
 op = await ai.check_operation(json.loads(await jobs.load('job_7f3a')), context=secrets)
+# op: Operation[ModelResponse]
+
+# 6. Poll until done; Operation[T] in, Operation[T] out
 while not op.done:
     await asyncio.sleep(5)
     op = await ai.check_operation(op, context=secrets)
 print(op.output.media[0].url)
 # => https://cdn.acme.dev/job_7f3a.mp4
 ```
+
+The caller never writes `Operation[ModelResponse]`; it comes from `generate_operation` and the stored-dict path, and `check_operation` keeps it. Write the type argument only to annotate your own code, e.g. `async def poll(op: Operation[ModelResponse]) -> str`. A bare `Operation` is `Operation[Any]`, which is what model fns return.
 
 A stored dict with a typo'd or unknown key (`'Done'`) or no `id` fails with `INVALID_ARGUMENT` naming the field.
 
