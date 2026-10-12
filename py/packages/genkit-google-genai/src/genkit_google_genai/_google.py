@@ -67,10 +67,11 @@ from genkit.embedder import EmbedderRef, embedder, embedder_action_metadata
 from genkit.evaluator import evaluator_action_metadata
 from genkit.model import (
     BackgroundModel,
-    Model,
     ModelInfo,
     ModelRef,
     ModelRequest,
+    background_model,
+    model,
     model_action_metadata,
 )
 from genkit.plugin_api import (
@@ -268,9 +269,9 @@ def _new_gemini(plugin: GoogleAI | VertexAI, clean_name: str) -> GeminiModel:
     )
 
 
-def _model_action(name: str, fn: Callable[..., Any], model_info: ModelInfo, config_schema: type[BaseModel]) -> Model:
+def _model_action(name: str, fn: Callable[..., Any], model_info: ModelInfo, config_schema: type[BaseModel]) -> Action:
     """Build a MODEL Action with family-specific request typing on ``fn``."""
-    return Model(name, fn, config_schema=config_schema, info=model_info)
+    return model(name, fn, config_schema=config_schema, info=model_info)
 
 
 def googleai_name(name: str) -> str:
@@ -364,7 +365,7 @@ def _create_veo_background_model(
         veo = VeoModel(name, client_getter(), client_kwargs=client_kwargs)
         return await veo.check(op, ctx)
 
-    return BackgroundModel(
+    return background_model(
         full_name,
         start=_start,
         check=_check,

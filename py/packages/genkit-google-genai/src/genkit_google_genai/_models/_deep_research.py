@@ -44,6 +44,7 @@ from pydantic.alias_generators import to_camel
 
 from genkit import ActionRunContext, GenkitError, Operation
 from genkit.model import BackgroundModel, ModelRef, ModelRequest
+from genkit.plugin_api import Action, ActionKind, to_json_schema
 
 AGENT_CONFIG_KEYS = (
     'thinking_summaries',
@@ -164,6 +165,11 @@ def create_deep_research_background_model(
     version = extract_version(name)
     info = deep_research_model_info(version)
     full_name = name if '/' in name else f'googleai/{name}'
+    action_key = f'/background-model/{full_name}'
+
+    def persist(operation: Operation) -> Operation:
+        operation.action = action_key
+        return operation
 
     async def start(request: ModelRequest[DeepResearchConfig], ctx: ActionRunContext) -> Operation:
         reject_request_config_api_key(request.config)
@@ -193,7 +199,7 @@ def create_deep_research_background_model(
             create_kwargs['tools'] = tools
 
         interaction = await create_interaction(api_key, create_kwargs, options)
-        return from_interaction(interaction)
+        return persist(from_interaction(interaction))
 
     def _op_key_and_options(ctx: ActionRunContext) -> tuple[str, ClientOptions]:
         call_config = ctx.context.get('config')
@@ -203,19 +209,36 @@ def create_deep_research_background_model(
     async def check(operation: Operation, ctx: ActionRunContext) -> Operation:
         api_key, options = _op_key_and_options(ctx)
         interaction = await get_interaction(api_key, operation.id, options)
-        return from_interaction(interaction)
+        return persist(from_interaction(interaction))
 
     async def cancel(operation: Operation, ctx: ActionRunContext) -> Operation:
         api_key, options = _op_key_and_options(ctx)
         interaction = await cancel_interaction(api_key, operation.id, options)
-        return from_interaction(interaction)
+        return persist(from_interaction(interaction))
 
+    start_action = Action(
+        kind=ActionKind.BACKGROUND_MODEL,
+        name=full_name,
+        fn=start,
+        metadata={
+            'model': {**info.model_dump(by_alias=True), 'customOptions': to_json_schema(DeepResearchConfig)},
+            'type': 'background-model',
+        },
+    )
+    check_action = Action(
+        kind=ActionKind.CHECK_OPERATION,
+        name=f'{full_name}/check',
+        fn=check,
+        metadata={'type': 'check-operation'},
+    )
+    cancel_action = Action(
+        kind=ActionKind.CANCEL_OPERATION,
+        name=f'{full_name}/cancel',
+        fn=cancel,
+        metadata={'type': 'cancel-operation'},
+    )
     return BackgroundModel(
-        full_name,
-        start=start,
-        check=check,
-        cancel=cancel,
-        info=info,
-        config_schema=DeepResearchConfig,
-        metadata={'type': 'background-model'},
+        start_action=start_action,
+        check_action=check_action,
+        cancel_action=cancel_action,
     )

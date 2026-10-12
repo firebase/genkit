@@ -37,7 +37,7 @@ from google.auth import default as google_auth_default
 from google.auth.exceptions import DefaultCredentialsError
 
 from genkit import ActionRunContext, GenkitError, ModelResponse
-from genkit.model import Model, ModelInfo, ModelRequest, model_action_metadata
+from genkit.model import ModelInfo, ModelRequest, model as create_model, model_action_metadata
 from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin, loop_local_client
 
 if TYPE_CHECKING:
@@ -319,7 +319,7 @@ class ModelGarden(Plugin):
 
             location, project = await self._location_and_project(name)
             claude = AnthropicModelGarden(model=name, location=location, project=project)
-            return Model(
+            return create_model(
                 full_name,
                 claude.get_handler(),
                 config_schema=claude.get_config_schema(),
@@ -331,7 +331,7 @@ class ModelGarden(Plugin):
 
         location, project = await self._location_and_project(name)
         openai_compat = ModelGardenModel(model=name, location=location, project=project)
-        return Model(
+        return create_model(
             full_name,
             openai_compat.to_openai_compatible_model(),
             config_schema=OpenAIConfig,

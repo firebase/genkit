@@ -38,10 +38,10 @@ from genkit.embedder import (
 )
 from genkit.model import (
     ConstrainedSupport,
-    Model,
     ModelInfo,
     ModelRequest,
     ModelSupports,
+    model as create_model,
     model_action_metadata,
 )
 from genkit.plugin_api import (
@@ -375,7 +375,7 @@ class Ollama(Plugin):
             # media-URL fetch isn't misreported as an Ollama server outage.
             return await model.generate(request, ctx)
 
-        action = Model(
+        action = create_model(
             ollama_name(name),
             _run,
             config_schema=OllamaConfig,

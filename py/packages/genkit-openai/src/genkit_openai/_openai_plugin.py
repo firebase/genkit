@@ -22,7 +22,7 @@ import os
 from typing import Any, Literal, TypeAlias, cast
 
 from openai import APIError, AsyncOpenAI
-from openai.types import Model as OpenAIModelEntry
+from openai.types import Model
 from pydantic import BaseModel
 
 from genkit import ActionRunContext, Embedding, GenkitError, ModelResponse
@@ -35,11 +35,11 @@ from genkit.embedder import (
     embedder_action_metadata,
 )
 from genkit.model import (
-    Model,
     ModelInfo,
     ModelRef,
     ModelRequest,
     ModelSupports,
+    model as create_model,
     model_action_metadata,
 )
 from genkit.plugin_api import (
@@ -492,7 +492,7 @@ class OpenAI(Plugin):
             openai_model = OpenAIModelHandler(OpenAIModel(name, self._client_for_call(request, ctx), supports=supports))
             return await openai_model.generate(request, ctx)
 
-        return Model(
+        return create_model(
             open_ai_name(name),
             _generate,
             config_schema=OpenAIConfig,
@@ -528,7 +528,7 @@ class OpenAI(Plugin):
             model_instance = model_class(name, self._client_for_call(request, ctx))
             return await model_instance.generate(request, ctx)
 
-        return Model(
+        return create_model(
             open_ai_name(name),
             _generate,
             config_schema=config_schema,
@@ -649,7 +649,7 @@ class OpenAI(Plugin):
             models_ = await self._runtime_client().models.list()
         except APIError as e:
             reraise_openai_error(e)
-        models: list[OpenAIModelEntry] = models_.data
+        models: list[Model] = models_.data
         for model in models:
             name = model.id
             if _is_known_unsupported(name):

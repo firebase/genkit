@@ -17,12 +17,12 @@ from pydantic.alias_generators import to_camel
 
 from genkit import Genkit
 from genkit._ai._model import (
-    Model,
     ModelConfig,
     ResolvedModel,
     assert_correct_config_class,
     config_schema_at_define,
     fold_config_aliases,
+    model,
     normalize_config,
     overlay_config,
     resolve_call_model,
@@ -381,8 +381,8 @@ def test_resolve_model_arg_rejects_action_from_another_instance() -> None:
 
 
 def test_resolve_model_arg_rejects_unregistered_action() -> None:
-    """An action built with genkit.model.Model() and never registered raises INVALID_ARGUMENT, not NOT_FOUND."""
-    loose = Model(name='loose', fn=_echo_fn)
+    """An action built with genkit.model.model() and never registered raises INVALID_ARGUMENT, not NOT_FOUND."""
+    loose = model(name='loose', fn=_echo_fn)
     with pytest.raises(GenkitError, match="model action 'loose' is not the one registered") as exc_info:
         resolve_model_arg(model=loose, registry=Genkit()._registry)
     assert exc_info.value.status == 'INVALID_ARGUMENT'
@@ -476,7 +476,7 @@ async def _unused_model_fn(request: ModelRequest, ctx: ActionRunContext) -> Mode
 async def test_resolve_for_generate_string_reads_action_class() -> None:
     """A string name picks up the class the action registered."""
     registry = Registry()
-    registry.register_action_from_instance(Model('flash', _unused_model_fn, config_schema=CustomConfig))
+    registry.register_action_from_instance(model('flash', _unused_model_fn, config_schema=CustomConfig))
     resolved = await resolve_for_generate(model='flash', config={}, registry=registry)
     assert resolved.config_schema is CustomConfig
 
@@ -496,7 +496,7 @@ def test_config_schema_at_define_reads_ref_and_registered_action() -> None:
     assert config_schema_at_define(model=ref, registry=registry) == ('flash', CustomConfig)
 
     assert config_schema_at_define(model='flash', registry=registry) == ('flash', None)
-    registry.register_action_from_instance(Model('flash', _unused_model_fn, config_schema=CustomConfig))
+    registry.register_action_from_instance(model('flash', _unused_model_fn, config_schema=CustomConfig))
     assert config_schema_at_define(model='flash', registry=registry) == ('flash', CustomConfig)
 
     empty = Registry()

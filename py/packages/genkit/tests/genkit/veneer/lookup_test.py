@@ -12,7 +12,7 @@ import pytest
 
 from genkit import ActionRunContext, FinishReason, Genkit, Message, ModelResponse, Operation, Part, Role, Tool
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, MiddlewareRef, ModelHookParams
-from genkit.model import GenerateActionOptions, Model, ModelRequest
+from genkit.model import GenerateActionOptions, ModelRequest, model
 from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin
 
 NextModel = Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]]
@@ -47,7 +47,7 @@ class LazyPlugin(Plugin):
         async def fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
             return _answer('from lazy fast')
 
-        return Model(name, fn)
+        return model(name, fn)
 
     async def list_actions(self) -> list[ActionMetadata]:
         return []
@@ -61,7 +61,7 @@ async def test_lookup_model_returns_registered_model_action() -> None:
 
     action = await ai.lookup_model('test/echo')
 
-    assert isinstance(action, Model)
+    assert action is not None
     assert action.name == 'test/echo'
     result = await action.run(ModelRequest(messages=[Message(role=Role.USER, content=[Part.from_text('hi')])]))
     assert isinstance(result.response, ModelResponse)

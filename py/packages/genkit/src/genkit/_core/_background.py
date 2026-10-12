@@ -149,107 +149,28 @@ class BackgroundModel:
 
     def __init__(
         self,
-        name: str,
-        start: StartModelOpFn,
-        check: CheckModelOpFn,
-        *,
-        cancel: CancelModelOpFn | None = None,
-        label: str | None = None,
-        info: ModelInfo | None = None,
-        config_schema: type[BaseModel] | dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
-        description: str | None = None,
+        start_action: Action,
+        check_action: Action,
+        cancel_action: Action | None = None,
     ) -> None:
-        """Build a background model without registering it.
+        """Initialize a BackgroundModel.
 
-        Plugin ``init`` / ``resolve`` return this; ``define_background_model``
-        registers the start, check, and cancel actions.
+        Args:
+            start_action: Action to start the operation.
+            check_action: Action to check operation status.
+            cancel_action: Optional action to cancel the operation.
         """
-        model_meta: dict[str, Any] = metadata.copy() if metadata else {}
-        model_options: dict[str, Any] = {}
-
-        if info:
-            model_options.update(info.model_dump(by_alias=True, exclude_none=True))
-
-        # generate_operation looks at this flag. A background model is a
-        # poll-handle model, so the flag is set when the action is built.
-        supports = model_options.get('supports')
-        if not isinstance(supports, dict):
-            supports = {}
-        else:
-            supports = dict(supports)
-        supports['longRunning'] = True
-        model_options['supports'] = supports
-
-        resolved_label = label or model_options.get('label') or name
-        model_options['label'] = resolved_label
-
-        if config_schema:
-            model_options['customOptions'] = to_json_schema(config_schema)
-
-        model_meta['model'] = model_options
-
-        output_schema_meta = to_json_schema(ModelResponse)
-        model_meta['outputSchema'] = output_schema_meta
-
-        start_action = _operation_action(
-            kind=ActionKind.BACKGROUND_MODEL,
-            model_name=name,
-            fn=start,
-            metadata=model_meta,
-            description=description or f'Background model: {resolved_label}',
-            config_schema=config_schema,
-        )
-
-        check_action = _operation_action(
-            kind=ActionKind.CHECK_OPERATION,
-            model_name=name,
-            suffix='/check',
-            fn=check,
-            metadata={'outputSchema': output_schema_meta},
-            description=f'Check operation status for {resolved_label}',
-        )
-
-        cancel_action = None
-        if cancel is not None:
-            cancel_action = _operation_action(
-                kind=ActionKind.CANCEL_OPERATION,
-                model_name=name,
-                suffix='/cancel',
-                fn=cancel,
-                metadata={'outputSchema': output_schema_meta},
-                description=f'Cancel operation for {resolved_label}',
-            )
-
         self.start_action = start_action
         self.check_action = check_action
         self.cancel_action = cancel_action
+
+        # Store action metadata
         self.__action = {
             'name': start_action.name,
             'description': start_action.description,
             'actionType': start_action.kind,
             'metadata': start_action.metadata,
         }
-
-    @classmethod
-    def _from_actions(
-        cls,
-        start_action: Action,
-        check_action: Action,
-        cancel_action: Action | None = None,
-    ) -> BackgroundModel:
-        """Reconstruct a BackgroundModel from already-built start, check, and cancel actions."""
-        instance = cls.__new__(cls)
-        instance.start_action = start_action
-        instance.check_action = check_action
-        instance.cancel_action = cancel_action
-        instance.__action = {
-            'name': start_action.name,
-            'description': start_action.description,
-            'actionType': start_action.kind,
-            'metadata': start_action.metadata,
-        }
-        return instance
 
     @property
     def name(self) -> str:
@@ -369,6 +290,87 @@ def _ensure_operation(*, response: object, name: str) -> Operation:
     raise missing_operation_error(name=name)
 
 
+def background_model(
+    name: str,
+    *,
+    start: StartModelOpFn,
+    check: CheckModelOpFn,
+    cancel: CancelModelOpFn | None = None,
+    info: ModelInfo | None = None,
+    config_schema: type[BaseModel] | dict[str, Any] | None = None,
+    metadata: dict[str, Any] | None = None,
+    description: str | None = None,
+) -> BackgroundModel:
+    """Build a background model without registering it.
+
+    Plugin ``init`` / ``resolve`` return this. ``define_background_model``
+    registers the start / check / cancel actions.
+    """
+    # Build model metadata
+    model_meta: dict[str, Any] = metadata.copy() if metadata else {}
+    model_options: dict[str, Any] = {}
+
+    if info:
+        model_options.update(info.model_dump(by_alias=True, exclude_none=True))
+
+    # generate_operation looks at this flag. A background model is a
+    # poll-handle model, so the flag is set when the action is built.
+    supports = model_options.get('supports')
+    if not isinstance(supports, dict):
+        supports = {}
+    else:
+        supports = dict(supports)
+    supports['longRunning'] = True
+    model_options['supports'] = supports
+
+    label = model_options.get('label') or name
+    model_options['label'] = label
+
+    if config_schema:
+        model_options['customOptions'] = to_json_schema(config_schema)
+
+    model_meta['model'] = model_options
+
+    # Build output schema metadata
+    output_schema_meta = to_json_schema(ModelResponse)
+    model_meta['outputSchema'] = output_schema_meta
+
+    start_action = _operation_action(
+        kind=ActionKind.BACKGROUND_MODEL,
+        model_name=name,
+        fn=start,
+        metadata=model_meta,
+        description=description or f'Background model: {label}',
+        config_schema=config_schema,
+    )
+
+    check_action = _operation_action(
+        kind=ActionKind.CHECK_OPERATION,
+        model_name=name,
+        suffix='/check',
+        fn=check,
+        metadata={'outputSchema': output_schema_meta},
+        description=f'Check operation status for {label}',
+    )
+
+    cancel_action = None
+    if cancel is not None:
+        cancel_action = _operation_action(
+            kind=ActionKind.CANCEL_OPERATION,
+            model_name=name,
+            suffix='/cancel',
+            fn=cancel,
+            metadata={'outputSchema': output_schema_meta},
+            description=f'Cancel operation for {label}',
+        )
+
+    return BackgroundModel(
+        start_action=start_action,
+        check_action=check_action,
+        cancel_action=cancel_action,
+    )
+
+
 def define_background_model(
     registry: Registry,
     name: str,
@@ -382,7 +384,7 @@ def define_background_model(
     description: str | None = None,
 ) -> BackgroundModel:
     """Register a background model for long-running AI operations."""
-    action = BackgroundModel(
+    action = background_model(
         name,
         start=start,
         check=check,
@@ -436,7 +438,7 @@ async def lookup_background_model(
     cancel_key = f'/cancel-operation/{action_name}/cancel'
     cancel_action = await registry.resolve_action_by_key(cancel_key)
 
-    return BackgroundModel._from_actions(
+    return BackgroundModel(
         start_action=start_action,
         check_action=check_action,
         cancel_action=cancel_action,
