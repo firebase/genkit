@@ -29,12 +29,11 @@ import structlog
 
 from genkit import ActionRunContext, ModelResponse
 from genkit.embedder import (
+    Embedder,
     EmbedderInfo,
     EmbedderSupports,
     EmbedRequest,
     EmbedResponse,
-    embedder as create_embedder,
-    embedder_action_metadata,
 )
 from genkit.model import Constrained, ModelInfo, ModelRequest, Supports, model as create_model, model_action_metadata
 from genkit.plugin_api import (
@@ -400,7 +399,7 @@ class Ollama(Plugin):
             async with wrap_connection_errors(server_address):
                 return await embedder.embed(request)
 
-        return create_embedder(
+        return Embedder(
             ollama_name(name),
             _run,
             info=EmbedderInfo(
@@ -456,15 +455,5 @@ class Ollama(Plugin):
             )
             for definition in definitions
         ]
-        actions.extend(
-            embedder_action_metadata(
-                name=ollama_name(name),
-                info=EmbedderInfo(
-                    config_schema=to_json_schema(ollama_api.Options),
-                    label=f'Ollama Embedding - {name}',
-                    supports=EmbedderSupports(input=['text']),
-                ),
-            )
-            for name in embedder_names
-        )
+        actions.extend(self._create_embedder_action(name).action_metadata() for name in embedder_names)
         return actions

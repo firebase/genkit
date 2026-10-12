@@ -18,7 +18,7 @@ import yaml
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from typing_extensions import assert_type
 
-from genkit import Document, Genkit, Message, ModelResponse, ModelResponseChunk, MultipartToolResponse, Part, Tool, tool
+from genkit import Document, Genkit, Message, ModelResponse, ModelResponseChunk, MultipartToolResponse, Part, Tool
 from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
 from genkit._ai._generate import (
     DEFAULT_MAX_TURNS,
@@ -1862,7 +1862,7 @@ async def test_middleware_contributed_tools_available_to_model() -> None:
                 """A tool injected by middleware."""
                 return 'from_middleware_tool'
 
-            return [tool(middleware_tool)]
+            return [Tool(middleware_tool)]
 
     pm, _ = define_scripted_model(ai)
 
@@ -1914,7 +1914,7 @@ async def test_middleware_tool_already_on_the_request_raises() -> None:
             async def ping() -> str:
                 return 'from_mw'
 
-            return [tool(ping)]
+            return [Tool(ping)]
 
     with pytest.raises(GenkitError, match="tool 'ping' is contributed by middleware") as raised:
         await ai.generate(prompt='hi', tools=['ping'], use=[AlsoPing()])
@@ -1936,7 +1936,7 @@ async def test_two_middleware_contributing_the_same_tool_raises() -> None:
                 async def ping() -> str:
                     return name
 
-                return [tool(ping)]
+                return [Tool(ping)]
 
         return PingMw
 
@@ -1962,7 +1962,7 @@ async def test_middleware_contributed_tools_do_not_outlive_the_call() -> None:
                 """Contributed for this call."""
                 return 'shared_ok'
 
-            return [tool(shared_tool)]
+            return [Tool(shared_tool)]
 
     pm, _ = define_scripted_model(ai)
     pm.responses.append(
@@ -2623,7 +2623,7 @@ async def test_middleware_contributed_tool_resolvable_during_restart() -> None:
                 """A tool contributed by middleware."""
                 return 'injected_success'
 
-            return [tool(injected_tool, name='injectedTool')]
+            return [Tool(injected_tool, name='injectedTool')]
 
     pm, _ = define_scripted_model(ai)
 

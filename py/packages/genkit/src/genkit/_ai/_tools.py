@@ -491,7 +491,7 @@ def _define_tool(
     action.metadata[ORIGINAL_OUTPUT_SCHEMA_KEY] = original_output_schema
     action.output_schema = TypeAdapter(MultipartToolResponseData).json_schema()
 
-    return _Tool(action, original_output_schema=original_output_schema)
+    return _Tool._from_action(action, original_output_schema=original_output_schema)
 
 
 def define_tool(
@@ -524,42 +524,6 @@ def define_tool(
             one ``ToolRunContext`` parameter.
     """
     return _define_tool(registry, func, name, description, input_schema=input_schema)
-
-
-def tool(
-    func: Callable[..., Any],
-    *,
-    name: str | None = None,
-    description: str | None = None,
-    input_schema: type[BaseModel] | dict[str, object] | None = None,
-) -> _Tool:
-    """Define an ephemeral tool for a single ``generate`` call.
-
-    Unlike ``@ai.tool()``, this does not register the tool on the app, so it
-    cannot be referenced by name later. Use for dynamic tools that exist only
-    for one call.
-
-    Args:
-        func: Async tool implementation (same one-input rule as :func:`define_tool`).
-        name: Tool name for the model. Defaults to ``func.__name__``.
-        description: Sent to the model. Defaults to the function docstring.
-        input_schema: Optional input schema override (Pydantic model or JSON-schema dict).
-
-    Raises:
-        TypeError: If ``func`` is not a coroutine function, takes more than one input,
-            or its input has no annotation or no JSON schema.
-        ValueError: If no ``name`` is given and ``func`` has no ``__name__``.
-
-    Example:
-        from genkit import tool
-
-        async def lookup_price(sku: str) -> str:
-            return '12.00'
-
-        ephemeral = tool(lookup_price, name='lookup_price')
-        res = await ai.generate(prompt='Price of SKU-1?', tools=[ephemeral])
-    """
-    return _define_tool(Registry(), func, name, description, input_schema=input_schema)
 
 
 def define_interrupt(

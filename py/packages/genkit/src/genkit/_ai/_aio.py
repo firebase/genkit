@@ -34,7 +34,7 @@ import anyio
 import uvicorn
 from pydantic import BaseModel
 
-from genkit._ai._embedding import EmbedderFn, EmbedderInfo, EmbedderRef, define_embedder
+from genkit._ai._embedding import Embedder, EmbedderFn, EmbedderInfo, EmbedderRef, define_embedder
 from genkit._ai._evaluator import (
     BatchEvaluatorFn,
     EvaluatorFn,
@@ -601,7 +601,7 @@ class Genkit:
         info: EmbedderInfo | None = None,
         metadata: dict[str, object] | None = None,
         description: str | None = None,
-    ) -> Action:
+    ) -> Embedder:
         """Register a custom embedder action."""
         return define_embedder(self._registry, name, fn, info, metadata, description)
 
@@ -645,7 +645,7 @@ class Genkit:
         if action is None:
             return None
         schema = action.metadata.get(ORIGINAL_OUTPUT_SCHEMA_KEY)
-        return Tool(
+        return Tool._from_action(
             action, original_output_schema=cast(dict[str, object], schema) if isinstance(schema, dict) else None
         )
 

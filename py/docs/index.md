@@ -33,8 +33,6 @@
 
 ::: genkit.Operation
 
-::: genkit.tool
-
 ::: genkit.Tool
 
 ::: genkit.ToolRunContext
@@ -111,7 +109,7 @@
 
 ::: genkit.embedder.EmbedResponse
 
-::: genkit.embedder.embedder_action_metadata
+::: genkit.embedder.Embedder
 
 ::: genkit.embedder.EmbedderRef
 

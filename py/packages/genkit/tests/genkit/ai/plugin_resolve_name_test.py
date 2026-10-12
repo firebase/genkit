@@ -26,7 +26,7 @@ from collections.abc import Callable
 import pytest
 
 from genkit import ActionRunContext, Genkit, GenkitError, Message, ModelResponse, Operation, Part, Role
-from genkit.embedder import EmbedRequest, EmbedResponse, embedder
+from genkit.embedder import Embedder, EmbedRequest, EmbedResponse
 from genkit.model import ModelRequest, background_model, model
 from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin
 
@@ -274,7 +274,7 @@ async def test_plugin_embedder_helper_returns_action_named_with_plugin_prefix() 
             async def fn(request: EmbedRequest) -> EmbedResponse:
                 return EmbedResponse(embeddings=[])
 
-            return embedder(name, fn)
+            return Embedder(name, fn)
 
         async def list_actions(self) -> list[ActionMetadata]:
             return []

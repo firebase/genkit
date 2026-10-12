@@ -32,8 +32,6 @@ Types exported from genkit, genkit.model, genkit.embedder, genkit.plugin_api, ge
 
 ::: genkit.Operation
 
-::: genkit.tool
-
 ::: genkit.Tool
 
 ::: genkit.ToolRunContext
@@ -103,6 +101,8 @@ Types exported from genkit, genkit.model, genkit.embedder, genkit.plugin_api, ge
 ::: genkit.embedder.EmbedRequest
 
 ::: genkit.embedder.EmbedResponse
+
+::: genkit.embedder.Embedder
 
 ::: genkit.embedder.EmbedderRef
 

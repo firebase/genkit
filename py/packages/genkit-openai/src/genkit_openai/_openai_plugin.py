@@ -27,12 +27,11 @@ from pydantic import BaseModel
 
 from genkit import ActionRunContext, Embedding, GenkitError, ModelResponse
 from genkit.embedder import (
+    Embedder,
     EmbedderInfo,
     EmbedderSupports,
     EmbedRequest,
     EmbedResponse,
-    embedder,
-    embedder_action_metadata,
 )
 from genkit.model import (
     ModelInfo,
@@ -625,17 +624,14 @@ class OpenAI(Plugin):
             embeddings = [Embedding(embedding=item.embedding) for item in response.data]
             return EmbedResponse(embeddings=embeddings)
 
-        return embedder(
+        return Embedder(
             open_ai_name(name),
             embed_fn,
-            metadata=embedder_action_metadata(
-                name=open_ai_name(name),
-                info=EmbedderInfo(
-                    label=embedder_info['label'],
-                    supports=EmbedderSupports(input=embedder_info['supports']['input']),
-                    dimensions=embedder_info.get('dimensions'),
-                ),
-            ).metadata,
+            info=EmbedderInfo(
+                label=embedder_info['label'],
+                supports=EmbedderSupports(input=embedder_info['supports']['input']),
+                dimensions=embedder_info.get('dimensions'),
+            ),
         )
 
     async def list_actions(self) -> list[ActionMetadata]:
@@ -666,15 +662,7 @@ class OpenAI(Plugin):
                 continue
             model_type = _classify_model(name)
             if model_type == _ModelType.EMBEDDER:
-                actions.append(
-                    embedder_action_metadata(
-                        name=open_ai_name(name),
-                        info=EmbedderInfo(
-                            label=f'OpenAI Embedding - {name}',
-                            supports=EmbedderSupports(input=['text']),
-                        ),
-                    )
-                )
+                actions.append(self._create_embedder_action(name).action_metadata())
             elif model_type in _DEFAULT_SUPPORTS:
                 config = _MULTIMODAL_CONFIG[model_type]
                 actions.append(_multimodal_action_metadata(name, config[1], model_type))

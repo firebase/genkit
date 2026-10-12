@@ -22,7 +22,7 @@ from collections.abc import Awaitable, Callable
 
 from pydantic import BaseModel, Field
 
-from genkit import Message, ModelResponse, Part, Role, Tool, tool
+from genkit import Message, ModelResponse, Part, Role, Tool
 from genkit.exp import current_session
 from genkit.exp.agent import Artifact
 from genkit.middleware import BaseMiddleware, GenerateHookParams, GenerateMiddlewareContext
@@ -168,7 +168,7 @@ class Artifacts(BaseMiddleware[ArtifactsConfig]):
             )
 
         tools.append(
-            tool(
+            Tool(
                 read_artifact,
                 name='read_artifact',
                 description=(
@@ -190,7 +190,7 @@ class Artifacts(BaseMiddleware[ArtifactsConfig]):
                 return WriteArtifactOutput(status=f'Artifact "{input.name}" saved successfully.')
 
             tools.append(
-                tool(
+                Tool(
                     write_artifact,
                     name='write_artifact',
                     description=(

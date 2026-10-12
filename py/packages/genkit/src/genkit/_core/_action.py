@@ -61,7 +61,7 @@ from genkit._core._telemetry._instrumentation import (
     run_in_new_span,
     to_json_attr,
 )
-from genkit._core._typing import EmbedResponse, Operation
+from genkit._core._typing import ActionMetadata, EmbedResponse, Operation
 
 # =============================================================================
 # Span attribute types and tracing helpers
@@ -856,6 +856,20 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
     def output_schema(self, value: dict[str, object]) -> None:
         self._output_schema = value
         self._metadata[ActionMetadataKey.OUTPUT_KEY] = value
+
+    def action_metadata(self) -> ActionMetadata:
+        """Return reflection metadata for this action."""
+        return ActionMetadata(
+            key=create_action_key(self._kind, self._name),
+            action_type=self._kind,
+            name=self._name,
+            description=self._description,
+            input_schema=self._input_schema,
+            input_json_schema=self._input_schema,
+            output_schema=self._output_schema,
+            output_json_schema=self._output_schema,
+            metadata=dict(self._metadata) if self._metadata else None,
+        )
 
     def _override_input_schema(
         self,

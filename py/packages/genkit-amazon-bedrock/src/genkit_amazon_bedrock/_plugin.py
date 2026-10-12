@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Literal
 import structlog
 
 from genkit import ActionRunContext, ModelResponse
-from genkit.embedder import EmbedRequest, EmbedResponse, embedder, embedder_action_metadata
+from genkit.embedder import Embedder, EmbedRequest, EmbedResponse
 from genkit.model import ModelRequest, model as create_model, model_action_metadata
 from genkit.plugin_api import (
     Action,
@@ -233,10 +233,10 @@ class Bedrock(Plugin):
 
     def _create_embedder_action(self, model_id: str) -> Action:
         async def _embed(request: EmbedRequest) -> EmbedResponse:
-            embedder = BedrockEmbedder(model_id=model_id, transport=self._transport)
-            return await embedder.embed(request)
+            embedder_client = BedrockEmbedder(model_id=model_id, transport=self._transport)
+            return await embedder_client.embed(request)
 
-        return embedder(
+        return Embedder(
             _action_name(model_id),
             _embed,
             info=get_embedder_info(model_id),
@@ -270,7 +270,7 @@ class Bedrock(Plugin):
             )
         models = len(actions)
         actions.extend(
-            embedder_action_metadata(_action_name(model_id), get_embedder_info(model_id))
+            self._create_embedder_action(model_id).action_metadata()
             for model_id in self.embedders
             if is_embedding_model(model_id)
         )

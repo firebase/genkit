@@ -63,7 +63,7 @@ from pydantic import BaseModel
 
 import genkit_google_genai._constants as const
 from genkit import ActionRunContext, GenkitError, ModelResponse, Operation
-from genkit.embedder import EmbedderRef, embedder, embedder_action_metadata
+from genkit.embedder import Embedder, EmbedderRef
 from genkit.evaluator import evaluator_action_metadata
 from genkit.model import (
     BackgroundAction,
@@ -98,7 +98,7 @@ from genkit_google_genai._models._deep_research import (
 )
 from genkit_google_genai._models._embedder import (
     VERTEX_KNOWN_EMBEDDERS,
-    Embedder,
+    Embedder as GoogleEmbedder,
     get_embedder_info,
 )
 from genkit_google_genai._models._gemini import (
@@ -331,14 +331,14 @@ def _create_embedder_action(
     )
 
     async def _run(request: Any) -> Any:  # noqa: ANN401
-        embedder = Embedder(
+        embedder_client = GoogleEmbedder(
             version=name,
             client=client_getter(),
             is_vertex=(plugin_name == VERTEXAI_PLUGIN_NAME),
         )
-        return await embedder.generate(request)
+        return await embedder_client.generate(request)
 
-    return embedder(full_name, _run, info=embed_info)
+    return Embedder(full_name, _run, info=embed_info)
 
 
 def _create_veo_background_action(
@@ -911,13 +911,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
 
         for name in genai_models.embedders:
             actions_list.append(
-                embedder_action_metadata(
-                    name=googleai_name(name),
-                    info=get_embedder_info(
-                        name=name,
-                        label=f'{PLUGIN_DISPLAY_NAME[GOOGLEAI_PLUGIN_NAME]} - {name}',
-                    ),
-                )
+                _create_embedder_action(name, self._runtime_client, GOOGLEAI_PLUGIN_NAME).action_metadata()
             )
 
         self._list_actions_cache = actions_list
@@ -1292,14 +1286,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
 
         for name in VERTEX_KNOWN_EMBEDDERS:
             actions_list.append(
-                embedder_action_metadata(
-                    name=vertexai_name(name),
-                    info=get_embedder_info(
-                        name=name,
-                        label=f'{PLUGIN_DISPLAY_NAME[VERTEXAI_PLUGIN_NAME]} - {name}',
-                        is_vertex=True,
-                    ),
-                )
+                _create_embedder_action(name, self._runtime_client, VERTEXAI_PLUGIN_NAME).action_metadata()
             )
 
         if self._project:

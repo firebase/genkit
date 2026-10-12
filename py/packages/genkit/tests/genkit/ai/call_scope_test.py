@@ -30,7 +30,6 @@ from genkit import (
     Part,
     Role,
     Tool,
-    tool,
 )
 from genkit._ai._generate import CallScope
 from genkit.exp import Genkit as ExpGenkit
@@ -69,7 +68,7 @@ def _inline_lookup(answer: str, delay: float = 0.0) -> Tool:
         await asyncio.sleep(delay)
         return answer
 
-    return tool(lookup)
+    return Tool(lookup)
 
 
 def test_call_scope_registry_is_a_fresh_child_of_its_ai() -> None:
@@ -109,7 +108,7 @@ async def test_concurrent_generate_calls_keep_inline_tools_apart() -> None:
 
 @pytest.mark.asyncio
 async def test_inline_tool_on_prompt_call_runs_and_does_not_outlive_the_call() -> None:
-    """`prompt(tools=[tool(fn)])` resolves the tool for that call only."""
+    """`prompt(tools=[Tool(fn)])` resolves the tool for that call only."""
     ai = Genkit()
     _define_tool_caller(ai)
     prompt = ai.define_prompt(model='caller', prompt='hi')
