@@ -19,10 +19,11 @@ package tracing
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"os"
+	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -36,50 +37,46 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// markedError wraps an error to track if it's already been marked as a failure source
-type markedError struct {
-	error
-	marked bool
-}
-
-func (e *markedError) Error() string {
-	return e.error.Error()
-}
-
-func (e *markedError) Unwrap() error {
-	return e.error
-}
-
-// markErrorAsHandled marks an error as already handled for failure source tracking
-func markErrorAsHandled(err error) error {
-	var me *markedError
-	if errors.As(err, &me) {
-		me.marked = true
-		return err
-	}
-
-	return &markedError{error: err, marked: true}
-}
-
-// isErrorAlreadyMarked checks if an error has already been marked as a failure source
-func isErrorAlreadyMarked(err error) bool {
-	var me *markedError
-	if errors.As(err, &me) {
-		return me.marked
+// isDerivedFrom reports whether err only propagates causes, the errors that
+// failing child spans returned. A wrapper chain is derived when some error in it
+// is one of the causes. A multi-error node (errors.Join) is derived only when
+// every branch is, so a span that joins its own failure with a child's is still
+// a failure source. A cause of a non-comparable type matches only through an Is
+// method, so it errs toward attributing the failure to more spans, never fewer.
+func isDerivedFrom(err error, causes []error) bool {
+	for err != nil {
+		for _, c := range causes {
+			if isComparable(c) && err == c {
+				return true
+			}
+			if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(c) {
+				return true
+			}
+		}
+		switch x := err.(type) {
+		case interface{ Unwrap() error }:
+			err = x.Unwrap()
+		case interface{ Unwrap() []error }:
+			errs := x.Unwrap()
+			if len(errs) == 0 {
+				return false
+			}
+			for _, e := range errs {
+				if !isDerivedFrom(e, causes) {
+					return false
+				}
+			}
+			return true
+		default:
+			return false
+		}
 	}
 	return false
 }
 
-// unmarkError strips the failure-source marker when it is the outermost error,
-// restoring the identity of the error the application returned. A marker that
-// sits below application wrapping (fmt.Errorf("...: %w", err)) is left alone,
-// since removing it would discard that wrapping; it stays invisible there
-// because markedError only adds an Unwrap level.
-func unmarkError(err error) error {
-	if me, ok := err.(*markedError); ok {
-		return me.Unwrap()
-	}
-	return err
+// isComparable reports whether err can be compared with == without panicking.
+func isComparable(err error) bool {
+	return reflect.TypeOf(err).Comparable()
 }
 
 // captureStackTrace captures the current Go stack trace for error reporting
@@ -341,16 +338,15 @@ func RunInNewSpan[I, O any](
 		sm.State = spanStateError
 		sm.Error = err.Error()
 		span.SetStatus(codes.Error, err.Error())
-		// Only the span where an error originates is its failure source. The
-		// marker travels up with the error so ancestors can tell originating a
-		// failure from propagating one; without it every span in the call stack
-		// claimed to be the source, which overcounts failures in monitoring and
-		// hides the root cause in the trace. The error is recorded before it is
-		// marked so exception.type still names the application's error.
-		if !isErrorAlreadyMarked(err) {
-			sm.IsFailureSource = true
-			span.RecordError(err)
-			err = markErrorAsHandled(err)
+		span.RecordError(err)
+		// Only the span where an error originates is its failure source, not
+		// every span that returns it on the way up; otherwise one failure is
+		// counted once per enclosing span in monitoring. Attribution is kept on
+		// the spans rather than on the error, so callers get back exactly the
+		// error they returned.
+		sm.IsFailureSource = !isDerivedFrom(err, sm.childErrors())
+		if parentSM != nil {
+			parentSM.addChildError(err)
 		}
 		// A failure can still carry a result: the generate loop returns the
 		// conversation it completed alongside its error. Record it so the
@@ -363,12 +359,6 @@ func RunInNewSpan[I, O any](
 	} else {
 		sm.State = spanStateSuccess
 		sm.Output = output
-	}
-	// The marker only means something to enclosing Genkit spans, so drop it
-	// before the error leaves the outermost one and callers see the error they
-	// returned rather than a tracing wrapper around it.
-	if parentSM == nil {
-		err = unmarkError(err)
 	}
 	return output, err
 }
@@ -442,6 +432,24 @@ type spanMetadata struct {
 	Type            string            // span type (action, flow, model, etc.)
 	Subtype         string            // span subtype (tool, model, flow, etc.)
 	Metadata        map[string]string // additional custom metadata
+
+	mu        sync.Mutex
+	childErrs []error // errors returned by failing child spans, guarded by mu
+}
+
+// addChildError records err as returned by a failing child span. Child spans
+// can run concurrently (parallel tool calls), hence the lock.
+func (sm *spanMetadata) addChildError(err error) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.childErrs = append(sm.childErrs, err)
+}
+
+// childErrors returns the errors recorded by addChildError.
+func (sm *spanMetadata) childErrors() []error {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	return slices.Clone(sm.childErrs)
 }
 
 // attributes returns some information about the spanMetadata

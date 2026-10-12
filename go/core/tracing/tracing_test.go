@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
+	"sync"
 	"testing"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -549,7 +551,8 @@ func TestIsFailureSourceOnError(t *testing.T) {
 
 // TestIsFailureSourceOnlyOnOriginatingSpan verifies that a failure is attributed
 // to the span where the error originates rather than to every span that
-// propagates it, while all of them still report the error state.
+// propagates it, while all of them still report the error and receive it
+// unchanged.
 func TestIsFailureSourceOnlyOnOriginatingSpan(t *testing.T) {
 	ctx := context.Background()
 	boom := errors.New("boom")
@@ -566,18 +569,21 @@ func TestIsFailureSourceOnlyOnOriginatingSpan(t *testing.T) {
 			return RunInNewSpan(ctx, &SpanMetadata{Name: "middle", Type: "action"}, in,
 				func(ctx context.Context, in string) (string, error) {
 					middleSM = spanMetaKey.FromContext(ctx)
-					return RunInNewSpan(ctx, &SpanMetadata{Name: "inner", Type: "action", Subtype: "tool"}, in,
+					out, err := RunInNewSpan(ctx, &SpanMetadata{Name: "inner", Type: "action", Subtype: "tool"}, in,
 						func(ctx context.Context, in string) (string, error) {
 							innerSM = spanMetaKey.FromContext(ctx)
 							return "", boom
 						})
+					if err != boom {
+						t.Errorf("parent span received %#v from its child, want %#v", err, boom)
+					}
+					return out, err
 				})
 		})
 
 	if err != boom {
-		t.Errorf("outermost span returned %#v, want the caller's original error %#v", err, boom)
+		t.Errorf("outermost span returned %#v, want %#v", err, boom)
 	}
-
 	if !innerSM.IsFailureSource {
 		t.Error("originating span is not marked as the failure source")
 	}
@@ -588,9 +594,6 @@ func TestIsFailureSourceOnlyOnOriginatingSpan(t *testing.T) {
 		if sm.State != spanStateError {
 			t.Errorf("span %q state = %q, want %q", sm.Name, sm.State, spanStateError)
 		}
-		if sm.Error != boom.Error() {
-			t.Errorf("span %q error = %q, want %q", sm.Name, sm.Error, boom.Error())
-		}
 	}
 	spans := recorder.Ended()
 	if len(spans) != 3 {
@@ -600,82 +603,113 @@ func TestIsFailureSourceOnlyOnOriginatingSpan(t *testing.T) {
 		if status := span.Status(); status.Code != codes.Error || status.Description != boom.Error() {
 			t.Errorf("span %q status = %v, want Error with description %q", span.Name(), status, boom.Error())
 		}
-		wantEvents := 0
-		if span.Name() == "inner" {
-			wantEvents = 1
-		}
-		if events := span.Events(); len(events) != wantEvents {
-			t.Errorf("span %q recorded %d events, want %d", span.Name(), len(events), wantEvents)
+		if events := span.Events(); len(events) != 1 || events[0].Name != "exception" {
+			t.Errorf("span %q events = %v, want one exception event", span.Name(), events)
 		}
 	}
 }
 
-func TestMarkErrorAsHandledPreservesApplicationWrapping(t *testing.T) {
-	for _, marked := range []bool{false, true} {
-		t.Run(fmt.Sprintf("marked=%t", marked), func(t *testing.T) {
-			boom := errors.New("boom")
-			marker := &markedError{error: boom, marked: marked}
-			wrapped := fmt.Errorf("inner call failed: %w", marker)
-			got := markErrorAsHandled(wrapped)
-			if got != wrapped {
-				t.Errorf("returned error %v, want the original application wrapper %v", got, wrapped)
-			}
-			if !marker.marked || !isErrorAlreadyMarked(got) {
-				t.Error("error was not marked as handled")
-			}
-			if !errors.Is(got, boom) {
-				t.Error("original error is no longer reachable")
-			}
-		})
-	}
-}
-
-func TestRunInNewSpanPreservesWrappedUnmarkedError(t *testing.T) {
+// TestIsFailureSourceAttribution verifies which span is the failure source when
+// a parent changes the error its child returned before returning it.
+func TestIsFailureSourceAttribution(t *testing.T) {
 	boom := errors.New("boom")
-	marker := &markedError{error: boom}
-	wrapped := fmt.Errorf("inner call failed: %w", marker)
-	_, err := RunInNewSpan(context.Background(), &SpanMetadata{Name: "outer"}, "in",
-		func(context.Context, string) (string, error) {
-			return "", wrapped
-		})
-	if err != wrapped {
-		t.Errorf("returned error %v, want the original application wrapper %v", err, wrapped)
+	cleanupErr := errors.New("cleanup failed")
+	tests := []struct {
+		name string
+		// parent builds the error the parent span returns from the errors its
+		// two child spans returned.
+		parent     func(first, second error) error
+		wantSource bool
+	}{
+		{
+			name:       "wrapped child error",
+			parent:     func(first, _ error) error { return fmt.Errorf("step failed: %w", first) },
+			wantSource: false,
+		},
+		{
+			name:       "joined child errors",
+			parent:     func(first, second error) error { return errors.Join(first, second) },
+			wantSource: false,
+		},
+		{
+			name:       "own failure joined with a child error",
+			parent:     func(first, _ error) error { return errors.Join(cleanupErr, first) },
+			wantSource: true,
+		},
+		{
+			name:       "unrelated error",
+			parent:     func(error, error) error { return cleanupErr },
+			wantSource: true,
+		},
 	}
-	if !marker.marked {
-		t.Error("error was not marked as handled")
-	}
-}
-
-// TestFailureSourceMarkerStaysBelowApplicationWrapping verifies that the marker
-// does not disturb an error the application wrapped on its way up: the message
-// and the chain both survive, and the wrapping is not discarded.
-func TestFailureSourceMarkerStaysBelowApplicationWrapping(t *testing.T) {
-	ctx := context.Background()
-	boom := errors.New("boom")
-
-	var innerSM *spanMetadata
-
-	_, err := RunInNewSpan(ctx, &SpanMetadata{Name: "outer", Type: "action", Subtype: "flow"}, "in",
-		func(ctx context.Context, in string) (string, error) {
-			wrapped, innerErr := RunInNewSpan(ctx, &SpanMetadata{Name: "inner", Type: "action"}, in,
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var parentSM *spanMetadata
+			RunInNewSpan(context.Background(), &SpanMetadata{Name: "parent"}, "in",
 				func(ctx context.Context, in string) (string, error) {
-					innerSM = spanMetaKey.FromContext(ctx)
-					return "", boom
+					parentSM = spanMetaKey.FromContext(ctx)
+					fail := func(ctx context.Context, in string) (string, error) { return "", boom }
+					_, first := RunInNewSpan(ctx, &SpanMetadata{Name: "first"}, in, fail)
+					_, second := RunInNewSpan(ctx, &SpanMetadata{Name: "second"}, in, fail)
+					return "", tt.parent(first, second)
 				})
-			if innerErr != nil {
-				return "", fmt.Errorf("inner call failed: %w", innerErr)
+			if parentSM.IsFailureSource != tt.wantSource {
+				t.Errorf("parent IsFailureSource = %t, want %t", parentSM.IsFailureSource, tt.wantSource)
 			}
-			return wrapped, nil
 		})
+	}
+}
 
-	if got, want := err.Error(), "inner call failed: boom"; got != want {
-		t.Errorf("error message = %q, want %q", got, want)
+// TestIsFailureSourceForStoredError verifies that attribution is per trace: an
+// error a child span returned in an earlier trace is attributed to the span
+// that returns it again later, without its child failing.
+func TestIsFailureSourceForStoredError(t *testing.T) {
+	ctx := context.Background()
+	var (
+		once    sync.Once
+		initErr error
+	)
+	step := func(ctx context.Context) *spanMetadata {
+		var stepSM *spanMetadata
+		RunInNewSpan(ctx, &SpanMetadata{Name: "step"}, "in",
+			func(ctx context.Context, in string) (string, error) {
+				stepSM = spanMetaKey.FromContext(ctx)
+				once.Do(func() {
+					_, initErr = RunInNewSpan(ctx, &SpanMetadata{Name: "init"}, in,
+						func(context.Context, string) (string, error) { return "", errors.New("init failed") })
+				})
+				return "", initErr
+			})
+		return stepSM
 	}
-	if !errors.Is(err, boom) {
-		t.Errorf("errors.Is(%v, boom) = false, want the original error to stay reachable", err)
+
+	if sm := step(ctx); sm.IsFailureSource {
+		t.Error("first run: step only propagated its child's failure but is marked as its source")
 	}
-	if !innerSM.IsFailureSource {
-		t.Error("originating span is not marked as the failure source")
+	if sm := step(ctx); !sm.IsFailureSource {
+		t.Error("second run: step returned a stored error with no failing child but is not marked as its source")
+	}
+}
+
+type nonComparableError struct{ causes []string }
+
+func (e nonComparableError) Error() string { return strings.Join(e.causes, "; ") }
+
+// TestIsFailureSourceNonComparableError verifies that an error of a
+// non-comparable type does not panic attribution; the parent that returns it
+// is counted as a source too.
+func TestIsFailureSourceNonComparableError(t *testing.T) {
+	var parentSM *spanMetadata
+	RunInNewSpan(context.Background(), &SpanMetadata{Name: "parent"}, "in",
+		func(ctx context.Context, in string) (string, error) {
+			parentSM = spanMetaKey.FromContext(ctx)
+			return RunInNewSpan(ctx, &SpanMetadata{Name: "child"}, in,
+				func(context.Context, string) (string, error) {
+					return "", nonComparableError{causes: []string{"boom"}}
+				})
+		})
+	if !parentSM.IsFailureSource {
+		t.Error("parent IsFailureSource = false, want true for an error that cannot be matched")
 	}
 }
 
