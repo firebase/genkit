@@ -18,11 +18,14 @@
 
 from __future__ import annotations
 
+import functools
 import inspect
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import Annotated, Any, TypeAlias, cast, get_args, get_origin, get_type_hints
 
+from jsonschema.exceptions import SchemaError, best_match
+from jsonschema.validators import validator_for
 from pydantic import AliasChoices, BaseModel, ValidationError
 
 from genkit._core._action import (
@@ -322,17 +325,20 @@ async def config_class_for_generate(*, model: object | None, registry: Registry)
     return annotated_config_class(await registry.resolve_model(resolved.name))
 
 
-async def check_annotated_config(*, model: str, config: object, registry: Registry) -> None:
-    """Raise before the turn when ``config`` can't become the model function's config class.
+async def check_config_before_turn(*, model: str, config: object, registry: Registry) -> None:
+    """Raise before the turn when a value in ``config`` can't reach the model.
 
-    The model action coerces ``request.config`` into the class on its
-    ``ModelRequest[...]`` annotation, so a value that class rejects was
-    going to fail anyway; this raises it before middleware or the model
-    run. A missing top-level field passes: ``wrap_model`` middleware can
-    still fill it, and the model action reports it if nothing does.
+    Covers the two schemas the call-time check doesn't see: the class on the
+    model function's ``ModelRequest[...]`` annotation, and a JSON-schema dict
+    passed as ``config_schema=``. A missing top-level field passes:
+    ``wrap_model`` middleware can still fill it, and the model action reports
+    it if nothing does.
     """
-    schema = annotated_config_class(await registry.resolve_model(model))
-    check_config_values(config=config, schema=schema, model=model)
+    action = await registry.resolve_model(model)
+    check_config_values(config=config, schema=annotated_config_class(action), model=model)
+    declared = getattr(action, '_config_schema', None) if action is not None else None
+    if isinstance(declared, dict):
+        check_config_values(config=config, schema=cast(dict[str, Any], declared), model=model)
 
 
 def config_schema_at_define(*, model: object | None, registry: Registry) -> tuple[str | None, type[BaseModel] | None]:
@@ -498,14 +504,44 @@ def model(
     model_meta: dict[str, object] = metadata.copy() if metadata else {}
     model_meta['model'] = model_options
 
-    return Action(
+    if not config_schema:
+        return Action(
+            kind=ActionKind.MODEL,
+            name=name,
+            fn=fn,
+            metadata=model_meta,
+            description=get_func_description(fn, description),
+        )
+
+    schema = config_schema
+    # Action rejects a sync fn, but it only sees the async wrapper below.
+    if not inspect.iscoroutinefunction(fn):
+        raise TypeError(f"Action handlers must be async functions. Got sync function for '{name}'.")
+    if isinstance(schema, dict):
+        check_config_json_schema(schema, model=name)
+
+    @functools.wraps(fn)
+    async def run_with_config_check(
+        request: ModelRequest | Mapping[str, Any], ctx: ActionRunContext
+    ) -> ModelResponse[Any]:
+        # Runs inside the model action, after every middleware, so a required
+        # field no layer filled is reported here. generate returns it as the
+        # turn's error. Go checks config at the same point. A function with
+        # an unannotated request param gets the raw dict on a direct run.
+        config = request.config if isinstance(request, ModelRequest) else request.get('config')
+        check_whole_config(config=config, schema=schema, model=name)
+        return await action.params.call(fn, request, ctx)
+
+    action = Action(
         kind=ActionKind.MODEL,
         name=name,
-        fn=fn,
+        fn=run_with_config_check,
+        metadata_fn=fn,
         metadata=model_meta,
         description=get_func_description(fn, description),
         config_schema=config_schema,
     )
+    return action
 
 
 def define_model(
@@ -554,25 +590,90 @@ def assert_correct_config_class(
     )
 
 
-def check_config_values(*, config: object, schema: type[BaseModel] | None, model: str) -> None:
-    """Raise if a value the config sets doesn't fit the model's config class.
+def check_config_values(*, config: object, schema: type[BaseModel] | dict[str, Any] | None, model: str) -> None:
+    """Raise if a value the config sets doesn't fit the model's config schema.
 
     Only fields the config sets are judged. A required field it leaves out is
     not an error yet: another config layer or a wrap_model middleware may add
     it, and the model action rejects it if nothing does. ``None`` means
-    "clear the default" and isn't checked.
+    "clear the default" and isn't checked. A JSON-schema dict is judged the
+    same way as a class.
     """
     if schema is None or not isinstance(config, Mapping):
         return
-    values = {key: value for key, value in cast(Mapping[str, Any], config).items() if value is not None}
+    _raise_config_problems(values=_judged_values(config, schema), schema=schema, model=model, report_missing=False)
+
+
+def check_whole_config(*, config: object, schema: type[BaseModel] | dict[str, Any], model: str) -> None:
+    """Raise if the config the model is about to run with doesn't fit its config schema.
+
+    Unlike ``check_config_values``, a missing required field is an error:
+    this runs inside the model action, where nothing is left to fill it.
+    """
+    if isinstance(schema, type) and isinstance(config, schema):
+        return
+    if isinstance(config, BaseModel):
+        config = _config_values(config)
+    if config is None:
+        config = {}
+    if not isinstance(config, Mapping):
+        return
+    _raise_config_problems(values=_judged_values(config, schema), schema=schema, model=model, report_missing=True)
+
+
+def check_config_json_schema(schema: dict[str, Any], *, model: str) -> None:
+    """Raise at define time when a ``config_schema=`` dict isn't a valid JSON schema."""
+    try:
+        validator_for(schema).check_schema(schema)
+    except SchemaError as e:
+        raise GenkitError(
+            status='INVALID_ARGUMENT',
+            message=f'{model}: config_schema is not a valid JSON schema: {e.message}',
+            cause=e,
+        ) from e
+
+
+def _judged_values(config: Mapping[Any, Any], schema: type[BaseModel] | dict[str, Any]) -> dict[str, Any]:
+    """The config values a schema is judged on.
+
+    ``None`` means "clear the default" and is dropped. ``version`` comes from
+    ``ModelRef.version``, which Genkit adds to config itself, so a schema that
+    doesn't name it isn't judged on it.
+    """
+    declared = schema.get('properties', {}) if isinstance(schema, dict) else schema.model_fields
+    return {
+        key: value
+        for key, value in cast(Mapping[str, Any], config).items()
+        if value is not None and (key != 'version' or key in declared)
+    }
+
+
+def _raise_config_problems(
+    *, values: dict[str, Any], schema: type[BaseModel] | dict[str, Any], model: str, report_missing: bool
+) -> None:
+    """Raise INVALID_ARGUMENT listing what in ``values`` breaks ``schema``.
+
+    With ``report_missing=False``, a required top-level field left out isn't a
+    problem. A field missing inside a nested object always is: the object is
+    sent whole and can't be filled later.
+    """
+    if isinstance(schema, dict):
+        described = _json_schema_problems(values, schema=schema, model=model, report_missing=report_missing)
+        if described:
+            raise GenkitError(
+                status='INVALID_ARGUMENT',
+                message=f'{model}: {"; ".join(described)}',
+                reason=RuntimeErrorReason.INVALID_INPUT,
+            )
+        return
     try:
         schema.model_validate(values)
     except ValidationError as e:
-        # Pydantic also reports the required fields this config leaves out
-        # (type 'missing' at a one-part path). Drop those; keep everything
-        # else, including a field missing inside a nested object, which is
-        # sent whole and can't be filled later.
-        problems = [err for err in e.errors() if not (err['type'] == 'missing' and len(err['loc']) == 1)]
+        # Pydantic reports a required field left out as type 'missing' at a
+        # one-part path.
+        problems = [
+            err for err in e.errors() if report_missing or not (err['type'] == 'missing' and len(err['loc']) == 1)
+        ]
         if not problems:
             return
         raise GenkitError(
@@ -581,6 +682,43 @@ def check_config_values(*, config: object, schema: type[BaseModel] | None, model
             reason=RuntimeErrorReason.INVALID_INPUT,
             cause=e,
         ) from e
+
+
+def _json_schema_problems(
+    values: dict[str, Any], *, schema: dict[str, Any], model: str, report_missing: bool
+) -> list[str]:
+    """One line per JSON-schema error in ``values``, ordered by path, worded like the class check."""
+    try:
+        errors = sorted(
+            validator_for(schema)(schema).iter_errors(values), key=lambda err: [str(part) for part in err.absolute_path]
+        )
+    except Exception as e:
+        # check_schema at define time can't catch everything, e.g. a $ref to
+        # nowhere. That's the model author's schema, not the caller's config.
+        raise GenkitError(
+            status='FAILED_PRECONDITION',
+            message=f"{model}: config_schema couldn't be applied: {e}",
+            cause=e,
+        ) from e
+    described: list[str] = []
+    for err in errors:
+        # An optional field is anyOf [its schema, null]; report why the value
+        # failed its schema, not that it matched neither branch.
+        if err.context:
+            err = best_match([sub for sub in err.context if sub.validator != 'type'] or err.context)
+        if err.validator == 'required':
+            # One error per object missing fields, on that object's path. An
+            # empty path is the top level, where middleware may still fill it.
+            if not report_missing and not err.absolute_path:
+                continue
+            present = err.instance if isinstance(err.instance, Mapping) else {}
+            for field in cast(list[str], err.validator_value):
+                if field not in present:
+                    described.append(f'config {_config_path((*err.absolute_path, field))!r}: Field required')
+            continue
+        path = _config_path(tuple(err.absolute_path))
+        described.append(f'config {path!r}: {err.message}' if path else f'config: {err.message}')
+    return list(dict.fromkeys(described))
 
 
 def _describe_config_problems(

@@ -39,7 +39,7 @@ from genkit._ai._model import (
     ModelResponse,
     ModelResponseChunk,
     annotated_config_class,
-    check_annotated_config,
+    check_config_before_turn,
     resolve_model_name,
     text_from_content,
 )
@@ -784,11 +784,11 @@ async def run_generate(
     # reflection) starts here, so it fails before middleware or the model runs.
     reject_config_api_key(options.config)
     registry = scope.registry
-    # Config values the model's ModelRequest[...] class rejects raise here,
-    # before any hook runs, for every entry point (ai.generate, prompts,
-    # generate_operation, /util/generate).
+    # Config values the model's ModelRequest[...] class or JSON-schema
+    # config_schema= rejects raise here, before any hook runs, for every entry
+    # point (ai.generate, prompts, generate_operation, /util/generate).
     if options.model:
-        await check_annotated_config(model=options.model, config=options.config, registry=registry)
+        await check_config_before_turn(model=options.model, config=options.config, registry=registry)
 
     if options.tools:
         options.tools = await expand_wildcard_tools(registry, options.tools)
