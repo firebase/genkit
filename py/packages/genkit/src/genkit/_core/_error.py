@@ -26,7 +26,7 @@ from email.utils import parsedate_to_datetime
 from enum import IntEnum
 from typing import Any, ClassVar, Literal, cast, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError, model_validator
 from pydantic.alias_generators import to_camel
 
 from genkit._core._compat import StrEnum
@@ -293,20 +293,6 @@ def retry_after_ms_from_headers(headers: object) -> float | None:
     if not raw:
         return None
     return parse_retry_after_ms(raw)
-
-
-class Status(BaseModel):
-    """Represents a status with a name and optional message."""
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(
-        frozen=True,
-        validate_assignment=True,
-        extra='forbid',
-        populate_by_name=True,
-    )
-
-    name: StatusName
-    message: str = Field(default='')
 
 
 # =============================================================================
