@@ -153,7 +153,7 @@ async def test_generate_operation_veo_unknown_config_key_raises_and_sends_nothin
     """`config={'durationSecs': 5}` raises INVALID_ARGUMENT naming the key instead of riding into `parameters`."""
     with pytest.raises(GenkitError) as raised:
         await _googleai().generate_operation(
-            model='googleai/veo-3.0-generate-001', prompt='a cat', config={'durationSecs': 5}
+            model='googleai/veo-3.1-generate-preview', prompt='a cat', config={'durationSecs': 5}
         )
 
     assert raised.value.status == 'INVALID_ARGUMENT'
@@ -175,7 +175,7 @@ async def test_generate_operation_veo_api_key_in_config_points_to_context_secret
 ) -> None:
     """A key in Veo config or `extra` raises INVALID_ARGUMENT pointing at context.secrets, and isn't sent."""
     with pytest.raises(GenkitError) as raised:
-        await _googleai().generate_operation(model='googleai/veo-3.0-generate-001', prompt='a cat', config=config)
+        await _googleai().generate_operation(model='googleai/veo-3.1-generate-preview', prompt='a cat', config=config)
 
     assert raised.value.status == 'INVALID_ARGUMENT'
     assert "context={'secrets': {'api_key': ...}}" in str(raised.value)
@@ -189,7 +189,7 @@ async def test_generate_operation_veo_api_key_in_config_points_to_context_secret
 async def test_generate_operation_veo_extra_merges_into_request_parameters(sent: _Sent) -> None:
     """`numberOfVideos=2` plus `extra={'parameters': {'fooBar': 1}}` sends both under `parameters`."""
     await _googleai().generate_operation(
-        model='googleai/veo-3.0-generate-001',
+        model='googleai/veo-3.1-generate-preview',
         prompt='a cat',
         config={'numberOfVideos': 2, 'extra': {'parameters': {'fooBar': 1}}},
     )
@@ -201,7 +201,7 @@ async def test_generate_operation_veo_extra_merges_into_request_parameters(sent:
 async def test_generate_operation_veo_generate_audio_reaches_request(sent: _Sent) -> None:
     """`generateAudio=True` is a declared field and is sent under `parameters`."""
     await _vertexai().generate_operation(
-        model='vertexai/veo-3.0-generate-001', prompt='a cat', config={'generateAudio': True}
+        model='vertexai/veo-3.1-generate-001', prompt='a cat', config={'generateAudio': True}
     )
 
     assert sent.body['parameters'] == {'generateAudio': True}
