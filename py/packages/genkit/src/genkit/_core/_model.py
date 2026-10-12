@@ -584,11 +584,8 @@ def _raise_config_problems(
     take both spellings, and the later one wins when folded.
     """
     names = config_field_names(schema)
-    declared = schema.model_fields
     spellings: dict[str, list[str]] = {}
     for key in config:
-        if key == 'version' and 'version' not in declared:
-            continue
         spellings.setdefault(names.get(key, key), []).append(key)
     repeated = (
         [sorted(keys, key=lambda k: k != field) for field, keys in spellings.items() if len(keys) > 1]
@@ -598,13 +595,8 @@ def _raise_config_problems(
     instance: BaseModel | None = None
     problems: list[Mapping[str, Any]] = []
     cause: ValidationError | None = None
-    to_validate = {
-        k: v
-        for k, v in fold_config_aliases(config=dict(config), schema=schema).items()
-        if k != 'version' or 'version' in declared
-    }
     try:
-        instance = schema.model_validate(to_validate)
+        instance = schema.model_validate(fold_config_aliases(config=dict(config), schema=schema))
     except ValidationError as e:
         cause = e
         problems = [err for err in e.errors() if complete or not (err['type'] == 'missing' and len(err['loc']) == 1)]
