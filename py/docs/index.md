@@ -163,8 +163,6 @@
 
 ## genkit.web
 
-::: genkit.web.ContextProvider
-
 ::: genkit.web.RequestData
 
 ::: genkit.web.error_body

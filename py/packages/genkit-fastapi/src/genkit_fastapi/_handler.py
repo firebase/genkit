@@ -31,9 +31,11 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from genkit import Genkit, GenkitError, PublicError
 from genkit.plugin_api import Action
-from genkit.web import ContextProvider, RequestData, error_body, error_status, read_body, wants_stream
+from genkit.web import RequestData, error_body, error_status, read_body, wants_stream
 
 logger = logging.getLogger(__name__)
+
+_ContextProvider = Callable[[RequestData], dict[str, Any] | Awaitable[dict[str, Any]]]
 
 # Compact JSON (no spaces) for smaller wire payload.
 JSON_SEPARATORS = (',', ':')
@@ -203,7 +205,7 @@ async def _handle_action_request(
 
 def genkit_fastapi_handler(
     ai: Genkit,
-    context_provider: ContextProvider | None = None,
+    context_provider: _ContextProvider | None = None,
 ) -> Callable[
     [Callable[[], Awaitable[Action[InputT, OutputT, ChunkT, InitT]]] | Action[InputT, OutputT, ChunkT, InitT]],
     Callable[[Request], Awaitable[Response | dict[str, Any]]],

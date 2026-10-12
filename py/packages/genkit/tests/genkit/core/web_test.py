@@ -38,9 +38,8 @@ def _greet_flow() -> Action:
 
 
 def test_request_context_types_live_on_genkit_web_only() -> None:
-    """ContextProvider and RequestData import from genkit.web, not the root package."""
+    """RequestData imports from genkit.web; neither it nor ContextProvider is on the root package."""
     assert sorted(genkit.web.__all__) == [
-        'ContextProvider',
         'RequestData',
         'error_body',
         'error_status',
@@ -49,6 +48,7 @@ def test_request_context_types_live_on_genkit_web_only() -> None:
     ]
     assert not {'ContextProvider', 'RequestData'} & set(genkit.__all__)
     assert not hasattr(genkit, 'RequestData')
+    assert not hasattr(genkit.web, 'ContextProvider')
 
 
 @pytest.mark.asyncio
