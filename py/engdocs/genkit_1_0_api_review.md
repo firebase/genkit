@@ -253,6 +253,50 @@ print(f'\nTotal tokens: {response.usage.total_tokens}')
 # => Total tokens: 34
 ```
 
+### Streaming Structured Output: Typed Partials (feedback wanted)
+
+With `output_schema=Recipe`, each `chunk.output` is typed `Recipe`, but it's built from the JSON received so far without validation (`model_construct`). Genkit parses the accumulated text as partial JSON and fills the fields that have arrived. The rest are `None`, even when the field is typed `str` or `int`. Nested models and list items get the same treatment. Only `(await stream.response).output` is validated.
+
+```python
+class Ingredient(BaseModel):
+    name: str
+    grams: int
+
+class Recipe(BaseModel):
+    title: str
+    servings: int
+    ingredients: list[Ingredient]
+
+# 1. Stream with a schema
+stream = ai.generate_stream(prompt='Pancakes for 4.', output_schema=Recipe)
+
+# 2. Each chunk.output is a Recipe with holes
+async for chunk in stream.stream:
+    print(chunk.output)
+# => Recipe(title='Fluffy Panc', servings=None, ingredients=None)
+# => Recipe(title='Fluffy Pancakes', servings=4, ingredients=[Ingredient(name='fl', grams=None)])
+# => Recipe(title='Fluffy Pancakes', servings=4, ingredients=[Ingredient(name='flour', grams=200), Ingredient(name='milk', grams=None)])
+# => Recipe(title='Fluffy Pancakes', servings=4, ingredients=[Ingredient(name='flour', grams=200), Ingredient(name='milk', grams=300)])
+
+# 3. The validated value
+recipe = (await stream.response).output
+```
+
+What this means for the app developer:
+
+- **The type checker trusts it; the runtime doesn't.** `chunk.output.servings + 1` type-checks and raises `TypeError` on the first chunk. Guard every field you read.
+- **Strings can be cut short.** `'Fluffy Panc'` is a valid `str`, so validating a chunk can't tell a partial from a finished value. A chunk that happens to validate isn't the final answer.
+- **No flag.** `chunk.output` has no `is_partial`. `part.is_partial` exists only on tool-response parts, for `ctx.send_chunk()` progress from tools (see Streaming Tool Chunks).
+- **Same trade in other runtimes.** JS types `chunk.output` as `T | null` over unvalidated parsed JSON. Go unmarshals into your struct, so missing fields are zero values.
+
+**Open question:** keep this, or change it before 1.0?
+
+1. **Keep (current):** same class, holes are `None`, documented. Autocomplete works and it matches JS. The cost is a type that lies mid-stream.
+2. **Plain JSON:** `chunk.output` is the dict parsed so far, and only the final value is typed. Honest, but you lose attribute access and autocomplete.
+3. **Separate partial type:** a generated class where every field is optional. Python's type system can't derive that from `Recipe` (there's no `Partial<T>`), so the checker would still see `Recipe` unless we add codegen or a plugin.
+
+We lean toward 1.
+
 ### Calling a Tool Directly
 
 `@ai.tool` returns a `Tool` you can call like the function it wraps. `await tool(input)` returns what the function returned, typed by its return annotation: a Pydantic model comes back as the instance, not a camelCase dict. Unit tests call tools this way without a model.
