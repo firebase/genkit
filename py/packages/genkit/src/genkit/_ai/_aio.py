@@ -90,6 +90,7 @@ from genkit._core._channel import Channel, run_loop
 from genkit._core._dap import DapFn, DynamicActionProvider
 from genkit._core._environment import is_dev_environment
 from genkit._core._error import GenkitError, RuntimeErrorReason, StatusName
+from genkit._core._flow import Flow
 from genkit._core._logger import configure_logging, get_logger, resolve_level
 from genkit._core._middleware import (
     BaseMiddleware,
@@ -293,49 +294,49 @@ class Genkit:
         self,
         func: Callable[[InputT, ActionRunContext[ChunkT]], Awaitable[OutputT]],
         /,
-    ) -> Action[InputT, OutputT, ChunkT]: ...
+    ) -> Flow[InputT, OutputT, ChunkT]: ...
 
     @overload
     def flow(
         self,
         func: Callable[[ActionRunContext[ChunkT], InputT], Awaitable[OutputT]],
         /,
-    ) -> Action[InputT, OutputT, ChunkT]: ...
+    ) -> Flow[InputT, OutputT, ChunkT]: ...
 
     @overload
     def flow(
         self,
         func: Callable[[ActionRunContext[ChunkT]], Awaitable[OutputT]],
         /,
-    ) -> Action[None, OutputT, ChunkT]: ...
+    ) -> Flow[None, OutputT, ChunkT]: ...
 
     @overload
     def flow(
         self,
         func: Callable[[InputT], Awaitable[OutputT]],
         /,
-    ) -> Action[InputT, OutputT]: ...
+    ) -> Flow[InputT, OutputT]: ...
 
     @overload
     def flow(
         self,
         func: Callable[[], Awaitable[OutputT]],
         /,
-    ) -> Action[None, OutputT]: ...
+    ) -> Flow[None, OutputT]: ...
 
     @overload
     def flow(
         self,
         func: Callable[..., Awaitable[OutputT]],
         /,
-    ) -> Action[Any, OutputT, Any]: ...
+    ) -> Flow[Any, OutputT, Any]: ...
 
     def flow(
         self,
         name: str | Callable[..., Awaitable[Any]] | None = None,
         *,
         description: str | None = None,
-    ) -> _FlowDecorator | Action[Any, Any, Any]:
+    ) -> _FlowDecorator | Flow[Any, Any, Any]:
         """Decorator to register an async function as a flow.
 
         Can be used bare (``@ai.flow``) or with arguments (``@ai.flow()``,
