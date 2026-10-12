@@ -30,7 +30,7 @@ from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError, model_
 from pydantic.alias_generators import to_camel
 
 from genkit._core._compat import StrEnum
-from genkit._core._typing import _RuntimeErrorWire
+from genkit._core._typing import Operation, _RuntimeErrorWire
 
 
 class StatusCodes(IntEnum):
@@ -119,10 +119,11 @@ def error_reason(details: object) -> ErrorReason | None:
 
 
 _STATUS_NAMES: frozenset[str] = frozenset(get_args(StatusName))
+_FAILURE_KEYS: frozenset[str] = frozenset({'status', 'message', 'details'})
 
 
 class Failure(_RuntimeErrorWire):
-    """A failure returned as data on ``response.error``, ``AgentOutput.error`` and ``SessionSnapshot.error``.
+    """A failure value on ``response.error``, ``Operation.error``, ``AgentOutput.error``, or ``SessionSnapshot.error``.
 
     Not an exception: generate and agents return failures as values. ``reason``
     is set when the framework classified the failure.
@@ -147,17 +148,23 @@ class Failure(_RuntimeErrorWire):
         # A session store built against the generated class still loads.
         if isinstance(value, _RuntimeErrorWire) and not isinstance(value, cls):
             value = value.model_dump(exclude_none=True)
-        # A snapshot or remote agent written by a newer SDK can carry a
-        # status this one doesn't know. Load it rather than fail the read.
+        # A snapshot, operation, or remote agent written by another SDK or a
+        # newer version can carry extra keys or a status this one doesn't know.
+        # Load it rather than fail the read.
         if isinstance(value, Mapping):
-            status = cast(Mapping[str, object], value).get('status')
+            raw = {k: v for k, v in cast(Mapping[str, object], value).items() if k in _FAILURE_KEYS}
+            status = raw.get('status')
             if isinstance(status, str) and status not in _STATUS_NAMES:
-                return {**cast(Mapping[str, object], value), 'status': 'UNKNOWN'}
+                raw['status'] = 'UNKNOWN'
+            return raw
         return value
 
     @property
     def reason(self) -> ErrorReason | None:
         return error_reason(self.details)
+
+
+Operation.model_rebuild(_types_namespace={'Failure': Failure})
 
 
 # Mapping of status names to HTTP status codes
@@ -339,6 +346,16 @@ class Interrupt(BaseException):
     def __init__(self, metadata: dict[str, Any] | None = None) -> None:
         super().__init__()
         self.metadata: dict[str, Any] = {} if metadata is None else metadata
+
+
+class _StreamingCallbackError(BaseException):
+    """Internal carrier for an exception raised by the caller's ``on_chunk`` callback.
+
+    Subclasses ``BaseException`` (like ``Interrupt`` and ``asyncio.CancelledError``)
+    so ``except Exception`` blocks in model plugins and middleware cannot
+    catch or retry a caller-side callback failure. ``generate()`` unwraps
+    ``__cause__`` and boxes the original failure onto ``ModelResponse``.
+    """
 
 
 # Short previews of the offending value: `'acme'`, `None`, `{'dish': 'pad thai', ...}`.

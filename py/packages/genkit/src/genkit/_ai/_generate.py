@@ -68,7 +68,7 @@ from genkit._core._background import (
     missing_operation_error,
     stamp_operation_action,
 )
-from genkit._core._error import ErrorReason, Failure, GenkitError, PublicError
+from genkit._core._error import ErrorReason, Failure, GenkitError, PublicError, _StreamingCallbackError
 from genkit._core._logger import get_logger, is_debug_enabled
 from genkit._core._middleware import (
     BaseMiddleware,
@@ -103,7 +103,6 @@ from genkit._core._typing import (
     GenerateActionOutputConfig,
     MiddlewareRef,
     Operation,
-    OperationError,
     Role,
     ToolDefinition,
     ToolRequest,
@@ -117,7 +116,7 @@ DEFAULT_MAX_TURNS = 50
 TOOL_RAISES = (Exception, Interrupt)
 # What a hook or model can raise that becomes a FAILED turn (#6255). A
 # foreign CancelledError is re-raised by raise_if_foreign_cancel.
-TURN_FAILURES = (Exception, Interrupt, asyncio.CancelledError)
+TURN_FAILURES = (Exception, Interrupt, _StreamingCallbackError, asyncio.CancelledError)
 
 logger = get_logger(__name__)
 
@@ -134,33 +133,14 @@ HookWrap = Callable[
 ]
 
 
-class StreamingCallbackError(Exception):
-    """The caller's ``on_chunk`` raised while a model was streaming.
-
-    Generate wraps the caller's callback before handing it to the model, so a
-    failing client sink surfaces at ``ctx.send_chunk`` as this error, raised
-    from the original. ``cause`` holds the caller's exception.
-
-    It is the caller's failure, not the model's: a model that catches broad
-    exceptions around ``send_chunk`` should let it through, and middleware
-    should not retry or fall back on it. A plugin may still re-raise it as
-    another error ``from`` it, so check the ``__cause__`` chain, not only the
-    top exception.
-    """
-
-    def __init__(self, cause: Exception) -> None:
-        super().__init__(str(cause))
-        self.cause = cause
-
-
 def streaming_callback_cause(*, exc: BaseException) -> Exception | None:
     """Find the caller's on_chunk exception through whatever wrapped it."""
     current: BaseException | None = exc
     seen: set[int] = set()
     while current is not None and id(current) not in seen:
         seen.add(id(current))
-        if isinstance(current, StreamingCallbackError):
-            return current.cause
+        if isinstance(current, _StreamingCallbackError) and isinstance(current.__cause__, Exception):
+            return current.__cause__
         current = current.__cause__
     return None
 
@@ -803,7 +783,7 @@ async def run_generate(
         try:
             caller_on_chunk(chunk)
         except Exception as exc:
-            raise StreamingCallbackError(exc) from exc
+            raise _StreamingCallbackError(str(exc)) from exc
 
     ctx = GenerateMiddlewareContext(
         ai=scope.ai,
@@ -864,7 +844,7 @@ async def run_generate(
             current_turn=current_turn,
             call=call,
         )
-    except Exception as exc:
+    except (Exception, _StreamingCallbackError) as exc:
         if streaming_callback_cause(exc=exc) is None:
             raise
         return box_from_exc(
@@ -1154,7 +1134,7 @@ def box_dead_turn(
     if out.operation is not None and out.operation.error is None:
         # The ticket already started. The failure why lives on the
         # handle so check/cancel is not a clean start.
-        out.operation = out.operation.model_copy(update={'error': OperationError(message=finish_message)})
+        out.operation = out.operation.model_copy(update={'error': error})
     if request is not None:
         # The turn's own request wins. A provider may echo back the request its
         # middleware rewrote, and the caller asked about theirs. Go overrides

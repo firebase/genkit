@@ -23,6 +23,7 @@ import pytest
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
 import genkit
+import genkit.model as genkit_model
 from genkit._core import _error as error_mod
 from genkit._core._error import (
     ErrorReason,
@@ -94,15 +95,21 @@ def test_failure_fields_are_read_only() -> None:
 
 
 def test_snapshot_and_agent_output_decode_the_same_error_type() -> None:
-    """A persisted turn and a live response expose the same ``.reason``."""
+    """A persisted turn, an operation, and a live response expose the same ``.reason``."""
     wire = {'status': 'ABORTED', 'message': 'stopped', 'details': {'reason': 'MAX_TURNS_EXCEEDED'}}
     snapshot = SessionSnapshot.model_validate({'snapshotId': 's1', 'createdAt': '2026-10-06T00:00:00Z', 'error': wire})
     output = AgentOutput.model_validate({'error': wire})
+    op = genkit.Operation.model_validate({'id': 'op1', 'done': True, 'error': {**wire, 'code': 409}})
 
     assert isinstance(snapshot.error, Failure)
     assert isinstance(output.error, Failure)
+    assert isinstance(op.error, Failure)
     assert snapshot.error.reason is ErrorReason.MAX_TURNS_EXCEEDED
     assert output.error.reason is ErrorReason.MAX_TURNS_EXCEEDED
+    assert op.error.reason is ErrorReason.MAX_TURNS_EXCEEDED
+    assert not hasattr(genkit, 'OperationError')
+    assert not hasattr(genkit_model, 'OperationError')
+    assert not hasattr(genkit_model, 'StreamingCallbackError')
 
 
 def test_snapshot_accepts_generated_wire_error() -> None:

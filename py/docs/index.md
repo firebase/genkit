@@ -57,6 +57,8 @@
 
 ::: genkit.ErrorReason
 
+::: genkit.Failure
+
 ::: genkit.ContextProvider
 
 ::: genkit.RequestData
@@ -80,8 +82,6 @@
 ::: genkit.model.ModelUsage
 
 ::: genkit.model.Candidate
-
-::: genkit.model.OperationError
 
 ::: genkit.model.ToolRequest
 
