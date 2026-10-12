@@ -1251,7 +1251,7 @@ With `use=[A(), B()]`, `A` runs first and wraps `B`: A before, B before, model, 
 `MiddlewareContext` is shared by every middleware in one `generate` call:
 
 - `ctx.ai`: the app's `Genkit` instance. This is the escape hatch; there's no registry handle. It's typed for lookups: `await ctx.ai.lookup_model(name)`, `await ctx.ai.lookup_tool(name)`, `ctx.ai.lookup_value(kind=..., name=...)`.
-- `ctx.custom_context`: a copy of the call's `context=` (auth, `secrets`). Tools called in this turn get it too.
+- `ctx.context`: a copy of the call's `context=` (auth, `secrets`), the same dict flows and tools read as `ctx.context`. Tools called in this turn get it too.
 - `ctx.on_chunk`, `ctx.is_streaming`, `ctx.send_chunk(chunk)`: the caller's stream. `ctx.replace_on_chunk(fn)` swaps the callback to rewrite chunks and returns the old one, so restore it in a `finally`.
 - `ctx.abort_signal`: an `asyncio.Event` set when the call is cancelled.
 - `ctx.telemetry_labels`: labels added to the spans.
