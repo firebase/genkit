@@ -25,7 +25,6 @@ import pytest
 from genkit_google_genai._models._virtual_try_on import (
     VirtualTryOnConfig,
     VirtualTryOnModel,
-    VirtualTryOnOutputOptions,
     virtual_try_on_model_info,
 )
 from google.auth.credentials import AnonymousCredentials
@@ -255,7 +254,8 @@ class TestRequestShape:
             'storageUri': 'gs://out/',
             'personGeneration': 'allow_adult',
             'safetySetting': 'block_few',
-            'outputOptions': {'mimeType': 'image/jpeg', 'compressionQuality': 80},
+            'outputMimeType': 'image/jpeg',
+            'outputCompressionQuality': 80,
         })
         with warnings.catch_warnings():
             warnings.simplefilter('error')
@@ -292,9 +292,12 @@ class TestRequestShape:
 
     @pytest.mark.asyncio
     async def test_extra_output_option_lands_beside_the_declared_ones(self) -> None:
-        """An extra nested under outputOptions merges with the declared keys."""
+        """An undeclared outputOptions key merges with the declared output fields."""
         client = _client()
-        config = VirtualTryOnConfig.model_validate({'outputOptions': {'mimeType': 'image/jpeg', 'lossless': False}})
+        config = VirtualTryOnConfig.model_validate({
+            'outputMimeType': 'image/jpeg',
+            'outputOptions': {'lossless': False},
+        })
         await _generate(VirtualTryOnModel('virtual-try-on-001', client), _request(config=config))
 
         body = _wire_body(client.aio.models.recontext_image.await_args.kwargs)
@@ -513,8 +516,8 @@ class TestRequestClient:
         """The JPEG quality range is 0-100; anything else fails before the request is built."""
         for quality in (-1, 101):
             with pytest.raises(ValidationError):
-                VirtualTryOnOutputOptions.model_validate({'compressionQuality': quality})
-        assert VirtualTryOnOutputOptions.model_validate({'compressionQuality': 100}).compression_quality == 100
+                VirtualTryOnConfig.model_validate({'outputCompressionQuality': quality})
+        assert VirtualTryOnConfig.model_validate({'outputCompressionQuality': 100}).output_compression_quality == 100
 
     def test_person_and_safety_levels_are_closed(self) -> None:
         """A misspelled level fails validation before the request is built."""

@@ -86,12 +86,7 @@ from genkit_google_genai._models._gemini import (
 )
 from genkit_google_genai._models._interactions_lyria import LyriaConfig
 from genkit_google_genai._models._veo import VeoConfig
-from genkit_google_genai._models._virtual_try_on import (
-    KnownVirtualTryOn,
-    VirtualTryOnConfig,
-    VirtualTryOnOutputOptions,
-    VirtualTryOnVersion,
-)
+from genkit_google_genai._models._virtual_try_on import VirtualTryOnConfig
 
 __all__ = [
     'AntigravityConfig',
@@ -101,11 +96,8 @@ __all__ = [
     'GeminiTtsConfig',
     'GemmaConfig',
     'GoogleAI',
-    'KnownVirtualTryOn',
     'LyriaConfig',
     'VeoConfig',
     'VertexAI',
     'VirtualTryOnConfig',
-    'VirtualTryOnOutputOptions',
-    'VirtualTryOnVersion',
 ]

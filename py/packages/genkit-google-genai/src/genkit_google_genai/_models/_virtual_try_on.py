@@ -33,7 +33,7 @@ Cloud Storage path.
 import base64
 import binascii
 from collections.abc import Mapping
-from typing import Any, Literal, TypeAlias
+from typing import Any, Literal, TypeAlias, get_args
 
 from genkit_google_genai._auth import GOOGLE_AUTH_ERRORS, raise_auth_error
 from genkit_google_genai._constants import is_multi_regional_location, multi_regional_base_url
@@ -52,22 +52,14 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from genkit import ActionRunContext, FinishReason, GenkitError, Message, ModelResponse, Part, Role
 from genkit.model import Constrained, ModelInfo, ModelRequest, Supports, get_basic_usage_stats
-from genkit.plugin_api import StrEnum
 
-
-class VirtualTryOnVersion(StrEnum):
-    """Supported Virtual Try-On models."""
-
-    VIRTUAL_TRY_ON_001 = 'virtual-try-on-001'
-
-
-# Quote autocomplete needs a Literal. The enum above is the catalog; a test
-# requires these members and the enum values to be the same set.
+# Ids ``virtual_try_on_model`` offers for autocomplete. Other
+# ``virtual-try-on-`` ids still resolve.
 KnownVirtualTryOn: TypeAlias = Literal['virtual-try-on-001']
 
 # The Vertex catalog does not report a usable action for this family, so the
 # plugin advertises and registers it from this list instead of discovery.
-VERTEX_KNOWN_VIRTUAL_TRY_ON: tuple[str, ...] = (VirtualTryOnVersion.VIRTUAL_TRY_ON_001,)
+VERTEX_KNOWN_VIRTUAL_TRY_ON: tuple[str, ...] = get_args(KnownVirtualTryOn)
 
 PERSON_IMAGE_TYPE = 'personImage'
 PRODUCT_IMAGE_TYPE = 'productImage'
@@ -83,20 +75,6 @@ def is_virtual_try_on_model(name: str) -> bool:
         True if this is a Virtual Try-On model name.
     """
     return name.split('/')[-1].lower().startswith('virtual-try-on-')
-
-
-class VirtualTryOnOutputOptions(BaseModel):
-    """Encoding of the returned images."""
-
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
-    mime_type: str | None = Field(default=None, alias='mimeType', description='MIME type of the returned images.')
-    compression_quality: int | None = Field(
-        default=None,
-        alias='compressionQuality',
-        ge=0,
-        le=100,
-        description='Compression quality for lossy output formats.',
-    )
 
 
 class VirtualTryOnConfig(BaseModel):
@@ -123,8 +101,15 @@ class VirtualTryOnConfig(BaseModel):
     storage_uri: str | None = Field(
         default=None, alias='storageUri', description='Cloud Storage URI to store the generated images.'
     )
-    output_options: VirtualTryOnOutputOptions | None = Field(
-        default=None, alias='outputOptions', description='Encoding of the returned images.'
+    output_mime_type: str | None = Field(
+        default=None, alias='outputMimeType', description='MIME type of the returned images.'
+    )
+    output_compression_quality: int | None = Field(
+        default=None,
+        alias='outputCompressionQuality',
+        ge=0,
+        le=100,
+        description='Compression quality for lossy output formats.',
     )
     base_url: str | None = Field(default=None, alias='baseUrl', description='Override the API endpoint for this call.')
     api_version: str | None = Field(
@@ -255,16 +240,6 @@ def _to_sdk_config(dumped: dict[str, Any] | None, *, action_name: str) -> genai_
     dumped = {key: value for key, value in dumped.items() if key not in _CLIENT_OPTION_KEYS}
     if not dumped:
         return None
-
-    options: dict[str, Any] = dumped.pop('output_options', None) or {}
-    mime_type = options.pop('mime_type', None)
-    compression_quality = options.pop('compression_quality', None)
-    if mime_type is not None:
-        dumped['output_mime_type'] = mime_type
-    if compression_quality is not None:
-        dumped['output_compression_quality'] = compression_quality
-    if options:
-        dumped['outputOptions'] = options
 
     for key, renamed in (*_SDK_FIELD_NAMES.items(), *_VERBATIM_FIELD_NAMES.items()):
         if key in dumped:

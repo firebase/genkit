@@ -44,11 +44,7 @@ from genkit_google_genai._models._gemini import (
 )
 from genkit_google_genai._models._interactions_registry import KnownLyria, is_lyria_model_name
 from genkit_google_genai._models._veo import KnownVeo, VeoConfig, is_veo_model
-from genkit_google_genai._models._virtual_try_on import (
-    KnownVirtualTryOn,
-    VirtualTryOnVersion,
-    is_virtual_try_on_model,
-)
+from genkit_google_genai._models._virtual_try_on import KnownVirtualTryOn, is_virtual_try_on_model
 
 from genkit import GenkitError
 from genkit.embedder import EmbedderRef
@@ -274,7 +270,6 @@ class TestKnownIdLiterals:
         assert all(is_gemma_model(value) for value in get_args(KnownGemma))
         assert all(is_veo_model(value) for value in get_args(KnownVeo))
         assert all(is_lyria_model_name(value) for value in get_args(KnownLyria))
-        assert set(get_args(KnownVirtualTryOn)) == {str(member.value) for member in VirtualTryOnVersion}
         assert all(is_virtual_try_on_model(value) for value in get_args(KnownVirtualTryOn))
 
     def test_latest_aliases_autocomplete_on_gemini_model(self) -> None:
