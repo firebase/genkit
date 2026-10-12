@@ -315,7 +315,7 @@ def register_middleware(
                     reg_name,
                     mw_cls._middleware_metadata(reg_name),
                 )
-            config = cast(BaseModel, entry.config).model_dump(exclude_none=True, mode='json') or None
+            config = entry.config.model_dump(exclude_none=True, mode='json') or None
             refs.append(MiddlewareRef(name=reg_name, config=config))
         else:
             refs.append(entry)

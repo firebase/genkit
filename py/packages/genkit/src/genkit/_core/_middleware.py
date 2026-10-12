@@ -23,9 +23,10 @@ import inspect
 import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Generic, NamedTuple, Protocol, TypeVar, cast, get_args, get_origin
+from typing import Any, ClassVar, Generic, NamedTuple, Protocol, cast, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict, PrivateAttr, field_validator
+from typing_extensions import TypeVar
 
 from genkit._core._action import Action
 from genkit._core._logger import get_logger
@@ -93,7 +94,10 @@ class _EmptyMiddlewareConfig(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
 
-TConfig = TypeVar('TConfig', bound=BaseModel)
+# Covariant (config is read-only) with a BaseModel default, so bare
+# ``Middleware`` means ``Middleware[BaseModel]`` and ``Sequence[Middleware]``
+# accepts every subclass.
+TConfig = TypeVar('TConfig', bound=BaseModel, covariant=True, default=BaseModel)
 
 
 class GenerateHookParams(BaseModel):
@@ -327,7 +331,7 @@ class Middleware(Generic[TConfig]):
         return await next_fn(params, ctx)
 
 
-def _copy_middleware_instance(impl: Middleware[Any]) -> Middleware[Any]:
+def _copy_middleware_instance(impl: Middleware) -> Middleware:
     """Return a fresh instance with the same config; internal hook state is not copied."""
     return type(impl)(config=impl._config.model_copy(deep=True))
 
