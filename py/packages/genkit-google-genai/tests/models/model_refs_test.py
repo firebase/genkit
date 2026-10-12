@@ -151,7 +151,7 @@ class TestClosedRejectSet:
     @pytest.mark.parametrize(
         'bad_id',
         [
-            'veo-3.0-generate-001',  # wrong family: has its own constructor
+            'veo-3.1-generate-preview',  # wrong family: has its own constructor
             'lyria-002',  # no constructor in this plugin
             'googleai/lyria-002',  # prefix must not defeat the gate
             'deep-research-pro-preview',  # Interactions API family
@@ -181,7 +181,7 @@ class TestClosedRejectSet:
         with pytest.raises(GenkitError, match=r'embedding'):
             GoogleAI.gemini('gemini-embedding-001')
         with pytest.raises(GenkitError, match=r'veo\('):
-            GoogleAI.gemini('veo-3.0-generate-001')
+            GoogleAI.gemini('veo-3.1-generate-preview')
         with pytest.raises(GenkitError, match=r'lyria\('):
             GoogleAI.gemini('lyria-002')
         with pytest.raises(GenkitError, match=r'deep_research\('):
@@ -276,9 +276,28 @@ class TestKnownIdLiterals:
         assert 'gemini-3.1-flash-tts-preview' in get_args(KnownGeminiTts)
         assert 'gemini-3.1-flash-tts-preview' not in get_args(KnownGemini)
 
+    def test_gemini_3_8_tts_ids_autocomplete_on_the_tts_constructor(self) -> None:
+        """The 3.8 TTS ids are offered by ``gemini_tts``, not ``gemini``."""
+        ids = {'gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts'}
+        assert ids <= set(get_args(KnownGeminiTts))
+        assert not ids & set(get_args(KnownGemini))
+        for name in ids:
+            assert GoogleAI.gemini_tts(name).config_schema is GeminiTtsConfig
+
     def test_gemma_4_autocompletes_on_gemma(self) -> None:
         """The gemma-4 ids are offered by ``gemma``."""
         assert {'gemma-4-26b-a4b-it', 'gemma-4-31b-it'} <= set(get_args(KnownGemma))
+
+    def test_veo_catalog_is_the_3_1_family(self) -> None:
+        """KnownVeo is the six Veo 3.1 ids."""
+        assert set(get_args(KnownVeo)) == {
+            'veo-3.1-generate-preview',
+            'veo-3.1-fast-generate-preview',
+            'veo-3.1-lite-generate-preview',
+            'veo-3.1-generate-001',
+            'veo-3.1-fast-generate-001',
+            'veo-3.1-lite-generate-001',
+        }
 
 
 class TestNoImagenSurface:

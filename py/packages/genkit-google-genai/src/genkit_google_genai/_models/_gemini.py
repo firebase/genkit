@@ -341,6 +341,33 @@ class GeminiConfig(ModelConfig):
     ``GenerateContentConfig`` from them at request time. Unknown keys raise.
     A request field this class doesn't declare goes in ``extra`` under its
     wire name and is merged into the request body.
+
+    Example:
+        ```python
+        from genkit import Genkit
+        from genkit_google_genai import GeminiConfig, GoogleAI
+
+        # 1. Initialize plugin and client
+        ai = Genkit(plugins=[GoogleAI()])
+
+        # 2. Run generation with flat reasoning, safety, and search grounding
+        res = await ai.generate(
+            model=GoogleAI.gemini('gemini-flash-latest'),
+            prompt='Review allergy safety for pesto pasta and cite recent culinary guidelines.',
+            config=GeminiConfig(
+                thinking_level='HIGH',
+                include_thoughts=True,
+                safety_settings=[
+                    {'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold': 'BLOCK_ONLY_HIGH'},
+                ],
+                google_search=True,
+            ),
+        )
+
+        # 3. Inspect generated text
+        print(res.text)
+        # => Pesto pasta traditionally contains pine nuts and parmesan cheese...
+        ```
     """
 
     # GenkitConfig's flags (to_camel, both spellings, extra='forbid') are
@@ -593,7 +620,31 @@ def _extra_sets_voice(cfg: genai_types.GenerateContentConfig) -> bool:
 
 
 class GeminiTtsConfig(GeminiConfig):
-    """Gemini TTS Config."""
+    """Gemini TTS Config.
+
+    Example:
+        ```python
+        from genkit import Genkit
+        from genkit_google_genai import GeminiTtsConfig, GoogleAI
+
+        # 1. Initialize plugin and client
+        ai = Genkit(plugins=[GoogleAI()])
+
+        # 2. Synthesize multi-speaker podcast audio
+        res = await ai.generate(
+            model=GoogleAI.gemini('gemini-2.5-flash-preview-tts'),
+            prompt='Host: Welcome to Morning Roaster. Chef: Today we review Ethiopian beans.',
+            config=GeminiTtsConfig(
+                speakers={'Host': 'Kore', 'Chef': 'Puck'},
+                language_code='en-US',
+            ),
+        )
+
+        # 3. Access synthesized audio parts
+        print(res.media.url)
+        # => data:audio/wav;base64,UklGRiQAAABXQVZFZ...
+        ```
+    """
 
     voice: str | None = Field(
         default=None,
@@ -618,7 +669,31 @@ class GeminiTtsConfig(GeminiConfig):
 
 
 class GeminiImageConfig(GeminiConfig):
-    """Gemini Image Config."""
+    """Gemini Image Config.
+
+    Example:
+        ```python
+        from genkit import Genkit
+        from genkit_google_genai import GeminiImageConfig, GoogleAI
+
+        # 1. Initialize plugin and client
+        ai = Genkit(plugins=[GoogleAI()])
+
+        # 2. Generate architectural artwork with specified aspect ratio and size
+        res = await ai.generate(
+            model=GoogleAI.gemini('gemini-2.5-flash-preview-image-generation'),
+            prompt='A modern minimalist espresso bar with warm cedar accents.',
+            config=GeminiImageConfig(
+                aspect_ratio='16:9',
+                image_size='2K',
+            ),
+        )
+
+        # 3. Access generated image media
+        print(res.media.url)
+        # => data:image/png;base64,iVBORw0KGgoAAAANSU...
+        ```
+    """
 
     aspect_ratio: ImageAspectRatio | None = Field(default=None, description='Aspect ratio of the generated images.')
     image_size: ImageSize | None = Field(default=None, description='Size of the generated images.')
@@ -897,6 +972,16 @@ GEMINI_3_1_FLASH_TTS_PREVIEW = ModelInfo(
     supports=GEMINI_TTS_SUPPORTS,
 )
 
+GEMINI_3_8_FLASH_TTS = ModelInfo(
+    label='Google AI - Gemini 3.8 Flash TTS',
+    supports=GEMINI_TTS_SUPPORTS,
+)
+
+GEMINI_3_8_FLASH_LITE_TTS = ModelInfo(
+    label='Google AI - Gemini 3.8 Flash Lite TTS',
+    supports=GEMINI_TTS_SUPPORTS,
+)
+
 GEMMA_SUPPORTS = Supports(
     multiturn=True,
     media=True,
@@ -982,6 +1067,8 @@ KnownGeminiTts: TypeAlias = Literal[
     'gemini-2.5-flash-preview-tts',
     'gemini-2.5-pro-preview-tts',
     'gemini-3.1-flash-tts-preview',
+    'gemini-3.8-flash-tts',
+    'gemini-3.8-flash-lite-tts',
 ]
 KnownGeminiImage: TypeAlias = Literal[
     'gemini-2.5-flash-image',
@@ -1039,6 +1126,8 @@ _add_model(GEMINI_2_5_FLASH_IMAGE, ['gemini-2.5-flash-image'])
 _add_model(GEMINI_2_5_FLASH_PREVIEW_TTS, ['gemini-2.5-flash-preview-tts'])
 _add_model(GEMINI_2_5_PRO_PREVIEW_TTS, ['gemini-2.5-pro-preview-tts'])
 _add_model(GEMINI_3_1_FLASH_TTS_PREVIEW, ['gemini-3.1-flash-tts-preview'])
+_add_model(GEMINI_3_8_FLASH_TTS, ['gemini-3.8-flash-tts'])
+_add_model(GEMINI_3_8_FLASH_LITE_TTS, ['gemini-3.8-flash-lite-tts'])
 _add_model(GEMMA_4_26B_A4B_IT, ['gemma-4-26b-a4b-it'])
 _add_model(GEMMA_4_31B_IT, ['gemma-4-31b-it'])
 
