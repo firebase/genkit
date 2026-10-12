@@ -50,13 +50,14 @@ def test_embedder_action_metadata() -> None:
     ).action_metadata()
 
     assert isinstance(action_metadata, ActionMetadata)
-    assert action_metadata.input_json_schema is not None
-    assert action_metadata.output_json_schema is not None
-    assert action_metadata.metadata is not None
-    assert action_metadata.metadata['embedder'] == {
-        'label': info.label,
-        'dimensions': info.dimensions,
-        'customOptions': None,
+    assert action_metadata.input_schema is not None
+    assert action_metadata.output_schema is not None
+    assert action_metadata.metadata == {
+        'embedder': {
+            'label': info.label,
+            'dimensions': info.dimensions,
+            'customOptions': None,
+        },
     }
 
 
@@ -102,11 +103,12 @@ def test_embedder_action_metadata_no_options() -> None:
     """Test Embedder.action_metadata() when no options are provided."""
     action_metadata = Embedder(name='default_model', fn=_noop_embedder).action_metadata()
     assert isinstance(action_metadata, ActionMetadata)
-    assert action_metadata.metadata is not None
-    assert action_metadata.metadata['embedder'] == {
-        'label': 'default_model',
-        'customOptions': None,
-        'dimensions': None,
+    assert action_metadata.metadata == {
+        'embedder': {
+            'label': 'default_model',
+            'customOptions': None,
+            'dimensions': None,
+        },
     }
 
 

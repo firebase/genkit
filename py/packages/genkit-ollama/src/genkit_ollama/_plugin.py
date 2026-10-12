@@ -37,11 +37,10 @@ from genkit.embedder import (
 )
 from genkit.model import (
     ConstrainedSupport,
+    Model,
     ModelInfo,
     ModelRequest,
     ModelSupports,
-    model as create_model,
-    model_action_metadata,
 )
 from genkit.plugin_api import (
     Action,
@@ -363,29 +362,17 @@ class Ollama(Plugin):
             server_address=self.server_address,
         )
 
-        action_metadata = model_action_metadata(
-            name=ollama_name(name),
-            config_schema=OllamaConfig,
-            info=ollama_model_info(model_ref, f'Ollama - {name}'),
-        )
-
         async def _run(request: ModelRequest, ctx: ActionRunContext | None = None) -> ModelResponse:
             # OllamaModel wraps connection errors at the SDK boundary, so a failed
             # media-URL fetch isn't misreported as an Ollama server outage.
             return await model.generate(request, ctx)
 
-        action = create_model(
+        return Model(
             ollama_name(name),
             _run,
             config_schema=OllamaConfig,
-            metadata=action_metadata.metadata,
+            info=ollama_model_info(model_ref, f'Ollama - {name}'),
         )
-
-        # Explicitly set schemas (always present in the action metadata).
-        action.input_schema = action_metadata.input_json_schema  # type: ignore[invalid-assignment]
-        action.output_schema = action_metadata.output_json_schema  # type: ignore[invalid-assignment]
-
-        return action
 
     def _create_embedder_action(self, name: str) -> Action:
         """Create an Action object for an Ollama embedder.
@@ -454,12 +441,7 @@ class Ollama(Plugin):
         definitions = await asyncio.gather(*(describe(name, digest) for name, digest in model_rows))
 
         actions: list[ActionMetadata] = [
-            model_action_metadata(
-                name=ollama_name(definition.name),
-                config_schema=OllamaConfig,
-                info=ollama_model_info(definition, f'Ollama - {definition.name}'),
-            )
-            for definition in definitions
+            self._create_model_action(definition).action_metadata() for definition in definitions
         ]
         actions.extend(self._create_embedder_action(name).action_metadata() for name in embedder_names)
         return actions

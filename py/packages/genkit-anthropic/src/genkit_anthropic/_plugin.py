@@ -22,7 +22,7 @@ import structlog
 from anthropic import AsyncAnthropic
 
 from genkit import ActionRunContext, GenkitError, ModelResponse
-from genkit.model import ModelRef, ModelRequest, model as create_model, model_action_metadata
+from genkit.model import Model, ModelRef, ModelRequest
 from genkit.plugin_api import (
     Action,
     ActionKind,
@@ -193,10 +193,11 @@ class Anthropic(Plugin):
             )
             return await model.generate(request, ctx)
 
-        return create_model(
+        return Model(
             anthropic_name(name),
             _generate,
             config_schema=AnthropicConfig,
+            info=model_info,
             metadata={
                 'model': {
                     'supports': (
@@ -217,11 +218,7 @@ class Anthropic(Plugin):
             ActionMetadata for the model, using curated info if known, else a
             generic fallback.
         """
-        return model_action_metadata(
-            name=anthropic_name(model_id),
-            info=get_model_info(model_id),
-            config_schema=AnthropicConfig,
-        )
+        return self._create_model_action(model_id).action_metadata()
 
     async def _fetch_dynamic_model_ids(self) -> list[str]:
         """Fetch all available model ids from the Anthropic API.

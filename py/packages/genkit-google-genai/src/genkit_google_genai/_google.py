@@ -66,12 +66,10 @@ from genkit import ActionRunContext, GenkitError, ModelResponse, Operation
 from genkit.embedder import Embedder, EmbedderRef
 from genkit.model import (
     BackgroundModel,
+    Model,
     ModelInfo,
     ModelRef,
     ModelRequest,
-    background_model,
-    model,
-    model_action_metadata,
 )
 from genkit.plugin_api import (
     GENKIT_CLIENT_HEADER,
@@ -268,9 +266,9 @@ def _new_gemini(plugin: GoogleAI | VertexAI, clean_name: str) -> GeminiModel:
     )
 
 
-def _model_action(name: str, fn: Callable[..., Any], model_info: ModelInfo, config_schema: type[BaseModel]) -> Action:
+def _model_action(name: str, fn: Callable[..., Any], model_info: ModelInfo, config_schema: type[BaseModel]) -> Model:
     """Build a MODEL Action with family-specific request typing on ``fn``."""
-    return model(name, fn, config_schema=config_schema, info=model_info)
+    return Model(name, fn, config_schema=config_schema, info=model_info)
 
 
 def googleai_name(name: str) -> str:
@@ -364,7 +362,7 @@ def _create_veo_background_model(
         veo = VeoModel(name, client_getter(), client_kwargs=client_kwargs)
         return await veo.check(op, ctx)
 
-    return background_model(
+    return BackgroundModel(
         full_name,
         start=_start,
         check=_check,
@@ -479,29 +477,6 @@ class GoogleFamilyRefs:
         end up in ``generate(model=...)``.
         """
         return family_embedder_ref(name, namespace=cls.name, plugin_class=cls.__name__, config=config, version=version)
-
-
-def _veo_background_model_metadata(name: str) -> ActionMetadata:
-    """Build list_actions metadata for a Veo model as a background model.
-
-    The kind advertised here has to match what resolve() will actually hand
-    back, otherwise the Dev UI and registry offer a generate model that does
-    not exist.
-    """
-    local = name.split('/')[-1]
-    return ActionMetadata(
-        action_type=ActionKind.BACKGROUND_MODEL,
-        name=name,
-        input_json_schema=to_json_schema(ModelRequest[VeoConfig]),
-        output_json_schema=to_json_schema(Operation),
-        metadata={
-            'model': {
-                **veo_model_info(local).model_dump(by_alias=True),
-                'customOptions': to_json_schema(VeoConfig),
-            },
-            'type': 'background-model',
-        },
-    )
 
 
 class GoogleAI(GoogleFamilyRefs, Plugin):
@@ -855,49 +830,33 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         actions_list = []
 
         for name in genai_models.gemini:
-            actions_list.append(
-                model_action_metadata(
-                    name=googleai_name(name),
-                    info=google_model_info(name),
-                    config_schema=get_model_config_schema(name),
-                )
-            )
+            if (model_action := self._resolve_model(name)) is not None:
+                actions_list.append(model_action.action_metadata())
 
         for name in genai_models.veo:
-            actions_list.append(_veo_background_model_metadata(googleai_name(name)))
+            actions_list.append(
+                _create_veo_background_model(
+                    name,
+                    self._runtime_client,
+                    GOOGLEAI_PLUGIN_NAME,
+                    client_kwargs=self._client_kwargs,
+                ).action_metadata()
+            )
 
         for name in list_known_deep_research_models():
             actions_list.append(
-                ActionMetadata(
-                    action_type=ActionKind.BACKGROUND_MODEL,
-                    name=googleai_name(name),
-                    input_json_schema=to_json_schema(ModelRequest[DeepResearchConfig]),
-                    output_json_schema=to_json_schema(Operation),
-                    metadata={
-                        'model': {
-                            **deep_research_model_info(name).model_dump(by_alias=True),
-                            'customOptions': to_json_schema(DeepResearchConfig),
-                        },
-                        'type': 'background-model',
-                    },
-                )
+                create_deep_research_background_model(
+                    googleai_name(name),
+                    plugin_api_key=self._plugin_api_key(),
+                    client_options=self._interactions_client_options(),
+                ).action_metadata()
             )
         for name in list_known_antigravity_models():
-            actions_list.append(
-                model_action_metadata(
-                    name=googleai_name(name),
-                    info=antigravity_model_info(name),
-                    config_schema=AntigravityConfig,
-                )
-            )
+            if (model_action := self._resolve_model(name)) is not None:
+                actions_list.append(model_action.action_metadata())
         for name in list_known_lyria_models():
-            actions_list.append(
-                model_action_metadata(
-                    name=googleai_name(name),
-                    info=lyria_model_info(name),
-                    config_schema=InteractionsLyriaConfig,
-                )
-            )
+            if (model_action := self._resolve_model(name)) is not None:
+                actions_list.append(model_action.action_metadata())
 
         for name in genai_models.embedders:
             actions_list.append(
@@ -1253,16 +1212,18 @@ class VertexAI(GoogleFamilyRefs, Plugin):
         actions_list = []
 
         for name in genai_models.gemini:
-            actions_list.append(
-                model_action_metadata(
-                    name=vertexai_name(name),
-                    info=google_model_info(name),
-                    config_schema=get_model_config_schema(name),
-                )
-            )
+            if (model_action := self._resolve_model(name)) is not None:
+                actions_list.append(model_action.action_metadata())
 
         for name in genai_models.veo:
-            actions_list.append(_veo_background_model_metadata(vertexai_name(name)))
+            actions_list.append(
+                _create_veo_background_model(
+                    name,
+                    self._runtime_client,
+                    VERTEXAI_PLUGIN_NAME,
+                    client_kwargs=self._client_kwargs,
+                ).action_metadata()
+            )
 
         for name in VERTEX_KNOWN_EMBEDDERS:
             actions_list.append(

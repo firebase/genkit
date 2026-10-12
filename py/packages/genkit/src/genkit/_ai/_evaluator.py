@@ -247,6 +247,8 @@ class BatchEvaluator(Action[EvalRequest, EvalResponse, Never]):
             metadata=evaluator_meta,
             description=evaluator_description,
         )
+        self.input_schema = to_json_schema(EvalRequest)
+        self.output_schema = to_json_schema(EvalResponse)
 
 
 def define_batch_evaluator(

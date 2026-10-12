@@ -23,12 +23,11 @@ from genkit._core._typing import (
 from genkit.model import (
     ConstrainedSupport,
     GenerationUsage,
+    Model,
     ModelInfo,
     ModelRequest,
     ModelSupports,
     get_basic_usage_stats,
-    model,
-    model_action_metadata,
 )
 
 
@@ -365,22 +364,31 @@ def test_response_wrapper_interrupts() -> None:
 
 
 def test_model_action_metadata() -> None:
-    """Test for model_action_metadata."""
-    action_metadata = model_action_metadata(
-        name='test_model',
+    """Test for Model(...).action_metadata()."""
+
+    async def fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('ok')]))
+
+    action_metadata = Model(
+        'test_model',
+        fn,
         info=ModelInfo(label='test_label'),
         config_schema=None,
-    )
+    ).action_metadata()
 
     assert isinstance(action_metadata, ActionMetadata)
-    assert action_metadata.input_json_schema is not None
-    assert action_metadata.output_json_schema is not None
+    assert action_metadata.input_schema is not None
+    assert action_metadata.output_schema is not None
     assert action_metadata.metadata == {'model': {'label': 'test_label'}}
 
 
 def test_model_action_metadata_label_defaults_to_name() -> None:
-    """With no label, the listed model shows its action name like model() does."""
-    action_metadata = model_action_metadata(name='bistro/menu-writer')
+    """With no label, the listed model shows its action name."""
+
+    async def fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('ok')]))
+
+    action_metadata = Model('bistro/menu-writer', fn).action_metadata()
 
     assert action_metadata.metadata == {'model': {'label': 'bistro/menu-writer'}}
 
@@ -400,21 +408,28 @@ def test_model_action_metadata_label_defaults_to_name() -> None:
 )
 @pytest.mark.parametrize('config_schema', [None, PluginConfig])
 def test_model_action_metadata_matches_model(info: ModelInfo | None, config_schema: type[BaseModel] | None) -> None:
-    """Listed and resolved models carry identical ``model`` metadata for the same input."""
+    """Model(...).action_metadata() carries identical metadata and schemas to the Model instance."""
 
     async def menu_writer(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('Smoked Salmon Tartine')]))
 
-    listed = model_action_metadata(name='bistro/menu-writer', info=info, config_schema=config_schema)
-    resolved = model('bistro/menu-writer', menu_writer, info=info, config_schema=config_schema)
+    resolved = Model('bistro/menu-writer', menu_writer, info=info, config_schema=config_schema)
+    listed = resolved.action_metadata()
 
+    assert isinstance(resolved, Model)
     assert listed.metadata == {'model': resolved.metadata['model']}
+    assert listed.input_schema == resolved.input_schema
+    assert listed.output_schema == resolved.output_schema
 
 
-def test_model_action_metadata_rejects_long_running() -> None:
+def test_model_rejects_long_running() -> None:
     """A model action can't claim longRunning; that's a background model."""
+
+    async def fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('ok')]))
+
     with pytest.raises(GenkitError, match='longRunning'):
-        model_action_metadata(name='bistro/video', info=ModelInfo(supports=ModelSupports(long_running=True)))
+        Model('bistro/video', fn, info=ModelInfo(supports=ModelSupports(long_running=True)))
 
 
 def test_text_from_content_with_parts() -> None:

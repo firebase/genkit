@@ -22,7 +22,7 @@ import os
 from typing import Any, Literal, TypeAlias, cast
 
 from openai import APIError, AsyncOpenAI
-from openai.types import Model
+from openai.types import Model as OpenAIModelEntry
 from pydantic import BaseModel
 
 from genkit import ActionRunContext, Embedding, GenkitError, ModelResponse
@@ -34,12 +34,11 @@ from genkit.embedder import (
     EmbedResponse,
 )
 from genkit.model import (
+    Model,
     ModelInfo,
     ModelRef,
     ModelRequest,
     ModelSupports,
-    model as create_model,
-    model_action_metadata,
 )
 from genkit.plugin_api import (
     Action,
@@ -235,29 +234,6 @@ def multimodal_config_class(*, name: str, model_type: _ModelType) -> type[BaseMo
     if 'gpt-image' in name:
         return OpenAIGptImageConfig
     return OpenAIDalleConfig
-
-
-def _multimodal_action_metadata(
-    name: str,
-    supported_models: dict[str, ModelInfo],
-    model_type: _ModelType,
-) -> ActionMetadata:
-    """Build ActionMetadata for a multimodal model.
-
-    Args:
-        name: The raw model name (without the 'openai/' prefix).
-        supported_models: Registry of known models and their metadata.
-        model_type: The classified model type for default supports fallback.
-
-    Returns:
-        ActionMetadata for the model.
-    """
-    info, config_schema = _get_multimodal_info(name, model_type, supported_models)
-    return model_action_metadata(
-        name=open_ai_name(name),
-        config_schema=config_schema,
-        info=info,
-    )
 
 
 def default_openai_metadata(name: str) -> dict[str, Any]:
@@ -491,7 +467,7 @@ class OpenAI(Plugin):
             openai_model = OpenAIModelHandler(OpenAIModel(name, self._client_for_call(request, ctx), supports=supports))
             return await openai_model.generate(request, ctx)
 
-        return create_model(
+        return Model(
             open_ai_name(name),
             _generate,
             config_schema=OpenAIConfig,
@@ -527,7 +503,7 @@ class OpenAI(Plugin):
             model_instance = model_class(name, self._client_for_call(request, ctx))
             return await model_instance.generate(request, ctx)
 
-        return create_model(
+        return Model(
             open_ai_name(name),
             _generate,
             config_schema=config_schema,
@@ -645,7 +621,7 @@ class OpenAI(Plugin):
             models_ = await self._runtime_client().models.list()
         except APIError as e:
             reraise_openai_error(e)
-        models: list[Model] = models_.data
+        models: list[OpenAIModelEntry] = models_.data
         for model in models:
             name = model.id
             if _is_known_unsupported(name):
@@ -654,19 +630,12 @@ class OpenAI(Plugin):
             if model_type == _ModelType.EMBEDDER:
                 actions.append(self._create_embedder_action(name).action_metadata())
             elif model_type in _DEFAULT_SUPPORTS:
-                config = _MULTIMODAL_CONFIG[model_type]
-                actions.append(_multimodal_action_metadata(name, config[1], model_type))
-            else:
+                model_class, supported_models = _MULTIMODAL_CONFIG[model_type]
                 actions.append(
-                    model_action_metadata(
-                        name=open_ai_name(name),
-                        config_schema=OpenAIConfig,
-                        info=ModelInfo(
-                            label=f'OpenAI - {name}',
-                            supports=ModelSupports(multiturn=True, system_role=True, tools=False),
-                        ),
-                    )
+                    self._create_multimodal_action(name, model_class, supported_models, model_type).action_metadata()
                 )
+            else:
+                actions.append(self._create_model_action(name).action_metadata())
         self._list_actions_cache = actions
         return actions
 

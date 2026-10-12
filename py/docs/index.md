@@ -65,6 +65,8 @@
 
 ## genkit.model
 
+::: genkit.model.Model
+
 ::: genkit.model.BackgroundModel
 
 ::: genkit.model.GenerateActionOptions
@@ -90,8 +92,6 @@
 ::: genkit.model.ConstrainedSupport
 
 ::: genkit.model.ModelStage
-
-::: genkit.model.model_action_metadata
 
 ::: genkit.model.get_basic_usage_stats
 

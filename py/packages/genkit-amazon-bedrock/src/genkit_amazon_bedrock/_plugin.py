@@ -28,7 +28,7 @@ import structlog
 
 from genkit import ActionRunContext, ModelResponse
 from genkit.embedder import Embedder, EmbedRequest, EmbedResponse
-from genkit.model import ModelRequest, model as create_model, model_action_metadata
+from genkit.model import Model, ModelRequest
 from genkit.plugin_api import (
     Action,
     ActionKind,
@@ -215,7 +215,7 @@ class Bedrock(Plugin):
             model = BedrockModel(model_id=model_id, transport=self._transport)
             return await model.generate(request, ctx)
 
-        return create_model(
+        return Model(
             _action_name(model_id),
             _generate,
             config_schema=config_schema,
@@ -261,13 +261,7 @@ class Bedrock(Plugin):
             if looks_like_embedding_model(model_id) or is_rerank_model(model_id):
                 continue
             model_type = _model_type(model_id)
-            actions.append(
-                model_action_metadata(
-                    name=_action_name(model_id),
-                    info=get_model_info(model_id, model_type),
-                    config_schema=_config_schema(model_type),
-                )
-            )
+            actions.append(self._create_model_action(model_id, model_type).action_metadata())
         models = len(actions)
         actions.extend(
             self._create_embedder_action(model_id).action_metadata()

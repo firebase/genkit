@@ -27,7 +27,7 @@ import pytest
 
 from genkit import ActionRunContext, Genkit, GenkitError, Message, ModelResponse, Operation, Part, Role
 from genkit.embedder import Embedder, EmbedRequest, EmbedResponse
-from genkit.model import ModelRequest, background_model, model
+from genkit.model import BackgroundModel, Model, ModelRequest
 from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin
 
 
@@ -35,7 +35,7 @@ def _answering_model(name: str, text: str) -> Action:
     async def fn(request: ModelRequest) -> ModelResponse:
         return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text(text)]))
 
-    return model(name, fn)
+    return Model(name, fn)
 
 
 class RecordingPlugin(Plugin):
@@ -76,7 +76,7 @@ class VideoPlugin(Plugin):
     def __init__(self) -> None:
         self.seen: list[tuple[ActionKind, str]] = []
 
-    def _video(self, model_id: str):  # noqa: ANN202
+    def _video(self, model_id: str) -> BackgroundModel:
         async def start(request: ModelRequest, ctx: ActionRunContext) -> Operation:
             return Operation(id='job-1', done=False)
 
@@ -86,7 +86,7 @@ class VideoPlugin(Plugin):
         async def cancel(op: Operation, ctx: ActionRunContext) -> Operation:
             return Operation(id=op.id, done=True, metadata={'cancelled': True})
 
-        return background_model(model_id, start=start, check=check, cancel=cancel)
+        return BackgroundModel(model_id, start=start, check=check, cancel=cancel)
 
     async def init(self) -> list[Action]:
         return []
