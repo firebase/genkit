@@ -616,6 +616,39 @@ async def test_embed_applies_a_typed_ref_config(mock_list_models: MagicMock, moc
 @patch('genkit_google_genai._google.genai.client.Client')
 @patch('genkit_google_genai._google._list_genai_models')
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ('ref_config', 'call_config'),
+    [
+        ({'taskType': 'RETRIEVAL_DOCUMENT'}, {'task_type': 'RETRIEVAL_QUERY'}),
+        ({'task_type': 'RETRIEVAL_DOCUMENT'}, {'taskType': 'RETRIEVAL_QUERY'}),
+    ],
+    ids=['camel_ref_snake_call', 'snake_ref_camel_call'],
+)
+async def test_embed_call_config_overrides_the_ref_config_in_either_spelling(
+    mock_list_models: MagicMock,
+    mock_client: MagicMock,
+    ref_config: dict[str, object],
+    call_config: dict[str, object],
+) -> None:
+    """A per-call config overrides the same field on the ref whatever spelling each side uses."""
+    mock_list_models.return_value = GenaiModels()
+    embed_content = AsyncMock(
+        return_value=genai_types.EmbedContentResponse(embeddings=[genai_types.ContentEmbedding(values=[0.5])])
+    )
+    mock_client.return_value.aio.models.embed_content = embed_content
+    ai = Genkit(plugins=[GoogleAI(api_key='test-key')])
+    ref = GoogleAI.embedding('gemini-embedding-001', config=ref_config)
+
+    await ai.embed(embedder=ref, content='hello', config=call_config)
+
+    call = embed_content.await_args
+    assert call is not None
+    assert call.kwargs['config'].task_type == 'RETRIEVAL_QUERY'
+
+
+@patch('genkit_google_genai._google.genai.client.Client')
+@patch('genkit_google_genai._google._list_genai_models')
+@pytest.mark.asyncio
 async def test_googleai_resolve_non_model_returns_none(mock_list_models: MagicMock, mock_client: MagicMock) -> None:
     """Test GoogleAI plugin returns None for unsupported action kinds."""
     mock_list_models.return_value = GenaiModels()
@@ -1142,3 +1175,29 @@ async def test_check_operation_saved_veo_handle_checks_on_a_fresh_app(
     assert checked.id == 'operations/1'
     assert checked.action == '/background-model/googleai/veo-3.1-generate-preview'
     request_client.aio.operations.get.assert_awaited_once()
+
+
+@patch('genkit_google_genai._google.genai.client.Client')
+@patch('genkit_google_genai._google._list_genai_models')
+@pytest.mark.asyncio
+async def test_embed_call_config_keeps_the_ref_fields_it_does_not_set(
+    mock_list_models: MagicMock, mock_client: MagicMock
+) -> None:
+    """A per-call config overrides only the fields it names; the ref's other settings still reach the call."""
+    mock_list_models.return_value = GenaiModels()
+    embed_content = AsyncMock(
+        return_value=genai_types.EmbedContentResponse(embeddings=[genai_types.ContentEmbedding(values=[0.5])])
+    )
+    mock_client.return_value.aio.models.embed_content = embed_content
+    ai = Genkit(plugins=[GoogleAI(api_key='test-key')])
+    ref = GoogleAI.embedding(
+        'gemini-embedding-001', config=EmbeddingConfig(output_dimensionality=256), version='gemini-embedding-2'
+    )
+
+    await ai.embed(embedder=ref, content='hello', config={'taskType': 'RETRIEVAL_QUERY'})
+
+    call = embed_content.await_args
+    assert call is not None
+    assert call.kwargs['model'] == 'gemini-embedding-2'
+    assert call.kwargs['config'].task_type == 'RETRIEVAL_QUERY'
+    assert call.kwargs['config'].output_dimensionality == 256
