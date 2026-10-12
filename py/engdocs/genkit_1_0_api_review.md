@@ -1206,85 +1206,47 @@ print([row.evaluation[0].score for row in rows])
 
 ## 10. Middleware
 
-Middleware wraps the three layers of a generate call: `wrap_generate` (the whole tool loop), `wrap_model` (each model call), and `wrap_tool` (each tool call). It can also add tools through `tools(ctx)`. Settings live on a Pydantic config, so the Dev UI can render a form for them.
+Middleware runs code around a generate call. A hook gets the params, can change them, calls `next_fn` to run the rest of the chain, and can change the result on the way back.
 
-`genkit_a2ui.Surfaces` is a real example. The model writes ```` ```a2ui ```` fences, and `Surfaces` turns them into `application/a2ui+json` data parts a client can render as UI cards, both on the stream and on the final message.
-
-### Using it
-
-```python
-from genkit_a2ui import Surfaces, envelopes_from_parts, is_a2ui_part
-
-# 1. Add it per call; settings are typed (SurfacesConfig)
-stream = ai.generate_stream(
-    prompt='Show tonight\'s open tables as cards I can tap to book.',
-    use=[Surfaces(validate='strict')],
-)
-
-# 2. Cards arrive as data parts while the model is still writing
-async for chunk in stream.stream:
-    for part in chunk.content:
-        if is_a2ui_part(part):
-            render_card(part)
-        elif part.text:
-            print(part.text, end='')
-
-# 3. The final message holds the same cards, with the same surface ids
-response = await stream.response
-envelopes = envelopes_from_parts(response.message.content)
-```
-
-With `validate='strict'`, a malformed card fails the turn (`finish_reason == FAILED`). `response.messages` then ends at the user turn, so a retry doesn't feed the bad card back to the model.
-
-### How it's built
-
-A condensed version of `Surfaces.wrap_model`: rewrite the request, swap in a chunk handler, call the model, rewrite the response.
+- `wrap_generate`: each iteration of the tool loop.
+- `wrap_model`: each model call. `params.request` is the `ModelRequest`.
+- `wrap_tool`: each tool call.
+- `tools(ctx)`: extra tools to give the model for this call.
 
 ```python
-from typing import Literal
-from pydantic import BaseModel, Field
-from genkit import FinishReason
+from pydantic import BaseModel
+from genkit import Message, Part
 from genkit.middleware import Middleware, MiddlewareContext, ModelHookParams
 
 # 1. Config is a Pydantic model; the Dev UI renders it as a form
-class SurfacesConfig(BaseModel):
-    instructions: Literal['system', 'none'] = 'system'
-    validation: Literal['off', 'warn', 'strict'] = Field(default='warn', alias='validate')
-    catalog: str | None = None
+class AllergyConfig(BaseModel):
+    allergen: str
 
 # 2. Middleware[Config] gives you self.config, typed
-class Surfaces(Middleware[SurfacesConfig]):
-    name = 'surfaces'
-
+@ai.middleware(name='allergy_guard')
+class AllergyGuard(Middleware[AllergyConfig]):
     async def wrap_model(self, params: ModelHookParams, ctx: MiddlewareContext, next_fn):
-        catalog = resolve_catalog(ctx=ctx, catalog=self.config.catalog)
-        parser = StreamParser(catalog=catalog, validate=self.config.validation)
+        # 3. Before: add a system message to the request
+        note = Message(role='system', content=[Part(text=f'The guest is allergic to {self.config.allergen}.')])
+        params.request.messages.insert(0, note)
 
-        # 3. Before the model: turn prior cards back into text, add catalog instructions
-        params.request = sanitize_inbound(request=params.request)
-        if self.config.instructions != 'none':
-            params.request = inject_instructions(request=params.request, catalog=catalog)
-
-        # 4. During: rewrite chunks as each fence closes
-        if ctx.on_chunk is not None:
-            downstream = ctx.on_chunk
-
-            def on_chunk(chunk):
-                rewritten = transform_chunk(chunk=chunk, parser=parser)  # None while a fence is open
-                if rewritten is not None:
-                    downstream(rewritten)
-
-            ctx.replace_on_chunk(on_chunk)
-
+        # 4. Run the model (or the next middleware in use=[...])
         response = await next_fn(params, ctx)
 
-        # 5. After: leave stopped turns alone, otherwise rewrite the final message
-        if response.finish_reason.is_abnormal() or response.finish_reason == FinishReason.UNKNOWN:
-            return response
-        return transform_response(response=response, catalog=catalog, validate=self.config.validation)
+        # 5. After: read or rewrite the response
+        print(f'[allergy_guard] {response.text}')
+        return response
+
+# 6. Without it vs with it
+await ai.generate(prompt='Suggest a dish.')
+# => Pad Thai
+
+await ai.generate(prompt='Suggest a dish.', use=[AllergyGuard(allergen='peanuts')])
+# => [allergy_guard] Green Curry
+# => Green Curry
 ```
 
-The full version also restores the original chunk callback in a `finally` and reuses the stream's surface ids on the final parse. Plugins ship middleware like this from `Plugin.list_middleware()`; an app can register its own with `@ai.middleware`.
+With `use=[A(), B()]`, `A` runs first and wraps `B`: A before, B before, model, B after, A after. `@ai.middleware` registers the class so the Dev UI lists it; plugins ship middleware from `Plugin.list_middleware()`.
 
 ---
 
