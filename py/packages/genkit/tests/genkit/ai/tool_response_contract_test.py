@@ -23,7 +23,7 @@ from genkit import (
     Role,
     RuntimeErrorReason,
     Tool,
-    ToolRunContext,
+    ToolContext,
 )
 from genkit._core._action import Action
 from genkit._core._schema import to_json_schema
@@ -523,7 +523,7 @@ async def test_await_tool_return_types_match_annotation() -> None:
         return MultipartToolResponse(output=ShotOut(ok=True, label='lab'), content=[_png()])
 
     @ai.tool()
-    async def whoami(ctx: ToolRunContext) -> str:
+    async def whoami(ctx: ToolContext) -> str:
         return str(ctx.context.get('user'))
 
     assert_type(await add_pair(Pair(a=2, b=3)), int)

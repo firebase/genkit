@@ -74,8 +74,8 @@ from genkit._ai._prompt import (
     register_prompt_actions,
     to_generate_options,
 )
-from genkit._ai._tools import ORIGINAL_OUTPUT_SCHEMA_KEY, define_interrupt
-from genkit._core._action import Action, ActionKind, get_current_context
+from genkit._ai._tools import ORIGINAL_OUTPUT_SCHEMA_KEY, ToolContext, define_interrupt
+from genkit._core._action import Action, ActionKind, ActionRunContext, get_current_context
 from genkit._core._background import (
     BackgroundAction,
     CancelModelOpFn,
@@ -90,6 +90,7 @@ from genkit._core._channel import Channel, run_loop
 from genkit._core._dap import DapFn, DynamicActionProvider
 from genkit._core._environment import is_dev_environment
 from genkit._core._error import GenkitError, RuntimeErrorReason, StatusName
+from genkit._core._flow import Flow
 from genkit._core._logger import configure_logging, get_logger, resolve_level
 from genkit._core._middleware import (
     BaseMiddleware,
@@ -131,7 +132,7 @@ from genkit._core._typing import (
     Role,
 )
 
-from ._decorators import _FlowDecorator, _FlowDecoratorWithChunk, _ToolDecorator
+from ._decorators import _FlowDecorator, _ToolDecorator
 from ._runtime import RuntimeManager, setup_signal_handlers
 
 logger = get_logger(__name__)
@@ -286,55 +287,88 @@ class Genkit:
         name: str | None = None,
         *,
         description: str | None = None,
-        chunk_type: None = None,
     ) -> _FlowDecorator: ...
 
     @overload
     def flow(
         self,
-        name: str | None = None,
-        *,
-        description: str | None = None,
-        chunk_type: type[ChunkT],
-    ) -> _FlowDecoratorWithChunk[ChunkT]: ...
+        func: Callable[[InputT, ActionRunContext[ChunkT]], Awaitable[OutputT]],
+        /,
+    ) -> Flow[InputT, OutputT, ChunkT]: ...
+
+    @overload
+    def flow(
+        self,
+        func: Callable[[ActionRunContext[ChunkT], InputT], Awaitable[OutputT]],
+        /,
+    ) -> Flow[InputT, OutputT, ChunkT]: ...
+
+    @overload
+    def flow(
+        self,
+        func: Callable[[ActionRunContext[ChunkT]], Awaitable[OutputT]],
+        /,
+    ) -> Flow[None, OutputT, ChunkT]: ...
+
+    @overload
+    def flow(
+        self,
+        func: Callable[[InputT], Awaitable[OutputT]],
+        /,
+    ) -> Flow[InputT, OutputT]: ...
+
+    @overload
+    def flow(
+        self,
+        func: Callable[[], Awaitable[OutputT]],
+        /,
+    ) -> Flow[None, OutputT]: ...
+
+    @overload
+    def flow(
+        self,
+        func: Callable[..., Awaitable[OutputT]],
+        /,
+    ) -> Flow[Any, OutputT, Any]: ...
 
     def flow(
         self,
-        name: str | None = None,
+        name: str | Callable[..., Awaitable[Any]] | None = None,
         *,
         description: str | None = None,
-        chunk_type: type[Any] | None = None,
-    ) -> _FlowDecorator | _FlowDecoratorWithChunk[Any]:
+    ) -> _FlowDecorator | Flow[Any, Any, Any]:
         """Decorator to register an async function as a flow.
 
+        Can be used bare (``@ai.flow``) or with arguments (``@ai.flow()``,
+        ``@ai.flow('custom_name', description='...')``).
+
         A flow takes at most one input. To read the request context or stream
-        chunks, add a parameter annotated ``ActionRunContext``, in any position.
+        chunks, add a parameter annotated ``FlowContext``, in any position.
         Any other second parameter raises ``TypeError`` when the flow is defined.
 
         Args:
-            name: Optional name for the flow. Defaults to the function name.
+            name: Optional name for the flow (or the function itself when used
+                as ``@ai.flow``). Defaults to the function name.
             description: Optional description for the flow.
-            chunk_type: Optional type for streaming chunks. When provided,
-                the returned Action will be typed as Action[InputT, OutputT, ChunkT].
 
         Example:
-            from genkit import Genkit
+            from genkit import FlowContext, Genkit
             from genkit_google_genai import GoogleAI
 
             ai = Genkit(plugins=[GoogleAI()], model=GoogleAI.gemini_model('gemini-flash-latest'))
 
-            @ai.flow()
+            @ai.flow
             async def my_flow(prompt: str) -> str:
                 res = await ai.generate(prompt=prompt)
                 return res.text
 
-            @ai.flow(chunk_type=str)
-            async def streaming_flow(x: int, ctx: ActionRunContext) -> str:
+            @ai.flow
+            async def streaming_flow(x: int, ctx: FlowContext[str]) -> str:
                 ctx.send_chunk('progress')
                 return 'done'
         """
-        if chunk_type is not None:
-            return _FlowDecoratorWithChunk(self._registry, name, description, chunk_type)
+        if not isinstance(name, str) and name is not None:
+            return _FlowDecorator(self._registry, None, description)(name)
         return _FlowDecorator(self._registry, name, description)
 
     def define_helper(self, name: str, fn: Callable[..., Any]) -> None:
@@ -374,14 +408,61 @@ class Genkit:
             metadata=metadata,
         )
 
+    @overload
     def tool(
         self,
         name: str | None = None,
         *,
         description: str | None = None,
         input_schema: type[BaseModel] | dict[str, object] | None = None,
-    ) -> _ToolDecorator:
+    ) -> _ToolDecorator: ...
+
+    @overload
+    def tool(
+        self,
+        func: Callable[[InputT, ToolContext], Awaitable[OutputT]],
+        /,
+    ) -> Tool[InputT, OutputT]: ...
+
+    @overload
+    def tool(
+        self,
+        func: Callable[[ToolContext, InputT], Awaitable[OutputT]],
+        /,
+    ) -> Tool[InputT, OutputT]: ...
+
+    @overload
+    def tool(
+        self,
+        func: Callable[[ToolContext], Awaitable[OutputT]],
+        /,
+    ) -> Tool[Any, OutputT]: ...
+
+    @overload
+    def tool(
+        self,
+        func: Callable[[InputT], Awaitable[OutputT]],
+        /,
+    ) -> Tool[InputT, OutputT]: ...
+
+    @overload
+    def tool(
+        self,
+        func: Callable[[], Awaitable[OutputT]],
+        /,
+    ) -> Tool[None, OutputT]: ...
+
+    def tool(
+        self,
+        name: str | Callable[..., Awaitable[Any]] | None = None,
+        *,
+        description: str | None = None,
+        input_schema: type[BaseModel] | dict[str, object] | None = None,
+    ) -> _ToolDecorator | Tool[Any, Any]:
         """Decorator to register a function as a tool.
+
+        Can be used bare (``@ai.tool``) or with arguments (``@ai.tool()``,
+        ``@ai.tool('custom_name', description='...')``).
 
         The return annotation is what the model binds as ``outputSchema``.
         Awaiting the tool directly returns what the function returned.
@@ -389,11 +470,11 @@ class Genkit:
         A tool takes at most one input, and that input's type is the schema the
         model fills in. For several fields, use one Pydantic model. To read the
         request context or interrupt, add a parameter annotated
-        ``ToolRunContext``, in any position. Any other second parameter raises
+        ``ToolContext``, in any position. Any other second parameter raises
         ``TypeError`` when the tool is defined.
 
         Example:
-            @ai.tool()
+            @ai.tool
             async def current_weather(city: str) -> str:
                 return f'Sunny in {city}'
 
@@ -401,13 +482,15 @@ class Genkit:
                 city: str
                 days: int = 3
 
-            @ai.tool()
-            async def forecast(input: Forecast, ctx: ToolRunContext) -> str:
+            @ai.tool
+            async def forecast(input: Forecast, ctx: ToolContext) -> str:
                 user = ctx.context.get('user_id')
                 return f'{input.days}-day forecast for {input.city} ({user})'
 
             res = await ai.generate(prompt='Weather in Paris?', tools=['current_weather', 'forecast'])
         """
+        if not isinstance(name, str) and name is not None:
+            return _ToolDecorator(self._registry, None, description, input_schema)(name)
         return _ToolDecorator(self._registry, name, description, input_schema)
 
     def define_middleware(
@@ -1649,7 +1732,7 @@ class Genkit:
         With ``output_schema=Recipe``, each ``chunk.output`` is a partial of
         that type: same attributes, any field may still be ``None`` or a
         prefix. Guard the field you are about to use. The finished
-        ``Recipe`` is only ``(await stream.response).output``, and it's ``None``
+        ``Recipe`` is only ``(await result.response).output``, and it's ``None``
         when the reply isn't a ``Recipe``.
 
         If the model fails partway through, the ``async for`` still ends
@@ -1659,10 +1742,10 @@ class Genkit:
         chunks you already received are the record of what was shown.
 
         Example:
-            stream = ai.generate_stream(prompt='Write a haiku about rain.')
-            async for chunk in stream.stream:
+            result = ai.generate_stream(prompt='Write a haiku about rain.')
+            async for chunk in result:
                 print(chunk.text)
-            final = await stream.response
+            final = await result.response
         """
         channel: Channel[ModelResponseChunk, ModelResponse[Any]] = Channel()
 
@@ -1694,7 +1777,7 @@ class Genkit:
         response_future: asyncio.Future[ModelResponse[Any]] = asyncio.create_task(_run_generate())
         channel.set_close_future(response_future)
 
-        return ModelStreamResponse[Any](channel=channel, response_future=response_future)
+        return ModelStreamResponse[Any](stream=channel, response=response_future)
 
     async def _generate(
         self,
