@@ -289,7 +289,7 @@ class TestKnownIdLiterals:
         assert {'gemma-4-26b-a4b-it', 'gemma-4-31b-it'} <= set(get_args(KnownGemma))
 
     def test_veo_catalog_is_the_3_1_family(self) -> None:
-        """Google AI serves Veo 3.1 as -preview ids; Vertex AI serves it as -001 ids."""
+        """KnownVeo is the six Veo 3.1 ids."""
         assert set(get_args(KnownVeo)) == {
             'veo-3.1-generate-preview',
             'veo-3.1-fast-generate-preview',
