@@ -315,7 +315,6 @@ def _emit_enum(name: str, d: dict) -> list[str]:
     if name == 'FinishReason':
         lines.extend([
             '',
-            '    @property',
             '    def is_abnormal(self) -> bool:',
             '        """True when generation stopped abnormally (blocked, aborted, failed, interrupted, other)."""',
             '        return self in (',

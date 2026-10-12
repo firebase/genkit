@@ -41,7 +41,7 @@ from ._types import DEFAULT_VERSION, SURFACE_KEYS, Envelope, SupportedVersion, V
 # unrecognized provider reasons to it, so core keeps validating in case the
 # model finished, while a turn that may have stopped mid-fence would paint a
 # half-written card.
-SKIP_REWRITE_FINISH_REASONS = frozenset(r for r in FinishReason if r.is_abnormal or r == FinishReason.UNKNOWN)
+SKIP_REWRITE_FINISH_REASONS = frozenset(r for r in FinishReason if r.is_abnormal() or r == FinishReason.UNKNOWN)
 
 
 class SurfacesConfig(BaseModel):

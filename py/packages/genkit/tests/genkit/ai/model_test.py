@@ -277,7 +277,7 @@ def test_generation_usage_from_messages(
 
 
 def test_finish_reason_is_abnormal() -> None:
-    """Test FinishReason.is_abnormal property."""
+    """Test FinishReason.is_abnormal()."""
     abnormal = {
         FinishReason.BLOCKED,
         FinishReason.ABORTED,
@@ -286,7 +286,7 @@ def test_finish_reason_is_abnormal() -> None:
         FinishReason.OTHER,
     }
     for reason in FinishReason:
-        assert reason.is_abnormal == (reason in abnormal)
+        assert reason.is_abnormal() == (reason in abnormal)
 
 
 def test_response_wrapper_tool_requests() -> None:
