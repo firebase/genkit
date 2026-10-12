@@ -62,6 +62,7 @@ class _Bistro:
 
     @loop_local_client
     def client(self) -> httpx.AsyncClient:
+        """Per-loop HTTP client for the bistro."""
         self.builds += 1
         return httpx.AsyncClient(headers={'x-api-key': self.api_key})
 
@@ -69,6 +70,8 @@ class _Bistro:
 @pytest.mark.asyncio
 async def test_method_form_caches_per_instance() -> None:
     bistro = _Bistro('k1')
+    assert bistro.client.__name__ == 'client'  # ty: ignore[unresolved-attribute]
+    assert bistro.client.__doc__ == 'Per-loop HTTP client for the bistro.'
     first = bistro.client()
     assert bistro.client() is first
     assert bistro.builds == 1

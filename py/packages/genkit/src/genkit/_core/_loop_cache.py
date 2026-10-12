@@ -69,6 +69,7 @@ class _LoopLocal(Generic[S, T]):
         if cached is not None:
             return cached
         bound: _LoopLocal[Any, T] = _LoopLocal(functools.partial(self._factory, instance))
+        functools.update_wrapper(bound, self, updated=())  # pyright: ignore[reportArgumentType]
         with self._lock:
             return instance.__dict__.setdefault(self._name, bound)
 
