@@ -886,18 +886,6 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
         else:
             self._input_type = cast(TypeAdapter[InputT], TypeAdapter(input_schema))
 
-    def _action_metadata(self) -> ActionMetadata:
-        """Build the internal Dev UI catalog descriptor for this action."""
-        return ActionMetadata(
-            key=create_action_key(self.kind, self.name),
-            action_type=self.kind,
-            name=self.name,
-            description=self.description,
-            input_schema=self.input_schema,
-            output_schema=self.output_schema,
-            metadata=dict(self.metadata) if self.metadata else None,
-        )
-
     async def __call__(self, input: InputT | None = NO_INPUT, *, context: dict[str, Any] | None = None) -> OutputT:
         """Call the action directly, returning just the response value."""
         return (await self.run(input, context=context)).response
