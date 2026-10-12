@@ -54,6 +54,7 @@ from genkit._core._model import (
     declared_config_type,
     reject_config_api_key,
 )
+from genkit._core._operation import Operation
 from genkit._core._schema import to_json_schema
 from genkit._core._telemetry._attrs import Attr, metadata_key
 from genkit._core._telemetry._instrumentation import (
@@ -61,7 +62,7 @@ from genkit._core._telemetry._instrumentation import (
     run_in_new_span,
     to_json_attr,
 )
-from genkit._core._typing import ActionMetadata, EmbedResponse, Operation
+from genkit._core._typing import ActionMetadata, EmbedResponse
 
 # =============================================================================
 # Span attribute types and tracing helpers
@@ -838,12 +839,13 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
             if k not in (ActionMetadataKey.INPUT_KEY, ActionMetadataKey.OUTPUT_KEY)
         }
         return ActionMetadata(
+            key=create_action_key(self._kind, self._name),
             action_type=self._kind,
             name=self._name,
             description=self._description,
             input_schema=self._input_schema,
             output_schema=self._output_schema,
-            metadata=meta,
+            metadata=meta or None,
         )
 
     @property

@@ -21,15 +21,15 @@ Everything needed to call or write an evaluator lives here.
 Example:
     ```python
     from genkit import Genkit
-    from genkit.evaluator import BaseDataPoint, EvalFnResponse, Score
+    from genkit.evaluator import BaseDataPoint, EvaluatorResponse, Score
 
     ai = Genkit()
 
 
     # 1. Score one datapoint
-    async def allergen_check(datapoint: BaseDataPoint, _options: object | None = None) -> EvalFnResponse:
+    async def allergen_check(datapoint: BaseDataPoint, _options: object | None = None) -> EvaluatorResponse:
         ok = 'peanut' not in str(datapoint.output).lower()
-        return EvalFnResponse(test_case_id=datapoint.test_case_id or '', evaluation=[Score(score=ok)])
+        return EvaluatorResponse(test_case_id=datapoint.test_case_id or '', evaluation=[Score(score=ok)])
 
 
     ai.define_evaluator(
@@ -53,8 +53,8 @@ from genkit._ai._evaluator import (
 )
 from genkit._core._typing import (
     BaseDataPoint,
-    EvalFnResponse,
-    EvalRequest,
+    EvaluatorRequest,
+    EvaluatorResponse,
     Score,
     ScoreDetails,
     ScoreStatus,
@@ -64,8 +64,8 @@ __all__ = [
     # Dataset rows
     'BaseDataPoint',
     # Request/Response types
-    'EvalRequest',
-    'EvalFnResponse',
+    'EvaluatorRequest',
+    'EvaluatorResponse',
     # Score types
     'Score',
     'ScoreDetails',

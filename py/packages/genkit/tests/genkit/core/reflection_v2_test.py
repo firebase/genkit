@@ -226,10 +226,6 @@ async def test_reflection_server_v2_list_actions(fake_manager: FakeReflectionMan
                 'actionType': 'custom',
                 'inputSchema': {'type': 'integer'},
                 'outputSchema': {'type': 'integer'},
-                'metadata': {
-                    'inputSchema': {'type': 'integer'},
-                    'outputSchema': {'type': 'integer'},
-                },
             }
         }
     finally:

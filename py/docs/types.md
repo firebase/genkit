@@ -124,9 +124,9 @@ Types exported from genkit, genkit.model, genkit.embedder, genkit.plugin_api, ge
 
 ::: genkit.evaluator.BaseDataPoint
 
-::: genkit.evaluator.EvalRequest
+::: genkit.evaluator.EvaluatorRequest
 
-::: genkit.evaluator.EvalFnResponse
+::: genkit.evaluator.EvaluatorResponse
 
 ::: genkit.evaluator.Score
 

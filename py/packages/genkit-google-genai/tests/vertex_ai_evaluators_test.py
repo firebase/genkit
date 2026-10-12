@@ -29,7 +29,7 @@ from genkit_google_genai._evaluators._evaluation import (
 from google.auth.exceptions import DefaultCredentialsError, RefreshError
 
 from genkit import Genkit, GenkitError
-from genkit.evaluator import BaseDataPoint, EvalRequest
+from genkit.evaluator import BaseDataPoint, EvaluatorRequest
 from genkit.plugin_api import ActionKind
 
 
@@ -182,7 +182,9 @@ async def test_evaluator_request_sends_empty_metric_spec() -> None:
         AsyncMock(return_value={'fluencyResult': {'score': 4.0}}),
     ) as mock_evaluate:
         await fluency.run(
-            EvalRequest(dataset=[BaseDataPoint(output='The soup is ready.', test_case_id='case1')], eval_run_id='r')
+            EvaluatorRequest(
+                dataset=[BaseDataPoint(output='The soup is ready.', test_case_id='case1')], eval_run_id='r'
+            )
         )
 
     mock_evaluate.assert_awaited_once_with({

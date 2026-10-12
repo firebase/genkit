@@ -40,7 +40,7 @@ from google.auth import default as google_auth_default
 from google.auth.transport.requests import Request
 
 from genkit import GenkitError
-from genkit.evaluator import BaseDataPoint, EvalFnResponse, Evaluator, Score, ScoreDetails
+from genkit.evaluator import BaseDataPoint, Evaluator, EvaluatorResponse, Score, ScoreDetails
 from genkit.plugin_api import GENKIT_CLIENT_HEADER, Action, StrEnum, loop_local_client, provider_error
 
 
@@ -227,7 +227,7 @@ class EvaluatorFactory:
         async def evaluator_fn(
             datapoint: BaseDataPoint,
             options: dict[str, Any] | None = None,
-        ) -> EvalFnResponse:
+        ) -> EvaluatorResponse:
             """Evaluate a single datapoint.
 
             Args:
@@ -249,7 +249,7 @@ class EvaluatorFactory:
                     cause=e,
                 ) from e
 
-            return EvalFnResponse(
+            return EvaluatorResponse(
                 evaluation=[score],
                 test_case_id=datapoint.test_case_id or '',
             )

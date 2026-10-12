@@ -27,7 +27,7 @@ from genkit._core._reflection import create_reflection_asgi_app
 from genkit._core._schema import to_json_schema
 from genkit._core._typing import ActionMetadata, EvalResponse
 from genkit.embedder import Embedder, EmbedRequest, EmbedResponse
-from genkit.evaluator import BaseDataPoint, EvalFnResponse, EvalRequest, Evaluator, Score
+from genkit.evaluator import BaseDataPoint, Evaluator, EvaluatorRequest, EvaluatorResponse, Score
 from genkit.model import Model, ModelRequest
 from genkit.plugin_api import Action, ActionKind, Plugin
 
@@ -133,8 +133,8 @@ async def test_listed_model_embedder_evaluator_send_request_schema() -> None:
     async def embed_row(request: EmbedRequest) -> EmbedResponse:
         return EmbedResponse(embeddings=[])
 
-    async def score_row(datapoint: BaseDataPoint, _options: object | None = None) -> EvalFnResponse:
-        return EvalFnResponse(test_case_id=datapoint.test_case_id or '', evaluation=[Score(score=True)])
+    async def score_row(datapoint: BaseDataPoint, _options: object | None = None) -> EvaluatorResponse:
+        return EvaluatorResponse(test_case_id=datapoint.test_case_id or '', evaluation=[Score(score=True)])
 
     model_row = Model('acme/m', generate_row)
     embedder_row = Embedder('acme/e', embed_row)
@@ -152,9 +152,9 @@ async def test_listed_model_embedder_evaluator_send_request_schema() -> None:
     assert listed['/embedder/acme/e']['inputSchema'] == to_json_schema(EmbedRequest)
     assert listed['/embedder/acme/e']['outputSchema'] == to_json_schema(EmbedResponse)
 
-    assert evaluator_row._action_metadata().input_schema == to_json_schema(EvalRequest)
+    assert evaluator_row._action_metadata().input_schema == to_json_schema(EvaluatorRequest)
     assert evaluator_row._action_metadata().output_schema == to_json_schema(EvalResponse)
-    assert listed['/evaluator/acme/ev']['inputSchema'] == to_json_schema(EvalRequest)
+    assert listed['/evaluator/acme/ev']['inputSchema'] == to_json_schema(EvaluatorRequest)
     assert listed['/evaluator/acme/ev']['outputSchema'] == to_json_schema(EvalResponse)
 
 

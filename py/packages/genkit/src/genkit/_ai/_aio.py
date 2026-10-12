@@ -84,6 +84,7 @@ from genkit._core._background import (
     CancelModelOpFn,
     CheckModelOpFn,
     StartModelOpFn,
+    as_model_operation,
     cancel_operation,
     check_operation,
     define_background_model,
@@ -109,6 +110,7 @@ from genkit._core._model import (
     Part,
     ToolChoice,
 )
+from genkit._core._operation import Operation
 from genkit._core._plugin import Plugin
 from genkit._core._reflection import ReflectionServer, ServerSpec, create_reflection_asgi_app
 from genkit._core._reflection_config import (
@@ -126,11 +128,10 @@ from genkit._core._tool import Tool
 from genkit._core._typing import (
     BaseDataPoint,
     Embedding,
-    EvalFnResponse,
-    EvalRequest,
+    EvaluatorRequest,
+    EvaluatorResponse,
     MiddlewareRef,
     ModelInfo,
-    Operation,
     Role,
 )
 
@@ -499,9 +500,9 @@ class Genkit:
         Example:
             ```python
             # 1. Score whether the answer mentions the expected dish
-            async def mentions_dish(row: BaseDataPoint, options: object | None) -> EvalFnResponse:
+            async def mentions_dish(row: BaseDataPoint, options: object | None) -> EvaluatorResponse:
                 hit = row.reference.lower() in str(row.output).lower()
-                return EvalFnResponse(test_case_id=row.test_case_id or '', evaluation=[Score(score=hit)])
+                return EvaluatorResponse(test_case_id=row.test_case_id or '', evaluation=[Score(score=hit)])
 
 
             # 2. Register it under a name
@@ -514,7 +515,7 @@ class Genkit:
 
             # 3. Run it over a dataset
             rows = await ai.evaluate(evaluator='mentions_dish', dataset=dataset)
-            # => [EvalFnResponse(test_case_id='...', evaluation=[Score(score=True)]), ...]
+            # => [EvaluatorResponse(test_case_id='...', evaluation=[Score(score=True)]), ...]
             ```
         """
         return define_evaluator(
@@ -543,7 +544,7 @@ class Genkit:
     ) -> BatchEvaluator:
         """Register a batch evaluator.
 
-        The function takes one ``EvalRequest`` and returns ``list[EvalFnResponse]``.
+        The function takes one ``EvaluatorRequest`` and returns ``list[EvaluatorResponse]``.
         Read options from ``req.options``. A second parameter raises ``TypeError`` when defined.
         """
         return define_batch_evaluator(
@@ -1883,7 +1884,7 @@ class Genkit:
         dataset: list[BaseDataPoint],
         config: dict[str, object] | None = None,
         eval_run_id: str | None = None,
-    ) -> list[EvalFnResponse]:
+    ) -> list[EvaluatorResponse]:
         """Evaluate a dataset using the specified evaluator.
 
         Returns a list of rows. A per-row evaluator gives one row per
@@ -1932,7 +1933,7 @@ class Genkit:
             eval_run_id = str(uuid.uuid4())
 
         response = await eval_action.run(
-            EvalRequest(
+            EvaluatorRequest(
                 dataset=dataset,
                 options=final_options,
                 eval_run_id=eval_run_id,
@@ -1968,7 +1969,7 @@ class Genkit:
         *,
         context: dict[str, Any] | None = None,
         config: Mapping[str, Any] | None = None,
-    ) -> Operation:
+    ) -> Operation[ModelResponse]:
         """Poll a background job.
 
         Pass ``context={'secrets': {'api_key': ...}}`` again when start used a
@@ -1983,7 +1984,7 @@ class Genkit:
         *,
         context: dict[str, Any] | None = None,
         config: Mapping[str, Any] | None = None,
-    ) -> Operation:
+    ) -> Operation[ModelResponse]:
         """Cancel a background job.
 
         Same ``context`` / ``config`` pockets as ``check_operation``.
@@ -2002,7 +2003,7 @@ class Genkit:
         context: dict[str, object] | None = None,
         use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
         docs: list[Document] | None = None,
-    ) -> Operation: ...
+    ) -> Operation[ModelResponse]: ...
 
     @overload
     async def generate_operation(
@@ -2016,7 +2017,7 @@ class Genkit:
         context: dict[str, object] | None = None,
         use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
         docs: list[Document] | None = None,
-    ) -> Operation: ...
+    ) -> Operation[ModelResponse]: ...
 
     async def generate_operation(
         self,
@@ -2029,7 +2030,7 @@ class Genkit:
         context: dict[str, object] | None = None,
         use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
         docs: list[Document] | None = None,
-    ) -> Operation:
+    ) -> Operation[ModelResponse]:
         """Generate content using a long-running model, returning an Operation to poll.
 
         A background start is one request that returns a job handle. There is
@@ -2094,4 +2095,4 @@ class Genkit:
             )
         if not response.operation:
             raise missing_operation_error(name=model_action.name)
-        return response.operation
+        return as_model_operation(response.operation, name=model_action.name, status='INTERNAL')
