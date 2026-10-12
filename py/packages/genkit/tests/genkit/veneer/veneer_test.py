@@ -2120,7 +2120,7 @@ async def test_batch_evaluator_row_with_one_score_reads_back_as_list(setup_test:
     """A batch evaluator whose rows each hold one Score gives each row a one-item score list."""
     ai, *_ = setup_test
 
-    async def batch_fn(req: EvalRequest) -> list[EvaluatorResponse]:
+    async def batch_fn(req: EvaluatorRequest) -> list[EvaluatorResponse]:
         return [
             EvaluatorResponse(test_case_id=row.test_case_id or '', evaluation=Score(score=True))  # type: ignore[arg-type]
             for row in req.dataset
@@ -2148,7 +2148,7 @@ async def test_evaluator_returning_string_fails_row_naming_score_or_list(setup_t
 
     assert len(results[0].evaluation) == 1
     failed = results[0].evaluation[0]
-    assert failed.status == EvalStatusEnum.FAIL
+    assert failed.status == ScoreStatus.FAIL
     assert failed.error is not None and 'evaluation must be a Score or a list of Score' in failed.error
 
 
