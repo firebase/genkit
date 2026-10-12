@@ -42,7 +42,7 @@ gcloud auth application-default login
 from genkit import Genkit
 from genkit_google_genai import GoogleAI
 
-ai = Genkit(plugins=[GoogleAI()], model=GoogleAI.gemini_model('gemini-flash-latest'))
+ai = Genkit(plugins=[GoogleAI()], model=GoogleAI.gemini('gemini-flash-latest'))
 
 
 @ai.flow()
@@ -55,7 +55,7 @@ async def greet(name: str) -> str:
 
 ### Dynamic Models
 
-The plugin automatically discovers available models from the API upon initialization. You can use any model name supported by the API (e.g., `GoogleAI.gemini_model('gemini-flash-latest')`, `VertexAI.gemini_model('gemini-3.1-pro-preview')`).
+The plugin automatically discovers available models from the API upon initialization. You can use any model name supported by the API (e.g., `GoogleAI.gemini('gemini-flash-latest')`, `VertexAI.gemini('gemini-3.1-pro-preview')`).
 
 ### Typed config
 
@@ -155,7 +155,7 @@ from genkit_google_genai import GoogleAI
 ai = Genkit(plugins=[GoogleAI()])
 
 operation = await ai.generate_operation(
-    model=GoogleAI.veo_model('veo-3.1-fast-generate-preview'),
+    model=GoogleAI.veo('veo-3.1-fast-generate-preview'),
     prompt='A paper airplane gliding through a bright classroom',
 )
 while not operation.done:
@@ -172,7 +172,7 @@ from genkit_google_genai import VertexAI
 ai = Genkit(plugins=[VertexAI()])
 
 operation = await ai.generate_operation(
-    model=VertexAI.veo_model('veo-3.1-generate-001'),
+    model=VertexAI.veo('veo-3.1-generate-001'),
     prompt='A paper airplane gliding through a bright classroom',
 )
 while not operation.done:

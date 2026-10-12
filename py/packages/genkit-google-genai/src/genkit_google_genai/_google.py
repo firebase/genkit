@@ -34,7 +34,7 @@ Example:
 
     # 2. Generate content using any discovered Gemini model
     response = await ai.generate(
-        model=GoogleAI.gemini_model('gemini-flash-latest'),
+        model=GoogleAI.gemini('gemini-flash-latest'),
         prompt='Suggest 3 names for a space-themed coffee shop.',
     )
 
@@ -396,8 +396,8 @@ class GoogleFamilyRefs:
     name: str  # plugin namespace ('googleai' or 'vertexai')
 
     @classmethod
-    def gemini_model(cls, name: KnownGemini | str, *, config: GeminiConfig | None = None) -> ModelRef[GeminiConfig]:
-        """Typed ref for a Gemini text model, e.g. ``GoogleAI.gemini_model('gemini-2.5-flash')``.
+    def gemini(cls, name: KnownGemini | str, *, config: GeminiConfig | None = None) -> ModelRef[GeminiConfig]:
+        """Typed ref for a Gemini text model, e.g. ``GoogleAI.gemini('gemini-2.5-flash')``.
 
         Unknown ids are allowed so a brand-new Gemini release works before
         this plugin learns its name; ids from other families are refused.
@@ -407,13 +407,13 @@ class GoogleFamilyRefs:
             namespace=cls.name,
             plugin_class=cls.__name__,
             family='gemini',
-            method='gemini_model',
+            method='gemini',
             config_schema=GeminiConfig,
             config=config,
         )
 
     @classmethod
-    def gemini_tts_model(
+    def gemini_tts(
         cls, name: KnownGeminiTts | str, *, config: GeminiTtsConfig | None = None
     ) -> ModelRef[GeminiTtsConfig]:
         """Typed ref for a Gemini TTS model (``gemini-…-tts``)."""
@@ -422,13 +422,13 @@ class GoogleFamilyRefs:
             namespace=cls.name,
             plugin_class=cls.__name__,
             family='tts',
-            method='gemini_tts_model',
+            method='gemini_tts',
             config_schema=GeminiTtsConfig,
             config=config,
         )
 
     @classmethod
-    def gemini_image_model(
+    def gemini_image(
         cls, name: KnownGeminiImage | str, *, config: GeminiImageConfig | None = None
     ) -> ModelRef[GeminiImageConfig]:
         """Typed ref for a Gemini native-image model (``gemini-…-image``)."""
@@ -437,44 +437,44 @@ class GoogleFamilyRefs:
             namespace=cls.name,
             plugin_class=cls.__name__,
             family='image',
-            method='gemini_image_model',
+            method='gemini_image',
             config_schema=GeminiImageConfig,
             config=config,
         )
 
     @classmethod
-    def gemma_model(cls, name: KnownGemma | str, *, config: GemmaConfig | None = None) -> ModelRef[GemmaConfig]:
+    def gemma(cls, name: KnownGemma | str, *, config: GemmaConfig | None = None) -> ModelRef[GemmaConfig]:
         """Typed ref for a Gemma open model (``gemma-…``)."""
         return family_model_ref(
             name,
             namespace=cls.name,
             plugin_class=cls.__name__,
             family='gemma',
-            method='gemma_model',
+            method='gemma',
             config_schema=GemmaConfig,
             config=config,
         )
 
     @classmethod
-    def imagen_model(cls, name: str, *, config: object | None = None) -> NoReturn:
-        """Always raises: Imagen is no longer supported. Use ``gemini_image_model``."""
+    def imagen(cls, name: str, *, config: object | None = None) -> NoReturn:
+        """Always raises: Imagen is no longer supported. Use ``gemini_image``."""
         raise GenkitError(
             status='INVALID_ARGUMENT',
             message=(
-                f'{cls.__name__}.imagen_model: Imagen is no longer supported; '
-                f'for image generation use {cls.__name__}.gemini_image_model().'
+                f'{cls.__name__}.imagen: Imagen is no longer supported; '
+                f'for image generation use {cls.__name__}.gemini_image().'
             ),
         )
 
     @classmethod
-    def veo_model(cls, name: KnownVeo | str, *, config: VeoConfig | None = None) -> ModelRef[VeoConfig]:
+    def veo(cls, name: KnownVeo | str, *, config: VeoConfig | None = None) -> ModelRef[VeoConfig]:
         """Typed ref for a Veo video model (``veo-…``)."""
         return family_model_ref(
             name,
             namespace=cls.name,
             plugin_class=cls.__name__,
             family='veo',
-            method='veo_model',
+            method='veo',
             config_schema=VeoConfig,
             config=config,
         )
@@ -538,7 +538,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
 
         # 2. Generate text using Gemini Flash
         res = await ai.generate(
-            model=GoogleAI.gemini_model('gemini-flash-latest'),
+            model=GoogleAI.gemini('gemini-flash-latest'),
             prompt='Explain quantum computing in one sentence.',
         )
 
@@ -560,9 +560,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
     _vertexai = False
 
     @classmethod
-    def deep_research_model(
-        cls, name: str, *, config: DeepResearchConfig | None = None
-    ) -> ModelRef[DeepResearchConfig]:
+    def deep_research(cls, name: str, *, config: DeepResearchConfig | None = None) -> ModelRef[DeepResearchConfig]:
         """Typed ref for a Deep Research agent. Pass to generate_operation()."""
         clean = strip_ref_prefixes(name) if isinstance(name, str) else ''
         return family_model_ref(
@@ -570,27 +568,27 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
             namespace=cls.name,
             plugin_class=cls.__name__,
             family='deep-research',
-            method='deep_research_model',
+            method='deep_research',
             config_schema=DeepResearchConfig,
             config=config,
             info=deep_research_model_info(clean) if clean else None,
         )
 
     @classmethod
-    def antigravity_model(cls, name: str, *, config: AntigravityConfig | None = None) -> ModelRef[AntigravityConfig]:
+    def antigravity(cls, name: str, *, config: AntigravityConfig | None = None) -> ModelRef[AntigravityConfig]:
         """Typed ref for an Antigravity agent."""
         return family_model_ref(
             name,
             namespace=cls.name,
             plugin_class=cls.__name__,
             family='antigravity',
-            method='antigravity_model',
+            method='antigravity',
             config_schema=AntigravityConfig,
             config=config,
         )
 
     @classmethod
-    def lyria_model(
+    def lyria(
         cls, name: KnownLyria | str, *, config: InteractionsLyriaConfig | None = None
     ) -> ModelRef[InteractionsLyriaConfig]:
         """Typed ref for Google AI Interactions Lyria (lyria-3-clip-preview, …)."""
@@ -599,7 +597,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
             namespace=cls.name,
             plugin_class=cls.__name__,
             family='lyria',
-            method='lyria_model',
+            method='lyria',
             config_schema=InteractionsLyriaConfig,
             config=config,
         )
@@ -955,7 +953,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
 
         # 2. Generate text using Gemini on Vertex AI
         res = await ai.generate(
-            model=VertexAI.gemini_model('gemini-flash-latest'),
+            model=VertexAI.gemini('gemini-flash-latest'),
             prompt='Explain quantum computing in one sentence.',
         )
 

@@ -67,7 +67,7 @@ async def workspace_agent_fn(sess: SessionRunner, _: ActionRunContext) -> AgentR
         history = await sess.get_messages()
         messages = history or None
         res = await ai.generate(
-            model=GoogleAI.gemini_model('gemini-flash-latest'),
+            model=GoogleAI.gemini('gemini-flash-latest'),
             system=(
                 'You are a terse assistant. Mention that you wrote notes into a '
                 f'workspace directory named after snapshot {turn_ctx.snapshot_id}.'

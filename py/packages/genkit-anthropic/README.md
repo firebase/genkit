@@ -27,7 +27,7 @@ from genkit_anthropic import Anthropic
 ai = Genkit(plugins=[Anthropic()])
 
 res = await ai.generate(
-    model=Anthropic.claude_model('claude-sonnet-4-6'),
+    model=Anthropic.claude('claude-sonnet-4-6'),
     prompt='Explain recursion in 10 words.',
 )
 print(res.text)

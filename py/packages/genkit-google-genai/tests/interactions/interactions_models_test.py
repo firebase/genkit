@@ -625,24 +625,24 @@ def test_deep_research_model_ref_is_namespaced() -> None:
 
 
 def test_googleai_family_constructors() -> None:
-    dr = GoogleAI.deep_research_model('deep-research-preview-04-2026')
+    dr = GoogleAI.deep_research('deep-research-preview-04-2026')
     assert dr.name == 'googleai/deep-research-preview-04-2026'
     assert dr.config_schema is DeepResearchConfig
     assert dr.info == deep_research_model_info('deep-research-preview-04-2026')
 
-    ag = GoogleAI.antigravity_model('antigravity-preview-05-2026')
+    ag = GoogleAI.antigravity('antigravity-preview-05-2026')
     assert ag.name == 'googleai/antigravity-preview-05-2026'
     assert ag.config_schema is AntigravityConfig
 
-    ly = GoogleAI.lyria_model('lyria-3-clip-preview')
+    ly = GoogleAI.lyria('lyria-3-clip-preview')
     assert ly.name == 'googleai/lyria-3-clip-preview'
     assert ly.config_schema is LyriaConfig
     ly_supports = lyria_model_info('lyria-3-clip-preview').supports
     assert ly_supports is not None
     assert ly_supports.system_role is False
-    assert GoogleAI.lyria_model('lyria-002').name == 'googleai/lyria-002'
+    assert GoogleAI.lyria('lyria-002').name == 'googleai/lyria-002'
 
-    with_config = GoogleAI.deep_research_model(
+    with_config = GoogleAI.deep_research(
         'deep-research-preview-04-2026',
         config=DeepResearchConfig(thinking_summaries='auto'),
     )
@@ -653,7 +653,7 @@ def test_googleai_family_constructors() -> None:
 def test_package_root_lyria_config_is_interactions() -> None:
     from genkit_google_genai import LyriaConfig as RootLyriaConfig
 
-    ref = GoogleAI.lyria_model(
+    ref = GoogleAI.lyria(
         'lyria-3-clip-preview',
         config=RootLyriaConfig(response_modalities=['audio']),
     )
@@ -1043,7 +1043,7 @@ async def test_ai_generate_operation_deep_research_uses_context_secrets(
     tenant = {'secrets': {'api_key': 'tenant-key'}}
     with patcher:
         operation = await ai.generate_operation(
-            model=GoogleAI.deep_research_model('deep-research-preview-04-2026'),
+            model=GoogleAI.deep_research('deep-research-preview-04-2026'),
             prompt='Summarize recent advances in quantum error correction.',
             config={
                 'base_url': 'https://start.example',
@@ -1131,7 +1131,7 @@ async def test_ai_generate_antigravity_uses_context_secrets(
     ai = Genkit(plugins=[GoogleAI(api_key='plugin-key')])
     with patcher:
         response = await ai.generate(
-            model=GoogleAI.antigravity_model('antigravity-preview-05-2026'),
+            model=GoogleAI.antigravity('antigravity-preview-05-2026'),
             prompt='Plan a three-day itinerary',
             config={
                 'base_url': 'https://antigravity.example',
@@ -1170,7 +1170,7 @@ async def test_ai_generate_lyria_002_hits_interactions_with_tenant_key(
     ai = Genkit(plugins=[GoogleAI(api_key='plugin-key')])
     with patcher:
         await ai.generate(
-            model=GoogleAI.lyria_model('lyria-002'),
+            model=GoogleAI.lyria('lyria-002'),
             prompt='a short cinematic sting',
             config={
                 'base_url': 'https://lyria.example',

@@ -78,7 +78,7 @@ async def long_task_fn(sess: SessionRunner, _: ActionRunContext) -> AgentResult:
         history = await sess.get_messages()
         messages = history or None
         res = await ai.generate(
-            model=GoogleAI.gemini_model('gemini-flash-latest'),
+            model=GoogleAI.gemini('gemini-flash-latest'),
             system='When asked for a long task, call slowWork.',
             messages=messages,
             tools=[slow_work_closure],
