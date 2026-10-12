@@ -48,7 +48,7 @@ from google.genai import types as genai_types
 from genkit import Genkit, GenkitError, Message, Operation, Part, Role
 from genkit.evaluator import BaseDataPoint
 from genkit.model import ModelRequest
-from genkit.plugin_api import Action, ActionKind, to_json_schema
+from genkit.plugin_api import Action, ActionKind, ActionMetadata, to_json_schema
 
 
 def _custom_options(action: Action) -> object:
@@ -195,7 +195,7 @@ async def test_vertexai_with_api_key_and_no_project_lists_no_evaluators(
     with patch.dict(os.environ, {'GCLOUD_PROJECT': '', 'GOOGLE_CLOUD_PROJECT': ''}):
         plugin = VertexAI(api_key='k')
         actions = await plugin.list_actions()
-    assert not [a for a in actions if a.action_type == ActionKind.EVALUATOR]
+    assert not [a for a in actions if (a.kind if isinstance(a, Action) else a.action_type) == ActionKind.EVALUATOR]
 
 
 @patch('genkit_google_genai._google.genai.client.Client')
@@ -564,6 +564,7 @@ async def test_vertexai_veo_listing_has_input_schema(mock_list_models: MagicMock
     listed = await VertexAI(project='test-project').list_actions()
 
     [veo] = [a for a in listed if a.name == 'vertexai/veo-3.0-generate-001']
+    assert isinstance(veo, ActionMetadata)
     assert veo.action_type == ActionKind.BACKGROUND_MODEL
     assert veo.input_schema == to_json_schema(ModelRequest[VeoConfig])
     assert veo.output_schema == to_json_schema(Operation)
@@ -821,6 +822,7 @@ async def test_list_actions_advertises_veo_as_background(mock_list_models: Magic
     for actions, plugin_name in ((googleai_actions, 'googleai'), (vertexai_actions, 'vertexai')):
         veo_entries = [a for a in actions if 'veo' in a.name]
         assert len(veo_entries) == 1
+        assert isinstance(veo_entries[0], ActionMetadata)
         assert veo_entries[0].name == f'{plugin_name}/veo-3.0-generate-001'
         assert veo_entries[0].action_type == ActionKind.BACKGROUND_MODEL
 

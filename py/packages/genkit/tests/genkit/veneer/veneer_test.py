@@ -1673,7 +1673,7 @@ def test_define_evaluator_custom_config(setup_test: SetupFixture) -> None:
         },
     }
 
-    listed = action.action_metadata()
+    listed = action._action_metadata()
     assert listed.action_type == ActionKind.EVALUATOR
     assert listed.metadata == {'evaluator': action.metadata['evaluator']}
 

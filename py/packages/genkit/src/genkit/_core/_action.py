@@ -831,20 +831,21 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
     def metadata(self) -> dict[str, object]:
         return self._metadata
 
-    def action_metadata(self) -> ActionMetadata:
-        """Return the ActionMetadata descriptor for Plugin.list_actions()."""
+    def _action_metadata(self) -> ActionMetadata:
+        """Return the internal ActionMetadata descriptor for the Dev UI catalog."""
         meta = {
             k: v
             for k, v in self._metadata.items()
             if k not in (ActionMetadataKey.INPUT_KEY, ActionMetadataKey.OUTPUT_KEY)
         }
         return ActionMetadata(
+            key=create_action_key(self._kind, self._name),
             action_type=self._kind,
             name=self._name,
             description=self._description,
             input_schema=self._input_schema,
             output_schema=self._output_schema,
-            metadata=meta,
+            metadata=meta or None,
         )
 
     @property

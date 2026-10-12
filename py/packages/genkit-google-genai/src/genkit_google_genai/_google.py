@@ -86,7 +86,7 @@ from genkit_google_genai._auth import GOOGLE_AUTH_ERRORS, raise_auth_error
 from genkit_google_genai._evaluators._evaluation import (
     VertexAIEvaluationMetricType,
     create_vertex_evaluators,
-    vertex_evaluator_action_metadata,
+    vertex_evaluator_action,
 )
 from genkit_google_genai._interactions._options import ClientOptions
 from genkit_google_genai._models._antigravity import AntigravityConfig, create_antigravity_action
@@ -1055,7 +1055,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
         }
         # Single loop-local client accessor used everywhere in plugin runtime paths.
         self._runtime_client = loop_local_client(lambda: _plugin_client(self._client_kwargs))
-        self._list_actions_cache: list[ActionMetadata] | None = None
+        self._list_actions_cache: list[Action | ActionMetadata] | None = None
 
     async def init(self) -> list[Action]:
         """Initialize the plugin.
@@ -1252,20 +1252,16 @@ class VertexAI(GoogleFamilyRefs, Plugin):
         """
         return _create_embedder_action(name, self._runtime_client, VERTEXAI_PLUGIN_NAME)
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[Action | ActionMetadata]:
         """Generate a list of available actions or models.
 
         Returns:
-            list[ActionMetadata]: A list of ActionMetadata objects, each with the following attributes:
-                - name (str): The name of the action or model.
-                - kind (ActionKind): The type or category of the action.
-                - info (dict): The metadata dictionary describing the model configuration and properties.
-                - config_schema (type): The schema class used for validating the model's configuration.
+            list[Action | ActionMetadata]: Available actions and metadata rows.
         """
         if self._list_actions_cache is not None:
             return self._list_actions_cache
         genai_models = await _list_genai_models(self._runtime_client(), is_vertex=True)
-        actions_list = []
+        actions_list: list[Action | ActionMetadata] = []
 
         for name in genai_models.gemini:
             actions_list.append(
@@ -1293,7 +1289,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
 
         if self._project:
             for metric in VertexAIEvaluationMetricType:
-                actions_list.append(vertex_evaluator_action_metadata(metric))
+                actions_list.append(vertex_evaluator_action(metric))
 
         self._list_actions_cache = actions_list
         return actions_list

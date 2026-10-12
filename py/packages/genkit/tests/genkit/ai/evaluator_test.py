@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Plugin authors build evaluators with Evaluator / BatchEvaluator and list them with .action_metadata()."""
+"""Plugin authors build evaluators with Evaluator / BatchEvaluator and return them from init, resolve, list_actions."""
 
 from typing import Any, cast
 
@@ -52,7 +52,7 @@ def _two_rows() -> list[BaseDataPoint]:
 
 
 class ExactMatchPlugin(Plugin):
-    """Plugin that hands Genkit an evaluator built with Evaluator(...) on resolve."""
+    """Plugin that hands Genkit an evaluator built with Evaluator(...) on resolve and list_actions."""
 
     name = 'p'
 
@@ -64,12 +64,8 @@ class ExactMatchPlugin(Plugin):
             return None
         return Evaluator('p/e', _exact_match, display_name='Exact match', definition='output equals reference')
 
-    async def list_actions(self) -> list[ActionMetadata]:
-        return [
-            Evaluator(
-                'p/e', _exact_match, display_name='Exact match', definition='output equals reference'
-            ).action_metadata()
-        ]
+    async def list_actions(self) -> list[Action]:
+        return [Evaluator('p/e', _exact_match, display_name='Exact match', definition='output equals reference')]
 
 
 @pytest.mark.asyncio
@@ -119,7 +115,7 @@ def test_evaluator_action_metadata_carries_display_name_definition_billed() -> N
         definition='Assesses the language mastery of an output',
         is_billed=True,
         config_schema=ThresholdOptions,
-    ).action_metadata()
+    )._action_metadata()
 
     assert listing.action_type == ActionKind.EVALUATOR
     assert listing.name == 'p/fluency'
@@ -149,7 +145,7 @@ def test_evaluator_and_metadata_agree_for_same_args(config_schema: type[BaseMode
         is_billed=True,
         config_schema=config_schema,
     )
-    listing = action.action_metadata()
+    listing = action._action_metadata()
 
     assert listing.metadata is not None
     assert action.metadata['evaluator'] == listing.metadata['evaluator']
@@ -159,8 +155,12 @@ def test_evaluator_and_metadata_agree_for_same_args(config_schema: type[BaseMode
 
 @pytest.mark.asyncio
 async def test_plugin_returning_evaluator_registers_it_on_app() -> None:
-    """A plugin whose resolve() returns Evaluator(...) makes ai.evaluate(evaluator='p/e', ...) score every row."""
+    """A plugin whose resolve() and list_actions() return Evaluator(...) lists and runs 'p/e'."""
     ai = Genkit(plugins=[ExactMatchPlugin()])
+
+    catalog = await ai._registry.list_actions()
+    assert '/evaluator/p/e' in catalog
+    assert catalog['/evaluator/p/e'].name == 'p/e'
 
     results = await ai.evaluate(evaluator='p/e', dataset=_two_rows())
 
@@ -219,7 +219,7 @@ def test_batch_evaluator_and_metadata_agree_for_same_args() -> None:
     action = BatchEvaluator(
         'p/b', _exact_match_batch, display_name='Exact match', definition='output equals reference', is_billed=True
     )
-    listing = action.action_metadata()
+    listing = action._action_metadata()
 
     assert listing.metadata is not None
     assert action.metadata['evaluator'] == listing.metadata['evaluator']

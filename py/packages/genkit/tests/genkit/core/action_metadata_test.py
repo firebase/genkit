@@ -16,6 +16,7 @@
 
 """What a plugin puts on ActionMetadata is what the Dev UI lists in /api/actions."""
 
+from collections.abc import Sequence
 from typing import Any, cast
 
 import pytest
@@ -39,7 +40,7 @@ class ListingPlugin(Plugin):
 
     name = 'acme'
 
-    def __init__(self, rows: list[ActionMetadata]) -> None:
+    def __init__(self, rows: Sequence[Action | ActionMetadata]) -> None:
         self.rows = rows
 
     async def init(self) -> list[Action]:
@@ -48,7 +49,7 @@ class ListingPlugin(Plugin):
     async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         return None
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> Sequence[Action | ActionMetadata]:
         return self.rows
 
 
@@ -110,16 +111,14 @@ def test_action_metadata_input_schema_class_raises_validation_error() -> None:
 
 @pytest.mark.asyncio
 async def test_listed_model_embedder_evaluator_send_request_schema() -> None:
-    """Rows from the model/embedder/evaluator metadata helpers carry their request schema to /api/actions."""
+    """Rows from the model/embedder/evaluator builders carry their request schema to /api/actions."""
 
     async def score_row(datapoint: BaseDataPoint, _options: object | None = None) -> EvalFnResponse:
         return EvalFnResponse(test_case_id=datapoint.test_case_id or '', evaluation=[Score(score=True)])
 
     model_row = model_action_metadata(name='acme/m')
     embedder_row = embedder_action_metadata(name='acme/e')
-    evaluator_row = Evaluator(
-        'acme/ev', score_row, display_name='Acme', definition='Scores acme rows.'
-    ).action_metadata()
+    evaluator_row = Evaluator('acme/ev', score_row, display_name='Acme', definition='Scores acme rows.')
 
     listed = await api_actions(Genkit(plugins=[ListingPlugin([model_row, embedder_row, evaluator_row])]))
 
