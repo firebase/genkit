@@ -856,6 +856,23 @@ ctx.context['user_id']
 
 In FastAPI, `serve_flow(..., context_dependency=...)` takes a regular `Depends` function instead, as in Levels 1 and 2.
 
+`request.request` is the framework's own request object, for what the shared fields don't carry: cookies, sessions, the logged-in user. A provider that reads it works on that framework only. The common case is Django session auth, which has no other way in:
+
+```python
+# 1. AuthenticationMiddleware set the user; auser() because the view is async (Django 5.0+)
+async def django_user(request: RequestData) -> dict[str, object]:
+    user = await request.request.auser()
+    if not user.is_authenticated:
+        raise PublicError('UNAUTHENTICATED', 'Sign in first')
+    return {'user_id': user.pk}
+
+@genkit_django_handler(ai, context_provider=django_user)
+@ai.flow
+async def reorder(order_id: str, ctx: FlowContext) -> str:
+    return f'reordered {order_id} for {ctx.context["user_id"]}'
+    # => reordered ORD-9921 for 42
+```
+
 ### Per-tenant API keys
 
 A tenant's provider key goes in one place: `context={'secrets': {'api_key': ...}}`. The Google GenAI models read it from there and fall back to the plugin's key when it's absent.
