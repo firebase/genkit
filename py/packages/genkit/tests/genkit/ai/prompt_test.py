@@ -386,6 +386,10 @@ async def test_load_nested_prompt() -> None:
         admin_prompt = sub_dir / 'dashboard.prompt'
         admin_prompt.write_text('---\nmodel: echoModel\n---\nWelcome Admin {{name}}')
 
+        dotted_dir = prompt_dir / 'v1.0'
+        dotted_dir.mkdir()
+        (dotted_dir / 'greet.fun.prompt').write_text('---\nmodel: echoModel\n---\nHello from v1.0')
+
         load_prompt_folder(ai, prompt_dir)
 
         # Test loading nested prompt
@@ -395,6 +399,10 @@ async def test_load_nested_prompt() -> None:
 
         assert 'Welcome Admin' in response.text
         assert 'SuperUser' in response.text
+
+        # The variant comes from the file name, not from a dot in the directory.
+        rendered = await (await prompt(ai._registry, 'v1.0/greet', variant='fun')).render()
+        assert text_from_message(rendered.messages[0]) == 'Hello from v1.0'
 
 
 @pytest.mark.asyncio

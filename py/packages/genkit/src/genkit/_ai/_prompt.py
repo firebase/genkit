@@ -1523,14 +1523,15 @@ def load_prompt(ai: _aio.Genkit, path: Path, filename: str, prefix: str = '', ns
     if not filename.endswith('.prompt'):
         raise ValueError(f"Invalid prompt filename: {filename}. Must end with '.prompt'")
 
+    # The variant comes from the file name only, so a directory such as "v1.0/"
+    # stays part of the name.
     base_name = filename.removesuffix('.prompt')
-    name = f'{prefix}{base_name}' if prefix else base_name
     variant: str | None = None
-
-    if '.' in name:
-        parts = name.split('.')
-        name = parts[0]
+    if '.' in base_name:
+        parts = base_name.split('.')
+        base_name = parts[0]
         variant = parts[1]
+    name = f'{prefix}{base_name}' if prefix else base_name
 
     file_path = path / (prefix.rstrip('/') + '/' + filename if prefix else filename)
 
