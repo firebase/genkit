@@ -19,6 +19,7 @@
 
 import json
 import logging
+from typing import Any, cast
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
@@ -109,20 +110,43 @@ def test_required_input_empty_body_fails_at_action_not_wire() -> None:
     parsed = json.loads(response.text)
     assert_is_error_response(parsed)
     assert parsed['status'] == 'INVALID_ARGUMENT'
-    assert parsed['message'] == 'Invalid argument'
+    assert parsed['message'] == "Flow 'say_hi' requires input but none was provided."
 
 
-def test_fastapi_flow_posted_wrong_input_type_returns_400_without_validation_text() -> None:
-    """Posting a dict to a ``str`` flow is a 400 INVALID_ARGUMENT that doesn't echo the input."""
+def test_fastapi_flow_posted_wrong_input_type_returns_400_naming_the_problem_not_the_value() -> None:
+    """Posting a dict to a ``str`` flow is a 400 that says what was expected and doesn't echo the input."""
     client = TestClient(create_app())
     response = client.post('/chat', json={'data': {'ssn': '123-45-6789'}})
 
     assert response.status_code == 400
     assert response.json() == {
-        'message': 'Invalid argument',
+        'message': "Invalid input for flow 'say_hi': Input should be a valid string",
         'status': 'INVALID_ARGUMENT',
     }
     assert '123-45-6789' not in response.text
+
+
+def test_fastapi_nested_flow_called_with_bad_input_is_500_not_400() -> None:
+    """A flow that calls another flow with the wrong shape is a server bug: 500, nothing echoed."""
+    ai = Genkit()
+
+    class Order(BaseModel):
+        order_id: str
+
+    @ai.flow()
+    async def place(order: Order) -> str:
+        return order.order_id
+
+    @ai.flow()
+    async def checkout(cart_id: str) -> str:
+        return await place(cast(Any, {'qty': 'internal-row-42'}))
+
+    app = FastAPI()
+    app.include_router(serve_flow(checkout, base_path='/checkout'))
+    response = TestClient(app).post('/checkout', json={'data': 'c1'})
+
+    assert response.status_code == 500
+    assert response.json() == {'message': 'Internal Error', 'status': 'INTERNAL'}
 
 
 def test_unknown_body_shape_still_returns_400() -> None:
@@ -246,7 +270,11 @@ def test_fastapi_flow_error_response_is_redacted_body_and_status() -> None:
 
     bad_input = client.post('/save', json={'data': {'ssn': '123-45-6789'}})
     assert bad_input.status_code == 400
-    assert bad_input.content == b'{"message":"Invalid argument","status":"INVALID_ARGUMENT"}'
+    assert bad_input.json() == {
+        'message': "Invalid input for flow 'save': Input should be a valid string",
+        'status': 'INVALID_ARGUMENT',
+    }
+    assert b'123-45-6789' not in bad_input.content
 
 
 def test_fastapi_flow_raising_value_error_returns_500_internal_error_without_stack() -> None:

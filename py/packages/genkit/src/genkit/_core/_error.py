@@ -509,7 +509,9 @@ def mark_request_error(*, error: GenkitError) -> GenkitError:
     """Mark an error from the served action's own input or init check.
 
     The HTTP caller sent a body the action cannot accept, so they get a 4xx
-    with a generic sentence. The validation dump stays off the wire.
+    with the message and the failing fields (path and Pydantic's wording,
+    never the values). Only the outermost action marks its errors; a nested
+    action called wrong is a server bug and stays a 500.
     """
     error._request_sourced = True
     return error
@@ -613,7 +615,7 @@ def _client_facing_error(error: object) -> GenkitError | None:
 
     A PublicError is the app saying this status and sentence are for the
     caller. The served action's own input/init check is the caller's
-    request, so it keeps a 4xx and a generic sentence. A missing model or
+    request, so it keeps a 4xx and its message. A missing model or
     a plugin "bad role" is the server failing to run the flow.
     """
     if isinstance(error, PublicError):
@@ -623,11 +625,27 @@ def _client_facing_error(error: object) -> GenkitError | None:
     return None
 
 
-def _generic_client_message(status: StatusName) -> str:
-    """'INVALID_ARGUMENT' -> 'Invalid argument'; INTERNAL uses 'Internal Error'."""
-    if status == 'INTERNAL':
-        return 'Internal Error'
-    return status.replace('_', ' ').capitalize()
+def _request_client_message(error: GenkitError) -> str:
+    """The input/init message plus each failing field, without the values the caller sent.
+
+    ``Invalid input for flow 'place': order_id: Field required; qty: Input should be a valid integer``
+    """
+    details = error.details if isinstance(error.details, dict) else {}
+    errors = details.get('errors')
+    problems: list[str] = []
+    if isinstance(errors, list):
+        for err in cast(list[object], errors)[:3]:
+            if not isinstance(err, dict):
+                continue
+            entry = cast(dict[str, object], err)
+            loc = entry.get('loc')
+            parts = cast(list[object], loc) if isinstance(loc, list) else []
+            path = ''.join(f'[{p}]' if isinstance(p, int) else f'.{p}' for p in parts).lstrip('.')
+            text = str(entry.get('message', ''))
+            problems.append(f'{path}: {text}' if path else text)
+        if len(errors) > 3:
+            problems.append(f'and {len(errors) - 3} more')
+    return f'{error.original_message}: {"; ".join(problems)}' if problems else error.original_message
 
 
 _ANY_ADAPTER: TypeAdapter[Any] = TypeAdapter(Any)
@@ -691,7 +709,8 @@ def error_body(error: object) -> dict[str, Any]:
 
     Only a PublicError's message, details, and status go on the wire; it's
     the one error whose author said the text is safe for callers. A bad
-    request to the flow itself keeps its 4xx status with a generic sentence
+    request to the flow itself keeps its 4xx status and says which fields
+    failed
     such as ``"Invalid argument"``. Any other GenkitError, a provider error,
     and anything else become ``{"message": "Internal Error", "status": "INTERNAL"}``.
 
@@ -708,7 +727,7 @@ def error_body(error: object) -> dict[str, Any]:
     facing = _client_facing_error(error)
     if facing is None:
         return dict(_INTERNAL_CLIENT_BODY)
-    message = facing.original_message if isinstance(facing, PublicError) else _generic_client_message(facing.status)
+    message = facing.original_message if isinstance(facing, PublicError) else _request_client_message(facing)
     body: dict[str, Any] = {
         'message': message,
         'status': facing.status,

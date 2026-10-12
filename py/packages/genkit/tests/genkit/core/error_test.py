@@ -227,13 +227,21 @@ def test_error_body_genkit_error_is_internal_error() -> None:
     assert 'db row 42' not in str(error_body(error))
 
 
-def test_error_body_bad_flow_input_keeps_status_hides_message() -> None:
-    """A flow rejecting the caller's input keeps 400 INVALID_ARGUMENT with a generic sentence."""
-    error = mark_request_error(error=GenkitError(status='INVALID_ARGUMENT', message='db row 42 bad'))
+def test_error_body_bad_flow_input_names_fields_not_values() -> None:
+    """A flow rejecting the caller's input keeps 400 and lists each failing field, without the value sent."""
+    cause = _validation_error(_Item, {'dish': 'pad thai', 'qty': 'lots'})
+    error = mark_request_error(
+        error=GenkitError(status='INVALID_ARGUMENT', message="Invalid input for flow 'order'", cause=cause)
+    )
 
-    assert error_body(error) == {'message': 'Invalid argument', 'status': 'INVALID_ARGUMENT'}
+    assert error_body(error) == {
+        'message': (
+            "Invalid input for flow 'order': qty: Input should be a valid integer, unable to parse string as an integer"
+        ),
+        'status': 'INVALID_ARGUMENT',
+    }
     assert error_status(error) == 400
-    assert 'db row 42' not in str(error_body(error))
+    assert 'lots' not in str(error_body(error))
 
 
 def test_error_body_plain_exception_is_internal_error() -> None:
