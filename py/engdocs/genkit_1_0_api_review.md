@@ -1,6 +1,6 @@
 # Genkit 1.0 API Review (Python)
 
-The Python surface we intend to ship as 1.0. It describes the state after the open API PRs land (#6697, #6698, #6699, #6709, #6757, #6764–#6770, #6775, #6777, #6314, #6655), not `main` today. Snippets show the intended usage; they're not run in CI.
+The Python surface we intend to ship as 1.0. It describes the state after the open API PRs land (#6681, #6697, #6698, #6699, #6709, #6757, #6764–#6770, #6775, #6777, #6314, #6655), not `main` today. Snippets show the intended usage; they're not run in CI.
 
 ---
 
@@ -250,6 +250,71 @@ response = await stream.response
 print(f'\nTotal tokens: {response.usage.total_tokens}')
 # => Total tokens: 34
 ```
+
+### Calling a Tool Directly
+
+`@ai.tool` returns a `Tool` you can call like the function it wraps. `await tool(input)` returns what the function returned, typed by its return annotation: a Pydantic model comes back as the instance, not a camelCase dict. Unit tests call tools this way without a model.
+
+```python
+from pydantic import BaseModel
+
+class Quote(BaseModel):
+    sku: str
+    unit_price: float
+    in_stock: int
+
+# 1. A tool with a typed return
+@ai.tool
+async def price_lookup(sku: str) -> Quote:
+    """Look up price and stock for a SKU."""
+    return Quote(sku=sku, unit_price=12.5, in_stock=40)
+
+# 2. Call it directly; the result is the Quote instance
+quote = await price_lookup('SKU-5821')
+print(type(quote).__name__, quote.unit_price)
+# => Quote 12.5
+
+# 3. The same tool in generate; the model sees the Quote as JSON
+response = await ai.generate(prompt='How much is SKU-5821?', tools=[price_lookup])
+print(response.text)
+# => SKU-5821 is $12.50 and 40 are in stock.
+```
+
+A direct call fails the same way `generate` would: output that can't be sent to a model raises `GenkitError` with `INVALID_ARGUMENT`, and an interrupt tool raises `Interrupt`.
+
+### Multipart Tool Results
+
+A tool that returns more than a JSON value, such as structured data plus a screenshot, returns a `MultipartToolResponse`. `output` is what the model reads as the tool result; `content` is a list of `Part`s (media, text) the model can see alongside it. Annotate the return as `MultipartToolResponse[T]` so the tool's output schema is `T`.
+
+```python
+from genkit import Media, MultipartToolResponse, Part
+
+class Shot(BaseModel):
+    page: str
+    width: int
+
+# 1. Return structured output plus an image part
+@ai.tool
+async def capture_dashboard(page: str) -> MultipartToolResponse[Shot]:
+    """Screenshot a dashboard page."""
+    png_url = await browser.screenshot(page)
+    return MultipartToolResponse(
+        output=Shot(page=page, width=1440),
+        content=[Part(media=Media(url=png_url, content_type='image/png'))],
+    )
+
+# 2. Called directly, you get the MultipartToolResponse; .output is the Shot instance
+result = await capture_dashboard('/billing')
+print(result.output.width, result.content[0].media.content_type)
+# => 1440 image/png
+
+# 3. In generate, the model gets the Shot as the result and looks at the image
+response = await ai.generate(prompt='Is anything red on the billing dashboard?', tools=[capture_dashboard])
+print(response.text)
+# => The overdue invoices tile is red: 3 invoices past 30 days.
+```
+
+A plain `return value` is the same as `MultipartToolResponse(output=value)`.
 
 ### Streaming Tool Chunks
 
