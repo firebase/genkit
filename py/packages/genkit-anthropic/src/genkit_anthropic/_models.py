@@ -251,7 +251,7 @@ def _merge_config_extra(params: dict[str, Any], extra: dict[str, Any] | None) ->
                 status='INVALID_ARGUMENT',
                 message=(
                     f'anthropic: {field!r} is a client setting, not a request field; '
-                    'pass it to Anthropic(timeout=..., default_headers=...)'
+                    "pass it as Anthropic(client_options={'timeout': ..., 'default_headers': ...})"
                 ),
             )
     for field in _MANAGED_BODY_FIELDS:
@@ -333,9 +333,9 @@ class AnthropicModel:
         """
         context = ctx.context if ctx is not None and isinstance(ctx.context, dict) else None
         client = self._client_for_key(context_api_key(context))
-        # A config that fails validation, a bad thinking budget, an unsigned
-        # thinking part, or a malformed data URI is caller input, so retry
-        # skips it. Pydantic's ValidationError is a ValueError.
+        # A config that fails validation, a bad thinking budget, or a malformed
+        # data URI is caller input, so retry skips it. Pydantic's
+        # ValidationError is a ValueError.
         try:
             config = _normalize_config(request.config)
             use_beta = self._uses_beta_api(config)
@@ -724,13 +724,12 @@ class AnthropicModel:
         """
         reasoning = part.reasoning
         if reasoning:
+            # Claude only accepts thinking it signed. Unsigned reasoning, such as
+            # history from a model that signs nothing, is dropped, the same as on
+            # Bedrock's Claude path.
             signature = get_thinking_signature(part)
             if not signature:
-                raise ValueError(
-                    'Anthropic thinking parts require a signature when sending back '
-                    'to the API. Preserve the `metadata.thoughtSignature` value from '
-                    'the original response.'
-                )
+                return None
             return {'type': 'thinking', 'thinking': reasoning, 'signature': signature}
 
         redacted_thinking = get_redacted_thinking_data(part)
