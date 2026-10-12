@@ -79,7 +79,7 @@ from genkit._ai._prompt import (
 from genkit._ai._tools import ORIGINAL_OUTPUT_SCHEMA_KEY, define_interrupt, define_tool
 from genkit._core._action import Action, ActionKind, get_current_context
 from genkit._core._background import (
-    BackgroundAction,
+    BackgroundModel,
     CancelModelOpFn,
     CheckModelOpFn,
     StartModelOpFn,
@@ -581,7 +581,7 @@ class Genkit:
         config_schema: type[BaseModel] | dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
         description: str | None = None,
-    ) -> BackgroundAction:
+    ) -> BackgroundModel:
         """Register a background model for long-running AI operations."""
         return define_background_model(
             registry=self._registry,
@@ -1993,7 +1993,7 @@ class Genkit:
     async def generate_operation(
         self,
         *,
-        model: ModelRef[ModelRefConfigT] | BackgroundAction | str | None = None,
+        model: ModelRef[ModelRefConfigT] | BackgroundModel | str | None = None,
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
@@ -2007,7 +2007,7 @@ class Genkit:
     async def generate_operation(
         self,
         *,
-        model: ModelRef[ModelRefConfigT] | BackgroundAction | str | None = None,
+        model: ModelRef[ModelRefConfigT] | BackgroundModel | str | None = None,
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
@@ -2020,7 +2020,7 @@ class Genkit:
     async def generate_operation(
         self,
         *,
-        model: ModelRef[ModelRefConfigT] | BackgroundAction | str | None = None,
+        model: ModelRef[ModelRefConfigT] | BackgroundModel | str | None = None,
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
@@ -2043,7 +2043,7 @@ class Genkit:
             while not op.done:
                 op = await ai.check_operation(op)
         """
-        if isinstance(model, BackgroundAction):
+        if isinstance(model, BackgroundModel):
             # Same as its name, once we know this registry holds that object.
             model = background_model_name(model=model, registry=self._registry)
         resolved = await resolve_for_generate(

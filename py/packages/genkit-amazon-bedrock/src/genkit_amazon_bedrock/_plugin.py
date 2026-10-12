@@ -264,7 +264,7 @@ class Bedrock(Plugin):
             actions.append(
                 model_action_metadata(
                     name=_action_name(model_id),
-                    info=get_model_info(model_id, model_type).model_dump(by_alias=True, exclude_none=True),
+                    info=get_model_info(model_id, model_type),
                     config_schema=_config_schema(model_type),
                 )
             )

@@ -998,7 +998,6 @@ def as_model_response(*, raw: object, name: str) -> ModelResponse:
         raw=raw.raw,
         request=raw.request,
         operation=raw.operation,
-        candidates=raw.candidates,
     )
     walked._message_parser = raw._message_parser
     walked._schema_type = raw._schema_type

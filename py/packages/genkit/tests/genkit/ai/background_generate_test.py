@@ -696,7 +696,7 @@ async def test_generate_operation_passes_context_to_start(ai: Genkit) -> None:
 
 
 @pytest.mark.asyncio
-async def test_background_action_start_passes_context(ai: Genkit) -> None:
+async def test_background_model_start_passes_context(ai: Genkit) -> None:
     """Holding the wrapper and calling start() still delivers the tenant key."""
     seen: dict[str, Any] = {}
 

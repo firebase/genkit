@@ -55,9 +55,9 @@ from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._model import ModelRequest
 from genkit._core._typing import (
     ModelInfo,
+    ModelSupports,
     Operation,
     Role,
-    Supports,
 )
 
 
@@ -109,7 +109,7 @@ async def test_generate_operation_model_no_long_running_support(ai: Genkit) -> N
         name='standard-model',
         fn=model_fn,
         info=ModelInfo(
-            supports=Supports(
+            supports=ModelSupports(
                 multiturn=True,
                 tools=True,
                 media=False,
@@ -161,7 +161,7 @@ def test_define_model_rejects_long_running(ai: Genkit) -> None:
         ai.define_model(
             name='fake-lro-model',
             fn=model_fn,
-            info=ModelInfo(supports=Supports(long_running=True)),
+            info=ModelInfo(supports=ModelSupports(long_running=True)),
         )
 
     assert exc_info.value.status == 'INVALID_ARGUMENT'

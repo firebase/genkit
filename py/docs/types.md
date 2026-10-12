@@ -64,7 +64,7 @@ Types exported from genkit, genkit.model, genkit.embedder, genkit.plugin_api, ge
 
 ## genkit.model
 
-::: genkit.model.BackgroundAction
+::: genkit.model.BackgroundModel
 
 ::: genkit.model.GenerateActionOptions
 
@@ -72,9 +72,7 @@ Types exported from genkit, genkit.model, genkit.embedder, genkit.plugin_api, ge
 
 ::: genkit.model.OutputConfig
 
-::: genkit.model.ModelUsage
-
-::: genkit.model.Candidate
+::: genkit.model.GenerationUsage
 
 ::: genkit.model.OperationError
 
@@ -86,11 +84,11 @@ Types exported from genkit, genkit.model, genkit.embedder, genkit.plugin_api, ge
 
 ::: genkit.model.ModelInfo
 
-::: genkit.model.Supports
+::: genkit.model.ModelSupports
 
-::: genkit.model.Constrained
+::: genkit.model.ConstrainedSupport
 
-::: genkit.model.Stage
+::: genkit.model.ModelStage
 
 ::: genkit.model.ModelRef
 

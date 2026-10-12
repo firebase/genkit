@@ -43,7 +43,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic.alias_generators import to_camel
 
 from genkit import ActionRunContext, GenkitError, Operation
-from genkit.model import BackgroundAction, ModelRef, ModelRequest, model_ref
+from genkit.model import BackgroundModel, ModelRef, ModelRequest
 from genkit.plugin_api import Action, ActionKind, to_json_schema
 
 AGENT_CONFIG_KEYS = (
@@ -119,9 +119,8 @@ class DeepResearchConfig(BaseModel):
 def deep_research_model(version: str) -> ModelRef:
     """Return a ModelRef for a Deep Research version (namespaced or bare)."""
     clean = extract_version(version)
-    return model_ref(
-        name=clean,
-        namespace='googleai',
+    return ModelRef(
+        name=f'googleai/{clean}',
         info=deep_research_model_info(clean),
         config_schema=DeepResearchConfig,
     )
@@ -155,12 +154,12 @@ def build_tools(request: ModelRequest[DeepResearchConfig], config: DeepResearchC
     return tools
 
 
-def create_deep_research_background_action(
+def create_deep_research_background_model(
     target: str | ModelRef,
     *,
     plugin_api_key: str | None,
     client_options: ClientOptions,
-) -> BackgroundAction:
+) -> BackgroundModel:
     """Wire Deep Research start/check/cancel as Actions that re-read secrets."""
     name = target.name if isinstance(target, ModelRef) else target
     version = extract_version(name)
@@ -238,7 +237,7 @@ def create_deep_research_background_action(
         fn=cancel,
         metadata={'type': 'cancel-operation'},
     )
-    return BackgroundAction(
+    return BackgroundModel(
         start_action=start_action,
         check_action=check_action,
         cancel_action=cancel_action,

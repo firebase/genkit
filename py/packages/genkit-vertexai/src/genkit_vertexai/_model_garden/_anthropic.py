@@ -29,7 +29,7 @@ from genkit_anthropic import AnthropicConfig
 from genkit_anthropic._models import AnthropicModel
 
 from genkit import ActionRunContext, ModelResponse
-from genkit.model import ModelConfig, ModelInfo, ModelRequest, Supports
+from genkit.model import ModelConfig, ModelInfo, ModelRequest, ModelSupports
 from genkit.plugin_api import loop_local_client
 
 
@@ -82,7 +82,7 @@ class AnthropicModelGarden:
         """
         return ModelInfo(
             label=f'ModelGarden - {self.name}',
-            supports=Supports(
+            supports=ModelSupports(
                 multiturn=True,
                 media=True,
                 tools=True,

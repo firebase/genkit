@@ -137,7 +137,7 @@ def operation_context(
     return folded
 
 
-class BackgroundAction:
+class BackgroundModel:
     """A handle over a background model's start, check and cancel actions.
 
     Built on registered actions but isn't itself an ``Action``: each of
@@ -147,7 +147,7 @@ class BackgroundAction:
     Not generic: start, check and cancel always return an ``Operation``, and
     ``Operation.output`` is untyped, so a type parameter would carry nothing.
     If ``Operation`` gets a typed output, add one with a default
-    (``TypeVar('T', default=ModelResponse)``) so a bare ``BackgroundAction``
+    (``TypeVar('T', default=ModelResponse)``) so a bare ``BackgroundModel``
     still type-checks.
 
     Attributes:
@@ -164,7 +164,7 @@ class BackgroundAction:
         check_action: Action,
         cancel_action: Action | None = None,
     ) -> None:
-        """Initialize a BackgroundAction.
+        """Initialize a BackgroundModel.
 
         Args:
             start_action: Action to start the operation.
@@ -185,12 +185,12 @@ class BackgroundAction:
 
     @property
     def name(self) -> str:
-        """The name of the background action."""
+        """The name of the background model."""
         return self.start_action.name
 
     @property
     def supports_cancel(self) -> bool:
-        """Whether this background action supports cancellation."""
+        """Whether this background model supports cancellation."""
         return self.cancel_action is not None
 
     @property
@@ -275,7 +275,7 @@ class BackgroundAction:
         if self.cancel_action is None:
             raise GenkitError(
                 status='UNIMPLEMENTED',
-                message=f'Background action {operation.action} does not support cancellation.',
+                message=f'Background model {operation.action} does not support cancellation.',
                 reason=RuntimeErrorReason.UNSUPPORTED_BY_MODEL,
             )
         result = await self.cancel_action.run(operation, context=context)
@@ -283,7 +283,7 @@ class BackgroundAction:
 
 
 class MissingOperationError(GenkitError):
-    """A background action lost the operation handle it created."""
+    """A background model lost the operation handle it created."""
 
 
 def missing_operation_error(*, name: str) -> MissingOperationError:
@@ -311,7 +311,7 @@ def background_model(
     config_schema: type[BaseModel] | dict[str, Any] | None = None,
     metadata: dict[str, Any] | None = None,
     description: str | None = None,
-) -> BackgroundAction:
+) -> BackgroundModel:
     """Build a background model without registering it.
 
     Plugin ``init`` / ``resolve`` return this. ``define_background_model``
@@ -375,7 +375,7 @@ def background_model(
             description=f'Cancel operation for {label}',
         )
 
-    return BackgroundAction(
+    return BackgroundModel(
         start_action=start_action,
         check_action=check_action,
         cancel_action=cancel_action,
@@ -393,7 +393,7 @@ def define_background_model(
     config_schema: type[BaseModel] | dict[str, Any] | None = None,
     metadata: dict[str, Any] | None = None,
     description: str | None = None,
-) -> BackgroundAction:
+) -> BackgroundModel:
     """Register a background model for long-running AI operations."""
     action = background_model(
         name,
@@ -410,11 +410,11 @@ def define_background_model(
     return action
 
 
-async def lookup_background_action(
+async def lookup_background_model(
     registry: Registry,
     key: str,
-) -> BackgroundAction | None:
-    """Look up a background action by its action key.
+) -> BackgroundModel | None:
+    """Look up a background model by its action key.
 
     Matches JS lookupBackgroundAction from js/core/src/background-action.ts.
 
@@ -425,7 +425,7 @@ async def lookup_background_action(
         key: The action key (e.g., '/background-model/video-gen').
 
     Returns:
-        The BackgroundAction if found, None otherwise.
+        The BackgroundModel if found, None otherwise.
     """
     # Look up the start action
     start_action = await registry.resolve_action_by_key(key)
@@ -449,7 +449,7 @@ async def lookup_background_action(
     cancel_key = f'/cancel-operation/{action_name}/cancel'
     cancel_action = await registry.resolve_action_by_key(cancel_key)
 
-    return BackgroundAction(
+    return BackgroundModel(
         start_action=start_action,
         check_action=check_action,
         cancel_action=cancel_action,
@@ -479,11 +479,11 @@ def require_operation(*, value: object) -> Operation:
     )
 
 
-async def resolve_operation_action(
+async def resolve_operation_model(
     registry: Registry,
     operation: Operation,
-) -> BackgroundAction:
-    """Turn a poll handle into the background action that owns it."""
+) -> BackgroundModel:
+    """Turn a poll handle into the background model that owns it."""
     operation = require_operation(value=operation)
     if not operation.action:
         raise GenkitError(
@@ -493,22 +493,22 @@ async def resolve_operation_action(
         )
 
     try:
-        background_action = await lookup_background_action(registry, operation.action)
+        bg_model = await lookup_background_model(registry, operation.action)
     except ValueError as e:
         # operation.action is caller data (often reloaded from storage), so a
         # mangled key is the caller's bad argument, not an internal failure.
         raise GenkitError(
             status='INVALID_ARGUMENT',
-            message=f'Failed to resolve background action from original request: {operation.action}',
+            message=f'Failed to resolve background model from original request: {operation.action}',
             reason=RuntimeErrorReason.ACTION_NOT_FOUND,
         ) from e
-    if background_action is None:
+    if bg_model is None:
         raise GenkitError(
             status='INVALID_ARGUMENT',
-            message=f'Failed to resolve background action from original request: {operation.action}',
+            message=f'Failed to resolve background model from original request: {operation.action}',
             reason=RuntimeErrorReason.ACTION_NOT_FOUND,
         )
-    return background_action
+    return bg_model
 
 
 async def check_operation(
@@ -535,8 +535,8 @@ async def check_operation(
         GenkitError: If the handle is missing action, or the action is
             not found.
     """
-    background_action = await resolve_operation_action(registry, operation)
-    return await background_action.check(
+    bg_model = await resolve_operation_model(registry, operation)
+    return await bg_model.check(
         operation,
         context=operation_context(context=context, config=config),
     )
@@ -565,10 +565,10 @@ async def cancel_operation(
     Raises:
         GenkitError: If the handle is missing action, the action is not
             found, or cancel is not implemented (UNIMPLEMENTED, raised by
-            ``BackgroundAction.cancel``).
+            ``BackgroundModel.cancel``).
     """
-    background_action = await resolve_operation_action(registry, operation)
-    return await background_action.cancel(
+    bg_model = await resolve_operation_model(registry, operation)
+    return await bg_model.cancel(
         operation,
         context=operation_context(context=context, config=config),
     )

@@ -35,7 +35,14 @@ from genkit.embedder import (
     EmbedRequest,
     EmbedResponse,
 )
-from genkit.model import Constrained, ModelInfo, ModelRequest, Supports, model as create_model, model_action_metadata
+from genkit.model import (
+    ConstrainedSupport,
+    ModelInfo,
+    ModelRequest,
+    ModelSupports,
+    model as create_model,
+    model_action_metadata,
+)
 from genkit.plugin_api import (
     Action,
     ActionKind,
@@ -104,7 +111,7 @@ def ollama_name(name: str) -> str:
     return f'{OLLAMA_PLUGIN_NAME}/{name}'
 
 
-def ollama_model_info(model_ref: _ResolvedModel, label: str) -> dict[str, object]:
+def ollama_model_info(model_ref: _ResolvedModel, label: str) -> ModelInfo:
     """Build Dev UI capability metadata for an Ollama model.
 
     Every model goes through ``/api/chat``, as in Go; the probe only decides
@@ -115,21 +122,20 @@ def ollama_model_info(model_ref: _ResolvedModel, label: str) -> dict[str, object
         label: The human-readable label to show in the Dev UI.
 
     Returns:
-        The serialized :class:`ModelInfo` metadata (camelCase aliases, no
-        ``None`` values) ready to embed under ``metadata['model']``.
+        The :class:`ModelInfo` for the model.
     """
     return ModelInfo(
         label=label,
-        supports=Supports(
+        supports=ModelSupports(
             multiturn=True,
             media=model_ref.media,
             tools=model_ref.tools,
             system_role=True,
             # Deliberate JS/Go deviation. we match other Python plugins for Dev UI consistency.
             output=['text', 'json'],
-            constrained=Constrained.ALL,
+            constrained=ConstrainedSupport.ALL,
         ),
-    ).model_dump(by_alias=True, exclude_none=True)
+    )
 
 
 # A request_headers callable takes no arguments and returns the headers to

@@ -32,7 +32,7 @@ from genkit._core._action import (
     ActionRunContext,
     get_func_description,
 )
-from genkit._core._background import BackgroundAction
+from genkit._core._background import BackgroundModel
 from genkit._core._config_check import (
     check_config_json_schema,
     check_config_values,
@@ -47,7 +47,6 @@ from genkit._core._model import (
     ModelConfig as ModelConfig,
     ModelConfigDict,
     ModelRef,
-    ModelRefConfigT,
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,
@@ -172,7 +171,7 @@ def _registered_action_name(*, action: Action, kind: ActionKind, registry: Regis
 
 def _model_action_name(*, model: object, registry: Registry) -> str | None:
     """Name of a define_model action registered here; None if not an action."""
-    if isinstance(model, BackgroundAction):
+    if isinstance(model, BackgroundModel):
         raise GenkitError(
             status='INVALID_ARGUMENT',
             message=f"model is background model '{model.name}'. Pass it to generate_operation.",
@@ -189,7 +188,7 @@ def _model_action_name(*, model: object, registry: Registry) -> str | None:
     return _registered_action_name(action=model, kind=ActionKind.MODEL, registry=registry)
 
 
-def background_model_name(*, model: BackgroundAction, registry: Registry) -> str:
+def background_model_name(*, model: BackgroundModel, registry: Registry) -> str:
     """Name of a define_background_model result registered on this registry."""
     return _registered_action_name(action=model.start_action, kind=ActionKind.BACKGROUND_MODEL, registry=registry)
 
@@ -367,40 +366,57 @@ def resolve_model_ref(*, model: ModelRef[Any], config: dict[str, Any]) -> Resolv
     )
 
 
-def model_action_metadata(
+def _model_options(
+    *,
     name: str,
-    info: dict[str, object] | None = None,
+    info: ModelInfo | None,
+    config_schema: type | dict[str, Any] | None,
+    metadata: Mapping[str, object] | None = None,
+) -> dict[str, object]:
+    """Build ``metadata['model']``. ``model()`` and ``model_action_metadata()`` share it.
+
+    Sharing keeps listed and resolved models identical in the Dev UI.
+    """
+    options: dict[str, object] = info.model_dump(by_alias=True, exclude_none=True) if info else {}
+    existing = metadata.get('model') if metadata else None
+    if isinstance(existing, dict):
+        for key, value in cast(dict[str, object], existing).items():
+            if isinstance(key, str) and key not in options:
+                options[key] = value
+    if not options.get('label'):
+        options['label'] = name
+    if claims_long_running(model_options=options):
+        raise GenkitError(
+            status='INVALID_ARGUMENT',
+            message=f"model '{name}' cannot set longRunning. Use define_background_model.",
+        )
+    if config_schema:
+        options['customOptions'] = to_json_schema(config_schema)
+    return options
+
+
+def model_action_metadata(
+    *,
+    name: str,
+    info: ModelInfo | None = None,
     config_schema: type | dict[str, Any] | None = None,
 ) -> ActionMetadata:
-    """Create ActionMetadata for a model action."""
-    info = info if info is not None else {}
+    """Describe a model for ``Plugin.list_actions`` without building it.
+
+    The ``model`` metadata matches what ``model()`` registers for the same input.
+
+    ```python
+    meta = model_action_metadata(name='bistro/menu-writer', info=ModelInfo(label='Menu Writer'))
+    meta.metadata
+    # => {'model': {'label': 'Menu Writer'}}
+    ```
+    """
     return ActionMetadata(
         action_type=ActionKind.MODEL,
         name=name,
         input_json_schema=to_json_schema(ModelRequest),
         output_json_schema=to_json_schema(ModelResponse),
-        metadata={'model': {**info, 'customOptions': to_json_schema(config_schema) if config_schema else None}},
-    )
-
-
-def model_ref(
-    name: str,
-    *,
-    config_schema: type[ModelRefConfigT],
-    namespace: str | None = None,
-    info: ModelInfo | None = None,
-    version: str | None = None,
-    config: ModelRefConfigT | None = None,
-) -> ModelRef[ModelRefConfigT]:
-    """Create a ModelRef, optionally prefixing name with namespace."""
-    final_name = f'{namespace}/{name}' if namespace and not name.startswith(f'{namespace}/') else name
-
-    return ModelRef(
-        name=final_name,
-        config_schema=config_schema,
-        info=info,
-        version=version,
-        config=config,
+        metadata={'model': _model_options(name=name, info=info, config_schema=config_schema)},
     )
 
 
@@ -464,31 +480,7 @@ def model(
     The config class stays on the action so ``generate(model='name', config=)``
     can isinstance-check a Pydantic instance against a string model name.
     """
-    model_options: dict[str, object] = {}
-
-    if info:
-        model_options.update(info.model_dump(by_alias=True, exclude_none=True))
-
-    if metadata and 'model' in metadata:
-        existing = metadata['model']
-        if isinstance(existing, dict):
-            existing_dict = cast(dict[str, object], existing)
-            for key, value in existing_dict.items():
-                if isinstance(key, str) and key not in model_options:
-                    model_options[key] = value
-
-    if 'label' not in model_options or not model_options['label']:
-        model_options['label'] = name
-
-    if claims_long_running(model_options=model_options):
-        raise GenkitError(
-            status='INVALID_ARGUMENT',
-            message=f"define_model '{name}' cannot set longRunning. Use define_background_model.",
-        )
-
-    if config_schema:
-        model_options['customOptions'] = to_json_schema(config_schema)
-
+    model_options = _model_options(name=name, info=info, config_schema=config_schema, metadata=metadata)
     model_meta: dict[str, object] = metadata.copy() if metadata else {}
     model_meta['model'] = model_options
 

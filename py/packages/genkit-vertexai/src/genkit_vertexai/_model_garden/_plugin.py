@@ -358,7 +358,7 @@ class ModelGarden(Plugin):
         return [
             model_action_metadata(
                 name=model_garden_name(model),
-                info=model_info.model_dump(by_alias=True, exclude_none=True),
+                info=model_info,
                 config_schema=OpenAIConfig,
             )
             for model, model_info in SUPPORTED_OPENAI_COMPAT_MODELS.items()

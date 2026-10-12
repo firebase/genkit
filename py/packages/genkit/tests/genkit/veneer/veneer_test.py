@@ -32,10 +32,10 @@ from genkit._core._typing import (
     EvalResponse,
     FinishReason,
     ModelInfo,
+    ModelSupports,
     Operation,
     Role,
     Score,
-    Supports,
     ToolDefinition,
     ToolRequest,
     ToolResponse,
@@ -1588,7 +1588,7 @@ def test_define_model_with_info(setup_test: SetupFixture) -> None:
         fn=foo_model_fn,
         info=ModelInfo(
             label='Foo Bar',
-            supports=Supports(multiturn=True, tools=True, system_role=True),
+            supports=ModelSupports(multiturn=True, tools=True, system_role=True),
         ),
     )
     assert action.metadata['model'] == {
@@ -2192,7 +2192,7 @@ def test_define_background_model_with_info(setup_test: SetupFixture) -> None:
         check=check_fn,
         info=ModelInfo(
             label='Background Model',
-            supports=Supports(multiturn=True, system_role=True),
+            supports=ModelSupports(multiturn=True, system_role=True),
         ),
     )
     assert action.start_action.metadata['model'] == {

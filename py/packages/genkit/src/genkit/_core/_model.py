@@ -105,8 +105,6 @@ class ModelConfig(GenerationCommonConfig):
     """
 
 
-ModelUsage = GenerationUsage  # public name for GenerationUsage
-
 # what callers pass as tool_choice; they type the string, not an enum.
 ToolChoice = Literal['auto', 'required', 'none']
 
@@ -775,35 +773,6 @@ class Message(GenkitModel):
         return [p for p in self.tool_requests if p.metadata and p.metadata.get('interrupt')]
 
 
-class Candidate(GenkitModel):
-    """One sampled reply from a generate call."""
-
-    index: float
-    message: Message
-    usage: GenerationUsage | None = None
-    finish_reason: FinishReason
-    finish_message: str | None = None
-    custom: Any | None = Field(default=None)
-
-    @field_validator('message', mode='before')
-    @classmethod
-    def _wrap_message(cls, v: object) -> object:
-        return as_message(v)
-
-
-def as_candidate(value: object) -> Candidate:
-    if isinstance(value, Candidate):
-        return Candidate(
-            index=value.index,
-            message=value.message,
-            usage=value.usage,
-            finish_reason=value.finish_reason,
-            finish_message=value.finish_message,
-            custom=value.custom,
-        )
-    return Candidate.model_validate(value)
-
-
 class GenerateActionOptions(GenkitModel):
     """Generate options with messages as list[Message] for type-safe use with ai.generate()."""
 
@@ -1269,7 +1238,16 @@ class ModelResponse(GenkitModel, Generic[OutputT]):
     raw: dict[str, Any] | None = None
     request: ModelRequest | None = None
     operation: Operation | None = None
-    candidates: list[Candidate] | None = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def _drop_candidates(cls, data: object) -> object:
+        # JS responses, stored traces and session snapshots may still carry the
+        # deprecated `candidates` list. message/finish_reason already hold
+        # candidate 0, so drop it instead of failing on extra='forbid'.
+        if isinstance(data, dict) and 'candidates' in data:
+            data = {k: v for k, v in cast(dict[str, Any], data).items() if k != 'candidates'}
+        return data
 
     @field_validator('message', mode='before')
     @classmethod
@@ -1284,13 +1262,6 @@ class ModelResponse(GenkitModel, Generic[OutputT]):
         if v is None:
             return v
         return as_model_request(v)
-
-    @field_validator('candidates', mode='before')
-    @classmethod
-    def _wrap_candidates(cls, v: object) -> object:
-        if not isinstance(v, list):
-            return v
-        return [as_candidate(c) for c in v]
 
     def model_post_init(self, __context: object) -> None:
         """Initialize default usage and custom dict if not provided."""
@@ -1643,7 +1614,6 @@ AgentInit.model_rebuild(force=True, _types_namespace=_VENEER_NS)
 AgentInput.model_rebuild(force=True, _types_namespace=_VENEER_NS)
 AgentOutput.model_rebuild(force=True, _types_namespace=_VENEER_NS)
 AgentResult.model_rebuild(force=True, _types_namespace=_VENEER_NS)
-Candidate.model_rebuild(force=True, _types_namespace=_VENEER_NS)
 ModelResponse.model_rebuild(force=True, _types_namespace=_VENEER_NS)
 ModelResponseChunk.model_rebuild(force=True, _types_namespace=_VENEER_NS)
 AgentStreamChunk.model_rebuild(force=True, _types_namespace=_VENEER_NS)
