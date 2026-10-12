@@ -290,7 +290,7 @@ What this means for the app developer:
 
 JS and Go make the same trade: JS types the partial as `T`, and Go fills missing fields with zero values.
 
-**Question:** is this the best approach, or is there a better way to handle typed partials?
+Question for reviewers: is this the best approach, or is there a better way to handle typed partials?
 
 ### Calling a Tool Directly
 
@@ -434,10 +434,7 @@ print(rollout.url)
 
 ### Interrupts (human-in-the-loop)
 
-A tool raises `Interrupt(metadata)` to pause the turn. `generate` returns with `finish_reason == INTERRUPTED`, and the paused tool calls are on `response.interrupts`. You resume by passing the history back with one of two answers:
-
-- **`part.restart(...)`:** run the tool again, e.g. after approval. The tool sees `ctx.is_resumed()` and `ctx.resumed_metadata`.
-- **`part.respond(output)`:** answer for the tool without running it.
+A tool raises `Interrupt(metadata)` to pause the turn. `generate` returns with `finish_reason == INTERRUPTED`, and the paused tool calls are on `response.interrupts`. You resume by passing the history back with one of two answers. `part.restart(...)` runs the tool again, for example after a manager approves; the tool can check `ctx.is_resumed()` and read `ctx.resumed_metadata`. `part.respond(output)` answers for the tool without running it.
 
 `resume_restart=` and `resume_respond=` take one `Part` or a list. Pass a list when several tool calls paused in the same turn.
 
@@ -660,8 +657,9 @@ except GenkitError as e:
 
 `Interrupt` subclasses `BaseException`, so a plain `except Exception` won't catch it.
 
-1. **What `generate` does with it:** when a tool raises `Interrupt`, `generate` stops the turn and returns it as a value: `finish_reason == INTERRUPTED`, with the paused call on `response.interrupts`. Nothing is raised to your code.
-2. **In your tool code:** you can raise `Interrupt` inside a `try` with a broad `except Exception`. The handler skips it, so it still reaches `generate` and the turn pauses.
+When a tool raises `Interrupt`, `generate` stops the turn and hands it back as a value: `finish_reason == INTERRUPTED`, with the paused call on `response.interrupts`. Nothing is raised to your code.
+
+In your tool, that means you can raise `Interrupt` inside a `try` with a broad `except Exception` and not worry about it. The handler skips it, so it still reaches `generate` and the turn pauses.
 
 ```python
 @ai.tool
@@ -764,9 +762,11 @@ A prompt is a template plus its generation settings (model, config, tools, outpu
 
 ### `.prompt` files and lazy loading
 
-- **Where they come from:** `Genkit(prompt_dir=...)` registers every `.prompt` file under the directory; with no `prompt_dir`, it uses `./prompts` if it exists. Subfolders become name prefixes (`prompts/menu/card.prompt` is `menu/card`), `card.formal.prompt` is the `formal` variant of `card`, and `_footer.prompt` is a partial you include with `{{> footer}}`.
-- **Lazy resolution:** `Genkit()` parses each file but resolves it (schema names, model, defaults) the first time the prompt runs, then caches it. Startup doesn't pay for prompts you never call, and a schema registered with `ai.define_schema` after `Genkit()` still resolves. A missing prompt fails with `NOT_FOUND` when you call it.
-- **Lookup:** `ai.prompt('name')` returns a handle right away and resolves on first call. Pass `output_schema=` to type `response.output` for the type checker.
+Put `.prompt` files in `./prompts`, or point `Genkit(prompt_dir=...)` somewhere else. Genkit registers every file under it. The file path becomes the name: `prompts/menu/card.prompt` is `menu/card`. `card.formal.prompt` is the `formal` variant of `card`, and `_footer.prompt` is a partial you include with `{{> footer}}`.
+
+Loading is lazy. `Genkit()` only parses the files; each prompt resolves its model, schemas and defaults the first time it runs, and caches the result. So startup doesn't pay for prompts you never call, and a schema you register with `ai.define_schema` after `Genkit()` still works.
+
+`ai.prompt('name')` returns a handle right away. A typo doesn't fail until you call it, with `NOT_FOUND`. Pass `output_schema=` so the type checker knows what `response.output` is.
 
 `prompts/menu_card.prompt`:
 
@@ -874,12 +874,12 @@ print(request.messages[0].content[0].text)
 
 ## 6. Web Serving (`genkit.web`) & Error Redaction
 
-Four levels of control. Each level down gives you more of the route and leaves less to Genkit. All four speak the same wire format and redact errors the same way.
+There are four levels. Each one down gives you more of the route and leaves less to Genkit, and all four speak the same wire format and redact errors the same way.
 
-- **`serve_flow`:** Genkit owns the route.
-- **`handle_genkit_request`:** you own the route signature and `Depends`; Genkit owns parsing, JSON vs SSE, and errors.
-- **`stream.to_sse()`:** you own the route and pick what to stream; Genkit owns SSE framing.
-- **`genkit.web`:** you own everything; helpers keep you on the wire contract. For Flask, Django, Starlette, or your own adapter.
+1. `serve_flow`: Genkit owns the whole route.
+2. `handle_genkit_request`: you write the route and its `Depends`; Genkit parses the body, picks JSON or SSE, and formats errors.
+3. `stream.to_sse()`: you write the route and decide what streams; Genkit only frames the SSE.
+4. `genkit.web` helpers: you write everything, and the helpers keep you on the wire format. Use this for Flask, Django, Starlette, or your own adapter.
 
 Wire format, shared by all four:
 
@@ -1005,10 +1005,9 @@ async def track_endpoint(request: Request):
 
 A tenant's provider key goes in one place: `context={'secrets': {'api_key': ...}}`. The Google GenAI models read it from there and fall back to the plugin's key when it's absent.
 
-- **Wrong slot fails loudly:** a key in `config=` or at the top level of `context` raises `INVALID_ARGUMENT` that names `context.secrets`.
-- **Inherited:** inside a flow, `ai.generate()` with no `context=` uses the flow's context, so tools and nested calls get the same key.
-- **Not traced:** the Dev UI shows `secrets` and `auth` as `<redacted>`.
-- **Not stored on the `Operation`:** a background job's handle carries no key, so every `check_operation` / `cancel_operation` passes it again.
+Put it anywhere else (in `config=`, or at the top level of `context`) and the call fails with `INVALID_ARGUMENT`, pointing you at `context.secrets`. Inside a flow, `ai.generate()` without `context=` inherits the flow's context, so tools and nested calls get the same key. The Dev UI shows `secrets` and `auth` as `<redacted>`.
+
+The key isn't stored on a background job's `Operation`, so pass it again on every `check_operation` and `cancel_operation`.
 
 ```python
 from fastapi import Depends, Header, Request
@@ -1060,9 +1059,9 @@ await ai.generate(prompt='hi', context={'api_key': key})
 
 In process, you get the real exception with its type, `__cause__`, and traceback. Over HTTP, `error_body` / `error_status` decide what leaves the server, at every level above:
 
-- **`PublicError`:** its message, status, and details go out with the mapped HTTP code.
-- **Bad request to the flow itself** (input fails the schema): 400 with the failing fields, not the values, e.g. `Invalid input for flow 'place': order_id: Field required`. A nested action called with bad input is a server bug and returns 500.
-- **Anything else** (`GenkitError`, provider errors, `RuntimeError`): `500 {"message": "Internal Error", "status": "INTERNAL"}`. The real message stays in your logs and trace.
+- A `PublicError` goes out as written: its message, status and details, with the matching HTTP code.
+- Input that fails the flow's schema is a 400 that names the failing fields but not the values, e.g. `Invalid input for flow 'place': order_id: Field required`. A nested action called with bad input is a server bug, so that's a 500.
+- Everything else (`GenkitError`, provider errors, `RuntimeError`) is `500 {"message": "Internal Error", "status": "INTERNAL"}`. The real message stays in your logs and trace.
 
 ```python
 @ai.flow
@@ -1322,13 +1321,13 @@ With `use=[A(), B()]`, `A` runs first and wraps `B`: A before, B before, model, 
 
 Every capability is registered as one or more [`Action`](../packages/genkit/src/genkit/_core/_action.py)s: a typed async function with one input, one output, optional chunks, and a registry key. Plugins register theirs at init or resolve them lazily on first use. The public classes split by how many actions they are:
 
-- **`Action` subclasses** (one action each; calling the object is `(await obj.run(x)).response`):
+- One action each. These subclass `Action`, and calling one is `(await obj.run(x)).response`:
   - `Model(Action[ModelRequest, ModelResponse, ModelResponseChunk])`
   - `Embedder(Action[EmbedRequest, EmbedResponse])`
   - `Evaluator` / `BatchEvaluator(Action[EvaluatorRequest, EvalResponse])`
   - `Flow(Action[In, Out, Chunk])`
   - `Tool(Action[In, Out, Chunk])`: the chunk type comes from `ToolContext[ChunkT]` (see Streaming Tool Chunks). The tool action returns the function's own value, so `await tool(x)` gives a `Quote` or a `str`. Behaves the same as a Flow when executed directly. When the model calls the tool, `generate` turns that value into the tool response the model reads: the value dumped to JSON as `output`, plus `content` parts if the tool returned a `MultipartToolResponse`. The Dev UI runs a companion `tool.v2` action that returns that same envelope.
-- **Composites** (several actions behind one handle, so no single `Action[In, Out]` fits):
+- Several actions behind one handle, so no single `Action[In, Out]` fits:
   - `BackgroundModel`: `start` (`background-model`), `check` (`check-operation`), and optional `cancel` (`cancel-operation`), each with its own key and types. `.actions` lists them for registration.
   - `Prompt`: a `prompt` action that renders the request and an `executable-prompt` action that runs `generate`. Calling the prompt resolves the model and goes through `generate`.
 
@@ -1336,13 +1335,13 @@ Every capability is registered as one or more [`Action`](../packages/genkit/src/
 
 `Genkit()` starts the reflection server when `GENKIT_ENV=dev` (which `genkit start` sets) or `GENKIT_REFLECTION_ENABLED=true`. It runs on its own daemon thread with its own event loop (`asyncio.run` inside the thread), so it works the same under FastAPI, Flask, Django, a script, or no server at all, and never blocks the app's loop. The socket is bound on the calling thread first, so a busy pinned port fails `Genkit()` instead of a thread nobody watches. Production servers without those env vars start no thread.
 
-- **`ai.run_main(main())`:** with reflection on, it keeps the process alive after `main` returns so the Dev UI can keep running flows, until Ctrl+C or SIGTERM. With reflection off, it returns when `main` does, like `asyncio.run`.
+For scripts, use `ai.run_main(main())`. With reflection on, it keeps the process alive after `main` returns so the Dev UI can keep running flows, until Ctrl+C or SIGTERM. With reflection off, it returns when `main` does, like `asyncio.run`.
 
 ### One action, two event loops: `loop_local_client`
 
 This only comes up in dev mode. With the reflection server on, a dev process has two live event loops: your app's, and the reflection daemon thread's. A flow the Dev UI runs executes on the reflection loop; the same flow called from your app runs on yours. Async clients (httpx, database pools, the OpenAI, Anthropic, and google-genai SDKs) bind to the loop they first run on, so one client created at module level and shared by both fails with "attached to a different loop" or hangs. Production servers run one loop and never see it; a test runner that starts a new loop per test can.
 
-**App developers:** create short-lived clients inside the flow or tool whenever you can, so each call uses the loop it runs on.
+If you're writing an app, create short-lived clients inside the flow or tool when you can, so each call uses the loop it runs on.
 
 ```python
 # 1. Bound to whichever loop first used it; breaks when the Dev UI runs the tool
@@ -1356,7 +1355,7 @@ async def menu_for(restaurant_id: str) -> Menu:
     return Menu.model_validate(response.json())
 ```
 
-**Plugin authors:** wrap every long-lived client in `loop_local_client` (`genkit.plugin_api`). It caches one client per running loop, built on first use there and reused after, so model and embedder calls work on both loops. The built-in plugins already do this.
+If you're writing a plugin, wrap every long-lived client in `loop_local_client` (`genkit.plugin_api`). It caches one client per running loop, built on first use there and reused after, so model and embedder calls work on both loops. The built-in plugins already do this.
 
 ```python
 import httpx
