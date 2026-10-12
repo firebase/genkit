@@ -1242,9 +1242,23 @@ Every capability is registered as one or more [`Action`](../packages/genkit/src/
 
 ### One action, two event loops: `loop_local_client`
 
-A flow the Dev UI runs executes on the reflection thread's loop; the same flow called from your app runs on the app's loop. Async clients (httpx, the OpenAI and Anthropic SDKs, google-genai) bind to the loop they first run on, so a client created on one loop and reused on the other fails with "attached to a different loop" or hangs. A plugin can't pick one loop: both are live in a dev process.
+This only comes up in dev mode. With the reflection server on, a dev process has two live event loops: your app's, and the reflection daemon thread's. A flow the Dev UI runs executes on the reflection loop; the same flow called from your app runs on yours. Async clients (httpx, database pools, the OpenAI, Anthropic, and google-genai SDKs) bind to the loop they first run on, so one client created at module level and shared by both fails with "attached to a different loop" or hangs. Production servers run one loop and never see it; a test runner that starts a new loop per test can.
 
-`loop_local_client` (`genkit.plugin_api`) caches one client per running loop, built on first use there and reused after. Plugins use it for every long-lived client:
+**App developers:** create short-lived clients inside the flow or tool whenever you can, so each call uses the loop it runs on.
+
+```python
+# 1. Bound to whichever loop first used it; breaks when the Dev UI runs the tool
+http = httpx.AsyncClient()
+
+# 2. One client per call; works on either loop
+@ai.tool
+async def menu_for(restaurant_id: str) -> Menu:
+    async with httpx.AsyncClient(timeout=10.0) as http:
+        response = await http.get(f'https://api.bistro.dev/menus/{restaurant_id}')
+    return Menu.model_validate(response.json())
+```
+
+**Plugin authors:** wrap every long-lived client in `loop_local_client` (`genkit.plugin_api`). It caches one client per running loop, built on first use there and reused after, so model and embedder calls work on both loops. The built-in plugins already do this.
 
 ```python
 import httpx
@@ -1270,4 +1284,4 @@ print(http_client() is http_client())
 # => True
 ```
 
-The cache is keyed weakly by loop, so a client goes away with its loop. Don't close a shared client; for a client scoped to one call, use `async with httpx.AsyncClient() as client:` inside the call. The method form is #6708.
+The cache holds each loop weakly, so a client goes away with its loop. Don't close a shared client. The method form is #6708.
