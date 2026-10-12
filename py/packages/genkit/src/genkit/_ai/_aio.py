@@ -513,7 +513,7 @@ class Genkit:
 
             # 3. Run it over a dataset
             rows = await ai.evaluate(evaluator='mentions_dish', dataset=dataset)
-            # => [EvalResponse row with evaluation=[Score(score=True)], ...]
+            # => [EvalFnResponse(test_case_id='...', evaluation=[Score(score=True)]), ...]
             ```
         """
         return define_evaluator(
@@ -542,8 +542,8 @@ class Genkit:
     ) -> BatchEvaluator:
         """Register a batch evaluator.
 
-        The function is an action: one ``EvalRequest``. Read options from
-        ``req.options``. A second parameter raises ``TypeError`` when defined.
+        The function takes one ``EvalRequest`` and returns ``list[EvalFnResponse]``.
+        Read options from ``req.options``. A second parameter raises ``TypeError`` when defined.
         """
         return define_batch_evaluator(
             self._registry,
