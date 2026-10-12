@@ -145,7 +145,9 @@ async function __flowRunEnvelope({
       // instead of reading from a finished stream forever.
       break;
     }
-    const decodedValue = decoder.decode(result.value);
+    // `stream: true` keeps the bytes of a multi-byte character that is split
+    // across two network chunks until the rest of it arrives.
+    const decodedValue = decoder.decode(result.value, { stream: true });
     if (decodedValue) {
       buffer += decodedValue;
     }

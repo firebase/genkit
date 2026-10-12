@@ -98,6 +98,45 @@ describe('streamFlow', () => {
     return { chunks, streamError, ...settled };
   }
 
+  describe('multi-byte characters', () => {
+    // 2-byte (é), 3-byte (世界) and 4-byte (emoji) UTF-8 sequences.
+    const message = 'café 世界 😀';
+
+    it('decodes characters split across network chunks', async () => {
+      const full = sse({ message });
+      // Split the event at every possible byte offset, including offsets in
+      // the middle of a character.
+      for (let cut = 1; cut < full.length; cut++) {
+        globalThis.fetch = mockStreamingFetch([
+          full.slice(0, cut),
+          full.slice(cut),
+          sse({ result: 'done' }),
+        ]);
+
+        const { chunks, value, error } = await run();
+
+        assert.strictEqual(error, undefined, `cut at byte ${cut}`);
+        assert.deepStrictEqual(chunks, [message], `cut at byte ${cut}`);
+        assert.strictEqual(value, 'done', `cut at byte ${cut}`);
+      }
+    });
+
+    it('decodes characters split across every byte', async () => {
+      const full = sse({ message });
+      const chunks = Array.from(full, (byte) => Uint8Array.of(byte));
+      globalThis.fetch = mockStreamingFetch([
+        ...chunks,
+        sse({ result: message }),
+      ]);
+
+      const { chunks: received, value, error } = await run();
+
+      assert.strictEqual(error, undefined);
+      assert.deepStrictEqual(received, [message]);
+      assert.strictEqual(value, message);
+    });
+  });
+
   describe('stream that ends early', () => {
     it('fails when the stream ends before the result event', async () => {
       globalThis.fetch = mockStreamingFetch([sse({ message: 'partial' })]);
