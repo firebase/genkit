@@ -284,18 +284,13 @@ recipe = (await stream.response).output
 
 What this means for the app developer:
 
-- **The type checker trusts it; the runtime doesn't.** `chunk.output.servings + 1` type-checks and raises `TypeError` on the first chunk. Guard every field you read.
-- **Strings can be cut short.** `'Fluffy Panc'` is a valid `str`, so validating a chunk can't tell a partial from a finished value. A chunk that happens to validate isn't the final answer.
-- **No flag.** `chunk.output` has no `is_partial`. `part.is_partial` exists only on tool-response parts, for `ctx.send_chunk()` progress from tools (see Streaming Tool Chunks).
-- **Same trade in other runtimes.** JS types `chunk.output` as `T | null` over unvalidated parsed JSON. Go unmarshals into your struct, so missing fields are zero values.
+- Any field can be `None` mid-stream, even one typed `int`. The type checker won't catch `chunk.output.servings + 1`; it fails at runtime.
+- A string can be cut short (`'Fluffy Panc'`), and nothing tells you whether a chunk is complete.
+- So: read `chunk.output` for live display, guard each field, and use `(await stream.response).output` for anything that matters.
 
-**Open question:** keep this, or change it before 1.0?
+JS and Go make the same trade: JS types the partial as `T`, and Go fills missing fields with zero values.
 
-1. **Keep (current):** same class, holes are `None`, documented. Autocomplete works and it matches JS. The cost is a type that lies mid-stream.
-2. **Plain JSON:** `chunk.output` is the dict parsed so far, and only the final value is typed. Honest, but you lose attribute access and autocomplete.
-3. **Separate partial type:** a generated class where every field is optional. Python's type system can't derive that from `Recipe` (there's no `Partial<T>`), so the checker would still see `Recipe` unless we add codegen or a plugin.
-
-We lean toward 1.
+**Question:** is this the best approach, or is there a better way to handle typed partials?
 
 ### Calling a Tool Directly
 
