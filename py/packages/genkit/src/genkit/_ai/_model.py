@@ -38,7 +38,13 @@ from genkit._core._config_check import (
     check_config_values,
     config_values,
 )
-from genkit._core._error import GenkitError, RuntimeErrorReason
+from genkit._core._error import (
+    GenkitError,
+    RuntimeErrorReason,
+    validation_error_details,
+    validation_input_is_printable,
+    validation_problem,
+)
 from genkit._core._logger import get_logger
 from genkit._core._model import (
     Message,
@@ -700,13 +706,18 @@ class MiddlewareConfigCheck:
             else:
                 # A model validator: blame the fields this layer changed.
                 where = ', '.join(repr(name) for name in changed) or 'values'
-            msg = errors[0]['msg'] if errors else str(e)
-            raise GenkitError(
+            # A model validator has no path, and its input is the whole config.
+            show_input = bool(loc) and validation_input_is_printable(e)
+            msg = validation_problem(errors[0], show_input=show_input) if errors else str(e)
+            error = GenkitError(
                 status='INVALID_ARGUMENT',
                 message=f'{prefix} set config {where}: {msg}',
                 reason=RuntimeErrorReason.INVALID_INPUT,
-                cause=e,
-            ) from e
+                details={'errors': validation_error_details(e)},
+            )
+            # The message names the problem; cause= would append it again.
+            error.cause = e
+            raise error from e
         # Writing ``__dict__`` directly keeps ``model_fields_set`` as the
         # middleware left it, so ``exclude_unset`` dumps don't change.
         for name in changed:

@@ -28,8 +28,15 @@ from typing import Any, cast
 from jsonschema.exceptions import SchemaError, best_match
 from jsonschema.validators import validator_for
 from pydantic import BaseModel, ValidationError
+from pydantic_core import ErrorDetails
 
-from genkit._core._error import GenkitError, RuntimeErrorReason
+from genkit._core._error import (
+    GenkitError,
+    RuntimeErrorReason,
+    validation_error_details,
+    validation_input_is_printable,
+    validation_problem,
+)
 from genkit._core._model import config_field_names, fold_config_aliases
 
 ConfigSchema = type[BaseModel] | dict[str, Any]
@@ -122,7 +129,7 @@ def _check_class(
         else []
     )
     instance: BaseModel | None = None
-    problems: list[Mapping[str, Any]] = []
+    problems: list[ErrorDetails] = []
     cause: ValidationError | None = None
     try:
         instance = schema.model_validate(fold_config_aliases(config=values, schema=schema))
@@ -141,18 +148,26 @@ def _check_class(
         keys = ', '.join(repr(key) for key in unknown)
         noun = 'key' if len(unknown) == 1 else 'keys'
         parts.append(f"unknown config {noun} {keys}; put provider-only settings in config['extra']")
+    printable = cause is not None and validation_input_is_printable(cause)
+    # An error with no path is a model validator; its input is the whole config.
     parts.extend(
-        f'config {_config_path(err["loc"])!r}: {err["msg"]}' for err in problems if err['type'] != 'extra_forbidden'
+        f'config {_config_path(err["loc"])!r}: {validation_problem(err, show_input=printable and bool(err["loc"]))}'
+        for err in problems
+        if err['type'] != 'extra_forbidden'
     )
     error = GenkitError(
         status='INVALID_ARGUMENT',
         message=f'{model}: {"; ".join(parts)}',
         reason=RuntimeErrorReason.INVALID_INPUT,
-        cause=cause,
+        details={'errors': validation_error_details(cause)} if cause is not None else None,
     )
-    if cause is not None:
-        raise error from cause
-    raise error
+    if cause is None:
+        raise error
+    # The message already names every problem. Passing cause= would append
+    # Pydantic's wording of the same problems to str(error), so the cause is
+    # attached after construction instead.
+    error.cause = cause
+    raise error from cause
 
 
 def _json_schema_problems(

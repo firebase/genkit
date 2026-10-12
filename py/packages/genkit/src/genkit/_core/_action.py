@@ -888,12 +888,23 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
 
         Both must name the same class. With a subclass, a dict would validate
         into the annotated class and drop the other class's fields, so only
-        the identical class is accepted.
+        the identical class is accepted. A JSON-schema dict next to an
+        annotated class is rejected too: the class would win and the dict
+        would never be checked.
         """
         field = config_field(self._kind)
         annotated = declared_config_type(self._input_class) if field and self._input_class is not None else None
         if annotated is None:
             return declared
+        if isinstance(declared, dict):
+            raise GenkitError(
+                status='INVALID_ARGUMENT',
+                message=(
+                    f'{describe_action(self._kind, self._name)}: config_schema is a JSON schema, '
+                    f'but the function takes {field} as {config_type_path(annotated)}. '
+                    'Pass the class or the JSON schema, not both.'
+                ),
+            )
         if isinstance(declared, type) and declared is not annotated:
             raise GenkitError(
                 status='INVALID_ARGUMENT',

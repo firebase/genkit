@@ -28,7 +28,7 @@ import threading
 from typing import Any, cast
 
 import pytest
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 from pydantic.alias_generators import to_camel
 
 from genkit import FinishReason, Genkit, GenkitError
@@ -1064,3 +1064,112 @@ async def test_untyped_fn_gets_enum_defaults_as_their_values() -> None:
     await ai.embed(embedder='crm', content='acme corp')
 
     assert seen['embedder'] == {'spice': 'mild', 'extras': ['hot']}
+
+
+# -----------------------------------------------------------------------------
+# A JSON-schema config_schema next to a typed annotation
+# -----------------------------------------------------------------------------
+
+TABLE_JSON_SCHEMA: dict[str, object] = {'type': 'object', 'properties': {'temperature': {'type': 'number'}}}
+
+
+def test_model_json_schema_next_to_typed_annotation_raises() -> None:
+    ai = Genkit()
+
+    async def bistro(request: ModelRequest[TableConfig], ctx: ActionRunContext) -> ModelResponse:
+        return _ok()
+
+    with pytest.raises(
+        GenkitError,
+        match=r"model 'bistro': config_schema is a JSON schema, but the function takes config as .*TableConfig\. "
+        r'Pass the class or the JSON schema, not both\.',
+    ) as err:
+        ai.define_model(name='bistro', fn=bistro, config_schema=TABLE_JSON_SCHEMA)
+
+    assert err.value.status == 'INVALID_ARGUMENT'
+
+
+def test_embedder_json_schema_next_to_typed_annotation_raises() -> None:
+    ai = Genkit()
+
+    async def crm_search(request: EmbedRequest[CrmEmbedConfig]) -> EmbedResponse:
+        return _embedding()
+
+    with pytest.raises(
+        GenkitError, match=r"embedder 'crm': config_schema is a JSON schema, but the function takes options"
+    ):
+        ai.define_embedder('crm', crm_search, config_schema=TABLE_JSON_SCHEMA)
+
+
+def test_evaluator_json_schema_next_to_typed_annotation_raises() -> None:
+    ai = Genkit()
+
+    async def allergy_check(request: EvaluatorRequest[AllergyJudgeConfig]) -> EvaluatorResponse:
+        return _score()
+
+    async def allergy_batch(request: BatchEvaluatorRequest[AllergyJudgeConfig]) -> list[EvaluatorResponse]:
+        return [_score()]
+
+    match = (
+        r"evaluator 'allergy': config_schema is a JSON schema, but the function takes options as .*AllergyJudgeConfig"
+    )
+    with pytest.raises(GenkitError, match=match):
+        ai.define_evaluator('allergy', allergy_check, display_name='A', definition='d', config_schema=TABLE_JSON_SCHEMA)
+    with pytest.raises(GenkitError, match=match):
+        ai.define_batch_evaluator(
+            'allergy', allergy_batch, display_name='A', definition='d', config_schema=TABLE_JSON_SCHEMA
+        )
+
+
+def test_json_schema_with_untyped_fn_is_still_fine() -> None:
+    ai = Genkit()
+
+    async def bistro(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        return _ok()
+
+    action = ai.define_model(name='bistro', fn=bistro, config_schema=TABLE_JSON_SCHEMA)
+
+    assert action.config_schema == TABLE_JSON_SCHEMA
+
+
+# -----------------------------------------------------------------------------
+# Each config problem is said once
+# -----------------------------------------------------------------------------
+
+
+class ChefConfig(BaseModel):
+    """A kitchen model's settings."""
+
+    temperature: float = 0.5
+
+
+@pytest.mark.asyncio
+async def test_bad_config_names_each_problem_once_on_every_kind() -> None:
+    ai = Genkit()
+
+    async def chef(request: ModelRequest[ChefConfig], ctx: ActionRunContext) -> ModelResponse:
+        return _ok()
+
+    async def crm_search(request: EmbedRequest[ChefConfig]) -> EmbedResponse:
+        return _embedding()
+
+    async def allergy_check(request: EvaluatorRequest[ChefConfig]) -> EvaluatorResponse:
+        return _score()
+
+    ai.define_model(name='chef', fn=chef)
+    ai.define_embedder('crm', crm_search)
+    ai.define_evaluator('judge', allergy_check, display_name='J', definition='d')
+    problem = "config 'temperature': Input should be a valid number, unable to parse string as a number, got 'hot'"
+
+    calls = {
+        'chef': lambda: ai.generate(model='chef', prompt='hi', config={'temperature': 'hot'}),
+        'crm': lambda: ai.embed(embedder='crm', content='acme corp', config={'temperature': 'hot'}),
+        'judge': lambda: ai.evaluate(evaluator='judge', dataset=ROWS, config={'temperature': 'hot'}),
+    }
+    for name, call in calls.items():
+        with pytest.raises(GenkitError) as err:
+            await call()
+        assert str(err.value) == f'INVALID_ARGUMENT: {name}: {problem}'
+        assert isinstance(err.value.__cause__, ValidationError)
+        assert err.value.cause is err.value.__cause__
+        assert err.value.details['errors'][0]['loc'] == ['temperature']
