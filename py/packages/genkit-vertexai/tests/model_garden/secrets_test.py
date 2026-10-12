@@ -20,8 +20,8 @@ from collections.abc import Awaitable, Callable
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from genkit_vertexai.model_garden import ModelGarden
-from genkit_vertexai.model_garden.model_garden import ModelGardenModel
+from genkit_vertexai import ModelGarden
+from genkit_vertexai._model_garden._plugin import ModelGardenModel
 
 from genkit import ActionRunContext, Genkit, GenkitError, Message, ModelResponse, Part, Role
 from genkit.model import ModelRequest
@@ -39,7 +39,7 @@ async def test_generate_model_garden_claude_secrets_api_key_fails_invalid_argume
     """A key in `context.secrets` on Model Garden Claude fails with INVALID_ARGUMENT and never builds a client."""
     ai = model_garden_app()
 
-    with patch('genkit_vertexai.model_garden.anthropic.AsyncAnthropicVertex') as vertex_client:
+    with patch('genkit_vertexai._model_garden._anthropic.AsyncAnthropicVertex') as vertex_client:
         response = await ai.generate(model=CLAUDE_MODEL, prompt='hi', context={'secrets': {key_name: 'tenant-key'}})
 
     assert response.error is not None

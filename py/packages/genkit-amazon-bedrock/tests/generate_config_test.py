@@ -20,8 +20,8 @@ import json
 from typing import Any, cast
 
 import pytest
-from genkit_amazon_bedrock import Bedrock, BedrockConfig, ModelDefinition
-from genkit_amazon_bedrock.transport import BedrockTransport
+from genkit_amazon_bedrock import Bedrock, BedrockConfig
+from genkit_amazon_bedrock._transport import BedrockTransport
 from pydantic import ValidationError
 
 from genkit import Genkit, GenkitError
@@ -58,8 +58,8 @@ def bedrock_app() -> tuple[Genkit, FakeTransport]:
     plugin = Bedrock(
         region='us-east-1',
         models=[
-            ModelDefinition(name='stability.sd3-5-large-v1:0', type='image'),
-            ModelDefinition(name='amazon.nova-canvas-v1:0', type='image'),
+            'stability.sd3-5-large-v1:0',
+            'amazon.nova-canvas-v1:0',
         ],
     )
     transport = FakeTransport()

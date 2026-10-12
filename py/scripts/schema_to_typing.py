@@ -58,6 +58,15 @@ TRANSFORMATIONS = {
     # docs= always goes into the prompt and nothing in Python reads
     # supports.context, so the field isn't emitted.
     'Supports': {'omit': ['context']},
+    # Models declare config with config_schema= and publish it as
+    # customOptions. ModelInfo.configSchema was a second, unread slot for the
+    # same thing, so it isn't emitted.
+    'ModelInfo': {'omit': ['configSchema']},
+    # Evaluator authors type these names when building a Score. Only the
+    # Python class names differ; the JSON ('PASS', details.reasoning) follows the schema.
+    'EvalStatusEnum': {'output_name': 'ScoreStatus'},
+    # Inline Score.details object. Only Score has an object-typed details.
+    'Details': {'output_name': 'ScoreDetails'},
 }
 
 
@@ -179,7 +188,7 @@ def _typed_map_aliases(defs: dict) -> dict[str, str]:
 
 
 def _extract_inline_classes(schema: dict) -> dict[str, dict]:
-    """Extract inline object schemas to named classes (e.g. Score.details -> Details).
+    """Extract inline object schemas to named classes (e.g. Score.details -> ScoreDetails).
 
     When two inline schemas across different parents share a derived class
     name (e.g. ``resume`` on both ``AgentInput`` and ``GenerateActionOptions``),
