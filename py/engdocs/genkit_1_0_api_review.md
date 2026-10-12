@@ -1,6 +1,6 @@
 # Genkit 1.0 API Review (Python)
 
-The Python surface we intend to ship as 1.0. It describes the state after the open API PRs land (#6681, #6697, #6698, #6699, #6709, #6757, #6764–#6770, #6775, #6777, #6314, #6655).
+The Python surface we intend to ship as 1.0. It describes the state after the open API PRs land (#6681, #6697, #6698, #6699, #6708, #6709, #6757, #6764–#6770, #6775, #6777, #6314, #6655).
 
 ---
 
@@ -1218,9 +1218,56 @@ The full version also restores the original chunk callback in a `finally` and re
 
 ---
 
-## 10. Runtime Architecture: Reflection & Action Registry
+## 10. Runtime Architecture: Actions, Reflection, Event Loops
 
-- **Everything is an `Action`:** models, tools, flows, embedders, and evaluators are [`Action`](../packages/genkit/src/genkit/_core/_action.py)s in one registry. Plugins register theirs at init or resolve them lazily on first use.
-- **Reflection server only in dev:** `Genkit()` starts the reflection server on a daemon thread when `GENKIT_ENV=dev` (which `genkit start` sets) or `GENKIT_REFLECTION_ENABLED=true`. It serves the registry and traces to the Dev UI.
+### Actions and composites
+
+Every capability is registered as one or more [`Action`](../packages/genkit/src/genkit/_core/_action.py)s: a typed async function with one input, one output, optional chunks, and a registry key. Plugins register theirs at init or resolve them lazily on first use. The public classes split by how many actions they are:
+
+- **`Action` subclasses** (one action each; calling the object is `(await obj.run(x)).response`):
+  - `Model(Action[ModelRequest, ModelResponse, ModelResponseChunk])`
+  - `Embedder(Action[EmbedRequest, EmbedResponse])`
+  - `Evaluator` / `BatchEvaluator(Action[EvaluatorRequest, EvalResponse])`
+  - `Flow(Action[In, Out, Chunk])`
+  - `Tool(Action[In, Out])`: the tool action returns the function's own value, so `await tool(x)` gives a `Quote` or a `str`. Genkit wraps it in a `MultipartToolResponse` only where the result goes to a model, the same split JS makes between its `tool` and `tool.v2` actions.
+- **Composites** (several actions behind one handle, so no single `Action[In, Out]` fits):
+  - `BackgroundModel`: `start` (`background-model`), `check` (`check-operation`), and optional `cancel` (`cancel-operation`), each with its own key and types. `.actions` lists them for registration.
+  - `Prompt`: a `prompt` action that renders the request and an `executable-prompt` action that runs `generate`. Calling the prompt resolves the model and goes through `generate`.
+
+### Reflection server on a daemon thread
+
+`Genkit()` starts the reflection server when `GENKIT_ENV=dev` (which `genkit start` sets) or `GENKIT_REFLECTION_ENABLED=true`. It runs on its own daemon thread with its own event loop (`asyncio.run` inside the thread), so it works the same under FastAPI, Flask, Django, a script, or no server at all, and never blocks the app's loop. The socket is bound on the calling thread first, so a busy pinned port fails `Genkit()` instead of a thread nobody watches. Production servers without those env vars start no thread.
+
 - **`ai.run_main(main())`:** with reflection on, it keeps the process alive after `main` returns so the Dev UI can keep running flows, until Ctrl+C or SIGTERM. With reflection off, it returns when `main` does, like `asyncio.run`.
-- **Production:** a server like `uvicorn main:app` without those env vars starts no reflection thread.
+
+### One action, two event loops: `loop_local_client`
+
+A flow the Dev UI runs executes on the reflection thread's loop; the same flow called from your app runs on the app's loop. Async clients (httpx, the OpenAI and Anthropic SDKs, google-genai) bind to the loop they first run on, so a client created on one loop and reused on the other fails with "attached to a different loop" or hangs. A plugin can't pick one loop: both are live in a dev process.
+
+`loop_local_client` (`genkit.plugin_api`) caches one client per running loop, built on first use there and reused after. Plugins use it for every long-lived client:
+
+```python
+import httpx
+from openai import AsyncOpenAI
+from genkit.plugin_api import Plugin, loop_local_client
+
+# 1. Module level: a plain transport shared by every plugin instance, one per loop
+@loop_local_client
+def http_client() -> httpx.AsyncClient:
+    return httpx.AsyncClient(timeout=60.0)
+
+# 2. Per instance: a client built from plugin settings, one per instance per loop
+class Bistro(Plugin):
+    def __init__(self, api_key: str) -> None:
+        self._api_key = api_key
+
+    @loop_local_client
+    def _client(self) -> AsyncOpenAI:
+        return AsyncOpenAI(api_key=self._api_key)
+
+# 3. Same loop, same client; the reflection loop gets its own
+print(http_client() is http_client())
+# => True
+```
+
+The cache is keyed weakly by loop, so a client goes away with its loop. Don't close a shared client; for a client scoped to one call, use `async with httpx.AsyncClient() as client:` inside the call. The method form is #6708.
