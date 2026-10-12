@@ -980,6 +980,63 @@ func TestLookupModel(t *testing.T) {
 	})
 }
 
+func TestGenerateUnregisteredModel(t *testing.T) {
+	t.Parallel()
+
+	scripted := func(text string) *ModelAction {
+		return NewModelAction("test/scripted", nil, func(ctx context.Context, req *ModelRequest, _ any, cb ModelStreamCallback) (*ModelResponse, error) {
+			return &ModelResponse{
+				Request: req,
+				Message: NewModelTextMessage(text),
+				Usage:   &GenerationUsage{InputTokens: 2, OutputTokens: 3},
+			}, nil
+		})
+	}
+
+	t.Run("runs through middleware and reports usage", func(t *testing.T) {
+		r := newTestRegistry(t)
+		wrapped := false
+		mw := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+			return &Hooks{
+				WrapModel: func(ctx context.Context, p *ModelParams, next ModelNext) (*ModelResponse, error) {
+					wrapped = true
+					return next(ctx, p)
+				},
+			}, nil
+		})
+
+		resp, err := Generate(testCtx, r, WithModel(scripted("scripted")), WithPrompt("hi"), WithUse(mw))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := resp.Text(); got != "scripted" {
+			t.Errorf("Text() = %q, want %q", got, "scripted")
+		}
+		if !wrapped {
+			t.Error("WrapModel hook did not run")
+		}
+		if u := resp.TotalUsage; u == nil || u.InputTokens != 2 || u.OutputTokens != 3 {
+			t.Errorf("TotalUsage = %+v, want InputTokens 2, OutputTokens 3", u)
+		}
+		if LookupModel(r, "test/scripted") != nil {
+			t.Error("Generate registered the model")
+		}
+	})
+
+	t.Run("wins over a registered model of the same name", func(t *testing.T) {
+		r := newTestRegistry(t)
+		scripted("registered").Register(r)
+
+		resp, err := Generate(testCtx, r, WithModel(scripted("passed")), WithPrompt("hi"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := resp.Text(); got != "passed" {
+			t.Errorf("Text() = %q, want %q", got, "passed")
+		}
+	})
+}
+
 func JSONMarkdown(text string) string {
 	return "```json\n" + text + "\n```"
 }
@@ -3557,6 +3614,42 @@ func TestResumeCarriesOptionsForward(t *testing.T) {
 			t.Errorf("resumed response = %q, want %q", got, "done")
 		}
 	})
+	t.Run("the resumed turn keeps a hook's edits to the first turn", func(t *testing.T) {
+		r, tool, res := interruptedForResume(t)
+		respond := tool.Respond(res.Message.Content[0], "answer", nil)
+
+		var resumed []*Message
+		tag := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+			return &Hooks{
+				WrapGenerate: func(ctx context.Context, p *GenerateParams, next GenerateNext) (*ModelResponse, error) {
+					if p.Iteration > 0 {
+						resumed = p.Request.Messages
+						return next(ctx, p)
+					}
+					tagged := *p.Request.Messages[0]
+					tagged.Metadata = map[string]any{"tagged": true}
+					req := *p.Request
+					req.Messages = append([]*Message{&tagged}, p.Request.Messages[1:]...)
+					p.Request = &req
+					return next(ctx, p)
+				},
+			}, nil
+		})
+
+		_, err := Generate(testCtx, r, WithModelName("test/resumeModel"),
+			WithMessages(res.History()...), WithTools(tool),
+			WithResume(respond), WithUse(tag))
+		assertNoError(t, err)
+
+		// Other turns build on the request a hook passed on, so the resumed
+		// one must as well.
+		if len(resumed) == 0 {
+			t.Fatal("the hook saw no resumed turn")
+		}
+		if got := resumed[0].Metadata; got["tagged"] != true {
+			t.Errorf("resumed turn's first message metadata = %v, want the tag the first turn's hook added", got)
+		}
+	})
 }
 
 // TestGeneratePartialResponseOnFailure covers the partial-response contract:
@@ -5005,6 +5098,79 @@ func TestToolErrorsReturnedToModel(t *testing.T) {
 			t.Fatalf("tool message = %+v, want two responses", toolMsg)
 		}
 		assertToolError(t, toolMsg.Content[1], "no such city")
+	})
+}
+
+// TestToolPanic pins that a panic in a tool call fails the call, not the
+// process, and that the panic value, which can hold secrets, reaches neither
+// the error nor the model.
+func TestToolPanic(t *testing.T) {
+	const secret = "sk-secret"
+	panicking := func(ctx *ToolContext, in map[string]any) (string, error) { panic(secret) }
+	panicHook := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+		return &Hooks{WrapTool: func(ctx context.Context, p *ToolParams, next ToolNext) (*MultipartToolResponse, error) {
+			panic(secret)
+		}}, nil
+	})
+	assertFailed := func(t *testing.T, resp *ModelResponse, err error) {
+		t.Helper()
+		if !errors.Is(err, ErrToolFailed) {
+			t.Fatalf("err = %v, want ErrToolFailed", err)
+		}
+		if strings.Contains(err.Error(), secret) {
+			t.Errorf("err = %v, want it without the panic value", err)
+		}
+		if resp == nil || resp.FinishReason != FinishReasonFailed {
+			t.Fatalf("resp = %+v, want a partial response with FinishReason %q", resp, FinishReasonFailed)
+		}
+	}
+
+	t.Run("a panicking tool fails the loop", func(t *testing.T) {
+		r := newTestRegistry(t)
+		softFailModel(t, r, "lookup", nil)
+		lookup := defineTool(r, "lookup", "panics", panicking)
+
+		resp, err := Generate(testCtx, r, WithModelName("test/softFail"), WithPrompt("go"), WithTools(lookup))
+		assertFailed(t, resp, err)
+	})
+
+	t.Run("the policy answers the call with a fixed message", func(t *testing.T) {
+		r := newTestRegistry(t)
+		var got *Part
+		softFailModel(t, r, "lookup", &got)
+		lookup := defineTool(r, "lookup", "panics", panicking)
+
+		resp, err := Generate(testCtx, r, WithModelName("test/softFail"), WithPrompt("go"), WithTools(lookup),
+			WithUse(softToolErrors()))
+		assertNoError(t, err)
+		if resp.Text() != "done" {
+			t.Errorf("Text() = %q, want %q", resp.Text(), "done")
+		}
+		if msg := assertToolError(t, got, "tool panicked"); msg != "tool panicked" {
+			t.Errorf("error message = %q, want %q", msg, "tool panicked")
+		}
+	})
+
+	// A hook's panic is the hook's failure, which the policy does not cover.
+	t.Run("a panicking hook fails the loop", func(t *testing.T) {
+		r := newTestRegistry(t)
+		softFailModel(t, r, "lookup", nil)
+		lookup := defineTool(r, "lookup", "never runs", func(ctx *ToolContext, in map[string]any) (string, error) {
+			return "ok", nil
+		})
+
+		resp, err := Generate(testCtx, r, WithModelName("test/softFail"), WithPrompt("go"), WithTools(lookup),
+			WithUse(softToolErrors(), panicHook))
+		assertFailed(t, resp, err)
+	})
+
+	t.Run("a panicking hook fails a restart", func(t *testing.T) {
+		r, tool, res := interruptedForResume(t)
+
+		resp, err := Generate(testCtx, r, WithModelName("test/resumeModel"),
+			WithMessages(res.History()...), WithTools(tool),
+			WithToolRestarts(tool.Restart(res.Message.Content[0], nil)), WithUse(panicHook))
+		assertFailed(t, resp, err)
 	})
 }
 

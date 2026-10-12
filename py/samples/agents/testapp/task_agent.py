@@ -28,10 +28,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from _ai import ai
+from _ai import ai, reply_text
 from pydantic import BaseModel
 
 from genkit import ActionRunContext
+from genkit.exp import current_session
 
 
 class TaskItem(BaseModel):
@@ -77,7 +78,7 @@ async def add_task(input: AddTaskInput) -> TaskItem:
         s['next_id'] += 1
         return s
 
-    if sess := ai.current_session():
+    if sess := current_session():
         await sess.update_custom(mutate)
     if created is None:
         raise RuntimeError('add_task needs a live session')
@@ -97,7 +98,7 @@ async def toggle_task(input: TaskIdInput) -> dict[str, Any]:
                 result = {'success': True, 'task': t}
         return s
 
-    if sess := ai.current_session():
+    if sess := current_session():
         await sess.update_custom(mutate)
     return result
 
@@ -115,7 +116,7 @@ async def remove_task(input: TaskIdInput) -> dict[str, Any]:
             result = {'success': True}
         return s
 
-    if sess := ai.current_session():
+    if sess := current_session():
         await sess.update_custom(mutate)
     return result
 
@@ -143,7 +144,7 @@ async def test_task_agent(text: str, ctx: ActionRunContext) -> dict[str, Any]:
             ctx.send_chunk(chunk.text)
     res = await turn
     state = res.state
-    return {'text': res.text, 'tasks': state.model_dump()['tasks'] if state else []}
+    return {'text': reply_text(res), 'tasks': state.model_dump()['tasks'] if state else []}
 
 
 if __name__ == '__main__':

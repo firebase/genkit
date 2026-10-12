@@ -25,7 +25,7 @@ from genkit._ai._agents._session import Session
 from genkit._ai._agents._session_stores._inmemory_store import InMemorySessionStore
 from genkit._ai._agents._snapshot import abort_snapshot_in_store
 from genkit._ai._agents._types import TurnContext
-from genkit._ai._generate import generate_action
+from genkit._ai._generate import CallScope, generate_action
 from genkit._ai._tools import ToolRunContext
 from genkit._core._action import ActionRunContext
 from genkit._core._channel import CloseableQueue
@@ -351,7 +351,7 @@ async def test_generate_tool_respects_abort_signal() -> None:
 
     async def run_generate() -> None:
         response = await generate_action(
-            ai.registry,
+            CallScope(ai),
             GenerateActionOptions(
                 model='scriptedModel',
                 messages=[Message(role=Role.USER, content=[Part.from_text('go')])],

@@ -100,7 +100,7 @@ Each sample runs with `go run .`. Start with the `basic-*` set: together they co
 | [basic‑agents](samples/basic-agents) | Inline, prompt-file, and custom agents with snapshots, background runs, and delegation |
 | [basic‑agents‑server](samples/basic-agents-server/main.go) | Store-backed and stateless agents over HTTP |
 | [basic‑tool‑interrupts](samples/basic-tool-interrupts/main.go) | Human in the loop: a tool that pauses for approval |
-| [basic‑middleware](samples/basic-middleware) | [Retry and fallback](samples/basic-middleware/retry-fallback/main.go), [filesystem](samples/basic-middleware/filesystem), and [skills](samples/basic-middleware/skills) middleware |
+| [basic‑middleware](samples/basic-middleware) | [Retry and fallback](samples/basic-middleware/retry-fallback/main.go), [filesystem](samples/basic-middleware/filesystem), [skills](samples/basic-middleware/skills), and [context compression](samples/basic-middleware/context-compression/main.go) middleware |
 | [basic‑errors](samples/basic-errors/main.go) | Error classification with sentinels and `errors.Is` |
 | [basic‑durable‑streaming‑exp](samples/basic-durable-streaming-exp/main.go) | Reconnectable streams with replay *(preview)* |
 
@@ -373,7 +373,9 @@ for _, r := range genkitx.AllAgentRoutes(g) {
 // POST /agents/chat/getSnapshot       read a snapshot
 // POST /agents/chat/waitForSnapshot   wait for a snapshot to settle
 // POST /agents/chat/abort             abort background work
-log.Fatal(server.Start(ctx, "127.0.0.1:8080", mux))
+if err := server.Start(ctx, "127.0.0.1:8080", mux); err != nil {
+    log.Fatal(err)
+}
 ```
 
 [Docs](https://genkit.dev/docs/go/agents/http/) &middot; [Example](samples/basic-agents-server/main.go)
@@ -585,6 +587,8 @@ Also built in:
 - [`Filesystem`](samples/basic-middleware/filesystem): gives the model file tools confined to one directory.
 - [`Skills`](samples/basic-middleware/skills): loads [Agent Skills](https://agentskills.io) `SKILL.md` files on demand.
 
+Experimental, in `middleware/exp`: [`ContextCompression`](samples/basic-middleware/context-compression/main.go) keeps long conversations and tool loops inside a context budget.
+
 To build your own, implement [`ai.Middleware`](https://genkit.dev/docs/go/middleware/#building-your-own-custom-middleware) or wrap a function with `ai.MiddlewareFunc`.
 
 [Docs](https://genkit.dev/docs/go/middleware/) &middot; [Example](samples/basic-middleware/retry-fallback/main.go)
@@ -774,7 +778,7 @@ Genkit provides a unified interface across all major AI providers. Use whichever
 | **Vertex AI Model Garden** | `modelgarden.Anthropic`, `.Llama`, `.Mistral` | Claude, Llama, and Mistral via Google Cloud |
 | **Ollama** | `ollama.Ollama` | Llama 4, Qwen 3, DeepSeek, and other local models |
 | **OpenAI Compatible** | `compat_oai` | GPT-5.6, Grok, DeepSeek, Qwen, Kimi, GLM, the OpenRouter gateway, and any OpenAI-compatible API |
-| **TypeSafe** *(preview)* | `typesafex.TypeSafe` | jev, a decision model with calibrated answers ([README](plugins/typesafe/exp/README.md)) |
+| **System One** *(preview)* | `systemonex.SystemOne`, `systemonex.TypeSafe()`, `systemonex.OpenRouter()`, `systemonex.Ollama()`, `systemonex.WorkersAI("")` | Decision models such as TypeSafe's jev, Liquid AI's d1, and Cloudflare's Clef, with calibrated answers ([README](plugins/systemone/exp/README.md)) |
 
 ```go
 // Google AI

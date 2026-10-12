@@ -442,9 +442,10 @@ project_includes = [
   "packages/genkit/src/**/*.py",
 ]
 
-# Search path for first-party code import resolution.
+# Search path for first-party code import resolution. "." comes last so
+# package modules keep their import names (genkit._ai._aio), not their file
+# paths (packages.genkit.src.genkit._ai._aio).
 search-path = [
-  ".",
   "packages/genkit/src",
   "packages/genkit-amazon-bedrock/src",
   "packages/genkit-anthropic/src",
@@ -460,6 +461,7 @@ search-path = [
   "packages/genkit-a2ui/src",
   "packages/genkit-ollama/src",
   "packages/genkit-vertexai/src",
+  ".",
 ]
 python_version = "3.10"
 

@@ -17,9 +17,16 @@
 package exp
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/binary"
 	"errors"
+	"image"
+	"image/color"
+	"image/png"
 	"math"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -35,8 +42,8 @@ func TestOpenRouterLive(t *testing.T) {
 	if os.Getenv("OPENROUTER_API_KEY") == "" {
 		t.Skip("OPENROUTER_API_KEY is not set")
 	}
-	g := genkit.Init(t.Context(), genkit.WithPlugins(&TypeSafe{Endpoint: OpenRouter()}))
-	const model = "typesafe/jev-latest"
+	g := genkit.Init(t.Context(), genkit.WithPlugins(OpenRouter()))
+	const model = "openrouter-decisions/~typesafe/jev-latest"
 
 	t.Run("decision", func(t *testing.T) {
 		// The documented call: the model, the state, and the type.
@@ -75,7 +82,7 @@ func TestOpenRouterLive(t *testing.T) {
 			t.Errorf("frustration = %+v", out.Frustration)
 		}
 		if resp.Usage == nil || resp.Usage.InputTokens == 0 {
-			t.Errorf("usage = %+v", resp.Usage)
+			t.Fatalf("usage = %+v", resp.Usage)
 		}
 		if ResponseInfo(resp).Model == "" {
 			t.Errorf("no resolved model version on the response: %v", resp.Raw)
@@ -159,7 +166,7 @@ func TestOpenRouterLive(t *testing.T) {
 
 	t.Run("pinned minor version", func(t *testing.T) {
 		_, resp, err := genkit.GenerateData[triage](t.Context(), g,
-			ai.WithModelName("typesafe/jev-1.13"),
+			ai.WithModelName("openrouter-decisions/typesafe/jev-1.13"),
 			ai.WithPrompt("I was charged twice for one order."))
 		if err != nil {
 			t.Fatal(err)
@@ -167,20 +174,11 @@ func TestOpenRouterLive(t *testing.T) {
 		t.Logf("jev-1.13 resolved to %v", ResponseInfo(resp).Model)
 	})
 
-	t.Run("patch version refused", func(t *testing.T) {
-		_, _, err := genkit.GenerateData[triage](t.Context(), g,
-			ai.WithModelName("typesafe/jev-1.13.0"),
-			ai.WithPrompt("I was charged twice for one order."))
-		if !errors.Is(err, status.ErrInvalidArgument) {
-			t.Errorf("error = %v, want invalid argument", err)
-		}
-	})
-
 	t.Run("preview alias", func(t *testing.T) {
-		// The alias is forwarded rather than served as latest, so the
-		// gateway says whether it has a preview channel.
+		// The alias is forwarded as it is, so the gateway says whether it
+		// has a preview channel.
 		_, resp, err := genkit.GenerateData[triage](t.Context(), g,
-			ai.WithModelName("typesafe/jev-preview"),
+			ai.WithModelName("openrouter-decisions/~typesafe/jev-preview"),
 			ai.WithPrompt("I was charged twice for one order."))
 		if err != nil {
 			if !errors.Is(err, status.ErrInvalidArgument) || !strings.Contains(err.Error(), "jev-preview") {
@@ -190,6 +188,31 @@ func TestOpenRouterLive(t *testing.T) {
 			return
 		}
 		t.Logf("jev-preview resolved to %v", ResponseInfo(resp).Model)
+	})
+
+	t.Run("another vendor's model", func(t *testing.T) {
+		// The same decision type, through the same plugin, to Liquid AI's d1.
+		out, resp, err := genkit.GenerateData[triage](t.Context(), g,
+			ai.WithModelName("openrouter-decisions/liquid/d1"),
+			ai.WithPrompt("I was charged twice for one order and I need the duplicate refunded today."))
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("answers: %s, info: %s", base.JSONString(out), base.JSONString(ResponseInfo(resp)))
+		if out.Department.Choice != "billing" {
+			t.Errorf("department = %q, want billing for a double charge", out.Department.Choice)
+		}
+	})
+
+	t.Run("listing", func(t *testing.T) {
+		var names []string
+		for _, desc := range genkit.LookupPlugin(g, "openrouter-decisions").(*SystemOne).ListActions(t.Context()) {
+			names = append(names, desc.Name)
+		}
+		t.Logf("listed: %v", names)
+		if !slices.Contains(names, "openrouter-decisions/liquid/d1") {
+			t.Errorf("listed %v, want liquid/d1 among the decision models", names)
+		}
 	})
 
 	t.Run("runtime questions", func(t *testing.T) {
@@ -271,4 +294,138 @@ func TestOpenRouterLive(t *testing.T) {
 			t.Errorf("in_stock = %v, want over 0.5: the data document did not reach the state", out.InStock.Probability)
 		}
 	})
+}
+
+// The Workers AI checks run Cloudflare's own models on the account the
+// token belongs to, with media each model can answer about only by
+// reading it.
+func TestWorkersAILive(t *testing.T) {
+	if os.Getenv("CLOUDFLARE_API_TOKEN") == "" || os.Getenv("CLOUDFLARE_ACCOUNT_ID") == "" {
+		t.Skip("CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID is not set")
+	}
+	g := genkit.Init(t.Context(), genkit.WithPlugins(WorkersAI("")))
+	const omni = "cloudflare-decisions/@cf/cloudflare/clef-omni"
+
+	t.Run("decision", func(t *testing.T) {
+		out, resp, err := genkit.GenerateData[triage](t.Context(), g,
+			ai.WithModelName("cloudflare-decisions/@cf/cloudflare/clef-flash"),
+			ai.WithPrompt("I was charged twice for one order and I need the duplicate refunded today."))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out.Department.Choice != "billing" {
+			t.Errorf("department = %q, want billing for a double charge", out.Department.Choice)
+		}
+		if info := ResponseInfo(resp); info.Model != "clef-flash" || resp.Usage.InputTokens == 0 {
+			t.Errorf("model = %q, usage = %+v", info.Model, resp.Usage)
+		}
+	})
+
+	t.Run("images", func(t *testing.T) {
+		for _, model := range []string{"@cf/cloudflare/clef", "@cf/cloudflare/clef-flash", "@cf/cloudflare/clef-omni"} {
+			for _, tt := range []struct {
+				name  string
+				color color.RGBA
+				red   bool
+			}{{"red", color.RGBA{R: 255, A: 255}, true}, {"blue", color.RGBA{B: 255, A: 255}, false}} {
+				out, _, err := genkit.GenerateData[redCheck](t.Context(), g,
+					ai.WithModelName("cloudflare-decisions/"+model),
+					ai.WithMessages(ai.NewUserMessage(ai.NewTextPart("Photo from the customer."), ai.NewMediaPart("image/png", solidPNG(t, tt.color)))))
+				if err != nil {
+					t.Fatalf("%s: %v", model, err)
+				}
+				if got := out.Red.Probability > 0.5; got != tt.red {
+					t.Errorf("%s on a %s square: red = %v", model, tt.name, out.Red.Probability)
+				}
+			}
+		}
+	})
+
+	t.Run("audio", func(t *testing.T) {
+		for _, tt := range []struct {
+			name string
+			hz   float64
+			tone bool
+		}{{"tone", 880, true}, {"silence", 0, false}} {
+			out, _, err := genkit.GenerateData[toneCheck](t.Context(), g,
+				ai.WithModelName(omni),
+				ai.WithMessages(ai.NewUserMessage(ai.NewTextPart("A recording from the device."), ai.NewMediaPart("audio/wav", sineWAV(tt.hz)))))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := out.Tone.Probability > 0.5; got != tt.tone {
+				t.Errorf("%s: tone = %v", tt.name, out.Tone.Probability)
+			}
+		}
+	})
+
+	t.Run("video", func(t *testing.T) {
+		clip, err := os.ReadFile("testdata/red.mp4")
+		if err != nil {
+			t.Fatal(err)
+		}
+		out, _, err := genkit.GenerateData[redCheck](t.Context(), g,
+			ai.WithModelName(omni),
+			ai.WithMessages(ai.NewUserMessage(ai.NewTextPart("A clip from the camera."), ai.NewMediaPart("video/mp4", "data:video/mp4;base64,"+base64.StdEncoding.EncodeToString(clip)))))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out.Red.Probability <= 0.5 {
+			t.Errorf("red = %v on a red clip", out.Red.Probability)
+		}
+	})
+}
+
+// redCheck asks whether the media is red, which a model can answer only
+// by reading the media.
+type redCheck struct {
+	Red Noul `json:"red" jsonschema_description:"Is the attached image or video mostly the color red?"`
+}
+
+// toneCheck asks whether a recording holds a tone.
+type toneCheck struct {
+	Tone Noul `json:"tone" jsonschema_description:"Does the audio clip contain an audible tone or beep?"`
+}
+
+// solidPNG is a data URL of a small PNG of one color.
+func solidPNG(t *testing.T, c color.RGBA) string {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 64, 64))
+	for i := 0; i < len(img.Pix); i += 4 {
+		img.Pix[i], img.Pix[i+1], img.Pix[i+2], img.Pix[i+3] = c.R, c.G, c.B, c.A
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatal(err)
+	}
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(buf.Bytes())
+}
+
+// sineWAV is a data URL of two seconds of 16 kHz mono WAV: a sine at hz,
+// or silence at 0.
+func sineWAV(hz float64) string {
+	const rate, seconds = 16000, 2
+	samples := make([]int16, rate*seconds)
+	for i := range samples {
+		samples[i] = int16(12000 * math.Sin(2*math.Pi*hz*float64(i)/rate))
+	}
+	size := uint32(len(samples) * 2)
+	header := struct {
+		RIFF       [4]byte
+		Size       uint32
+		WAVEfmt    [8]byte
+		FmtSize    uint32
+		Format     uint16
+		Channels   uint16
+		Rate       uint32
+		ByteRate   uint32
+		BlockAlign uint16
+		Bits       uint16
+		Data       [4]byte
+		DataSize   uint32
+	}{[4]byte([]byte("RIFF")), 36 + size, [8]byte([]byte("WAVEfmt ")), 16, 1, 1, rate, rate * 2, 2, 16, [4]byte([]byte("data")), size}
+	var buf bytes.Buffer
+	_ = binary.Write(&buf, binary.LittleEndian, header)
+	_ = binary.Write(&buf, binary.LittleEndian, samples)
+	return "data:audio/wav;base64," + base64.StdEncoding.EncodeToString(buf.Bytes())
 }
