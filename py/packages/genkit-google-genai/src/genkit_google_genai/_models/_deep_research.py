@@ -20,11 +20,6 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from pydantic.alias_generators import to_camel
-
-from genkit import ActionRunContext, GenkitError, Operation
-from genkit.model import BackgroundAction, ModelRef, ModelRequest, background_model, model_ref
 from genkit_google_genai._interactions._client import (
     cancel_interaction,
     create_interaction,
@@ -46,6 +41,11 @@ from genkit_google_genai._models._interactions_utils import (
 )
 from genkit_google_genai._models._sdk_config import deep_merge
 from genkit_google_genai._models._secrets import reject_request_config_api_key
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic.alias_generators import to_camel
+
+from genkit import ActionRunContext, GenkitError, Operation
+from genkit.model import BackgroundAction, ModelRef, ModelRequest, background_model, model_ref
 
 AGENT_CONFIG_KEYS = (
     'thinking_summaries',
@@ -224,8 +224,8 @@ def create_deep_research_background_action(
 
     return background_model(
         full_name,
-        start,
-        check,
+        start=start,
+        check=check,
         cancel=cancel,
         info=info,
         config_schema=DeepResearchConfig,

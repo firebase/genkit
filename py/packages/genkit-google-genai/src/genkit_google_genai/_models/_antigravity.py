@@ -20,12 +20,6 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from pydantic.alias_generators import to_camel
-
-from genkit import ActionRunContext, ModelResponse
-from genkit.model import ModelRequest, model, model_action_metadata
-from genkit.plugin_api import Action
 from genkit_google_genai._interactions._client import create_interaction
 from genkit_google_genai._interactions._converters import from_interaction_sync
 from genkit_google_genai._interactions._options import ClientOptions
@@ -42,6 +36,12 @@ from genkit_google_genai._models._interactions_utils import (
 )
 from genkit_google_genai._models._sdk_config import deep_merge
 from genkit_google_genai._models._secrets import reject_request_config_api_key
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic.alias_generators import to_camel
+
+from genkit import ActionRunContext, ModelResponse
+from genkit.model import ModelRequest, model, model_action_metadata
+from genkit.plugin_api import Action
 
 DEFAULT_ENVIRONMENT: dict[str, str] = {'type': 'remote'}
 
