@@ -3,17 +3,26 @@
 # Copyright 2026 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-"""A missing required config field is the model action's call, not the pre-turn check.
+"""One config contract for every model, however its config is declared.
 
-``wrap_model`` middleware runs after the pre-turn check and can still fill
-a field, so only the model action knows a field is missing for real. Every
-way of declaring a model's config gives the same outcome: the
-``ModelRequest[...]`` annotation, a ``config_schema=`` class (with or
-without the annotation), and a ``config_schema=`` JSON-schema dict.
+Two checkpoints:
+
+- **Before the turn**: only the values the call sets. A bad one raises
+  ``INVALID_ARGUMENT``; a missing top-level field passes, because
+  ``wrap_model`` middleware can still fill it.
+- **Inside the model action** (a background model's start action): the
+  whole config. A required field nothing filled fails here. ``generate``
+  returns it as the turn's error; ``generate_operation`` has no response
+  to put it in, so it raises.
+
+The contract tests run over every pair of model kind (regular, background)
+and declaration (``ModelRequest[...]`` annotation, ``config_schema=`` class
+with or without the annotation, ``config_schema=`` JSON-schema dict). A new
+case added here covers all of them, so the two model kinds can't drift.
 """
 
 from collections.abc import Awaitable, Callable
-from typing import Literal
+from typing import Any, Literal
 
 import pytest
 from pydantic import BaseModel, ConfigDict
@@ -28,8 +37,14 @@ from genkit.model import model_ref
 
 NextModel = Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]]
 
+Kind = Literal['model', 'background']
 Declared = Literal['annotation', 'config_schema', 'class_only', 'json_schema']
+EVERY_KIND: list[Kind] = ['model', 'background']
 EVERY_DECLARATION: list[Declared] = ['annotation', 'config_schema', 'class_only', 'json_schema']
+# The two declarations that go through genkit._core._config_check (the
+# annotation paths fail in the action's input validation instead).
+SCHEMA_DECLARATIONS: list[Declared] = ['class_only', 'json_schema']
+PROMPT = 'Your table is ready.'
 
 
 class VoiceConfig(BaseModel):
@@ -39,27 +54,87 @@ class VoiceConfig(BaseModel):
     speed: float = 1.0
 
 
-def define_tts(ai: Genkit, *, declared: Declared) -> list[object]:
-    """Register a TTS model with VoiceConfig declared as ``declared``; return the configs it saw."""
-    configs: list[object] = []
+class StrictVoice(BaseModel):
+    """A user config class that forbids keys it doesn't declare, version included."""
 
-    async def typed_tts(request: ModelRequest[VoiceConfig], ctx: ActionRunContext) -> ModelResponse:
-        configs.append(request.config)
-        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('audio')]))
+    model_config = ConfigDict(extra='forbid')
+    voice: Literal['alloy', 'echo']
 
-    async def plain_tts(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
-        configs.append(request.config)
-        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('audio')]))
 
-    if declared == 'annotation':
-        ai.define_model('acme/tts', typed_tts)
-    elif declared == 'config_schema':
-        ai.define_model('acme/tts', typed_tts, config_schema=VoiceConfig)
-    elif declared == 'class_only':
-        ai.define_model('acme/tts', plain_tts, config_schema=VoiceConfig)
-    else:
-        ai.define_model('acme/tts', plain_tts, config_schema=VoiceConfig.model_json_schema())
-    return configs
+class Tts:
+    """A TTS model registered as ``kind`` with its config declared as ``declared``.
+
+    ``seen`` holds the configs the model function (or ``start``) received.
+    """
+
+    def __init__(self, ai: Genkit, *, kind: Kind, declared: Declared, config_class: type[BaseModel] = VoiceConfig):
+        self.ai = ai
+        self.kind = kind
+        self.seen: list[object] = []
+        typed = declared in ('annotation', 'config_schema')
+        schema: type[BaseModel] | dict[str, object] | None = {
+            'annotation': None,
+            'config_schema': config_class,
+            'class_only': config_class,
+            'json_schema': config_class.model_json_schema(),
+        }[declared]
+        # One function serves both kinds; define_model and define_background_model each type it narrowly.
+        fn: Any = self._typed_fn(config_class) if typed else self._plain_fn()
+        if kind == 'model':
+            ai.define_model('acme/tts', fn, config_schema=schema)
+        else:
+
+            async def check(operation: Operation, ctx: ActionRunContext) -> Operation:
+                return operation
+
+            ai.define_background_model('acme/tts', start=fn, check=check, config_schema=schema)
+
+    def _reply(self, config: object) -> ModelResponse | Operation:
+        self.seen.append(config)
+        if self.kind == 'model':
+            return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('audio')]))
+        return Operation(id='op-1', done=False)
+
+    def _typed_fn(self, config_class: type[BaseModel]) -> Callable[..., Awaitable[object]]:
+        async def tts(request: ModelRequest[config_class], ctx: ActionRunContext):  # type: ignore[valid-type]  # noqa: ANN202
+            return self._reply(request.config)
+
+        return tts
+
+    def _plain_fn(self) -> Callable[..., Awaitable[object]]:
+        async def tts(request: ModelRequest, ctx: ActionRunContext):  # noqa: ANN202
+            return self._reply(request.config)
+
+        return tts
+
+    async def call(self, *, model: object = 'acme/tts', **kwargs: object) -> object:
+        """generate for a regular model, generate_operation for a background model."""
+        if self.kind == 'model':
+            return await self.ai.generate(model=model, prompt=PROMPT, **kwargs)  # type: ignore[arg-type]
+        return await self.ai.generate_operation(model=model, prompt=PROMPT, **kwargs)  # type: ignore[arg-type]
+
+    async def failure(self, **kwargs: object) -> tuple[str, str, str] | None:
+        """How the call failed, as (where, status, text), or None if it ran.
+
+        ``where`` is ``'raised'`` or ``'turn'`` (a failed generate response).
+        ``text`` is the message plus details plus the chained cause: on the
+        annotation paths the action's input validation names the field in
+        details (failed turn) or only in the cause (raised).
+        """
+        try:
+            result = await self.call(**kwargs)
+        except GenkitError as e:
+            return 'raised', e.status, f'{e} {e.details} {e.cause}'
+        error = getattr(result, 'error', None)
+        if error is not None:
+            assert getattr(result, 'finish_reason', None) == FinishReason.FAILED
+            return 'turn', error.status, f'{error.message} {error.details}'
+        return None
+
+
+def voice_of(config: object) -> object:
+    """The voice a model saw, whether its config arrived typed or as a dict."""
+    return config.voice if isinstance(config, BaseModel) else dict(config)['voice']  # type: ignore[arg-type,attr-defined]
 
 
 class DefaultVoice(BaseMiddleware):
@@ -74,83 +149,163 @@ class DefaultVoice(BaseMiddleware):
         return await next_fn(params, ctx)
 
 
-def voice_of(config: object) -> object:
-    """The voice a model saw, whether its config arrived typed or as a dict."""
-    return config.voice if isinstance(config, VoiceConfig) else dict(config)['voice']  # type: ignore[arg-type]
+every_kind = pytest.mark.parametrize('kind', EVERY_KIND)
+every_declaration = pytest.mark.parametrize('declared', EVERY_DECLARATION)
+schema_declarations = pytest.mark.parametrize('declared', SCHEMA_DECLARATIONS)
+
+
+# Contract table: every kind x every declaration.
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('declared', EVERY_DECLARATION)
-async def test_missing_required_field_fails_the_turn(declared: Declared) -> None:
-    """No middleware fills voice, so the model action rejects it: a failed response every way."""
-    ai = Genkit()
-    configs = define_tts(ai, declared=declared)
+@every_kind
+@every_declaration
+async def test_complete_config_runs(kind: Kind, declared: Declared) -> None:
+    """A complete config reaches the model unchanged."""
+    tts = Tts(Genkit(), kind=kind, declared=declared)
 
-    response = await ai.generate(model='acme/tts', prompt='Your table is ready.', config={'speed': 1.2})
-
-    assert response.finish_reason == FinishReason.FAILED
-    assert response.error is not None
-    assert response.error.status == 'INVALID_ARGUMENT'
-    # The annotated paths fail in the action's input validation, which names
-    # the field in details rather than the message.
-    assert 'voice' in f'{response.error.message} {response.error.details}'
-    assert configs == []
+    assert await tts.failure(config={'voice': 'echo'}) is None
+    assert [voice_of(config) for config in tts.seen] == ['echo']
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('declared', EVERY_DECLARATION)
-async def test_middleware_can_fill_missing_required_field(declared: Declared) -> None:
-    """A wrap_model middleware that supplies voice still works every way."""
+@every_kind
+@every_declaration
+async def test_bad_value_raises_before_the_model_runs(kind: Kind, declared: Declared) -> None:
+    """A value the schema rejects raises INVALID_ARGUMENT before the turn."""
+    tts = Tts(Genkit(), kind=kind, declared=declared)
+
+    failure = await tts.failure(config={'voice': 'opera'})
+
+    assert failure is not None
+    where, status, text = failure
+    assert (where, status) == ('raised', 'INVALID_ARGUMENT')
+    assert "'voice'" in text
+    assert tts.seen == []
+
+
+@pytest.mark.asyncio
+@every_kind
+@every_declaration
+async def test_missing_required_field_fails_inside_the_action(kind: Kind, declared: Declared) -> None:
+    """Nothing fills voice, so the action rejects it: a failed turn from generate, a raise from generate_operation."""
+    tts = Tts(Genkit(), kind=kind, declared=declared)
+
+    failure = await tts.failure(config={'speed': 1.2})
+
+    assert failure is not None
+    where, status, text = failure
+    assert where == ('turn' if kind == 'model' else 'raised')
+    assert status == 'INVALID_ARGUMENT'
+    assert 'voice' in text
+    assert tts.seen == []
+
+
+@pytest.mark.asyncio
+@every_kind
+@every_declaration
+async def test_middleware_can_fill_missing_required_field(kind: Kind, declared: Declared) -> None:
+    """A wrap_model middleware that supplies voice runs after the pre-turn check, so the call works."""
     ai = Genkit()
-    configs = define_tts(ai, declared=declared)
+    tts = Tts(ai, kind=kind, declared=declared)
     ai.define_middleware(DefaultVoice, name='default_voice')
 
-    response = await ai.generate(
-        model='acme/tts', prompt='Your table is ready.', config={'speed': 1.2}, use=[DefaultVoice()]
-    )
+    assert await tts.failure(config={'speed': 1.2}, use=[DefaultVoice()]) is None
+    assert [voice_of(config) for config in tts.seen] == ['echo']
 
-    assert response.text == 'audio'
-    assert [voice_of(config) for config in configs] == ['echo']
+
+# Paths that go through genkit._core._config_check: every kind x class / dict.
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('declared', EVERY_DECLARATION)
-async def test_bad_value_raises_before_the_turn(declared: Declared) -> None:
-    """A value the schema rejects raises INVALID_ARGUMENT every way; the model never runs."""
+@every_kind
+@schema_declarations
+async def test_missing_field_message_is_the_same_for_class_and_dict(kind: Kind, declared: Declared) -> None:
+    """Class and dict schemas name a missing field in the same words."""
+    tts = Tts(Genkit(), kind=kind, declared=declared)
+
+    failure = await tts.failure(config={'speed': 1.2})
+
+    assert failure is not None
+    assert "acme/tts: config 'voice': Field required" in failure[2]
+
+
+@pytest.mark.asyncio
+@every_kind
+@schema_declarations
+async def test_model_ref_version_passes_a_schema_that_does_not_name_it(kind: Kind, declared: Declared) -> None:
+    """ModelRef.version rides in config; a strict schema without a version field still runs."""
+    tts = Tts(Genkit(), kind=kind, declared=declared, config_class=StrictVoice)
+    ref = model_ref('acme/tts', config_schema=StrictVoice, version='v2')
+
+    assert await tts.failure(model=ref, config={'voice': 'echo'}) is None
+    assert [dict(config) for config in tts.seen] == [{'voice': 'echo', 'version': 'v2'}]  # type: ignore[call-overload]
+
+
+@every_kind
+@schema_declarations
+def test_sync_fn_fails_at_define(kind: Kind, declared: Declared) -> None:
+    """The config check wraps the function, but a sync one is still rejected when the model is defined."""
     ai = Genkit()
-    configs = define_tts(ai, declared=declared)
+    schema = VoiceConfig if declared == 'class_only' else VoiceConfig.model_json_schema()
 
-    with pytest.raises(GenkitError) as err:
-        await ai.generate(model='acme/tts', prompt='Your table is ready.', config={'voice': 'opera'})
+    def tts(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('audio')]))
 
-    assert err.value.status == 'INVALID_ARGUMENT'
-    assert "'voice'" in str(err.value)
-    assert configs == []
+    async def check(operation: Operation, ctx: ActionRunContext) -> Operation:
+        return operation
+
+    with pytest.raises(TypeError, match='must be async'):
+        if kind == 'model':
+            ai.define_model('acme/tts', tts, config_schema=schema)  # type: ignore[arg-type]
+        else:
+            ai.define_background_model('acme/tts', start=tts, check=check, config_schema=schema)  # type: ignore[arg-type]
+
+
+@every_kind
+def test_invalid_json_schema_fails_at_define(kind: Kind) -> None:
+    """A config_schema dict that isn't a JSON schema is the model author's bug; it raises at define."""
+    ai = Genkit()
+
+    async def tts(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('audio')]))
+
+    async def check(operation: Operation, ctx: ActionRunContext) -> Operation:
+        return operation
+
+    with pytest.raises(GenkitError, match='not a valid JSON schema'):
+        if kind == 'model':
+            ai.define_model('acme/tts', tts, config_schema={'type': 'bogus'})
+        else:
+            ai.define_background_model('acme/tts', start=tts, check=check, config_schema={'type': 'bogus'})  # type: ignore[arg-type]
+
+
+# Single-path cases.
 
 
 @pytest.mark.asyncio
 async def test_required_field_from_prompt_config_satisfies_call_override() -> None:
     """The prompt supplies voice, the call overrides speed: the merged bag is complete."""
     ai = Genkit()
-    configs = define_tts(ai, declared='annotation')
-    announce = ai.define_prompt(model='acme/tts', prompt='Your table is ready.', config={'voice': 'echo'})
+    tts = Tts(ai, kind='model', declared='annotation')
+    announce = ai.define_prompt(model='acme/tts', prompt=PROMPT, config={'voice': 'echo'})
 
     await announce(config={'speed': 1.2})
 
-    assert configs == [VoiceConfig(voice='echo', speed=1.2)]
+    assert tts.seen == [VoiceConfig(voice='echo', speed=1.2)]
 
 
 @pytest.mark.asyncio
 async def test_call_override_clearing_required_field_fails_the_turn() -> None:
     """A call that clears the prompt's voice with None leaves it missing for the model action."""
     ai = Genkit()
-    configs = define_tts(ai, declared='annotation')
-    announce = ai.define_prompt(model='acme/tts', prompt='Your table is ready.', config={'voice': 'echo'})
+    tts = Tts(ai, kind='model', declared='annotation')
+    announce = ai.define_prompt(model='acme/tts', prompt=PROMPT, config={'voice': 'echo'})
 
     response = await announce(config={'voice': None})
 
     assert response.finish_reason == FinishReason.FAILED
-    assert configs == []
+    assert tts.seen == []
 
 
 @pytest.mark.asyncio
@@ -163,74 +318,15 @@ async def test_json_schema_nested_missing_field_raises_before_the_turn() -> None
     class LexiconVoiceConfig(VoiceConfig):
         pronunciation: Pronunciation | None = None
 
-    ai = Genkit()
-    seen: list[object] = []
+    tts = Tts(Genkit(), kind='model', declared='json_schema', config_class=LexiconVoiceConfig)
 
-    async def tts(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
-        seen.append(request.config)
-        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('audio')]))
+    failure = await tts.failure(config={'pronunciation': {}})
 
-    ai.define_model('acme/tts', tts, config_schema=LexiconVoiceConfig.model_json_schema())
-
-    with pytest.raises(GenkitError) as err:
-        await ai.generate(model='acme/tts', prompt='Your table is ready.', config={'pronunciation': {}})
-
-    assert err.value.status == 'INVALID_ARGUMENT'
-    assert 'lexicon' in str(err.value)
-    assert seen == []
-
-
-@pytest.mark.parametrize('declared', ['class_only', 'json_schema'])
-def test_sync_model_fn_still_fails_at_define(declared: Declared) -> None:
-    """The config check wraps fn, but a sync fn is still rejected when the model is defined."""
-    ai = Genkit()
-    schema = VoiceConfig if declared == 'class_only' else VoiceConfig.model_json_schema()
-
-    def tts(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
-        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('audio')]))
-
-    with pytest.raises(TypeError, match='must be async'):
-        ai.define_model('acme/tts', tts, config_schema=schema)  # type: ignore[arg-type]
-
-
-def test_invalid_json_schema_fails_at_define() -> None:
-    """A config_schema dict that isn't a JSON schema is the model author's bug; it raises at define."""
-    ai = Genkit()
-
-    async def tts(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
-        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('audio')]))
-
-    with pytest.raises(GenkitError, match='not a valid JSON schema'):
-        ai.define_model('acme/tts', tts, config_schema={'type': 'bogus'})
-
-
-class StrictVoice(BaseModel):
-    """A user config class that forbids keys it doesn't declare, version included."""
-
-    model_config = ConfigDict(extra='forbid')
-    voice: Literal['alloy', 'echo']
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize('declared', ['class_only', 'json_schema'])
-async def test_model_ref_version_passes_a_schema_that_does_not_name_it(declared: Declared) -> None:
-    """ModelRef.version rides in config; a strict schema without a version field still runs."""
-    ai = Genkit()
-    seen: list[object] = []
-
-    async def tts(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
-        seen.append(request.config)
-        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('audio')]))
-
-    schema = StrictVoice if declared == 'class_only' else StrictVoice.model_json_schema()
-    ai.define_model('acme/tts', tts, config_schema=schema)
-    ref = model_ref('acme/tts', config_schema=StrictVoice, version='v2')
-
-    response = await ai.generate(model=ref, prompt='Your table is ready.', config={'voice': 'echo'})
-
-    assert response.text == 'audio'
-    assert len(seen) == 1
-    assert dict(seen[0]) == {'voice': 'echo', 'version': 'v2'}  # type: ignore[call-overload]
+    assert failure is not None
+    where, status, text = failure
+    assert (where, status) == ('raised', 'INVALID_ARGUMENT')
+    assert "config 'pronunciation.lexicon': Field required" in text
+    assert tts.seen == []
 
 
 @pytest.mark.asyncio
@@ -248,89 +344,3 @@ async def test_direct_run_with_unannotated_request_checks_config() -> None:
 
     assert err.value.status == 'INVALID_ARGUMENT'
     assert "config 'voice': Field required" in str(err.value)
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize('declared', ['class_only', 'json_schema'])
-async def test_missing_field_message_is_the_same_for_class_and_dict(declared: Declared) -> None:
-    """Class and dict schemas name a missing field the same way."""
-    ai = Genkit()
-    define_tts(ai, declared=declared)
-
-    response = await ai.generate(model='acme/tts', prompt='Your table is ready.', config={'speed': 1.2})
-
-    assert response.error is not None
-    assert response.error.message == "acme/tts: config 'voice': Field required"
-
-
-def define_video(ai: Genkit, *, declared: Literal['class_only', 'json_schema']) -> list[object]:
-    """Register a background model with VoiceConfig; return the configs start saw."""
-    configs: list[object] = []
-
-    async def start(request: ModelRequest, ctx: ActionRunContext) -> Operation:
-        configs.append(request.config)
-        return Operation(id='op-1', done=False)
-
-    async def check(operation: Operation, ctx: ActionRunContext) -> Operation:
-        return operation
-
-    schema = VoiceConfig if declared == 'class_only' else VoiceConfig.model_json_schema()
-    ai.define_background_model('acme/video', start=start, check=check, config_schema=schema)
-    return configs
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize('declared', ['class_only', 'json_schema'])
-async def test_background_missing_required_field_never_starts(declared: Literal['class_only', 'json_schema']) -> None:
-    """A background model's start action checks the whole config like a model action; start never runs."""
-    ai = Genkit()
-    configs = define_video(ai, declared=declared)
-
-    with pytest.raises(GenkitError) as err:
-        await ai.generate_operation(model='acme/video', prompt='Your table is ready.', config={'speed': 1.2})
-
-    assert err.value.status == 'INVALID_ARGUMENT'
-    assert "config 'voice': Field required" in str(err.value)
-    assert configs == []
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize('declared', ['class_only', 'json_schema'])
-async def test_background_bad_value_never_starts(declared: Literal['class_only', 'json_schema']) -> None:
-    """A value the schema rejects raises before start, same as a regular model."""
-    ai = Genkit()
-    configs = define_video(ai, declared=declared)
-
-    with pytest.raises(GenkitError) as err:
-        await ai.generate_operation(model='acme/video', prompt='Your table is ready.', config={'voice': 'opera'})
-
-    assert err.value.status == 'INVALID_ARGUMENT'
-    assert "'voice'" in str(err.value)
-    assert configs == []
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize('declared', ['class_only', 'json_schema'])
-async def test_background_complete_config_starts(declared: Literal['class_only', 'json_schema']) -> None:
-    """A complete config reaches start unchanged."""
-    ai = Genkit()
-    configs = define_video(ai, declared=declared)
-
-    operation = await ai.generate_operation(model='acme/video', prompt='Your table is ready.', config={'voice': 'echo'})
-
-    assert operation.id == 'op-1'
-    assert [voice_of(config) for config in configs] == ['echo']
-
-
-def test_background_sync_start_fails_at_define() -> None:
-    """A sync start is rejected when the background model is defined, as for a regular model."""
-    ai = Genkit()
-
-    def start(request: ModelRequest, ctx: ActionRunContext) -> Operation:
-        return Operation(id='op-1', done=False)
-
-    async def check(operation: Operation, ctx: ActionRunContext) -> Operation:
-        return operation
-
-    with pytest.raises(TypeError, match='must be async'):
-        ai.define_background_model('acme/video', start=start, check=check, config_schema=VoiceConfig)  # type: ignore[arg-type]
