@@ -1,6 +1,6 @@
 # Genkit 1.0 API Review (Python)
 
-The Python surface we intend to ship as 1.0. It describes the state after the open API PRs land (#6681, #6697, #6698, #6699, #6708, #6709, #6757, #6764–#6770, #6775, #6777, #6314, #6655).
+The Python surface we intend to ship as 1.0. It describes the state after the open API PRs land (#6681, #6697, #6698, #6699, #6708, #6709, #6757, #6763–#6770, #6775, #6777, #6314, #6655).
 
 ---
 
@@ -1061,7 +1061,7 @@ await ai.generate(prompt='hi', context={'api_key': key})
 In process, you get the real exception with its type, `__cause__`, and traceback. Over HTTP, `error_body` / `error_status` decide what leaves the server, at every level above:
 
 - **`PublicError`:** its message, status, and details go out with the mapped HTTP code.
-- **Bad request to the flow itself** (e.g. input fails the schema): 4xx status, generic message.
+- **Bad request to the flow itself** (input fails the schema): 400 with the failing fields, not the values, e.g. `Invalid input for flow 'place': order_id: Field required`. A nested action called with bad input is a server bug and returns 500.
 - **Anything else** (`GenkitError`, provider errors, `RuntimeError`): `500 {"message": "Internal Error", "status": "INTERNAL"}`. The real message stays in your logs and trace.
 
 ```python
