@@ -658,33 +658,29 @@ except GenkitError as e:
 
 ### What your `except` blocks see
 
-`Interrupt` subclasses `BaseException`, so a plain `except Exception` won't catch it. That keeps a catch-all in tool or plugin code from skipping an approval.
+`Interrupt` subclasses `BaseException`, so a plain `except Exception` won't catch it.
 
-Where you'll see it:
+1. **What `generate` does with it:** when a tool raises `Interrupt`, `generate` stops the turn and returns it as a value: `finish_reason == INTERRUPTED`, with the paused call on `response.interrupts`. Nothing is raised to your code.
+2. **In your tool code:** you can raise `Interrupt` inside a `try` with a broad `except Exception`. The handler skips it, so it still reaches `generate` and the turn pauses.
 
-- **Via `generate`:** you won't. The response comes back with `finish_reason == INTERRUPTED`.
-- **Calling a tool directly:** `await charge_card(50)` raises it. Use `except Interrupt`.
-- **From a flow:** if it escapes the flow body, the flow fails with `INTERNAL` (a 500 when served).
-- **In your own tool:** use `try/finally` for cleanup. If you catch it, re-raise it.
+```python
+@ai.tool
+async def charge_card(amount: int) -> str:
+    try:
+        if amount > 500:
+            raise Interrupt({'needs': 'manager approval', 'amount': amount})
+        return await payments.charge(amount)
+    except Exception as e:
+        # Payment errors land here; Interrupt passes through to generate
+        raise GenkitError(status='UNAVAILABLE', message='payments down') from e
+```
 
 `StreamingCallbackError` is gone from the public API (#6767). App code never sees it.
 
 With `ai.generate_stream()` there's no callback of yours in that path. An exception in your `async for` body is just your exception. The model call keeps running to completion in the background, and `await stream.response` still returns it.
 
 ```python
-from genkit import Interrupt
-
-# 1. Direct tool call: catch Interrupt by name
-try:
-    receipt = await charge_card(50)
-except Interrupt as i:
-    print(i.metadata)
-    # => {'needs': 'manager approval', 'amount': 50}
-except Exception as e:
-    # Not reached for Interrupt
-    ...
-
-# 2. Streaming: your loop's exception is yours; the model call still finishes
+# Your loop's exception is yours; the model call still finishes
 stream = ai.generate_stream(prompt='Suggest a dish.')
 try:
     async for chunk in stream.stream:
