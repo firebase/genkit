@@ -554,7 +554,6 @@ class GeminiConfig(ModelConfig):
     frequency_penalty: float | None = Field(
         default=None, description='Penalizes tokens by how often they appear in the output.'
     )
-    candidate_count: int | None = Field(default=None, description='Number of response candidates to generate.')
     response_logprobs: bool | None = Field(default=None, description='Return log probabilities of the output tokens.')
     logprobs: int | None = Field(
         default=None, description='Number of top candidate tokens to return log probabilities for.'
