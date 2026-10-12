@@ -125,11 +125,11 @@ Runnable version: [google-genai-media](https://github.com/genkit-ai/genkit/tree/
 
 ### Virtual Try-On (Vertex AI)
 
-`virtual-try-on-001` dresses a person in one or more products and returns the
-composited images. The inputs are media parts on the last message, tagged so
-the model knows which is which: `metadata={'type': 'personImage'}` for the
-person and `metadata={'type': 'productImage'}` for each product. Each `url` is
-a `data:` url or a `gs://` path; http(s) urls are not fetched.
+`virtual-try-on-001` dresses a person in a product and returns the composited
+images. The inputs are media parts on the last message, tagged so the model
+knows which is which: `metadata={'type': 'personImage'}` for the person and
+`metadata={'type': 'productImage'}` for the product. Each `url` is a `data:`
+url, bare base64 image data, or a `gs://` path; http(s) urls are not fetched.
 
 ```python
 from genkit import Genkit, Message, Part, Role

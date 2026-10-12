@@ -16,8 +16,8 @@
 
 """Virtual Try-On image model for the Google GenAI plugin.
 
-Virtual Try-On dresses a person in one or more products and returns the
-composited images. It is a Vertex AI model; there is no Gemini API backend
+Virtual Try-On dresses a person in a product and returns the composited
+images. It is a Vertex AI model; there is no Gemini API backend
 for it.
 
 Both inputs arrive as media parts on the last message, tagged so the model
