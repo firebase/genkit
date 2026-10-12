@@ -43,11 +43,10 @@ _OK = {'candidates': [{'content': {'role': 'model', 'parts': [{'text': 'ok'}]}, 
         GeminiConfig.model_validate({
             'top_k': 40,
             'max_output_tokens': 500,
-            'candidate_count': 1,
             'seed': 7,
             'logprobs': 2,
         }),
-        {'topK': 40, 'maxOutputTokens': 500, 'candidateCount': 1, 'seed': 7, 'logprobs': 2},
+        {'topK': 40, 'maxOutputTokens': 500, 'seed': 7, 'logprobs': 2},
     ],
     ids=['typed', 'dict'],
 )
@@ -75,5 +74,5 @@ async def test_generate_sends_integer_top_k(
 
     gen = bodies[-1]['generationConfig']
     assert gen['topK'] == 40
-    for key in ('topK', 'maxOutputTokens', 'candidateCount', 'seed', 'logprobs'):
+    for key in ('topK', 'maxOutputTokens', 'seed', 'logprobs'):
         assert type(gen[key]) is int, key

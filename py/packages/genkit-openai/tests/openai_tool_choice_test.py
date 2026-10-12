@@ -100,7 +100,7 @@ async def test_tool_choice_sent_as_is_with_tools(tool_choice: Any) -> None:  # n
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('tool_choice', ['required', None])
+@pytest.mark.parametrize('tool_choice', ['auto', None])
 async def test_tool_choice_kept_after_a_tool_turn(tool_choice: Any) -> None:  # noqa: ANN401
     """A tool result no longer forces tool_choice='none', so the model can chain a second tool."""
     # 1. Script a chain: lookup_menu, then check_allergens, then the answer
@@ -128,6 +128,29 @@ async def test_tool_choice_kept_after_a_tool_turn(tool_choice: Any) -> None:  # 
 
 
 @pytest.mark.asyncio
+async def test_required_tool_choice_persists_on_followup_turn() -> None:
+    """Under 'required', the follow-up request after a tool result still sends tool_choice='required'."""
+    server = _ScriptedServer([
+        _tool_call('call_1', 'lookup_menu', 'pho'),
+        _tool_call('call_2', 'check_allergens', 'pho'),
+    ])
+    ai = _genkit(server)
+
+    await ai.generate(
+        model='openai/gpt-4o',
+        prompt='Is the pho in stock, and is it nut-free?',
+        tools=['lookup_menu', 'check_allergens'],
+        tool_choice='required',
+        max_turns=1,
+    )
+
+    assert len(server.bodies) == 2
+    assert server.bodies[0]['tool_choice'] == 'required'
+    assert any(m['role'] == 'tool' for m in server.bodies[1]['messages'])
+    assert server.bodies[1]['tool_choice'] == 'required'
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('tool_choice', ['auto', 'required', 'none'])
 async def test_tool_choice_dropped_without_tools(tool_choice: ToolChoice) -> None:
     """OpenAI rejects tool_choice without tools, so a request with no tools sends neither."""
@@ -138,3 +161,30 @@ async def test_tool_choice_dropped_without_tools(tool_choice: ToolChoice) -> Non
 
     assert 'tools' not in server.bodies[0]
     assert 'tool_choice' not in server.bodies[0]
+
+
+@pytest.mark.asyncio
+async def test_prior_tool_turn_in_history_without_tools_omits_tool_choice() -> None:
+    """History with a prior tool round and no current tools does not send tool_choice='none'."""
+    server = _ScriptedServer([
+        _tool_call('call_1', 'lookup_menu', 'pho'),
+        _ANSWER,
+        _ANSWER,
+    ])
+    ai = _genkit(server)
+
+    first = await ai.generate(
+        model='openai/gpt-4o',
+        prompt='Is the pho in stock?',
+        tools=['lookup_menu'],
+    )
+    await ai.generate(
+        model='openai/gpt-4o',
+        messages=first.messages,
+        prompt='Summarize that.',
+    )
+
+    followup = server.bodies[-1]
+    assert any(m['role'] == 'tool' for m in followup['messages'])
+    assert 'tools' not in followup
+    assert 'tool_choice' not in followup
