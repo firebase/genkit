@@ -58,6 +58,10 @@ TRANSFORMATIONS = {
     # docs= always goes into the prompt and nothing in Python reads
     # supports.context, so the field isn't emitted.
     'Supports': {'omit': ['context']},
+    # Models declare config with config_schema= and publish it as
+    # customOptions. ModelInfo.configSchema was a second, unread slot for the
+    # same thing, so it isn't emitted.
+    'ModelInfo': {'omit': ['configSchema']},
     # Evaluator authors type these names when building a Score. Only the
     # Python class names differ; the JSON ('PASS', details.reasoning) follows the schema.
     'EvalStatusEnum': {'output_name': 'ScoreStatus'},
