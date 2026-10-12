@@ -256,7 +256,7 @@ async def deploy_service(input: DeployInput, ctx: ToolContext[DeployStep]) -> Ro
 
 # 2. Model calls the tool; partial chunks arrive live, then the final return
 stream = ai.generate_stream(prompt='Deploy payments', tools=[deploy_service])
-async for chunk in stream:
+async for chunk in stream.stream:
     for part in chunk.tool_responses:
         tr = part.tool_response
         if part.is_partial:
