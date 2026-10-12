@@ -36,6 +36,11 @@ def test_thinking_disabled_rejects_budget() -> None:
         AnthropicConfig(thinking='disabled', thinking_budget=2048)
 
 
+def test_thinking_disabled_rejects_display() -> None:
+    with pytest.raises(ValidationError, match="thinking_display can't be set when thinking is 'disabled'"):
+        AnthropicConfig(thinking='disabled', thinking_display='omitted')
+
+
 def test_thinking_display_alone_raises() -> None:
     """A display with no mode would send nothing, so it fails instead of being dropped."""
     with pytest.raises(ValidationError, match='thinking_display needs thinking= or thinking_budget='):

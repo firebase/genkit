@@ -282,7 +282,11 @@ def _merge_config_extra(params: dict[str, Any], extra: dict[str, Any] | None) ->
                     'and cannot be set from config'
                 )
             raise GenkitError(status='INVALID_ARGUMENT', message=message)
-    params['extra_body'] = dict(extra)
+    extra_body = dict(extra)
+    if 'tools' not in params:
+        extra_body.pop('tool_choice', None)
+    if extra_body:
+        params['extra_body'] = extra_body
 
 
 def pinned_credential_header(client: AsyncAnthropic) -> str | None:
@@ -558,6 +562,15 @@ class AnthropicModel:
             params['system'] = system
 
         if request.tools:
+            if (
+                request.tool_choice == 'required'
+                and config.thinking_mode() == 'enabled'
+                and 'thinking' not in (extra or {})
+                and 'tool_choice' not in (extra or {})
+            ):
+                raise ValueError(
+                    "anthropic: thinking='enabled' only supports tool_choice='auto' or 'none', not 'required'"
+                )
             params['tools'] = [
                 {
                     'name': t.name,

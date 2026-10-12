@@ -255,6 +255,8 @@ class AnthropicConfig(ModelConfig):
             raise ValueError("thinking_budget is required when thinking is 'enabled'")
         if self.thinking == 'disabled' and self.thinking_budget is not None:
             raise ValueError("thinking_budget can't be set when thinking is 'disabled'")
+        if self.thinking == 'disabled' and self.thinking_display is not None:
+            raise ValueError("thinking_display can't be set when thinking is 'disabled'")
         if self.thinking_display is not None and self.thinking is None and self.thinking_budget is None:
             raise ValueError('thinking_display needs thinking= or thinking_budget=')
         return self

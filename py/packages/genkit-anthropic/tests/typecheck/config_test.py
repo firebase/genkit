@@ -124,14 +124,14 @@ async def test_typed_config_request_body() -> None:
         prompt='Is the pho in stock?',
         config=config,
         tools=['lookup_menu'],
-        tool_choice='required',
+        tool_choice='auto',
     )
 
     # 3. Check the body the plugin sent
     body = bodies[-1]
     assert body['thinking'] == {'type': 'enabled', 'budget_tokens': 2048}
     assert body['output_config'] == {'effort': 'medium', 'task_budget': {'type': 'tokens', 'total': 20000}}
-    assert body['tool_choice'] == {'type': 'any', 'disable_parallel_tool_use': True}
+    assert body['tool_choice'] == {'type': 'auto', 'disable_parallel_tool_use': True}
     assert body['metadata'] == {'user_id': 'diner-42'}
     assert body['max_tokens'] == 3000
 

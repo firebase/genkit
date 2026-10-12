@@ -406,15 +406,43 @@ async def test_generate_claude_tool_choice_request_body(
 
 @pytest.mark.asyncio
 async def test_generate_claude_tool_choice_dropped_without_tools() -> None:
-    """The API rejects tool_choice on a request with no tools, so neither the option nor the flag is sent."""
+    """The API rejects tool_choice on a request with no tools, so option, flag, and extra tool_choice are dropped."""
     api = FakeClaudeApi()
     ai = _genkit(api)
 
     await ai.generate(
-        model=MODEL, prompt='hi', tool_choice='required', config=AnthropicConfig(disable_parallel_tool_use=True)
+        model=MODEL,
+        prompt='hi',
+        tool_choice='required',
+        config=AnthropicConfig(disable_parallel_tool_use=True, extra={'tool_choice': {'type': 'any'}}),
     )
 
     assert 'tool_choice' not in api.body()
+
+
+@pytest.mark.asyncio
+async def test_generate_claude_thinking_enabled_rejects_tool_choice_required() -> None:
+    """Manual thinking only supports tool_choice auto or none, so required fails before sending."""
+    api = FakeClaudeApi()
+    ai = _genkit(api)
+
+    @ai.tool(name='lookup_menu')
+    async def lookup_menu(dish: str) -> str:
+        return 'ramen'
+
+    response = await ai.generate(
+        model=MODEL,
+        prompt='hi',
+        tools=['lookup_menu'],
+        tool_choice='required',
+        config=AnthropicConfig(thinking='enabled', thinking_budget=2048),
+    )
+
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.error is not None
+    assert response.error.status == 'INVALID_ARGUMENT'
+    assert "thinking='enabled' only supports tool_choice='auto' or 'none'" in response.error.message
+    assert api.requests == []
 
 
 @pytest.mark.asyncio

@@ -100,6 +100,7 @@ res = await ai.generate(
     tools=['lookup_menu'],
     tool_choice='required',
     config=AnthropicConfig(disable_parallel_tool_use=True),
+    return_tool_requests=True,
 )
 # Sent as: tool_choice={'type': 'any', 'disable_parallel_tool_use': True}
 ```
