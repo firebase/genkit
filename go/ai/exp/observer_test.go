@@ -24,6 +24,8 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/tracing"
 )
 
@@ -105,5 +107,71 @@ func TestObserverSeesAFailedCall(t *testing.T) {
 	}
 	if r := got.Response; r == nil || r.FinishReason != ai.FinishReasonFailed || r.Error == nil || r.Request == nil {
 		t.Errorf("Response = %+v, want a failure record with the request", r)
+	}
+}
+
+// TestObserverFillsTheRequest pins that the observer gets the request even
+// from a model action that does not set Response.Request, without changing
+// the response its caller gets.
+func TestObserverFillsTheRequest(t *testing.T) {
+	raw := core.NewStreamingActionOf(api.ActionTypeModel, "test/raw", nil,
+		func(ctx context.Context, req *ai.ModelRequest, cb core.StreamCallback[*ai.ModelResponseChunk]) (*ai.ModelResponse, error) {
+			return &ai.ModelResponse{Message: ai.NewModelTextMessage("raw")}, nil
+		})
+	var got *ModelCall
+	ctx := tracing.WithInstrumentation(t.Context(), Observer{ModelDone: func(_ context.Context, call *ModelCall) { got = call }})
+	req := &ai.ModelRequest{Messages: []*ai.Message{ai.NewUserTextMessage("hi")}}
+	resp, err := raw.Run(ctx, req, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == nil || got.Response.Request != req {
+		t.Errorf("observed %+v, want the response with the request", got)
+	}
+	if resp.Request != nil {
+		t.Errorf("caller's Response.Request = %+v, want it left nil", resp.Request)
+	}
+}
+
+// observing is the middleware the Observer doc shows: it adds an observer in
+// WrapGenerate's first iteration.
+type observing struct {
+	done func(context.Context, *ModelCall)
+}
+
+func (observing) Name() string { return "test/observing" }
+
+func (o observing) New(context.Context) (*ai.Hooks, error) {
+	return &ai.Hooks{WrapGenerate: func(ctx context.Context, p *ai.GenerateParams, next ai.GenerateNext) (*ai.ModelResponse, error) {
+		if p.Iteration == 0 {
+			ctx = tracing.WithInstrumentation(ctx, Observer{ModelDone: o.done})
+		}
+		return next(ctx, p)
+	}}, nil
+}
+
+// TestObserverAddedInTheFirstIteration pins the pattern the Observer doc
+// shows: each iteration runs under the first one's context, so an observer
+// added there sees every turn of the tool loop, once.
+func TestObserverAddedInTheFirstIteration(t *testing.T) {
+	reg := newTestRegistry(t)
+	ai.ConfigureFormats(reg)
+	noop := defineTestTool(reg, "noop", "Does nothing.", func(*ai.ToolContext, any) (string, error) { return "ok", nil })
+	defineTestModel(reg, "test/looping", &ai.ModelOptions{Supports: &ai.ModelSupports{Multiturn: true, Tools: true}},
+		func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+			if req.Messages[len(req.Messages)-1].Role == ai.RoleTool {
+				return &ai.ModelResponse{Message: ai.NewModelTextMessage("done")}, nil
+			}
+			return &ai.ModelResponse{Message: &ai.Message{Role: ai.RoleModel, Content: []*ai.Part{
+				ai.NewToolRequestPart(&ai.ToolRequest{Name: "noop"}),
+			}}}, nil
+		})
+	var calls int
+	mw := &observing{done: func(context.Context, *ModelCall) { calls++ }}
+	if _, err := ai.Generate(t.Context(), reg, ai.WithModelName("test/looping"), ai.WithTools(noop), ai.WithPrompt("go"), ai.WithUse(mw)); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 {
+		t.Errorf("observed %d model calls, want 2", calls)
 	}
 }

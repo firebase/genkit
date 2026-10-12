@@ -105,13 +105,17 @@ func (*modelSpan) SetMetadata(map[string]string) {}
 
 func (s *modelSpan) End(res *tracing.SpanResult) {
 	resp, _ := res.Output().(*ai.ModelResponse)
-	if resp == nil {
-		err := res.Err()
-		if err == nil {
-			resp = &ai.ModelResponse{Request: s.req}
-		} else {
-			resp, _ = base.FailedModelResponse(s.ctx, s.req, err).(*ai.ModelResponse)
-		}
+	switch {
+	case resp == nil && res.Err() == nil:
+		resp = &ai.ModelResponse{Request: s.req}
+	case resp == nil:
+		resp, _ = base.FailedModelResponse(s.ctx, s.req, res.Err()).(*ai.ModelResponse)
+	case resp.Request == nil:
+		// A model action built without ai.NewModelAction does not fill it.
+		// A copy, so the caller's response is left as the model returned it.
+		r := *resp
+		r.Request = s.req
+		resp = &r
 	}
 	s.done(s.ctx, &ModelCall{Model: s.model, Response: resp, Err: res.Err()})
 }
