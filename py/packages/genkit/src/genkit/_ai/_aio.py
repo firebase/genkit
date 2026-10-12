@@ -100,9 +100,9 @@ from genkit._core._middleware import (
     _validate_middleware_key_segment,
 )
 from genkit._core._model import (
+    BatchEvaluatorRequest,
     Document,
     EmbedRequest,
-    EvaluatorRequest,
     ModelConfigDict,
     ModelRef,
     ModelRefConfigT,
@@ -485,7 +485,7 @@ class Genkit:
     def define_evaluator(
         self,
         name: str,
-        fn: EvaluatorFn[Any],
+        fn: EvaluatorFn,
         *,
         display_name: str,
         definition: str,
@@ -496,12 +496,21 @@ class Genkit:
     ) -> Evaluator:
         """Register an evaluator that scores one dataset row at a time.
 
+        ``fn`` takes one ``EvaluatorRequest``: ``req.row`` is the dataset row
+        and ``req.options`` the call's config. Annotate it as
+        ``EvaluatorRequest[Cfg]`` to get a validated ``Cfg`` (and a Dev UI
+        options form); bare ``EvaluatorRequest`` gives a dict.
+
         Example:
             ```python
-            # 1. Score whether the answer mentions the expected dish
-            async def mentions_dish(row: BaseDataPoint, options: object | None) -> EvaluatorResponse:
-                hit = row.reference.lower() in str(row.output).lower()
-                return EvaluatorResponse(test_case_id=row.test_case_id or '', evaluation=[Score(score=hit)])
+            # 1. Score whether the answer mentions the configured dish
+            class DishConfig(BaseModel):
+                dish: str = 'salmon'
+
+
+            async def mentions_dish(req: EvaluatorRequest[DishConfig]) -> EvaluatorResponse:
+                hit = req.options.dish in str(req.row.output).lower()
+                return EvaluatorResponse(test_case_id=req.row.test_case_id or '', evaluation=[Score(score=hit)])
 
 
             # 2. Register it under a name
@@ -509,11 +518,11 @@ class Genkit:
                 'mentions_dish',
                 mentions_dish,
                 display_name='Mentions dish',
-                definition='Whether the answer names the expected dish.',
+                definition='Whether the answer names the configured dish.',
             )
 
-            # 3. Run it over a dataset
-            rows = await ai.evaluate(evaluator='mentions_dish', dataset=dataset)
+            # 3. Run it over a dataset; config is validated into DishConfig
+            rows = await ai.evaluate(evaluator='mentions_dish', dataset=dataset, config={'dish': 'tartine'})
             # => [EvaluatorResponse(test_case_id='...', evaluation=[Score(score=True)]), ...]
             ```
         """
@@ -541,10 +550,38 @@ class Genkit:
         metadata: dict[str, object] | None = None,
         description: str | None = None,
     ) -> BatchEvaluator:
-        """Register a batch evaluator.
+        """Register a batch evaluator that scores the whole dataset in one call.
 
-        The function takes one ``EvaluatorRequest`` and returns ``list[EvaluatorResponse]``.
-        Read options from ``req.options``. A second parameter raises ``TypeError`` when defined.
+        ``fn`` takes one ``BatchEvaluatorRequest`` (``req.dataset``,
+        ``req.options``) and returns ``list[EvaluatorResponse]``. Annotate it as
+        ``BatchEvaluatorRequest[Cfg]`` to get a validated ``Cfg``. A second
+        parameter raises ``TypeError`` when defined.
+
+        Example:
+            ```python
+            # 1. Score every answer in one call
+            async def mentions_dish(req: BatchEvaluatorRequest[DishConfig]) -> list[EvaluatorResponse]:
+                return [
+                    EvaluatorResponse(
+                        test_case_id=row.test_case_id or '',
+                        evaluation=[Score(score=req.options.dish in str(row.output).lower())],
+                    )
+                    for row in req.dataset
+                ]
+
+
+            # 2. Register it under a name
+            ai.define_batch_evaluator(
+                'mentions_dish_batch',
+                mentions_dish,
+                display_name='Mentions dish (batch)',
+                definition='Whether each answer names the configured dish.',
+            )
+
+            # 3. Run it over a dataset
+            rows = await ai.evaluate(evaluator='mentions_dish_batch', dataset=dataset, config={'dish': 'tartine'})
+            # => [EvaluatorResponse(test_case_id='...', evaluation=[Score(score=True)]), ...]
+            ```
         """
         return define_batch_evaluator(
             self._registry,
@@ -1895,7 +1932,7 @@ class Genkit:
         scores.
 
         ``config`` is merged over the ``EvaluatorRef``'s config (the call
-        wins per key) and handed to the evaluator as its second argument. When
+        wins per key) and handed to the evaluator as ``req.options``. When
         neither sets anything, the evaluator gets ``{}``. An evaluator name
         that isn't registered raises ``GenkitError`` with ``NOT_FOUND``.
 
@@ -1931,7 +1968,7 @@ class Genkit:
             eval_run_id = str(uuid.uuid4())
 
         response = await eval_action.run(
-            EvaluatorRequest(
+            BatchEvaluatorRequest(
                 dataset=dataset,
                 options=final_options,
                 eval_run_id=eval_run_id,

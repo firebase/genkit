@@ -216,8 +216,8 @@ ConfigT = TypeVar('ConfigT', bound=ModelConfig, default=ModelConfig)
 # Bound to BaseModel so ModelRef is always parameterized with a concrete Pydantic config schema.
 # Covariant so ModelRef[GeminiConfig] is assignable to ModelRef[BaseModel] or ModelRef[Any].
 ModelRefConfigT = TypeVar('ModelRefConfigT', bound=BaseModel, covariant=True)
-# ModelRequest[X], EmbedRequest[X] and EvaluatorRequest[X] take a pydantic model
-# class; __class_getitem__ rejects the rest. Not bound to BaseModel: type
+# ModelRequest[X], EmbedRequest[X] and the evaluator requests take a pydantic
+# model class; __class_getitem__ rejects the rest. Not bound to BaseModel: type
 # checkers would then reject the common bare ModelRequest(config={...}), where
 # the config is solved as a dict. Invariant: config is writable, so
 # ModelRequest[GeminiConfig] is not a ModelRequest[ModelConfig] you can assign
@@ -225,14 +225,14 @@ ModelRefConfigT = TypeVar('ModelRefConfigT', bound=BaseModel, covariant=True)
 # ModelRequest[Any], and Callable[[ModelRequest], ...] accepts a fn typed
 # ModelRequest[GeminiConfig].
 ModelRequestConfigT = TypeVar('ModelRequestConfigT', default=Any)
-# Bare EmbedRequest / EvaluatorRequest options are always a dict at runtime, so the
+# Bare EmbedRequest / evaluator request options are always a dict at runtime, so the
 # default says so. Fn aliases take EmbedRequest[Any] / EvaluatorRequest[Any] so a fn
 # typed EmbedRequest[CrmEmbedConfig] still fits them.
 RequestOptionsT = TypeVar('RequestOptionsT', default=dict[str, Any])
 
 
 def declared_config_type(cls: type) -> type[BaseModel] | None:
-    """The config class on ``ModelRequest[ThatClass]`` (or Embed/EvaluatorRequest), else None.
+    """The config class on ``ModelRequest[ThatClass]`` (or the embed / evaluator requests), else None.
 
     None when unparametrized or ``Any``.
     """
@@ -247,7 +247,7 @@ def declared_config_type(cls: type) -> type[BaseModel] | None:
 
 
 def check_config_type_arg(*, request: str, field: str, typevar_values: object) -> None:
-    """Reject ``ModelRequest[X]`` / ``EmbedRequest[X]`` / ``EvaluatorRequest[X]`` unless X is a model class.
+    """Reject ``ModelRequest[X]`` / ``EmbedRequest[X]`` / evaluator requests unless X is a model class.
 
     Runs where the annotation is evaluated, so a TypedDict or dict config
     fails when the fn is defined, with the same error on every Python version.
@@ -987,7 +987,7 @@ def options_dict(value: object) -> dict[str, Any]:
 
 
 def check_options_value(cls: type, value: object) -> object:
-    """The before-validator for ``options`` on EmbedRequest and EvaluatorRequest.
+    """The before-validator for ``options`` on EmbedRequest and the evaluator requests.
 
     Untyped, options is always a dict (see options_dict). Typed, it follows
     ModelRequest's config rule, and ``None`` is ``{}`` so the fn gets the
@@ -1037,18 +1037,73 @@ class EmbedRequest(GenkitModel, Generic[RequestOptionsT]):
         return check_options_value(cls, v)
 
 
-class EvaluatorRequest(GenkitModel, Generic[RequestOptionsT]):
-    """Evaluator request whose options are a dict or the evaluator's options class.
+def _batch_evaluator_request_schema(schema: JsonDict, cls: type) -> None:
+    """The action input schema, titled as before the Python class was renamed.
 
-    Same fields as the wire ``EvaluatorRequest``. Bare ``EvaluatorRequest`` has
-    ``options`` as ``dict[str, Any]`` instead of ``Any | None`` so evaluators
-    read it without a None guard. ``EvaluatorRequest[JudgeConfig]`` validates it
-    into ``JudgeConfig``.
+    The shared schema calls this type EvalRequest and Python used to call it
+    EvaluatorRequest, so the Dev UI and reflection see the same JSON schema.
+    """
+    _untyped_options_schema(schema, cls)
+    title = schema.get('title')
+    if isinstance(title, str) and title.startswith('BatchEvaluatorRequest'):
+        schema['title'] = title.removeprefix('Batch')
+
+
+class BatchEvaluatorRequest(GenkitModel, Generic[RequestOptionsT]):
+    """What an evaluator action receives: the whole dataset plus options.
+
+    The wire ``EvalRequest`` (``dataset``, ``evalRunId``, ``options``). A batch
+    evaluator's fn takes it as is. A per-row evaluator's fn gets one
+    ``EvaluatorRequest`` per row instead. Bare ``BatchEvaluatorRequest`` has
+    ``options`` as ``dict[str, Any]`` so evaluators read it without a None
+    guard. ``BatchEvaluatorRequest[JudgeConfig]`` validates it into ``JudgeConfig``.
+    See ``Genkit.define_batch_evaluator`` for an example.
+    """
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(json_schema_extra=_batch_evaluator_request_schema)
+    dataset: list[BaseDataPoint]
+    eval_run_id: str
+    options: RequestOptionsT = Field(default_factory=dict, validate_default=True)
+
+    def __class_getitem__(cls, typevar_values: type[Any] | tuple[type[Any], ...]) -> Any:  # noqa: ANN401
+        """``BatchEvaluatorRequest[Cfg]``, where ``Cfg`` must be a pydantic model class."""
+        check_config_type_arg(request='BatchEvaluatorRequest', field='options', typevar_values=typevar_values)
+        return super().__class_getitem__(typevar_values)
+
+    @field_validator('options', mode='before')
+    @classmethod
+    def _check_options_type(cls, v: object) -> object:
+        return check_options_value(cls, v)
+
+
+class EvaluatorRequest(GenkitModel, Generic[RequestOptionsT]):
+    """What a per-row evaluator's fn receives: one dataset row plus options.
+
+    Python only, never on the wire: the action receives a
+    ``BatchEvaluatorRequest`` and builds one of these per row. Bare
+    ``EvaluatorRequest`` has ``options`` as a dict.
+    ``EvaluatorRequest[RelevanceConfig]`` gives a validated ``RelevanceConfig``.
+
+    Example:
+        ```python
+        # 1. Score one row against the configured keyword
+        async def relevance(req: EvaluatorRequest[RelevanceConfig]) -> EvaluatorResponse:
+            hit = req.options.keyword in str(req.row.output).lower()
+            return EvaluatorResponse(test_case_id=req.row.test_case_id or '', evaluation=[Score(score=hit)])
+
+
+        # 2. Register it; RelevanceConfig is the Dev UI options form
+        ai.define_evaluator('relevance', relevance, display_name='Relevance', definition='Mentions the keyword.')
+
+        # 3. Run it over a dataset
+        rows = await ai.evaluate(evaluator='relevance', dataset=dataset, config={'keyword': 'salmon'})
+        print(rows[0].evaluation[0].score)
+        # => True
+        ```
     """
 
     model_config: ClassVar[ConfigDict] = ConfigDict(json_schema_extra=_untyped_options_schema)
-    dataset: list[BaseDataPoint]
-    eval_run_id: str
+    row: BaseDataPoint
     options: RequestOptionsT = Field(default_factory=dict, validate_default=True)
 
     def __class_getitem__(cls, typevar_values: type[Any] | tuple[type[Any], ...]) -> Any:  # noqa: ANN401

@@ -147,6 +147,8 @@
 
 ::: genkit.evaluator.EvaluatorRequest
 
+::: genkit.evaluator.BatchEvaluatorRequest
+
 ::: genkit.evaluator.EvaluatorResponse
 
 ::: genkit.evaluator.Score

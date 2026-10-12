@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""EmbedRequest[Cfg] and EvaluatorRequest[Cfg] follow ModelRequest[Cfg]'s config rule."""
+"""EmbedRequest[Cfg] and the evaluator requests follow ModelRequest[Cfg]'s config rule."""
 
 from typing import Any
 
@@ -22,7 +22,13 @@ import pytest
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from genkit._core._error import GenkitError
-from genkit._core._model import EmbedRequest, EvaluatorRequest, ModelRequest, declared_config_type
+from genkit._core._model import (
+    BatchEvaluatorRequest,
+    EmbedRequest,
+    EvaluatorRequest,
+    ModelRequest,
+    declared_config_type,
+)
 from genkit._core._typing import BaseDataPoint
 
 
@@ -69,7 +75,7 @@ def test_typed_embed_request_without_options_gets_class_defaults(options: object
 
 
 def test_typed_eval_request_validates_options_into_the_class() -> None:
-    request = EvaluatorRequest[AllergyJudgeConfig].model_validate({
+    request = BatchEvaluatorRequest[AllergyJudgeConfig].model_validate({
         'dataset': [BaseDataPoint(input='satay')],
         'eval_run_id': 'run-1',
         'options': {'allergens': ['shellfish']},
@@ -78,11 +84,24 @@ def test_typed_eval_request_validates_options_into_the_class() -> None:
     assert request.options == AllergyJudgeConfig(strict=True, allergens=['shellfish'])
 
 
+def test_per_row_eval_request_follows_the_same_options_rule() -> None:
+    """EvaluatorRequest is the per-row request: row + options, never dataset."""
+    row = BaseDataPoint(input='satay')
+
+    typed = EvaluatorRequest[AllergyJudgeConfig].model_validate({'row': row, 'options': {'strict': False}})
+    bare = EvaluatorRequest(row=row, options=AllergyJudgeConfig(strict=False))
+
+    assert typed.options == AllergyJudgeConfig(strict=False, allergens=['peanut'])
+    assert EvaluatorRequest[AllergyJudgeConfig](row=row).options == AllergyJudgeConfig()
+    assert bare.options == {'strict': False}
+    assert EvaluatorRequest(row=row).options == {}
+
+
 def test_typed_request_rejects_an_instance_of_another_class() -> None:
     with pytest.raises(
         ValidationError, match='options must be .*AllergyJudgeConfig or a mapping, got .*MenuModelConfig'
     ):
-        EvaluatorRequest[AllergyJudgeConfig].model_validate({
+        BatchEvaluatorRequest[AllergyJudgeConfig].model_validate({
             'dataset': [],
             'eval_run_id': 'run-1',
             'options': MenuModelConfig(),
@@ -102,7 +121,12 @@ def test_bare_request_is_revalidated_into_the_typed_class() -> None:
 
 @pytest.mark.parametrize(
     ('request_type', 'field'),
-    [(ModelRequest, 'config'), (EmbedRequest, 'options'), (EvaluatorRequest, 'options')],
+    [
+        (ModelRequest, 'config'),
+        (EmbedRequest, 'options'),
+        (BatchEvaluatorRequest, 'options'),
+        (EvaluatorRequest, 'options'),
+    ],
 )
 def test_non_model_type_argument_raises_when_annotated(request_type: Any, field: str) -> None:  # noqa: ANN401
     with pytest.raises(GenkitError, match=f'the {field} type must be a pydantic BaseModel subclass'):
@@ -111,6 +135,7 @@ def test_non_model_type_argument_raises_when_annotated(request_type: Any, field:
 
 def test_declared_config_type_reads_every_request_type() -> None:
     assert declared_config_type(EmbedRequest[CrmEmbedConfig]) is CrmEmbedConfig
+    assert declared_config_type(BatchEvaluatorRequest[AllergyJudgeConfig]) is AllergyJudgeConfig
     assert declared_config_type(EvaluatorRequest[AllergyJudgeConfig]) is AllergyJudgeConfig
     assert declared_config_type(EmbedRequest) is None
     assert declared_config_type(EvaluatorRequest[Any]) is None

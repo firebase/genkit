@@ -28,7 +28,15 @@ from pydantic import BaseModel
 
 from genkit import Genkit, GenkitError
 from genkit._core._action import ActionRunContext
-from genkit._core._model import EmbedRequest, EvaluatorRequest, Message, ModelRequest, ModelResponse, Part
+from genkit._core._model import (
+    BatchEvaluatorRequest,
+    EmbedRequest,
+    EvaluatorRequest,
+    Message,
+    ModelRequest,
+    ModelResponse,
+    Part,
+)
 from genkit._core._typing import (
     BaseDataPoint,
     Embedding,
@@ -124,7 +132,7 @@ def test_embedder_annotation_and_config_schema_must_agree() -> None:
 def test_per_row_evaluator_annotation_and_config_schema_must_agree() -> None:
     ai = Genkit()
 
-    async def allergy_check(datapoint: BaseDataPoint, options: AllergyJudgeConfig) -> EvaluatorResponse:
+    async def allergy_check(request: EvaluatorRequest[AllergyJudgeConfig]) -> EvaluatorResponse:
         return _score()
 
     with pytest.raises(GenkitError, match=r"evaluator 'allergy': config_schema is .*MenuOnlyConfig"):
@@ -140,7 +148,7 @@ def test_per_row_evaluator_annotation_and_config_schema_must_agree() -> None:
 def test_batch_evaluator_annotation_and_config_schema_must_agree() -> None:
     ai = Genkit()
 
-    async def allergy_batch(request: EvaluatorRequest[AllergyJudgeConfig]) -> list[EvaluatorResponse]:
+    async def allergy_batch(request: BatchEvaluatorRequest[AllergyJudgeConfig]) -> list[EvaluatorResponse]:
         return [_score()]
 
     with pytest.raises(GenkitError, match=r"evaluator 'allergy': config_schema is .*MenuOnlyConfig"):
@@ -173,10 +181,10 @@ def test_annotation_alone_sets_config_schema_and_dev_ui_form() -> None:
     async def crm_search(request: EmbedRequest[CrmEmbedConfig]) -> EmbedResponse:
         return _embedding()
 
-    async def allergy_check(datapoint: BaseDataPoint, options: AllergyJudgeConfig) -> EvaluatorResponse:
+    async def allergy_check(request: EvaluatorRequest[AllergyJudgeConfig]) -> EvaluatorResponse:
         return _score()
 
-    async def allergy_batch(request: EvaluatorRequest[AllergyJudgeConfig]) -> list[EvaluatorResponse]:
+    async def allergy_batch(request: BatchEvaluatorRequest[AllergyJudgeConfig]) -> list[EvaluatorResponse]:
         return [_score()]
 
     model = ai.define_model(name='bistro', fn=bistro)
@@ -240,7 +248,7 @@ async def test_unannotated_batch_evaluator_gets_a_request_from_a_raw_run() -> No
     action = ai.define_batch_evaluator(name='allergy', display_name='Allergy', definition='d', fn=allergy_batch)
     response = await action.run({'dataset': [{'input': 'satay'}], 'evalRunId': 'run-1', 'options': None})  # type: ignore[arg-type]  # pyrefly: ignore[bad-argument-type] - raw wire JSON, as the Dev UI sends
 
-    assert isinstance(seen['request'], EvaluatorRequest)
+    assert isinstance(seen['request'], BatchEvaluatorRequest)
     assert seen['request'].options == {}
     assert isinstance(response.response, EvalResponse)
 
@@ -250,11 +258,13 @@ async def test_typed_per_row_evaluator_gets_its_options_class() -> None:
     ai = Genkit()
     seen: dict[str, Any] = {}
 
-    async def allergy_check(datapoint: BaseDataPoint, options: AllergyJudgeConfig) -> EvaluatorResponse:
-        seen['options'] = options
+    async def allergy_check(request: EvaluatorRequest[AllergyJudgeConfig]) -> EvaluatorResponse:
+        seen['request'] = request
         return _score()
 
     action = ai.define_evaluator(name='allergy', display_name='Allergy', definition='d', fn=allergy_check)
     await action.run({'dataset': [{'input': 'satay'}], 'evalRunId': 'run-1', 'options': {'strict': False}})  # type: ignore[arg-type]  # pyrefly: ignore[bad-argument-type] - raw wire JSON, as the Dev UI sends
 
-    assert seen['options'] == AllergyJudgeConfig(strict=False, allergens=['peanut'])
+    assert isinstance(seen['request'], EvaluatorRequest)
+    assert seen['request'].row.input == 'satay'
+    assert seen['request'].options == AllergyJudgeConfig(strict=False, allergens=['peanut'])
