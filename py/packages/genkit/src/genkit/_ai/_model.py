@@ -37,6 +37,7 @@ from genkit._core._config_check import (
     check_config_json_schema,
     check_config_values,
     check_request_config,
+    check_whole_config,
     config_field_names as config_field_names,
     config_values,
 )
@@ -302,12 +303,11 @@ def resolve_call_config(
     """The class a call checks against and its layered config, for embed and evaluate.
 
     call_config_class, check_call_config on the call's config,
-    layer_call_config, then check_merged_config: the same steps generate takes.
+    layer_call_config: the same steps generate takes.
     """
     schema = call_config_class(name=name, kind=kind, ref_schema=ref_schema, action_schema=action_schema)
     check_call_config(config=call, schema=schema, model=name)
     config = layer_call_config(call=call, version=version, ref_config=ref_config, schema=schema)
-    check_merged_config(config=config, schema=schema, model=name)
     return schema, config
 
 
@@ -550,15 +550,38 @@ def model(
     model_meta: dict[str, object] = metadata.copy() if metadata else {}
     model_meta['model'] = model_options
 
+    if not config_schema:
+        return Action(
+            kind=ActionKind.MODEL,
+            name=name,
+            fn=fn,
+            metadata=model_meta,
+            description=get_func_description(fn, description),
+        )
+
+    schema = config_schema
+    if not inspect.iscoroutinefunction(fn):
+        raise TypeError(f"Action handlers must be async functions. Got sync function for '{name}'.")
+    if isinstance(schema, dict):
+        check_config_json_schema(schema, model=name)
+
+    @functools.wraps(fn)
+    async def run_with_config_check(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse[Any]:
+        # Runs inside the model action, after every middleware, so a required
+        # field no layer filled is reported here. generate returns it as the
+        # turn's error. Go checks config at the same point.
+        check_request_config(request, schema=schema, model=name)
+        return await action.params.call(fn, request, ctx)
+
     action = Action(
         kind=ActionKind.MODEL,
         name=name,
-        fn=fn,
+        fn=run_with_config_check,
+        metadata_fn=fn,
         metadata=model_meta,
         description=get_func_description(fn, description),
         config_schema=config_schema,
     )
-    # Annotation only: the Dev UI form comes from ModelRequest[Cfg].
     if 'customOptions' not in model_options and action.config_schema is not None:
         model_options['customOptions'] = custom_options_schema(action.config_schema)
     return action
@@ -613,18 +636,7 @@ def assert_correct_config_class(
 def check_call_config(*, config: object, schema: type[BaseModel] | None, model: str) -> None:
     """Call-time config check: a typed object's class and a dict's keys and values."""
     assert_correct_config_class(config=config, schema=schema, model=model)
-    check_config_dict(config=config, schema=schema, model=model)
-
-
-def check_merged_config(*, config: Mapping[str, Any], schema: type[BaseModel] | None, model: str) -> None:
-    """The caller's layers together have to fit the class, class defaults filling the rest.
-
-    Runs before the action, so a missing required field raises
-    INVALID_ARGUMENT here, with the same message the action boundary uses,
-    instead of a failed response from inside generate.
-    """
-    if schema is not None:
-        validate_config_dict(config=config, schema=schema, label=model)
+    check_config_values(config=config, schema=schema, model=model)
 
 
 def _config_values(config: BaseModel) -> dict[str, Any]:
