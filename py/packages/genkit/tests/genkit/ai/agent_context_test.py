@@ -8,6 +8,7 @@ from typing import get_args, get_origin
 import pytest
 
 from genkit import Message, ModelResponseChunk, Part, Role
+from genkit._core._action import ActionRunContext
 from genkit.exp import Genkit
 from genkit.exp.agent import (
     AgentContext,
@@ -20,7 +21,6 @@ from genkit.exp.agent import (
     TurnContext,
     TurnResult,
 )
-from genkit.plugin_api import ActionRunContext
 
 
 def test_agent_context_is_action_run_context_of_agent_stream_chunk() -> None:

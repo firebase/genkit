@@ -33,8 +33,8 @@ from pydantic import BaseModel
 
 from genkit import Document, Genkit, GenkitError, Message, ModelResponse, Part, Role
 from genkit.embedder import EmbedRequest
-from genkit.model import ModelRequest
-from genkit.plugin_api import ActionKind, ActionRunContext, to_json_schema
+from genkit.model import ModelContext, ModelRequest
+from genkit.plugin_api import ActionKind, to_json_schema
 
 
 def test_init_with_options() -> None:
@@ -451,7 +451,7 @@ async def _call_ollama(plugin: Ollama, surface: str, error: BaseException) -> No
     else:
         action = plugin._create_model_action(_ResolvedModel(name='m'))
         request = ModelRequest(messages=[Message(role=Role.USER, content=[Part.from_text('Hello')])])
-        ctx = ActionRunContext(streaming_callback=MagicMock()) if streaming else None
+        ctx = ModelContext(streaming_callback=MagicMock()) if streaming else None
         await action._fn(request, ctx)
 
 

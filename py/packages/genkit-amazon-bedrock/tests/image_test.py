@@ -26,8 +26,8 @@ from genkit_amazon_bedrock._image import BedrockImageModel, build_amazon_image_b
 from pydantic import ConfigDict
 
 from genkit import FinishReason, GenkitError, Media, Message, ModelResponse, Part, Role
-from genkit.model import ModelConfig, ModelRequest
-from genkit.plugin_api import ActionRunContext, to_json_schema
+from genkit.model import ModelConfig, ModelContext, ModelRequest
+from genkit.plugin_api import to_json_schema
 
 TITAN_IMAGE = 'amazon.titan-image-generator-v1'
 NOVA_CANVAS = 'amazon.nova-canvas-v1:0'
@@ -117,7 +117,7 @@ async def generate(
     model_id: str,
     transport: Any,  # noqa: ANN401
     request: ModelRequest | None = None,
-    ctx: ActionRunContext | None = None,
+    ctx: ModelContext | None = None,
 ) -> ModelResponse:
     model = BedrockImageModel(model_id=model_id, transport=transport)
     return await model.generate(request if request is not None else image_request(), ctx)
@@ -439,7 +439,7 @@ async def test_response_carries_one_media_part_per_image() -> None:
 async def test_a_streaming_context_receives_no_chunks() -> None:
     transport = FakeInvokeTransport(amazon_response('titan-image'))
     chunks: list[Any] = []
-    response = await generate(TITAN_IMAGE, transport, ctx=ActionRunContext(streaming_callback=chunks.append))
+    response = await generate(TITAN_IMAGE, transport, ctx=ModelContext(streaming_callback=chunks.append))
 
     assert chunks == []
     assert len(media(response)) == 1
