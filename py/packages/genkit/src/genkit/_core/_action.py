@@ -732,7 +732,7 @@ class ActionRunContext(Generic[ChunkT]):
     Apps use it as ``genkit.FlowContext``; model and background-model plugins
     use ``genkit.model.ModelContext``. ``ChunkT`` is the type ``send_chunk`` accepts.
 
-        @ai.flow(chunk_type=str)
+        @ai.flow()
         async def plate_dish(dish: str, ctx: FlowContext[str]) -> str:
             ctx.send_chunk('searing')
             return f'{dish} for {ctx.context.get("table", "walk-in")}'

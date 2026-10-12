@@ -47,7 +47,7 @@ async def welcome(name: str) -> str:
     return await ai.run(name='draft', fn=draft)
 
 
-@ai.flow(chunk_type=StatusChunk)
+@ai.flow()
 async def status(count: int, ctx: FlowContext[StatusChunk]) -> str:
     # send_chunk is what Dev UI and the HTTP stream paint as progress.
     for i in range(count):
