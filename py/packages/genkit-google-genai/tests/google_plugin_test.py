@@ -27,6 +27,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from genkit_google_genai import GoogleAI, VertexAI
+from genkit_google_genai._evaluators._evaluation import VertexAIEvaluationMetricType
 from genkit_google_genai._google import _inject_attribution_headers, _plugin_client, googleai_name, vertexai_name
 from genkit_google_genai._models._embedder import VERTEX_KNOWN_EMBEDDERS
 from genkit_google_genai._models._gemini import (
@@ -44,7 +45,7 @@ from pydantic import ValidationError
 from genkit import Document, Genkit, GenkitError, Message, Part, Role
 from genkit.embedder import EmbedRequest
 from genkit.model import ModelInfo, ModelRequest
-from genkit.plugin_api import GENKIT_CLIENT_HEADER, ActionKind
+from genkit.plugin_api import GENKIT_CLIENT_HEADER, Action, ActionKind, ActionMetadata
 
 
 async def _get_runtime_client(plugin: GoogleAI | VertexAI) -> object:
@@ -590,7 +591,9 @@ async def test_vertexai_initialize(vertexai_plugin_instance: VertexAI) -> None:
     result = await plugin.list_actions()
 
     assert len(result) > 0, 'Should initialize with known models and embedders'
-    assert all(action.action_type is not None for action in result), 'All actions should have an action_type'
+    assert all((a.kind if isinstance(a, Action) else a.action_type) is not None for a in result), (
+        'All actions should have a kind or action_type'
+    )
 
     # ... (rest of test unchanged)
 
@@ -600,8 +603,8 @@ async def test_vertexai_initialize(vertexai_plugin_instance: VertexAI) -> None:
     )
 
     # Verify we have both models and embedders
-    model_actions = [a for a in result if a.action_type == ActionKind.MODEL]
-    embedder_actions = [a for a in result if a.action_type == ActionKind.EMBEDDER]
+    model_actions = [a for a in result if isinstance(a, ActionMetadata) and a.action_type == ActionKind.MODEL]
+    embedder_actions = [a for a in result if isinstance(a, ActionMetadata) and a.action_type == ActionKind.EMBEDDER]
     assert len(model_actions) > 0, 'Should have at least one model'
     assert len(embedder_actions) > 0, 'Should have at least one embedder'
 
@@ -808,6 +811,7 @@ async def test_vertexai_list_actions_without_supported_actions(vertexai_plugin_i
 
     # gemini-embedding-001 is registered as an embedder, not a gemini model.
     embedder = next(a for a in result if a.name == vertexai_name('gemini-embedding-001'))
+    assert isinstance(embedder, ActionMetadata)
     assert embedder.action_type == ActionKind.EMBEDDER
     # Non-callable embedders over-listed by the catalog must not leak into Gemini text models.
     assert vertexai_name('gemini-embedding-2') not in names
@@ -862,6 +866,32 @@ async def test_vertexai_resolve_evaluator(vertexai_plugin_instance: VertexAI) ->
     assert action is not None
     assert action.kind == ActionKind.EVALUATOR
     assert action.name == vertexai_name('fluency')
+
+
+@pytest.mark.asyncio
+async def test_vertexai_listed_evaluator_metadata_matches_resolved(vertexai_plugin_instance: VertexAI) -> None:
+    """The Dev UI shows the same evaluator name and definition before and after resolve."""
+    plugin = vertexai_plugin_instance
+    mock_client = MagicMock()
+    _set_async_model_list(mock_client, [])
+    plugin._runtime_client = lambda: mock_client
+
+    listed = {
+        a.name: a for a in await plugin.list_actions() if isinstance(a, Action) and a.kind == ActionKind.EVALUATOR
+    }
+
+    assert sorted(listed) == sorted(vertexai_name(m.lower()) for m in VertexAIEvaluationMetricType)
+    for name, listed_action in listed.items():
+        action = await plugin.resolve(action_type=ActionKind.EVALUATOR, name=name.removeprefix('vertexai/'))
+        assert action is not None
+        assert listed_action.metadata is not None
+        assert listed_action.metadata['evaluator'] == action.metadata['evaluator']
+    assert listed[vertexai_name('fluency')].metadata.get('evaluator') == {
+        'evaluatorDefinition': 'Assesses the language mastery of an output',
+        'evaluatorDisplayName': 'Fluency',
+        'evaluatorIsBilled': True,
+        'label': vertexai_name('fluency'),
+    }
 
 
 def test_config_schema_rejects_unknown_fields() -> None:
@@ -927,3 +957,15 @@ async def test_lazy_client_unknown_failure_stays_raw() -> None:
             _plugin_client({'vertexai': False, 'api_key': 'k'})
 
     assert raised.value is boom
+
+
+def test_googleai_positional_api_key_raises_type_error() -> None:
+    """GoogleAI('my-key') raises TypeError; the key is passed as api_key=."""
+    with pytest.raises(TypeError):
+        GoogleAI('my-key')  # type: ignore[misc]
+
+
+def test_vertexai_positional_project_raises_type_error() -> None:
+    """VertexAI('my-project') raises TypeError instead of treating the project as credentials."""
+    with pytest.raises(TypeError):
+        VertexAI('my-project')  # type: ignore[misc]

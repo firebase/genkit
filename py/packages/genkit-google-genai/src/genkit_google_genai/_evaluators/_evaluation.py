@@ -30,27 +30,23 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import httpx
+from genkit_google_genai._auth import GOOGLE_AUTH_ERRORS, raise_auth_error
+from genkit_google_genai._constants import GLOBAL_LOCATION, is_multi_regional_location, vertex_api_host
+from genkit_google_genai._provider_errors import TRANSPORT_ERRORS, transport_error
 from google.auth import default as google_auth_default
 from google.auth.transport.requests import Request
 
-from genkit import BaseDataPoint, GenkitError
-from genkit._core._compat import StrEnum
-from genkit.evaluator import Details, EvalFnResponse, Score
-from genkit.plugin_api import (
-    GENKIT_CLIENT_HEADER,
-    Action,
-    get_cached_client,
-    mark_provider_error,
-    wrap_http_error,
-)
-from genkit_google_genai._auth import GOOGLE_AUTH_ERRORS, raise_auth_error
-from genkit_google_genai._constants import GLOBAL_LOCATION, is_multi_regional_location, vertex_api_host
+from genkit import GenkitError
+from genkit.evaluator import BaseDataPoint, Evaluator, EvaluatorResponse, Score, ScoreDetails
+from genkit.plugin_api import GENKIT_CLIENT_HEADER, Action, StrEnum, loop_local_client, provider_error
 
-if TYPE_CHECKING:
-    from genkit import Genkit as GenkitRegistry
+
+@loop_local_client
+def _evaluator_client() -> httpx.AsyncClient:
+    return httpx.AsyncClient(timeout=httpx.Timeout(60.0))
 
 
 class VertexAIEvaluationMetricType(StrEnum):
@@ -101,14 +97,14 @@ def _stringify(value: Any) -> str:  # noqa: ANN401
 class EvaluatorFactory:
     """Factory for creating Vertex AI evaluator actions."""
 
-    def __init__(self, project_id: str, location: str) -> None:
+    def __init__(self, project: str, location: str) -> None:
         """Initialize the factory.
 
         Args:
-            project_id: Google Cloud project ID.
+            project: Google Cloud project ID.
             location: Google Cloud location.
         """
-        self.project_id = project_id
+        self.project = project
         self.location = location
 
     def _api_host(self) -> str:
@@ -140,7 +136,7 @@ class EvaluatorFactory:
         Raises:
             GenkitError: If the API call fails.
         """
-        location_name = f'projects/{self.project_id}/locations/{self.location}'
+        location_name = f'projects/{self.project}/locations/{self.location}'
         url = f'https://{self._api_host()}/v1beta1/{location_name}:evaluateInstances'
 
         # Get authentication token
@@ -170,20 +166,17 @@ class EvaluatorFactory:
             **request_body,
         }
 
-        # Use cached client for better connection reuse.
-        # Note: Auth headers are passed per-request since tokens may expire.
-        client = get_cached_client(
-            cache_key='vertex-ai-evaluator',
-            timeout=60.0,
-        )
+        # Auth headers go on each request since tokens expire.
+        client = _evaluator_client()
 
-        # Transport failures (refused connection, timeout) have no known
-        # status and propagate as is.
-        response = await client.post(
-            url,
-            headers=headers,
-            json=request,
-        )
+        try:
+            response = await client.post(
+                url,
+                headers=headers,
+                json=request,
+            )
+        except TRANSPORT_ERRORS as e:
+            raise transport_error(e) from e
 
         if response.status_code != 200:
             error_message = response.text
@@ -195,13 +188,15 @@ class EvaluatorFactory:
                 pass
 
             message = f'Error calling Vertex AI Evaluation API: [{response.status_code}] {error_message}'
-            if response.status_code >= 400:
-                try:
-                    response.raise_for_status()
-                except httpx.HTTPStatusError as e:
-                    raise wrap_http_error(e, status_code=response.status_code, message=message) from e
-            # A non-200 success or redirect is not a body this client can read.
-            raise mark_provider_error(error=GenkitError(message=message, status='INTERNAL'))
+            error = httpx.HTTPStatusError(message, request=httpx.Request('POST', url), response=response)
+            raise provider_error(
+                error,
+                http_status=response.status_code,
+                # A non-200 success or redirect is not a body this client can read.
+                status='INTERNAL' if response.status_code < 400 else None,
+                headers=response.headers,
+                message=message,
+            ) from error
 
         try:
             return response.json()
@@ -232,7 +227,7 @@ class EvaluatorFactory:
         async def evaluator_fn(
             datapoint: BaseDataPoint,
             options: dict[str, Any] | None = None,
-        ) -> EvalFnResponse:
+        ) -> EvaluatorResponse:
             """Evaluate a single datapoint.
 
             Args:
@@ -254,7 +249,7 @@ class EvaluatorFactory:
                     cause=e,
                 ) from e
 
-            return EvalFnResponse(
+            return EvaluatorResponse(
                 evaluation=[score],
                 test_case_id=datapoint.test_case_id or '',
             )
@@ -262,204 +257,198 @@ class EvaluatorFactory:
         return evaluator_fn
 
 
+# One entry per metric. The display name and definition here are what the
+# Dev UI shows both in the evaluator list and on a built evaluator.
+METRIC_CONFIGS: dict[VertexAIEvaluationMetricType, dict[str, Any]] = {
+    VertexAIEvaluationMetricType.BLEU: {
+        'display_name': 'BLEU',
+        'definition': 'Computes the BLEU score by comparing the output against the ground truth',
+        'to_request': lambda dp: {
+            'bleuInput': {
+                'metricSpec': {},
+                'instances': [
+                    {
+                        'prediction': _stringify(dp.output),
+                        'reference': dp.reference,
+                    }
+                ],
+            }
+        },
+        'response_handler': _create_list_based_score_handler('bleuResults', 'bleuMetricValues'),
+    },
+    VertexAIEvaluationMetricType.ROUGE: {
+        'display_name': 'ROUGE',
+        'definition': 'Computes the ROUGE score by comparing the output against the ground truth',
+        'to_request': lambda dp: {
+            'rougeInput': {
+                'metricSpec': {},
+                'instances': [
+                    {
+                        'prediction': _stringify(dp.output),
+                        'reference': dp.reference,
+                    }
+                ],
+            }
+        },
+        'response_handler': _create_list_based_score_handler('rougeResults', 'rougeMetricValues'),
+    },
+    VertexAIEvaluationMetricType.FLUENCY: {
+        'display_name': 'Fluency',
+        'definition': 'Assesses the language mastery of an output',
+        'to_request': lambda dp: {
+            'fluencyInput': {
+                'metricSpec': {},
+                'instance': {
+                    'prediction': _stringify(dp.output),
+                },
+            }
+        },
+        'response_handler': lambda r: Score(
+            score=r.get('fluencyResult', {}).get('score'),
+            details=ScoreDetails(reasoning=r.get('fluencyResult', {}).get('explanation')),
+        ),
+    },
+    VertexAIEvaluationMetricType.SAFETY: {
+        'display_name': 'Safety',
+        'definition': 'Assesses the level of safety of an output',
+        'to_request': lambda dp: {
+            'safetyInput': {
+                'metricSpec': {},
+                'instance': {
+                    'prediction': _stringify(dp.output),
+                },
+            }
+        },
+        'response_handler': lambda r: Score(
+            score=r.get('safetyResult', {}).get('score'),
+            details=ScoreDetails(reasoning=r.get('safetyResult', {}).get('explanation')),
+        ),
+    },
+    VertexAIEvaluationMetricType.GROUNDEDNESS: {
+        'display_name': 'Groundedness',
+        'definition': 'Assesses the ability to provide or reference information included only in the context',
+        'to_request': lambda dp: {
+            'groundednessInput': {
+                'metricSpec': {},
+                'instance': {
+                    'prediction': _stringify(dp.output),
+                    'context': '. '.join(dp.context) if dp.context else None,
+                },
+            }
+        },
+        'response_handler': lambda r: Score(
+            score=r.get('groundednessResult', {}).get('score'),
+            details=ScoreDetails(reasoning=r.get('groundednessResult', {}).get('explanation')),
+        ),
+    },
+    VertexAIEvaluationMetricType.SUMMARIZATION_QUALITY: {
+        'display_name': 'Summarization quality',
+        'definition': 'Assesses the overall ability to summarize text',
+        'to_request': lambda dp: {
+            'summarizationQualityInput': {
+                'metricSpec': {},
+                'instance': {
+                    'prediction': _stringify(dp.output),
+                    'instruction': _stringify(dp.input),
+                    'context': '. '.join(dp.context) if dp.context else None,
+                },
+            }
+        },
+        'response_handler': lambda r: Score(
+            score=r.get('summarizationQualityResult', {}).get('score'),
+            details=ScoreDetails(reasoning=r.get('summarizationQualityResult', {}).get('explanation')),
+        ),
+    },
+    VertexAIEvaluationMetricType.SUMMARIZATION_HELPFULNESS: {
+        'display_name': 'Summarization helpfulness',
+        'definition': 'Assesses ability to provide a summarization with details to substitute the original',
+        'to_request': lambda dp: {
+            'summarizationHelpfulnessInput': {
+                'metricSpec': {},
+                'instance': {
+                    'prediction': _stringify(dp.output),
+                    'instruction': _stringify(dp.input),
+                    'context': '. '.join(dp.context) if dp.context else None,
+                },
+            }
+        },
+        'response_handler': lambda r: Score(
+            score=r.get('summarizationHelpfulnessResult', {}).get('score'),
+            details=ScoreDetails(reasoning=r.get('summarizationHelpfulnessResult', {}).get('explanation')),
+        ),
+    },
+    VertexAIEvaluationMetricType.SUMMARIZATION_VERBOSITY: {
+        'display_name': 'Summarization verbosity',
+        'definition': 'Assesses the ability to provide a succinct summarization',
+        'to_request': lambda dp: {
+            'summarizationVerbosityInput': {
+                'metricSpec': {},
+                'instance': {
+                    'prediction': _stringify(dp.output),
+                    'instruction': _stringify(dp.input),
+                    'context': '. '.join(dp.context) if dp.context else None,
+                },
+            }
+        },
+        'response_handler': lambda r: Score(
+            score=r.get('summarizationVerbosityResult', {}).get('score'),
+            details=ScoreDetails(reasoning=r.get('summarizationVerbosityResult', {}).get('explanation')),
+        ),
+    },
+}
+
+
+def vertex_evaluator_name(metric_type: VertexAIEvaluationMetricType) -> str:
+    """Action name for a Vertex metric, e.g. ``vertexai/fluency``."""
+    return f'vertexai/{metric_type.lower()}'
+
+
+def vertex_evaluator_action(metric_type: VertexAIEvaluationMetricType) -> Evaluator:
+    """Evaluator action for a Vertex metric."""
+    return _create_evaluator_for_metric(
+        factory=EvaluatorFactory('', ''),
+        metric_type=metric_type,
+    )
+
+
 def create_vertex_evaluators(
-    registry: GenkitRegistry,
     metrics: list[VertexAIEvaluationMetricType],
-    project_id: str,
+    project: str,
     location: str,
 ) -> list[Action]:
-    """Create Vertex AI evaluator actions.
+    """Build Vertex AI evaluator actions for the plugin to return.
 
     Args:
-        registry: The Genkit registry.
         metrics: List of metrics to create evaluators for.
-        project_id: Google Cloud project ID.
+        project: Google Cloud project ID.
         location: Google Cloud location.
 
     Returns:
-        List of created evaluator actions.
+        List of evaluator actions, not yet registered anywhere.
     """
-    factory = EvaluatorFactory(project_id, location)
-    actions = []
-
-    for metric_type in metrics:
-        action = _create_evaluator_for_metric(registry, factory, metric_type)
-        if action:
-            actions.append(action)
-
-    return actions
+    factory = EvaluatorFactory(project, location)
+    return [_create_evaluator_for_metric(factory=factory, metric_type=metric_type) for metric_type in metrics]
 
 
 def _create_evaluator_for_metric(
-    registry: GenkitRegistry,
+    *,
     factory: EvaluatorFactory,
     metric_type: VertexAIEvaluationMetricType,
-) -> Action | None:
-    """Create an evaluator action for a specific metric.
+) -> Evaluator:
+    """Build the evaluator action for one metric."""
+    config = METRIC_CONFIGS[metric_type]
 
-    Args:
-        registry: The Genkit registry.
-        factory: The evaluator factory.
-        metric_type: The metric type.
-
-    Returns:
-        The created action, or None if metric is not supported.
-    """
-    evaluator_configs = {
-        VertexAIEvaluationMetricType.BLEU: {
-            'display_name': 'BLEU',
-            'definition': 'Computes the BLEU score by comparing the output against the ground truth',
-            'to_request': lambda dp: {
-                'bleuInput': {
-                    'metricSpec': {},
-                    'instances': [
-                        {
-                            'prediction': _stringify(dp.output),
-                            'reference': dp.reference,
-                        }
-                    ],
-                }
-            },
-            'response_handler': _create_list_based_score_handler('bleuResults', 'bleuMetricValues'),
-        },
-        VertexAIEvaluationMetricType.ROUGE: {
-            'display_name': 'ROUGE',
-            'definition': 'Computes the ROUGE score by comparing the output against the ground truth',
-            'to_request': lambda dp: {
-                'rougeInput': {
-                    'metricSpec': {},
-                    'instances': [
-                        {
-                            'prediction': _stringify(dp.output),
-                            'reference': dp.reference,
-                        }
-                    ],
-                }
-            },
-            'response_handler': _create_list_based_score_handler('rougeResults', 'rougeMetricValues'),
-        },
-        VertexAIEvaluationMetricType.FLUENCY: {
-            'display_name': 'Fluency',
-            'definition': 'Assesses the language mastery of an output',
-            'to_request': lambda dp: {
-                'fluencyInput': {
-                    'metricSpec': {},
-                    'instance': {
-                        'prediction': _stringify(dp.output),
-                    },
-                }
-            },
-            'response_handler': lambda r: Score(
-                score=r.get('fluencyResult', {}).get('score'),
-                details=Details(reasoning=r.get('fluencyResult', {}).get('explanation')),
-            ),
-        },
-        VertexAIEvaluationMetricType.SAFETY: {
-            'display_name': 'Safety',
-            'definition': 'Assesses the level of safety of an output',
-            'to_request': lambda dp: {
-                'safetyInput': {
-                    'metricSpec': {},
-                    'instance': {
-                        'prediction': _stringify(dp.output),
-                    },
-                }
-            },
-            'response_handler': lambda r: Score(
-                score=r.get('safetyResult', {}).get('score'),
-                details=Details(reasoning=r.get('safetyResult', {}).get('explanation')),
-            ),
-        },
-        VertexAIEvaluationMetricType.GROUNDEDNESS: {
-            'display_name': 'Groundedness',
-            'definition': 'Assesses the ability to provide or reference information included only in the context',
-            'to_request': lambda dp: {
-                'groundednessInput': {
-                    'metricSpec': {},
-                    'instance': {
-                        'prediction': _stringify(dp.output),
-                        'context': '. '.join(dp.context) if dp.context else None,
-                    },
-                }
-            },
-            'response_handler': lambda r: Score(
-                score=r.get('groundednessResult', {}).get('score'),
-                details=Details(reasoning=r.get('groundednessResult', {}).get('explanation')),
-            ),
-        },
-        VertexAIEvaluationMetricType.SUMMARIZATION_QUALITY: {
-            'display_name': 'Summarization quality',
-            'definition': 'Assesses the overall ability to summarize text',
-            'to_request': lambda dp: {
-                'summarizationQualityInput': {
-                    'metricSpec': {},
-                    'instance': {
-                        'prediction': _stringify(dp.output),
-                        'instruction': _stringify(dp.input),
-                        'context': '. '.join(dp.context) if dp.context else None,
-                    },
-                }
-            },
-            'response_handler': lambda r: Score(
-                score=r.get('summarizationQualityResult', {}).get('score'),
-                details=Details(reasoning=r.get('summarizationQualityResult', {}).get('explanation')),
-            ),
-        },
-        VertexAIEvaluationMetricType.SUMMARIZATION_HELPFULNESS: {
-            'display_name': 'Summarization helpfulness',
-            'definition': 'Assesses ability to provide a summarization with details to substitute the original',
-            'to_request': lambda dp: {
-                'summarizationHelpfulnessInput': {
-                    'metricSpec': {},
-                    'instance': {
-                        'prediction': _stringify(dp.output),
-                        'instruction': _stringify(dp.input),
-                        'context': '. '.join(dp.context) if dp.context else None,
-                    },
-                }
-            },
-            'response_handler': lambda r: Score(
-                score=r.get('summarizationHelpfulnessResult', {}).get('score'),
-                details=Details(reasoning=r.get('summarizationHelpfulnessResult', {}).get('explanation')),
-            ),
-        },
-        VertexAIEvaluationMetricType.SUMMARIZATION_VERBOSITY: {
-            'display_name': 'Summarization verbosity',
-            'definition': 'Assesses the ability to provide a succinct summarization',
-            'to_request': lambda dp: {
-                'summarizationVerbosityInput': {
-                    'metricSpec': {},
-                    'instance': {
-                        'prediction': _stringify(dp.output),
-                        'instruction': _stringify(dp.input),
-                        'context': '. '.join(dp.context) if dp.context else None,
-                    },
-                }
-            },
-            'response_handler': lambda r: Score(
-                score=r.get('summarizationVerbosityResult', {}).get('score'),
-                details=Details(reasoning=r.get('summarizationVerbosityResult', {}).get('explanation')),
-            ),
-        },
-    }
-
-    config = evaluator_configs.get(metric_type)
-    if not config:
-        return None
-
-    evaluator_name = f'vertexai/{metric_type.lower()}'
-    display_name: str = config['display_name']  # type: ignore[assignment]
-    definition: str = config['definition']  # type: ignore[assignment]
     evaluator_fn = factory.create_evaluator_fn(
         metric_type,
         config['to_request'],
         config['response_handler'],
     )
 
-    return registry.define_evaluator(
-        name=evaluator_name,
-        display_name=display_name,
-        definition=definition,
-        fn=evaluator_fn,
-        is_billed=True,  # These use Vertex AI API which is billed
+    return Evaluator(
+        vertex_evaluator_name(metric_type),
+        evaluator_fn,
+        display_name=config['display_name'],
+        definition=config['definition'],
+        # every metric is a call to the paid Vertex Evaluation API.
+        is_billed=True,
     )

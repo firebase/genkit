@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import abc
+from collections.abc import Sequence
 from typing import ClassVar
 
 from genkit._core._action import Action, ActionKind, set_action_name
@@ -84,7 +85,7 @@ class Plugin(abc.ABC):
             #    request sent with model='openai/gpt-4o'
 
             # 3. The action lives under the id the app typed
-            action = await ai.registry.resolve_action(ActionKind.MODEL, 'openai/openai/gpt-4o')
+            action = await ai.lookup_model('openai/openai/gpt-4o')
             print(action.name)
             # => openai/openai/gpt-4o
             ```
@@ -92,7 +93,7 @@ class Plugin(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> Sequence[Action | ActionMetadata]:
         """Return advertised actions for dev UI/reflection listing.
 
         ``ActionMetadata.action_type`` must be set (typically ``ActionKind.*``) and
@@ -147,7 +148,8 @@ class MiddlewarePlugin(Plugin):
     Example:
         from genkit import Genkit
         from genkit.middleware import BaseMiddleware
-        from genkit.plugin_api import MiddlewarePlugin, new_middleware
+        from genkit.middleware import GenerateMiddleware
+        from genkit.plugin_api import MiddlewarePlugin
 
         class PrefixPromptMiddleware(BaseMiddleware):
             ...
@@ -155,8 +157,8 @@ class MiddlewarePlugin(Plugin):
         class MyMiddlewarePlugin(MiddlewarePlugin):
             name = 'my-middleware'
             middleware = [
-                new_middleware(
-                    PrefixPromptMiddleware,
+                GenerateMiddleware(
+                    cls=PrefixPromptMiddleware,
                     name='prefix_prompt',
                     description='Prepends a fixed prompt',
                 ),
@@ -175,7 +177,7 @@ class MiddlewarePlugin(Plugin):
             raise ValueError(
                 f'{type(self).__name__} must provide middleware via the `middleware` class '
                 'attribute or a `list_middleware` override. Each entry should come from '
-                'new_middleware(YourMiddleware, name=..., description=...).'
+                'GenerateMiddleware(cls=YourMiddleware, name=..., description=...).'
             )
 
     async def init(self) -> list[Action]:
@@ -184,7 +186,7 @@ class MiddlewarePlugin(Plugin):
     async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         return None
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> Sequence[Action | ActionMetadata]:
         return []
 
     def list_middleware(self) -> list[GenerateMiddleware]:

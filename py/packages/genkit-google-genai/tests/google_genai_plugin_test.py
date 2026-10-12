@@ -33,6 +33,7 @@ from genkit_google_genai import (
     GoogleAI,
     VertexAI,
 )
+from genkit_google_genai._evaluators._evaluation import VertexAIEvaluationMetricType
 from genkit_google_genai._google import (
     GOOGLEAI_PLUGIN_NAME,
     VERTEXAI_PLUGIN_NAME,
@@ -44,9 +45,10 @@ from genkit_google_genai._google import (
 from genkit_google_genai._models._veo import VeoConfig, VeoModel
 from google.genai import types as genai_types
 
-from genkit import BaseDataPoint, Genkit, GenkitError, Message, Operation, Part, Role
+from genkit import Genkit, GenkitError, Message, Operation, Part, Role
+from genkit.evaluator import BaseDataPoint
 from genkit.model import ModelRequest
-from genkit.plugin_api import Action, ActionKind, to_json_schema
+from genkit.plugin_api import Action, ActionKind, ActionMetadata, to_json_schema
 
 
 def _custom_options(action: Action) -> object:
@@ -193,7 +195,28 @@ async def test_vertexai_with_api_key_and_no_project_lists_no_evaluators(
     with patch.dict(os.environ, {'GCLOUD_PROJECT': '', 'GOOGLE_CLOUD_PROJECT': ''}):
         plugin = VertexAI(api_key='k')
         actions = await plugin.list_actions()
-    assert not [a for a in actions if a.action_type == ActionKind.EVALUATOR]
+    assert not [a for a in actions if (a.kind if isinstance(a, Action) else a.action_type) == ActionKind.EVALUATOR]
+
+
+@patch('genkit_google_genai._google.genai.client.Client')
+@patch('genkit_google_genai._google._list_genai_models')
+@pytest.mark.asyncio
+async def test_vertex_init_does_not_create_a_second_app(mock_list_models: MagicMock, mock_client: MagicMock) -> None:
+    """Starting VertexAI(project='p') builds its evaluators without constructing another Genkit app."""
+    mock_list_models.return_value = GenaiModels()
+    plugin = VertexAI(project='p', location='us-central1')
+
+    with patch.object(Genkit, '__init__', side_effect=AssertionError('plugin constructed a second Genkit app')):
+        actions = await plugin.init()
+        resolved = await plugin.resolve(ActionKind.EVALUATOR, 'fluency')
+
+    evaluators = [a for a in actions if a.kind == ActionKind.EVALUATOR]
+    assert sorted(a.name for a in evaluators) == sorted(f'vertexai/{m.lower()}' for m in VertexAIEvaluationMetricType)
+    fluency = next(a for a in evaluators if a.name == 'vertexai/fluency')
+    assert cast('dict[str, object]', fluency.metadata['evaluator'])['evaluatorDisplayName'] == 'Fluency'
+    assert resolved is not None
+    assert resolved.kind == ActionKind.EVALUATOR
+    assert resolved.name == 'vertexai/fluency'
 
 
 @patch('genkit_google_genai._google.genai.client.Client')
@@ -532,6 +555,24 @@ async def test_list_actions_never_advertise_imagen(mock_client: MagicMock, backe
 @patch('genkit_google_genai._google.genai.client.Client')
 @patch('genkit_google_genai._google._list_genai_models')
 @pytest.mark.asyncio
+async def test_vertexai_veo_listing_has_input_schema(mock_list_models: MagicMock, mock_client: MagicMock) -> None:
+    """A listed Veo model carries ModelRequest[VeoConfig] as input_schema and Operation as output_schema."""
+    catalog = GenaiModels()
+    catalog.veo = ['veo-3.0-generate-001']
+    mock_list_models.return_value = catalog
+
+    listed = await VertexAI(project='test-project').list_actions()
+
+    [veo] = [a for a in listed if a.name == 'vertexai/veo-3.0-generate-001']
+    assert isinstance(veo, ActionMetadata)
+    assert veo.action_type == ActionKind.BACKGROUND_MODEL
+    assert veo.input_schema == to_json_schema(ModelRequest[VeoConfig])
+    assert veo.output_schema == to_json_schema(Operation)
+
+
+@patch('genkit_google_genai._google.genai.client.Client')
+@patch('genkit_google_genai._google._list_genai_models')
+@pytest.mark.asyncio
 async def test_googleai_resolve_embedder(mock_list_models: MagicMock, mock_client: MagicMock) -> None:
     """Test GoogleAI plugin resolves embedder actions."""
     mock_list_models.return_value = GenaiModels()
@@ -664,7 +705,7 @@ async def test_resolve_model_finds_veo_as_background(mock_list_models: MagicMock
     mock_list_models.return_value = GenaiModels()
 
     ai = Genkit(plugins=[GoogleAI(api_key='test-key')])
-    action = await ai.registry.resolve_model('googleai/veo-3.0-generate-001')
+    action = await ai._registry.resolve_model('googleai/veo-3.0-generate-001')
 
     assert action is not None
     assert action.kind == ActionKind.BACKGROUND_MODEL
@@ -781,6 +822,7 @@ async def test_list_actions_advertises_veo_as_background(mock_list_models: Magic
     for actions, plugin_name in ((googleai_actions, 'googleai'), (vertexai_actions, 'vertexai')):
         veo_entries = [a for a in actions if 'veo' in a.name]
         assert len(veo_entries) == 1
+        assert isinstance(veo_entries[0], ActionMetadata)
         assert veo_entries[0].name == f'{plugin_name}/veo-3.0-generate-001'
         assert veo_entries[0].action_type == ActionKind.BACKGROUND_MODEL
 
@@ -922,7 +964,7 @@ async def test_generate_googleai_model_resolves_unchanged(mock_list_models: Magi
     ai = Genkit(plugins=[GoogleAI(api_key='test-key')])
 
     response = await ai.generate(model='googleai/gemini-2.5-flash', prompt='hi')
-    action = await ai.registry.resolve_action(ActionKind.MODEL, 'googleai/gemini-2.5-flash')
+    action = await ai.lookup_model('googleai/gemini-2.5-flash')
 
     assert response.text == 'hello'
     sent = mock_client.return_value.aio.models.generate_content.await_args
@@ -972,7 +1014,7 @@ async def test_generate_vertexai_tuned_endpoint_keeps_endpoints_segment(
     ai = Genkit(plugins=[VertexAI(project='test-project', location='us-central1')])
 
     response = await ai.generate(model='vertexai/endpoints/123', prompt='hi')
-    action = await ai.registry.resolve_action(ActionKind.MODEL, 'vertexai/endpoints/123')
+    action = await ai.lookup_model('vertexai/endpoints/123')
 
     assert response.text == 'tuned'
     sent = mock_client.return_value.aio.models.generate_content.await_args

@@ -49,7 +49,7 @@ from genkit._core._error import ReflectionError, ReflectionErrorDetails, StatusC
 from genkit._core._logger import get_logger
 from genkit._core._middleware import GenerateMiddleware
 from genkit._core._model import AgentInput, ModelRef
-from genkit._core._reflection import as_agent_input_dict, resolve_agent_init
+from genkit._core._reflection import as_agent_input_dict, resolve_agent_init, resolve_runnable_key
 from genkit._core._reflection_config import REFLECTION_AUTH_ERROR_CODE
 from genkit._core._registry import Registry
 from genkit._core._telemetry._http import connect_developer_ui_collector
@@ -696,8 +696,8 @@ class ReflectionServerV2:
                 'actionType': meta.action_type,
                 'description': meta.description,
                 'metadata': meta.metadata,
-                'inputSchema': meta.input_schema or meta.input_json_schema,
-                'outputSchema': meta.output_schema or meta.output_json_schema,
+                'inputSchema': meta.input_schema or None,
+                'outputSchema': meta.output_schema or None,
             })
             for key, meta in catalog.items()
         }
@@ -782,7 +782,7 @@ class ReflectionServerV2:
             await self.send_error(sid, JSON_RPC_INVALID_PARAMS, f'invalid params: {e}')
             return
 
-        action = await self.registry.resolve_action_by_key(p.key)
+        action = await resolve_runnable_key(self.registry, p.key)
         if not action:
             await self.send_error(sid, JSON_RPC_INVALID_PARAMS, f'action {p.key} not found')
             return
