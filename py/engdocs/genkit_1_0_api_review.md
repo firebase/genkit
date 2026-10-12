@@ -536,7 +536,7 @@ async def quarterly_report(quarter: str, ctx: FlowContext[ReportChunk]) -> Repor
     # 2. Forward model tokens as typed chunks
     summary = ''
     stream = ai.generate_stream(prompt=f'Draft the {quarter} executive summary.')
-    async for chunk in stream:
+    async for chunk in stream.stream:
         summary += chunk.text
         ctx.send_chunk(ReportChunk(stage='drafting', text=chunk.text))
 
