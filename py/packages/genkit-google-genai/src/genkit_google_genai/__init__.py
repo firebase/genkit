@@ -22,19 +22,27 @@ either Google AI (Gemini API) or Google Cloud Vertex AI. It dynamically discover
 and registers available models and embedders at runtime.
 
 Example:
-    Using GoogleAI (Gemini API):
+    Using GoogleAI (Gemini API) with typed flat config:
 
     ```python
     from genkit import Genkit
-    from genkit_google_genai import GoogleAI
+    from genkit_google_genai import GeminiConfig, GoogleAI
 
     # 1. Initialize Genkit with the GoogleAI plugin
     ai = Genkit(plugins=[GoogleAI()])
 
-    # 2. Generate content using dynamic model discovery
+    # 2. Generate content with reasoning, safety settings, and search grounding
     res = await ai.generate(
         model=GoogleAI.gemini('gemini-flash-latest'),
-        prompt='Suggest 2 catchy names for a space coffee shop.',
+        prompt='Suggest 2 catchy names for a space coffee shop and verify no trademark conflicts.',
+        config=GeminiConfig(
+            thinking_level='HIGH',
+            include_thoughts=True,
+            safety_settings=[
+                {'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold': 'BLOCK_ONLY_HIGH'},
+            ],
+            google_search=True,
+        ),
     )
 
     # 3. Inspect output shapes directly

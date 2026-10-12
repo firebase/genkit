@@ -42,20 +42,27 @@ gcloud auth application-default login
 from genkit import Genkit
 from genkit_google_genai import GoogleAI
 
+# 1. Initialize Genkit with plugin and default model reference
 ai = Genkit(plugins=[GoogleAI()], model=GoogleAI.gemini('gemini-flash-latest'))
 
 
+# 2. Define a typed flow
 @ai.flow()
 async def greet(name: str) -> str:
     res = await ai.generate(prompt=f'Say hello to {name}.')
     return res.text
+
+
+# 3. Execute and inspect output
+print(await greet('Grace'))
+# => Hello Grace! How can I help you today?
 ```
 
 ## Features
 
 ### Dynamic Models
 
-The plugin automatically discovers available models from the API upon initialization. You can use any model name supported by the API (e.g., `GoogleAI.gemini('gemini-flash-latest')`, `VertexAI.gemini('gemini-3.1-pro-preview')`).
+The plugin automatically discovers available models from the API upon initialization. You can use any model name supported by the API via model reference constructors (e.g., `GoogleAI.gemini('gemini-flash-latest')`, `VertexAI.gemini('gemini-3.1-pro-preview')`).
 
 ### Typed config
 
@@ -65,24 +72,98 @@ and ty check every key. The plugin builds Gemini's nested request objects
 UI and `.prompt` files use the same flat fields in camelCase
 (`thinkingLevel`); both spellings validate at runtime.
 
-```python
-from genkit_google_genai import GeminiConfig, GeminiTtsConfig
+#### Text generation with GeminiConfig and tool_choice
 
-# 1. Thinking, safety and grounding on a text model
-config = GeminiConfig(
-    thinking_level='HIGH',
-    include_thoughts=True,
-    safety_settings=[{'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold': 'BLOCK_ONLY_HIGH'}],
-    google_search=True,
+```python
+from genkit import Genkit
+from genkit_google_genai import GeminiConfig, GoogleAI
+
+# 1. Initialize plugin and client
+ai = Genkit(plugins=[GoogleAI()])
+
+
+# 2. Define a function tool
+@ai.tool()
+async def check_inventory(ingredient: str) -> dict[str, int]:
+    return {'pesto': 12, 'pine_nuts': 4}
+
+
+# 3. Generate with flat thinking, safety, search grounding, and strict tool choice
+res = await ai.generate(
+    model=GoogleAI.gemini('gemini-flash-latest'),
+    prompt='Check pesto inventory and cite current safety storage guidelines.',
+    tools=[check_inventory],
+    tool_choice='required',
+    config=GeminiConfig(
+        thinking_level='HIGH',
+        include_thoughts=True,
+        safety_settings=[
+            {'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold': 'BLOCK_ONLY_HIGH'},
+        ],
+        google_search=True,
+    ),
 )
 
-# 2. Two voices on a TTS model
-tts_config = GeminiTtsConfig(speakers={'Host': 'Kore', 'Chef': 'Puck'}, language_code='en-US')
-
-# 3. Dump the config the way the Dev UI shows it
-print(tts_config.model_dump(by_alias=True, exclude_none=True))
-# => {'speakers': {'Host': 'Kore', 'Chef': 'Puck'}, 'languageCode': 'en-US'}
+print(res.text)
+# => Inventory verified: 12 jars of pesto in stock. Storage guidelines require refrigeration at 40°F (4°C) or below after opening.
 ```
+
+#### Audio generation with GeminiTtsConfig
+
+```python
+from genkit import Genkit
+from genkit_google_genai import GeminiTtsConfig, GoogleAI
+
+ai = Genkit(plugins=[GoogleAI()])
+
+# Generate multi-speaker audio dialog
+res = await ai.generate(
+    model=GoogleAI.gemini('gemini-2.5-flash-preview-tts'),
+    prompt='Host: Welcome to Morning Roaster. Chef: Today we review Ethiopian beans.',
+    config=GeminiTtsConfig(
+        speakers={'Host': 'Kore', 'Chef': 'Puck'},
+        language_code='en-US',
+    ),
+)
+
+print(res.media.url)
+# => data:audio/wav;base64,UklGRiQAAABXQVZFZ...
+```
+
+#### Image generation with GeminiImageConfig
+
+```python
+from genkit import Genkit
+from genkit_google_genai import GeminiImageConfig, GoogleAI
+
+ai = Genkit(plugins=[GoogleAI()])
+
+# Generate high-resolution image with specified aspect ratio and size
+res = await ai.generate(
+    model=GoogleAI.gemini('gemini-2.5-flash-preview-image-generation'),
+    prompt='A modern minimalist espresso bar with warm cedar accents.',
+    config=GeminiImageConfig(
+        aspect_ratio='16:9',
+        image_size='2K',
+    ),
+)
+
+print(res.media.url)
+# => data:image/png;base64,iVBORw0KGgoAAAANSU...
+```
+
+#### Default config on model references
+
+Pass a config instance directly to `GoogleAI.gemini(...)` or `VertexAI.gemini(...)` to configure defaults that every call inherits:
+
+```python
+model = GoogleAI.gemini(
+    'gemini-flash-latest',
+    config=GeminiConfig(temperature=0.7, thinking_level='MEDIUM'),
+)
+```
+
+### Config rules and validation
 
 Choice fields take plain strings. The Literal aliases (`ThinkingLevel`,
 `HarmCategory`, `ImageAspectRatio`, ...) export from the package root for
@@ -92,6 +173,10 @@ TypedDicts: pass a dict literal or `SafetySetting(category=..., threshold=...)`.
 Setting any `google_search_*` option turns Google Search on;
 `google_search=False` next to an option raises. A nested key such as
 `thinkingConfig` raises and names the flat fields that replace it.
+
+Function calling mode is controlled by `ai.generate(tool_choice=...)`, not config:
+`'auto'`, `'required'`, or `'none'`. In `'required'` mode, Gemini binds the request's
+function tools as `allowedFunctionNames`.
 
 Settings that can't be combined raise before anything is sent:
 
@@ -152,15 +237,20 @@ download URL, Vertex often sends the mp4 inline.
 from genkit import Genkit
 from genkit_google_genai import GoogleAI
 
+# 1. Initialize Genkit with GoogleAI
 ai = Genkit(plugins=[GoogleAI()])
 
+# 2. Launch background video generation
 operation = await ai.generate_operation(
     model=GoogleAI.veo('veo-3.1-fast-generate-preview'),
     prompt='A paper airplane gliding through a bright classroom',
 )
 while not operation.done:
     operation = await ai.check_operation(operation)
-print(operation.output)
+
+# 3. Access output media artifact
+print(operation.output.message.content[0].media.url)
+# => https://generativelanguage.googleapis.com/v1beta/files/preview.mp4
 ```
 
 **With `VertexAI`:**
@@ -169,15 +259,20 @@ print(operation.output)
 from genkit import Genkit
 from genkit_google_genai import VertexAI
 
+# 1. Initialize Genkit with VertexAI
 ai = Genkit(plugins=[VertexAI()])
 
+# 2. Launch background video generation
 operation = await ai.generate_operation(
     model=VertexAI.veo('veo-3.1-generate-001'),
     prompt='A paper airplane gliding through a bright classroom',
 )
 while not operation.done:
     operation = await ai.check_operation(operation)
-print(operation.output)
+
+# 3. Access output media artifact
+print(operation.output.message.content[0].media.url)
+# => gs://my-bucket/videos/output.mp4
 ```
 
 Runnable version: [google-genai-media](https://github.com/genkit-ai/genkit/tree/main/py/samples/google-genai-media).
