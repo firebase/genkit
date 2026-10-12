@@ -52,7 +52,7 @@ from genkit._core._middleware import BaseMiddleware
 from genkit._core._model import ModelConfig
 from genkit._core._reflection import create_reflection_asgi_app
 from genkit._core._registry import Registry
-from genkit._core._typing import ActionMetadata, BaseDataPoint, EvalFnResponse, EvalRequest, Score
+from genkit._core._typing import ActionMetadata, BaseDataPoint, EvaluatorRequest, EvaluatorResponse, Score
 from genkit.model import model_ref
 
 
@@ -495,17 +495,18 @@ async def test_no_cors_headers_returned(asgi_client: AsyncClient) -> None:
     assert 'access-control-allow-origin' not in preflight.headers
 
 
-# What `genkit eval:run` and the Dev UI send: an EvalRequest posted to
+# What `genkit eval:run` and the Dev UI send: an EvaluatorRequest posted to
 # /api/runAction for the evaluator's action key.
 
 
 def _define_always_true_evaluators(ai: Genkit) -> None:
-    async def row_eval(datapoint: BaseDataPoint, options: object | None) -> EvalFnResponse:
-        return EvalFnResponse(test_case_id=datapoint.test_case_id or '', evaluation=[Score(score=True)])
+    async def row_eval(datapoint: BaseDataPoint, options: object | None) -> EvaluatorResponse:
+        return EvaluatorResponse(test_case_id=datapoint.test_case_id or '', evaluation=[Score(score=True)])
 
-    async def batch_eval(req: EvalRequest) -> list[EvalFnResponse]:
+    async def batch_eval(req: EvaluatorRequest) -> list[EvaluatorResponse]:
         return [
-            EvalFnResponse(test_case_id=row.test_case_id or '', evaluation=[Score(score=True)]) for row in req.dataset
+            EvaluatorResponse(test_case_id=row.test_case_id or '', evaluation=[Score(score=True)])
+            for row in req.dataset
         ]
 
     ai.define_evaluator(name='row_eval', display_name='row_eval', definition='always true', fn=row_eval)
