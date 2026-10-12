@@ -1,6 +1,6 @@
 # Genkit 1.0 API Review (Python)
 
-The Python surface we intend to ship as 1.0. It describes the state after the open API PRs land (#6681, #6697, #6698, #6699, #6708, #6709, #6757, #6763–#6770, #6775, #6777, #6314, #6655).
+The Python surface we intend to ship as 1.0. It describes the state after the open API PRs land (#6681, #6697, #6698, #6699, #6708, #6709, #6757, #6763–#6770, #6775, #6777, #6314, #6655, #6668, #6712, #6714).
 
 ---
 
@@ -1138,30 +1138,41 @@ Set `content_capturing_mode='SPAN_ONLY'` (or `OTEL_INSTRUMENTATION_GENAI_CAPTURE
 
 ## 8. Embedders
 
-Embedders vectorize documents for retrieval. Register a custom embedder with `ai.define_embedder(name, fn)` (or return an `Embedder` from a plugin's `list_actions()`), and call it with `ai.embed` or `ai.embed_many`.
+Embedders vectorize documents for retrieval. Register one with `ai.define_embedder(name, fn)` (or return an `Embedder` from a plugin's `list_actions()`), and call it with `ai.embed` or `ai.embed_many`.
+
+Like every action fn, the embedder fn takes the action's input, an `EmbedRequest`. `EmbedRequest[Cfg]` types `req.options`: `ai.embed(config=...)` arrives validated, and the Dev UI renders `Cfg` as a form. A bare `EmbedRequest` gives you a dict.
 
 ```python
+from pydantic import BaseModel
 from genkit import Embedding, Genkit
 from genkit.embedder import EmbedRequest, EmbedResponse
 
 ai = Genkit()
 
-# 1. Define a custom embedder function (takes EmbedRequest, returns EmbedResponse)
-async def local_vectorizer(req: EmbedRequest) -> EmbedResponse:
-    return EmbedResponse(embeddings=[Embedding(embedding=[0.012, 0.451, -0.231]) for _ in req.input])
+# 1. Options class; defaults apply when the caller passes no config
+class CrmEmbedConfig(BaseModel):
+    dimensions: int = 3
 
-ai.define_embedder('custom/text_vectors', local_vectorizer)
+# 2. EmbedRequest[CrmEmbedConfig] types req.options
+async def crm_vectors(req: EmbedRequest[CrmEmbedConfig]) -> EmbedResponse:
+    vector = [0.012, 0.451, -0.231, 0.118][: req.options.dimensions]
+    return EmbedResponse(embeddings=[Embedding(embedding=vector) for _ in req.input])
 
-# 2. Embed a single string or Document (use ai.embed_many for batches)
+ai.define_embedder('crm/vectors', crm_vectors)
+
+# 3. Embed with config; a dict is validated into CrmEmbedConfig
 result = await ai.embed(
-    embedder='custom/text_vectors',
+    embedder='crm/vectors',
     content='Search indexed warranty policies',
+    config={'dimensions': 2},
 )
 print(result[0].embedding)
-# => [0.012, 0.451, -0.231]
-```
+# => [0.012, 0.451]
 
-Embedder options follow the same typed pattern: annotate the fn with `EmbedRequest[Cfg]` (or pass `config_schema=Cfg` to `define_embedder`), and `ai.embed(config=...)` arrives as a validated `req.options`.
+# 4. Bad config fails before the fn runs
+await ai.embed(embedder='crm/vectors', content='...', config={'dimensions': 'two'})
+# => INVALID_ARGUMENT: Invalid input for embedder 'crm/vectors': options.dimensions: Input should be a valid integer
+```
 
 ---
 
@@ -1169,7 +1180,9 @@ Embedder options follow the same typed pattern: annotate the fn with `EmbedReque
 
 Evaluators score dataset rows against reference outputs and contexts. Register a per-row evaluator with `ai.define_evaluator(name, fn, ...)` or a whole-dataset evaluator with `ai.define_batch_evaluator(name, fn, ...)`, and run it with `ai.evaluate`.
 
-Evaluator options are typed the same way model config is. A per-row fn is `(row: BaseDataPoint, options: Cfg)`; Genkit reads `Cfg` from the annotation (or `config_schema=`; given both, they must match), validates `ai.evaluate(config=...)` into it, and renders it as a Dev UI form. Without a `BaseModel` annotation, `options` is a dict.
+A batch evaluator fn follows the action rule: it takes the action's input, `EvaluatorRequest[Cfg]`. A per-row fn is the one exception, because it isn't the action's fn. The evaluator action takes the whole dataset, loops over it, and calls your fn once per row with that row and the options: `(row: BaseDataPoint, options: Cfg)`.
+
+Either way, Genkit reads `Cfg` from the annotation (or `config_schema=`; given both, they must match), validates `ai.evaluate(config=...)` into it, and renders it as a Dev UI form. Without a `BaseModel` annotation, `options` is a dict.
 
 ### Per-row evaluator
 
@@ -1319,7 +1332,11 @@ With `use=[A(), B()]`, `A` runs first and wraps `B`: A before, B before, model, 
 
 ### Actions and composites
 
-Every capability is registered as one or more [`Action`](../packages/genkit/src/genkit/_core/_action.py)s: a typed async function with one input, one output, optional chunks, and a registry key. Plugins register theirs at init or resolve them lazily on first use. The public classes split by how many actions they are:
+Every capability is registered as one or more [`Action`](../packages/genkit/src/genkit/_core/_action.py)s: a typed async function with one input, one output, optional chunks, and a registry key. Plugins register theirs at init or resolve them lazily on first use.
+
+The fn you write takes the action's input and returns its output. A model fn is `ModelRequest[Cfg] -> ModelResponse`, an embedder fn is `EmbedRequest[Cfg] -> EmbedResponse`, and a flow or tool fn takes its own input. Config is always typed as `Request[Cfg]` on that input. The per-row evaluator is the one exception (see Evaluators).
+
+The public classes split by how many actions they are:
 
 - One action each. These subclass `Action`, and calling one is `(await obj.run(x)).response`:
   - `Model(Action[ModelRequest, ModelResponse, ModelResponseChunk])`
