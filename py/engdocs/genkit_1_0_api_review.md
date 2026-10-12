@@ -675,22 +675,6 @@ async def charge_card(amount: int) -> str:
         raise GenkitError(status='UNAVAILABLE', message='payments down') from e
 ```
 
-`StreamingCallbackError` is gone from the public API (#6767). App code never sees it.
-
-With `ai.generate_stream()` there's no callback of yours in that path. An exception in your `async for` body is just your exception. The model call keeps running to completion in the background, and `await stream.response` still returns it.
-
-```python
-# Your loop's exception is yours; the model call still finishes
-stream = ai.generate_stream(prompt='Suggest a dish.')
-try:
-    async for chunk in stream.stream:
-        await websocket.send_text(chunk.text)
-except ConnectionError:
-    pass
-print((await stream.response).text)
-# => Smoked Salmon
-```
-
 ---
 
 ## 4. Flows (`ai.flow`)
