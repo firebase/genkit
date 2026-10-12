@@ -24,33 +24,29 @@ from collections.abc import Mapping
 from typing import Any, Literal, TypeAlias, cast
 
 from openai import APIError, AsyncOpenAI
-from openai.types import Model
+from openai.types import Model as OpenAIModelEntry
 from pydantic import BaseModel
 
 from genkit import ActionRunContext, Embedding, GenkitError, ModelResponse
 from genkit.embedder import (
+    Embedder,
     EmbedderInfo,
     EmbedderSupports,
     EmbedRequest,
     EmbedResponse,
-    embedder,
-    embedder_action_metadata,
 )
 from genkit.model import (
+    Model,
     ModelInfo,
     ModelRef,
     ModelRequest,
     ModelSupports,
-    model as create_model,
-    model_action_metadata,
 )
 from genkit.plugin_api import (
     Action,
     ActionKind,
-    ActionMetadata,
     Plugin,
     loop_local_client,
-    to_json_schema,
 )
 from genkit_openai._models._audio import (
     SUPPORTED_STT_MODELS,
@@ -267,29 +263,6 @@ def multimodal_config_class(*, name: str, model_type: _ModelType) -> type[BaseMo
     return OpenAIDalleConfig
 
 
-def _multimodal_action_metadata(
-    name: str,
-    supported_models: dict[str, ModelInfo],
-    model_type: _ModelType,
-) -> ActionMetadata:
-    """Build ActionMetadata for a multimodal model.
-
-    Args:
-        name: The raw model name (without the 'openai/' prefix).
-        supported_models: Registry of known models and their metadata.
-        model_type: The classified model type for default supports fallback.
-
-    Returns:
-        ActionMetadata for the model.
-    """
-    info, config_schema = _get_multimodal_info(name, model_type, supported_models)
-    return model_action_metadata(
-        name=open_ai_name(name),
-        config_schema=config_schema,
-        info=info,
-    )
-
-
 def default_openai_metadata(name: str) -> dict[str, Any]:
     return {
         'model': {'label': f'OpenAI - {name}', 'supports': {'multiturn': True}},
@@ -370,7 +343,7 @@ class OpenAI(Plugin):
         plugin_headers: dict[str, str] = dict(options.get('default_headers') or {})
         self._tenant_headers = {k: v for k, v in plugin_headers.items() if k.lower() not in _PLUGIN_ACCOUNT_HEADERS}
         self._pins_authorization = any(k.lower() == 'authorization' for k in plugin_headers)
-        self._list_actions_cache: list[ActionMetadata] | None = None
+        self._list_actions_cache: list[Action] | None = None
 
     def _has_plugin_key(self) -> bool:
         return bool(self._plugin_api_key or os.environ.get('OPENAI_API_KEY'))
@@ -537,16 +510,11 @@ class OpenAI(Plugin):
             openai_model = OpenAIModelHandler(OpenAIModel(name, self._client_for_call(request, ctx), supports=supports))
             return await openai_model.generate(request, ctx)
 
-        return create_model(
+        return Model(
             open_ai_name(name),
             _generate,
             config_schema=OpenAIConfig,
-            metadata={
-                'model': {
-                    **model_info,
-                    'customOptions': to_json_schema(OpenAIConfig),
-                },
-            },
+            metadata={'model': model_info},
         )
 
     def _create_multimodal_action(
@@ -573,7 +541,7 @@ class OpenAI(Plugin):
             model_instance = model_class(name, self._client_for_call(request, ctx))
             return await model_instance.generate(request, ctx)
 
-        return create_model(
+        return Model(
             open_ai_name(name),
             _generate,
             config_schema=config_schema,
@@ -660,27 +628,24 @@ class OpenAI(Plugin):
             embeddings = [Embedding(embedding=item.embedding) for item in response.data]
             return EmbedResponse(embeddings=embeddings)
 
-        return embedder(
+        return Embedder(
             open_ai_name(name),
             embed_fn,
-            metadata=embedder_action_metadata(
-                name=open_ai_name(name),
-                info=EmbedderInfo(
-                    label=embedder_info['label'],
-                    supports=EmbedderSupports(input=embedder_info['supports']['input']),
-                    dimensions=embedder_info.get('dimensions'),
-                ),
-            ).metadata,
+            info=EmbedderInfo(
+                label=embedder_info['label'],
+                supports=EmbedderSupports(input=embedder_info['supports']['input']),
+                dimensions=embedder_info.get('dimensions'),
+            ),
         )
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[Action]:
         """Generate a list of available actions or models.
 
         Uses pattern matching on model names (mirroring the JS implementation)
         to categorize models as embedders, image generators, TTS, STT, or chat.
 
         Returns:
-            list[ActionMetadata]: A list of ActionMetadata objects. Empty for a
+            list[Action]: A list of Action objects. Empty for a
             plugin without its own key: listing models needs one, and the
             built-in catalog ``init`` registers is already in the Dev UI.
         """
@@ -689,41 +654,24 @@ class OpenAI(Plugin):
         if self._list_actions_cache is not None:
             return self._list_actions_cache
 
-        actions: list[ActionMetadata] = []
+        actions: list[Action] = []
         try:
             models_ = await self._runtime_client().models.list()
         except APIError as e:
             reraise_openai_error(e)
-        models: list[Model] = models_.data
+        models: list[OpenAIModelEntry] = models_.data
         for model in models:
             name = model.id
             if _is_known_unsupported(name):
                 continue
             model_type = _classify_model(name)
             if model_type == _ModelType.EMBEDDER:
-                actions.append(
-                    embedder_action_metadata(
-                        name=open_ai_name(name),
-                        info=EmbedderInfo(
-                            label=f'OpenAI Embedding - {name}',
-                            supports=EmbedderSupports(input=['text']),
-                        ),
-                    )
-                )
+                actions.append(self._create_embedder_action(name))
             elif model_type in _DEFAULT_SUPPORTS:
-                config = _MULTIMODAL_CONFIG[model_type]
-                actions.append(_multimodal_action_metadata(name, config[1], model_type))
+                model_class, supported_models = _MULTIMODAL_CONFIG[model_type]
+                actions.append(self._create_multimodal_action(name, model_class, supported_models, model_type))
             else:
-                actions.append(
-                    model_action_metadata(
-                        name=open_ai_name(name),
-                        config_schema=OpenAIConfig,
-                        info=ModelInfo(
-                            label=f'OpenAI - {name}',
-                            supports=ModelSupports(multiturn=True, system_role=True, tools=False),
-                        ),
-                    )
-                )
+                actions.append(self._create_model_action(name))
         self._list_actions_cache = actions
         return actions
 

@@ -832,7 +832,7 @@ class Action(Generic[InputT, OutputT, ChunkT, InitT]):
         return self._metadata
 
     def _action_metadata(self) -> ActionMetadata:
-        """Return the internal ActionMetadata descriptor for the Dev UI catalog."""
+        """Return the ActionMetadata descriptor for Registry.list_actions()."""
         meta = {
             k: v
             for k, v in self._metadata.items()

@@ -19,20 +19,17 @@
 import pytest
 from genkit_middleware import ToolApproval
 
-from genkit import MultipartToolResponse, Part
-from genkit._ai._tools import Interrupt, define_tool
-from genkit._core._registry import Registry
+from genkit import Interrupt, MultipartToolResponse, Part, Tool
 from genkit.middleware import GenerateMiddlewareContext, ToolHookParams
 
 
 def _make_tool(name: str):
-    """Create a minimal Action with the given name via define_tool."""
-    scratch = Registry()
+    """Create a minimal Action with the given name via Tool."""
 
     async def fn() -> str:
         return ''
 
-    return define_tool(scratch, fn, name=name).action()
+    return Tool(fn, name=name).action()
 
 
 @pytest.mark.asyncio

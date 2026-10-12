@@ -43,7 +43,6 @@ from genkit._ai._prompt import (
 from genkit._ai._tools import (
     MultipartToolResponse,
     ToolRunContext,
-    tool,
 )
 from genkit._core._action import ActionRunContext, StreamResponse
 from genkit._core._context import ContextProvider, RequestData
@@ -82,7 +81,6 @@ __all__ = [
     'Embedding',
     'Operation',
     # Tools and HITL
-    'tool',
     'Tool',
     'ToolRunContext',
     'Interrupt',

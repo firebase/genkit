@@ -58,7 +58,7 @@ from genkit._core._model import (
 )
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
-from genkit._core._typing import ActionMetadata, GenerationCommonConfig, ModelInfo
+from genkit._core._typing import GenerationCommonConfig, ModelInfo
 
 # Type alias for model functions (must be async)
 # Use ctx.send_chunk() for streaming
@@ -311,7 +311,7 @@ async def config_class_for_generate(*, model: object | None, registry: Registry)
     return annotated_config_class(await registry.resolve_model(resolved.name))
 
 
-async def check_config_before_turn(*, model: str, config: object, registry: Registry) -> None:
+async def check_config_before_turn(*, model: ModelArg, config: object, registry: Registry) -> None:
     """Raise before the turn when a value in ``config`` can't reach the model.
 
     Covers the two schemas the call-time check doesn't see: the class on the
@@ -320,11 +320,12 @@ async def check_config_before_turn(*, model: str, config: object, registry: Regi
     ``wrap_model`` middleware can still fill it, and the model action reports
     it if nothing does.
     """
-    action = await registry.resolve_model(model)
-    check_config_values(config=config, schema=annotated_config_class(action), model=model)
+    model_name = model.name if isinstance(model, ModelRef) else model
+    action = await registry.resolve_model(model_name)
+    check_config_values(config=config, schema=annotated_config_class(action), model=model_name)
     declared = getattr(action, '_config_schema', None) if action is not None else None
     if isinstance(declared, dict):
-        check_config_values(config=config, schema=cast(dict[str, Any], declared), model=model)
+        check_config_values(config=config, schema=cast(dict[str, Any], declared), model=model_name)
 
 
 def config_schema_at_define(*, model: object | None, registry: Registry) -> tuple[str | None, type[BaseModel] | None]:
@@ -372,10 +373,7 @@ def _model_options(
     config_schema: type | dict[str, Any] | None,
     metadata: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
-    """Build ``metadata['model']``. ``model()`` and ``model_action_metadata()`` share it.
-
-    Sharing keeps listed and resolved models identical in the Dev UI.
-    """
+    """Build ``metadata['model']`` for ``Model``."""
     options: dict[str, object] = info.model_dump(by_alias=True, exclude_none=True) if info else {}
     existing = metadata.get('model') if metadata else None
     if isinstance(existing, dict):
@@ -392,31 +390,6 @@ def _model_options(
     if config_schema:
         options['customOptions'] = to_json_schema(config_schema)
     return options
-
-
-def model_action_metadata(
-    *,
-    name: str,
-    info: ModelInfo | None = None,
-    config_schema: type | dict[str, Any] | None = None,
-) -> ActionMetadata:
-    """Describe a model for ``Plugin.list_actions`` without building it.
-
-    The ``model`` metadata matches what ``model()`` registers for the same input.
-
-    ```python
-    meta = model_action_metadata(name='bistro/menu-writer', info=ModelInfo(label='Menu Writer'))
-    meta.metadata
-    # => {'model': {'label': 'Menu Writer'}}
-    ```
-    """
-    return ActionMetadata(
-        action_type=ActionKind.MODEL,
-        name=name,
-        input_schema=to_json_schema(ModelRequest),
-        output_schema=to_json_schema(ModelResponse),
-        metadata={'model': _model_options(name=name, info=info, config_schema=config_schema)},
-    )
 
 
 def _check_request_annotation(name: str, fn: ModelFn) -> None:
@@ -464,59 +437,68 @@ def claims_long_running(*, model_options: dict[str, object]) -> bool:
     return False
 
 
-def model(
-    name: str,
-    fn: ModelFn,
-    *,
-    config_schema: type[BaseModel] | dict[str, object] | None = None,
-    metadata: dict[str, object] | None = None,
-    info: ModelInfo | None = None,
-    description: str | None = None,
-) -> Action:
-    """Build a model action without registering it.
+class Model(Action[ModelRequest, ModelResponse, ModelResponseChunk]):
+    """A model action returned from a plugin's ``init`` / ``resolve`` / ``list_actions`` or ``define_model``.
 
-    Plugin ``init`` / ``resolve`` return this. ``define_model`` registers it.
-    The config class stays on the action so ``generate(model='name', config=)``
-    can isinstance-check a Pydantic instance against a string model name.
+    Plugin ``init`` / ``resolve`` / ``list_actions`` return this without registering it;
+    ``define_model`` registers it.
+    The config class stays on the action so ``generate(model='name', config=...)``
+    can ``isinstance``-check a Pydantic instance against a string model name.
     """
-    model_options = _model_options(name=name, info=info, config_schema=config_schema, metadata=metadata)
-    model_meta: dict[str, object] = metadata.copy() if metadata else {}
-    model_meta['model'] = model_options
 
-    if not config_schema:
-        return Action(
+    def __init__(
+        self,
+        name: str,
+        fn: ModelFn,
+        *,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
+        info: ModelInfo | None = None,
+        description: str | None = None,
+    ) -> None:
+        """Build a model action."""
+        model_options = _model_options(name=name, info=info, config_schema=config_schema, metadata=metadata)
+        model_meta: dict[str, object] = metadata.copy() if metadata else {}
+        model_meta['model'] = model_options
+
+        if not config_schema:
+            super().__init__(
+                kind=ActionKind.MODEL,
+                name=name,
+                fn=fn,
+                metadata=model_meta,
+                description=get_func_description(fn, description),
+            )
+            self.input_schema = to_json_schema(ModelRequest)
+            self.output_schema = to_json_schema(ModelResponse)
+            return
+
+        schema = config_schema
+        # Action rejects a sync fn, but it only sees the async wrapper below.
+        if not inspect.iscoroutinefunction(fn):
+            raise TypeError(f"Action handlers must be async functions. Got sync function for '{name}'.")
+        if isinstance(schema, dict):
+            check_config_json_schema(schema, model=name)
+
+        @functools.wraps(fn)
+        async def run_with_config_check(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+            # Runs inside the model action, after every middleware, so a required
+            # field no layer filled is reported here. generate returns it as the
+            # turn's error. Go checks config at the same point.
+            check_request_config(request, schema=schema, model=name)
+            return await self.params.call(fn, request, ctx)
+
+        super().__init__(
             kind=ActionKind.MODEL,
             name=name,
-            fn=fn,
+            fn=run_with_config_check,
+            metadata_fn=fn,
             metadata=model_meta,
             description=get_func_description(fn, description),
+            config_schema=config_schema,
         )
-
-    schema = config_schema
-    # Action rejects a sync fn, but it only sees the async wrapper below.
-    if not inspect.iscoroutinefunction(fn):
-        raise TypeError(f"Action handlers must be async functions. Got sync function for '{name}'.")
-    if isinstance(schema, dict):
-        check_config_json_schema(schema, model=name)
-
-    @functools.wraps(fn)
-    async def run_with_config_check(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse[Any]:
-        # Runs inside the model action, after every middleware, so a required
-        # field no layer filled is reported here. generate returns it as the
-        # turn's error. Go checks config at the same point.
-        check_request_config(request, schema=schema, model=name)
-        return await action.params.call(fn, request, ctx)
-
-    action = Action(
-        kind=ActionKind.MODEL,
-        name=name,
-        fn=run_with_config_check,
-        metadata_fn=fn,
-        metadata=model_meta,
-        description=get_func_description(fn, description),
-        config_schema=config_schema,
-    )
-    return action
+        self.input_schema = to_json_schema(ModelRequest)
+        self.output_schema = to_json_schema(ModelResponse)
 
 
 def define_model(
@@ -527,10 +509,10 @@ def define_model(
     metadata: dict[str, object] | None = None,
     info: ModelInfo | None = None,
     description: str | None = None,
-) -> Action:
+) -> Model:
     """Register a custom model action."""
     _check_request_annotation(name, fn)
-    action = model(
+    action = Model(
         name,
         fn,
         config_schema=config_schema,

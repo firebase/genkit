@@ -276,13 +276,15 @@ async def test_list_actions_dynamic_union_dedup_and_fallback_info() -> None:
     # Curated info preserved for a known id returned by the API.
     sonnet_action = next(a for a in actions if a.name == 'anthropic/claude-sonnet-4')
     assert sonnet_action.metadata is not None
-    assert sonnet_action.metadata['model']['label'] == 'Anthropic - Claude Sonnet 4'
+    sonnet_model = cast(dict[str, Any], sonnet_action.metadata['model'])
+    assert sonnet_model['label'] == 'Anthropic - Claude Sonnet 4'
 
     # Unknown ids get the generic fallback info, not curated.
     mythos_action = next(a for a in actions if a.name == 'anthropic/claude-mythos-5')
     assert mythos_action.metadata is not None
-    assert mythos_action.metadata['model']['label'] == 'Anthropic - claude-mythos-5'
-    assert mythos_action.metadata['model']['supports']['output'] == ['text']
+    mythos_model = cast(dict[str, Any], mythos_action.metadata['model'])
+    assert mythos_model['label'] == 'Anthropic - claude-mythos-5'
+    assert mythos_model['supports']['output'] == ['text']
 
 
 @pytest.mark.asyncio

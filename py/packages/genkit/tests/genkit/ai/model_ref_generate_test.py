@@ -20,7 +20,7 @@ from genkit._core._model import ModelRequest, ModelResponse
 from genkit._core._operation import Operation
 from genkit._core._typing import Role
 from genkit.exp import Genkit as ExpGenkit
-from genkit.model import ModelRef, model
+from genkit.model import Model, ModelRef
 from genkit.testing import EchoModel, define_echo_model
 
 
@@ -1092,15 +1092,16 @@ async def test_generate_operation_rejects_wrong_config_class() -> None:
 
 @pytest.mark.asyncio
 async def test_model_factory_stashes_class_without_registering() -> None:
-    """Plugin resolve builds via model(); the registry is what registers."""
+    """Plugin resolve builds via Model(); the registry is what registers."""
     ai = Genkit()
     echo = EchoModel()
 
     async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         return await echo.model_fn(request, ctx)
 
-    action = model('flash-plugin-style', model_fn, config_schema=CustomConfig)
+    action = Model('flash-plugin-style', model_fn, config_schema=CustomConfig)
 
+    assert isinstance(action, Model)
     assert action._config_schema is CustomConfig
     assert await ai._registry.resolve_action(action.kind, action.name) is None
 

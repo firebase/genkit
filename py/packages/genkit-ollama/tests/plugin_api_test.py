@@ -32,9 +32,10 @@ from genkit_ollama._models import OllamaConfig, OllamaModel, _ResolvedModel
 from pydantic import BaseModel
 
 from genkit import ActionRunContext, Document, Genkit, GenkitError, Message, ModelResponse, Part, Role
+from genkit._core._schema import to_json_schema
 from genkit.embedder import EmbedRequest
 from genkit.model import ModelRequest
-from genkit.plugin_api import ActionKind, to_json_schema
+from genkit.plugin_api import ActionKind
 
 
 def test_init_with_options() -> None:
@@ -811,7 +812,8 @@ async def test_list_actions_probes_each_model_and_skips_embedders() -> None:
     def supports(name: str) -> dict[str, Any]:
         metadata = rows[name].metadata
         assert metadata is not None
-        return cast(dict[str, Any], metadata['model']['supports'])
+        model_meta = cast(dict[str, Any], metadata['model'])
+        return cast(dict[str, Any], model_meta['supports'])
 
     assert supports('ollama/llava')['media'] is True
     assert supports('ollama/gemma2')['tools'] is False
@@ -857,7 +859,8 @@ async def test_list_actions_reprobes_a_repulled_model() -> None:
 
     assert show.await_count == 2
     assert actions[0].metadata is not None
-    assert cast(dict[str, Any], actions[0].metadata['model']['supports'])['tools'] is True
+    model_meta = cast(dict[str, Any], actions[0].metadata['model'])
+    assert cast(dict[str, Any], model_meta['supports'])['tools'] is True
 
 
 @pytest.mark.asyncio

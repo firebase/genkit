@@ -39,8 +39,8 @@ from genkit import (
     ModelResponseChunk,
     Part,
     Prompt,
+    Tool,
     ToolRunContext,
-    tool,
 )
 from genkit._ai._model import ModelRequest, text_from_message
 from genkit._ai._prompt import (
@@ -1600,7 +1600,7 @@ async def test_prompt_inline_tool_object_runs(where: str) -> None:
         ran.append('check_stock')
         return 'in stock'
 
-    check_stock_tool = tool(check_stock, name='check_stock')
+    check_stock_tool = Tool(check_stock, name='check_stock')
     pm.responses = [_tool_call_reply('check_stock', 'r1'), _text_reply('done')]
     if where == 'definition':
         res = await ai.define_prompt(prompt='hi', tools=[check_stock_tool])()

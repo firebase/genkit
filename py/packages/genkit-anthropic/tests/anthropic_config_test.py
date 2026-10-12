@@ -32,7 +32,7 @@ from genkit_anthropic._config import (
 )
 from pydantic import BaseModel, ValidationError
 
-from genkit.plugin_api import to_json_schema
+from genkit._core._schema import to_json_schema
 
 # --- thinking ---------------------------------------------------------------
 

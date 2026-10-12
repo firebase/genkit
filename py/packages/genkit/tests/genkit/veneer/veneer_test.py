@@ -2190,8 +2190,8 @@ def test_define_background_model_with_info(setup_test: SetupFixture) -> None:
 
 
 def test_background_model_factory_stashes_class_without_registering(setup_test: SetupFixture) -> None:
-    """background_model() keeps the config class on the start action."""
-    from genkit.model import background_model
+    """BackgroundModel() keeps the config class on the start action."""
+    from genkit.model import BackgroundModel
 
     ai, _, _, *_ = setup_test
 
@@ -2204,7 +2204,8 @@ def test_background_model_factory_stashes_class_without_registering(setup_test: 
     async def check_fn(op: Operation, _ctx: ActionRunContext) -> Operation:
         return op
 
-    action = background_model('veo-style', start=start_fn, check=check_fn, config_schema=BgConfig)
+    action = BackgroundModel('veo-style', start=start_fn, check=check_fn, config_schema=BgConfig)
+    assert isinstance(action, BackgroundModel)
     assert action.start_action._config_schema is BgConfig
     registered = ai._registry._entries.get(ActionKind.BACKGROUND_MODEL, {})
     assert 'veo-style' not in registered

@@ -57,7 +57,7 @@ from genkit._core._reflection_v2 import (
 from genkit._core._registry import Registry
 from genkit._core._typing import ReflectionRunActionParams
 from genkit.model import ModelRef
-from genkit.plugin_api import ActionMetadata, Plugin
+from genkit.plugin_api import Plugin
 
 
 @pytest.fixture(autouse=True)
@@ -243,15 +243,14 @@ class ListingPlugin(Plugin):
     async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         return None
 
-    async def list_actions(self) -> list[ActionMetadata]:
-        return [
-            ActionMetadata(
-                action_type=ActionKind.MODEL,
-                name='acme/m',
-                input_schema={'type': 'object', 'properties': {'prompt': {'type': 'string'}}},
-                output_schema={'type': 'object', 'properties': {'text': {'type': 'string'}}},
-            )
-        ]
+    async def list_actions(self) -> list[Action]:
+        async def fn() -> None:
+            pass
+
+        action = Action(kind=ActionKind.MODEL, name='acme/m', fn=fn)
+        action.input_schema = {'type': 'object', 'properties': {'prompt': {'type': 'string'}}}
+        action.output_schema = {'type': 'object', 'properties': {'text': {'type': 'string'}}}
+        return [action]
 
 
 @pytest.mark.asyncio

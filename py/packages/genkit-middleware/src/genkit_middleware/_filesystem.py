@@ -49,7 +49,6 @@ from genkit import (
     Part,
     Role,
     Tool,
-    tool,
 )
 from genkit.middleware import (
     BaseMiddleware,
@@ -283,12 +282,12 @@ class Filesystem(BaseMiddleware[FilesystemConfig]):
             )
 
         tools_out = [
-            tool(
+            Tool(
                 list_files,
                 name=self._tool_name('list_files'),
                 description='List files and directories under a path (optional recursive).',
             ),
-            tool(
+            Tool(
                 read_file,
                 name=self._tool_name('read_file'),
                 description='Read a text file, optionally from an offset/limit in lines.',
@@ -308,12 +307,12 @@ class Filesystem(BaseMiddleware[FilesystemConfig]):
                 )
 
             tools_out += [
-                tool(
+                Tool(
                     write_file,
                     name=self._tool_name('write_file'),
                     description='Create or overwrite a text file with the given content.',
                 ),
-                tool(
+                Tool(
                     edit_file,
                     name=self._tool_name('edit_file'),
                     description='Apply search/replace edits to an existing text file.',

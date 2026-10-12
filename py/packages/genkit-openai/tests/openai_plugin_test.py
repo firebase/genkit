@@ -38,7 +38,7 @@ from genkit import Document, Genkit, GenkitError, Message, ModelResponse, Part, 
 from genkit._ai._formats._builtin import built_in_formats
 from genkit.embedder import EmbedRequest, EmbedResponse
 from genkit.model import ModelSupports
-from genkit.plugin_api import ActionKind, ActionMetadata, loop_local_client
+from genkit.plugin_api import Action, ActionKind, loop_local_client
 
 
 @pytest.mark.asyncio
@@ -182,7 +182,7 @@ async def test_openai_plugin_list_actions() -> None:
 
     plugin._runtime_client = lambda: mock_client
 
-    actions: list[ActionMetadata] = await plugin.list_actions()
+    actions: list[Action] = await plugin.list_actions()
     mock_client.models.list.assert_called_once()
     _ = await plugin.list_actions()
     # list_actions is cached after the first API fetch.
@@ -200,7 +200,8 @@ async def test_openai_plugin_list_actions() -> None:
 
     chat = next(a for a in actions if a.name == 'openai/gpt-4')
     assert chat.metadata is not None
-    chat_props = chat.metadata['model']['customOptions']['properties']
+    chat_model = cast(dict[str, Any], chat.metadata['model'])
+    chat_props = chat_model['customOptions']['properties']
     assert 'frequencyPenalty' in chat_props
     assert 'maxTokens' in chat_props
 
@@ -212,7 +213,8 @@ async def test_openai_plugin_list_actions() -> None:
 
     embed = next(a for a in actions if a.name == 'openai/text-embedding-ada-002')
     assert embed.metadata is not None
-    embed_options = embed.metadata.get('embedder', {}).get('customOptions')
+    embed_meta = cast(dict[str, Any], embed.metadata.get('embedder', {}))
+    embed_options = embed_meta.get('customOptions')
     assert embed_options is None or 'frequencyPenalty' not in (embed_options.get('properties') or {})
 
 

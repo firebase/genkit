@@ -407,8 +407,10 @@ class Registry:
             except Exception:
                 logger.exception('Error listing actions for plugin %s', plugin_name)
                 continue
+            from genkit._core._background import BackgroundModel  # noqa: PLC0415
+
             for item in advertised or []:
-                meta = item._action_metadata() if isinstance(item, Action) else item
+                meta = item._action_metadata() if isinstance(item, (Action, BackgroundModel)) else item
                 if not meta.name:
                     raise ValueError(f'Invalid ActionMetadata from {plugin_name}: name required')
                 if not meta.action_type:

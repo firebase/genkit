@@ -18,10 +18,9 @@
 
 from genkit._ai._generate import StreamingCallbackError
 from genkit._ai._model import (
-    model,
-    model_action_metadata,
+    Model,
 )
-from genkit._core._background import BackgroundModel, background_model
+from genkit._core._background import BackgroundModel
 from genkit._core._model import (
     GenerateActionOptions,
     GenerationUsage,
@@ -44,7 +43,8 @@ from genkit._core._typing import (
 __all__ = [
     # Errors
     'StreamingCallbackError',
-    # Request types
+    # Models and request types
+    'Model',
     'BackgroundModel',
     'GenerateActionOptions',
     'ModelRequest',
@@ -62,10 +62,6 @@ __all__ = [
     'ModelSupports',
     'ConstrainedSupport',
     'ModelStage',
-    # Factory functions and metadata
-    'model',
-    'background_model',
-    'model_action_metadata',
     # Reference types
     'ModelRef',
     # Config

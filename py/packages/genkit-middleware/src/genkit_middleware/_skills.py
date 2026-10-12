@@ -26,7 +26,7 @@ from typing import Any
 import yaml
 from pydantic import BaseModel as PydanticBaseModel, Field
 
-from genkit import Message, ModelResponse, Part, Role, Tool, tool
+from genkit import Message, ModelResponse, Part, Role, Tool
 from genkit.middleware import BaseMiddleware, GenerateHookParams, GenerateMiddlewareContext
 from genkit.model import GenerateActionOptions
 
@@ -162,7 +162,7 @@ class Skills(BaseMiddleware[SkillsConfig]):
             except Exception as exc:
                 return f'Failed to read skill "{skill_name}": {exc}'
 
-        return [tool(use_skill, description='Load a skill by name.')]
+        return [Tool(use_skill, description='Load a skill by name.')]
 
     async def wrap_generate(
         self,

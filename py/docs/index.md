@@ -33,8 +33,6 @@
 
 ::: genkit.Operation
 
-::: genkit.tool
-
 ::: genkit.Tool
 
 ::: genkit.ToolRunContext
@@ -66,6 +64,8 @@
 ::: genkit.DynamicActionProvider
 
 ## genkit.model
+
+::: genkit.model.Model
 
 ::: genkit.model.BackgroundModel
 
@@ -105,7 +105,7 @@
 
 ::: genkit.embedder.EmbedResponse
 
-::: genkit.embedder.embedder_action_metadata
+::: genkit.embedder.Embedder
 
 ::: genkit.embedder.EmbedderRef
 
@@ -119,8 +119,6 @@
 
 ::: genkit.plugin_api.Action
 
-::: genkit.plugin_api.ActionMetadata
-
 ::: genkit.plugin_api.ActionKind
 
 ::: genkit.plugin_api.StatusName
@@ -130,8 +128,6 @@
 ::: genkit.plugin_api.GENKIT_CLIENT_HEADER
 
 ::: genkit.plugin_api.loop_local_client
-
-::: genkit.plugin_api.to_json_schema
 
 ::: genkit.plugin_api.is_dev_environment
 

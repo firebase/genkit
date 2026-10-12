@@ -37,8 +37,8 @@ from google.auth import default as google_auth_default
 from google.auth.exceptions import DefaultCredentialsError
 
 from genkit import ActionRunContext, GenkitError, ModelResponse
-from genkit.model import ModelInfo, ModelRequest, model as create_model, model_action_metadata
-from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin, loop_local_client
+from genkit.model import Model, ModelInfo, ModelRequest
+from genkit.plugin_api import Action, ActionKind, Plugin, loop_local_client
 
 if TYPE_CHECKING:
     from genkit_vertexai._model_garden._client import CachedOpenAI
@@ -316,7 +316,7 @@ class ModelGarden(Plugin):
 
             location, project = await self._location_and_project(name)
             claude = AnthropicModelGarden(model=name, location=location, project=project)
-            return create_model(
+            return Model(
                 full_name,
                 claude.get_handler(),
                 config_schema=claude.get_config_schema(),
@@ -328,35 +328,21 @@ class ModelGarden(Plugin):
 
         location, project = await self._location_and_project(name)
         openai_compat = ModelGardenModel(model=name, location=location, project=project)
-        return create_model(
+        return Model(
             full_name,
             openai_compat.to_openai_compatible_model(),
             config_schema=OpenAIConfig,
             info=_openai_compat_model_info(name),
         )
 
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> list[Action]:
         """Generate a list of available actions or models.
 
         Returns:
-            list[ActionMetadata]: A list of ActionMetadata objects, each with the following attributes:
-                - name (str): The name of the action or model.
-                - kind (ActionKind): The type or category of the action.
-                - info (dict): The metadata dictionary describing the model configuration and properties.
-                - config_schema (type): The schema class used for validating the model's configuration.
+            list[Action]: A list of Action objects.
             Empty when the ``openai`` extra isn't installed, so the Dev UI only lists models that can run.
         """
         try:
-            with _requires_extra(_OPENAI_EXTRA):
-                from genkit_openai import OpenAIConfig
+            return [await self._create_model_action(model) for model in SUPPORTED_OPENAI_COMPAT_MODELS]
         except GenkitError:
             return []
-
-        return [
-            model_action_metadata(
-                name=model_garden_name(model),
-                info=model_info,
-                config_schema=OpenAIConfig,
-            )
-            for model, model_info in SUPPORTED_OPENAI_COMPAT_MODELS.items()
-        ]

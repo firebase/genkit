@@ -26,8 +26,8 @@ from genkit_amazon_bedrock._image import BedrockImageModel, build_amazon_image_b
 from pydantic import ConfigDict
 
 from genkit import ActionRunContext, FinishReason, GenkitError, Media, Message, ModelResponse, Part, Role
+from genkit._core._schema import to_json_schema
 from genkit.model import ModelConfig, ModelRequest
-from genkit.plugin_api import to_json_schema
 
 TITAN_IMAGE = 'amazon.titan-image-generator-v1'
 NOVA_CANVAS = 'amazon.nova-canvas-v1:0'
