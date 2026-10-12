@@ -18,9 +18,7 @@
 package tracing
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"os"
@@ -422,61 +420,78 @@ type spanMetadata struct {
 	Metadata        map[string]string // additional custom metadata
 }
 
-// telemetryJSONString serializes a value for a span attribute without keeping
-// inline base64 media data in the exported trace. The media URI header and a
-// redaction marker are retained, while remote media URLs pass through intact.
-func telemetryJSONString(value any) string {
+// ioAttrJSON returns the JSON encoding of v for the genkit:input, genkit:init,
+// and genkit:output span attributes. Outside the dev environment it redacts the
+// payload of inline base64 media: a span holds its attributes until export, so
+// each media part would otherwise keep a second copy of its bytes in memory and
+// ship it to the trace backend. The Dev UI renders media from these attributes,
+// so dev keeps the bytes.
+func ioAttrJSON(v any) string {
+	s := base.JSONString(v)
 	if api.CurrentEnvironment() == api.EnvironmentDev {
-		return base.JSONString(value)
+		return s
 	}
-
-	raw, err := json.Marshal(value)
-	if err != nil {
-		return base.JSONString(value)
-	}
-	// Most span values do not contain media. Avoid decoding JSON unless the
-	// serialized value contains the distinctive data-URI base64 marker.
-	if !bytes.Contains(raw, []byte("data:")) || !bytes.Contains(raw, []byte(";base64,")) {
-		return string(raw)
-	}
-
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.UseNumber()
-	var decoded any
-	if err := decoder.Decode(&decoded); err != nil {
-		return base.JSONString(value)
-	}
-	return base.JSONString(redactMediaData(decoded))
+	return redactInlineMedia(s)
 }
 
-func redactMediaData(value any) any {
-	switch value := value.(type) {
-	case string:
-		if redacted, ok := redactMediaDataURL(value); ok {
-			return redacted
+// redactInlineMedia replaces the payload of each JSON string in s that is a
+// base64 data URL with "[redacted]". The data URL header stays, so the trace
+// still shows the media type. Remote URLs and data URLs inside longer text are
+// left alone. s must be valid JSON. If nothing is redacted, s is returned as is.
+func redactInlineMedia(s string) string {
+	var b strings.Builder
+	copied := 0 // s[copied:] is not yet written to b
+	for i := 0; i < len(s); i++ {
+		if s[i] != '"' {
+			continue
 		}
-	case []any:
-		for i, item := range value {
-			value[i] = redactMediaData(item)
+		// Outside a string, a quote in valid JSON always opens one.
+		end := closingQuote(s, i+1)
+		if n := base64DataURLHeaderLen(s[i+1 : end]); n > 0 {
+			b.WriteString(s[copied : i+1+n])
+			b.WriteString("[redacted]")
+			copied = end
 		}
-	case map[string]any:
-		for key, item := range value {
-			value[key] = redactMediaData(item)
-		}
+		i = end
 	}
-	return value
+	if copied == 0 {
+		return s
+	}
+	b.WriteString(s[copied:])
+	return b.String()
 }
 
-func redactMediaDataURL(value string) (string, bool) {
-	metadata, _, ok := strings.Cut(value, ",")
-	if !ok {
-		return "", false
+// closingQuote returns the index of the quote that ends the JSON string whose
+// contents start at s[start]. A quote preceded by an odd number of backslashes
+// is escaped and does not end the string.
+func closingQuote(s string, start int) int {
+	for i := start; ; i++ {
+		i += strings.IndexByte(s[i:], '"')
+		escapes := 0
+		for j := i - 1; j >= start && s[j] == '\\'; j-- {
+			escapes++
+		}
+		if escapes%2 == 0 {
+			return i
+		}
 	}
-	lowerMetadata := strings.ToLower(metadata)
-	if !strings.HasPrefix(lowerMetadata, "data:") || !strings.HasSuffix(lowerMetadata, ";base64") {
-		return "", false
+}
+
+// base64DataURLHeaderLen returns the length of the "data:...;base64," header
+// if str is a base64 data URL, or 0 otherwise. Matching is case-insensitive
+// (RFC 2397), and a header with a space is treated as prose, not a URL.
+func base64DataURLHeaderLen(str string) int {
+	const scheme, encoding = "data:", ";base64"
+	if len(str) < len(scheme) || !strings.EqualFold(str[:len(scheme)], scheme) {
+		return 0
 	}
-	return metadata + ",[redacted]", true
+	header, _, ok := strings.Cut(str, ",")
+	if !ok || len(header) < len(scheme)+len(encoding) ||
+		!strings.EqualFold(header[len(header)-len(encoding):], encoding) ||
+		strings.Contains(header, " ") {
+		return 0
+	}
+	return len(header) + 1
 }
 
 // attributes returns some information about the spanMetadata
@@ -485,16 +500,16 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 	kvs := []attribute.KeyValue{
 		attribute.String("genkit:name", sm.Name),
 		attribute.String("genkit:state", string(sm.State)),
-		attribute.String("genkit:input", telemetryJSONString(sm.Input)),
+		attribute.String("genkit:input", ioAttrJSON(sm.Input)),
 		attribute.String("genkit:path", sm.Path),
 	}
 
 	if sm.Init != nil {
-		kvs = append(kvs, attribute.String("genkit:init", telemetryJSONString(sm.Init)))
+		kvs = append(kvs, attribute.String("genkit:init", ioAttrJSON(sm.Init)))
 	}
 
 	if sm.Output != nil {
-		kvs = append(kvs, attribute.String("genkit:output", telemetryJSONString(sm.Output)))
+		kvs = append(kvs, attribute.String("genkit:output", ioAttrJSON(sm.Output)))
 	}
 
 	if sm.Type != "" {
@@ -562,10 +577,10 @@ func (sm *spanMetadata) startAttributes() []attribute.KeyValue {
 // match attributes() so the end write reasserts them.
 func (sm *spanMetadata) inputAttributes() []attribute.KeyValue {
 	kvs := []attribute.KeyValue{
-		attribute.String("genkit:input", telemetryJSONString(sm.Input)),
+		attribute.String("genkit:input", ioAttrJSON(sm.Input)),
 	}
 	if sm.Init != nil {
-		kvs = append(kvs, attribute.String("genkit:init", telemetryJSONString(sm.Init)))
+		kvs = append(kvs, attribute.String("genkit:init", ioAttrJSON(sm.Init)))
 	}
 	return kvs
 }
