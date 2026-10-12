@@ -694,7 +694,121 @@ print(report.quarter, report.summary)
 
 ---
 
-## 5. Web Serving (`genkit.web`) & Error Redaction
+## 5. Prompts (`.prompt` files and `ai.define_prompt`)
+
+A prompt is a template plus its generation settings (model, config, tools, output schema) behind one callable `Prompt[In, Out]`. Write it as a `.prompt` file (Dotprompt: YAML frontmatter plus a Handlebars template) or in code with `ai.define_prompt`. Both give the same object, called the same way.
+
+### `.prompt` files and lazy loading
+
+- **Where they come from:** `Genkit(prompt_dir=...)` registers every `.prompt` file under the directory; with no `prompt_dir`, it uses `./prompts` if it exists. Subfolders become name prefixes (`prompts/menu/card.prompt` is `menu/card`), `card.formal.prompt` is the `formal` variant of `card`, and `_footer.prompt` is a partial you include with `{{> footer}}`.
+- **Lazy resolution:** `Genkit()` parses each file but resolves it (schema names, model, defaults) the first time the prompt runs, then caches it. Startup doesn't pay for prompts you never call, and a schema registered with `ai.define_schema` after `Genkit()` still resolves. A missing prompt fails with `NOT_FOUND` when you call it.
+- **Lookup:** `ai.prompt('name')` returns a handle right away and resolves on first call. Pass `output_schema=` to type `response.output` for the type checker.
+
+`prompts/menu_card.prompt`:
+
+```handlebars
+---
+model: googleai/gemini-flash-latest
+config:
+  temperature: 0.4
+input:
+  schema:
+    dish: string
+    diet?: string
+  default:
+    diet: none
+output:
+  schema: MenuCard
+---
+Write a menu card for {{dish}}. Dietary restriction: {{diet}}.
+```
+
+```python
+from pydantic import BaseModel
+from genkit import Genkit
+from genkit_google_genai import GoogleAI
+
+class MenuCard(BaseModel):
+    title: str
+    blurb: str
+    allergens: list[str]
+
+# 1. The file names MenuCard; registering it after Genkit() works because files resolve on first use
+ai = Genkit(plugins=[GoogleAI()], prompt_dir='prompts')
+ai.define_schema('MenuCard', MenuCard)
+
+# 2. Look the prompt up; output_schema types response.output
+menu_card = ai.prompt('menu_card', output_schema=MenuCard)
+
+# 3. Call it; `diet` takes the file default
+response = await menu_card({'dish': 'mushroom risotto'})
+print(response.output.title, response.output.allergens)
+# => Wild Mushroom Risotto ['dairy']
+```
+
+### Input defaults and validation
+
+Omitted input keys are filled before the template runs, in this order: what the caller passed, then the file's `input.default`, then the Pydantic field default. The result is validated against the input schema (the file's, and the one passed to `ai.prompt`/`define_prompt` if any), so a missing required field fails with `INVALID_ARGUMENT` before the model is called.
+
+### Defining a prompt in code
+
+```python
+from genkit_google_genai import GeminiConfig
+
+class DishInput(BaseModel):
+    dish: str
+    diet: str = 'none'  # in code, defaults are Pydantic field defaults
+
+# 1. Same settings as the file, as keyword arguments
+menu_card = ai.define_prompt(
+    'menu_card_inline',
+    model=GoogleAI.gemini('gemini-flash-latest'),
+    config=GeminiConfig(temperature=0.4),
+    input_schema=DishInput,
+    output_schema=MenuCard,
+    prompt='Write a menu card for {{dish}}. Dietary restriction: {{diet}}.',
+)
+
+# 2. Called the same way as a file prompt
+response = await menu_card(DishInput(dish='ramen'))
+print(response.output.title)
+# => Tonkotsu Ramen
+```
+
+`ai.define_partial(name, source)` and `ai.define_helper(name, fn)` register Handlebars partials and helpers for both kinds.
+
+### Per-call overrides
+
+Call keywords use `ai.generate`'s names. An omitted keyword keeps the prompt's value; `config` merges per key; `tools=[]`, `use=[]`, and `docs=[]` clear the prompt's list for this call. The output schema is fixed by the prompt.
+
+```python
+# 1. Warmer sampling and one extra tool, for this call only
+response = await menu_card({'dish': 'ramen'}, config={'temperature': 0.9}, tools=[price_lookup])
+
+# 2. A variant from menu_card.formal.prompt
+formal = ai.prompt('menu_card', variant='formal', output_schema=MenuCard)
+```
+
+### Streaming and rendering
+
+`prompt.stream()` takes the same arguments and returns a `ModelStreamResponse`, like `ai.generate_stream()`. `prompt.render()` returns the request it would send, without calling the model.
+
+```python
+# 1. Stream the reply
+stream = menu_card.stream({'dish': 'ramen'})
+async for chunk in stream.stream:
+    print(chunk.text, end='')
+card = (await stream.response).output
+
+# 2. Inspect the rendered request without running it
+request = await menu_card.render({'dish': 'ramen'})
+print(request.messages[0].content[0].text)
+# => Write a menu card for ramen. Dietary restriction: none.
+```
+
+---
+
+## 6. Web Serving (`genkit.web`) & Error Redaction
 
 Four levels of control. Each level down gives you more of the route and leaves less to Genkit. All four speak the same wire format and redact errors the same way.
 
@@ -965,7 +1079,7 @@ except RuntimeError as e:
 
 ---
 
-## 6. Telemetry & OpenTelemetry
+## 7. Telemetry & OpenTelemetry
 
 `genkit_otel` emits `gen_ai.*` spans and metrics per the OTel GenAI semantic conventions. Your app owns the OTel SDK and exporter. Configure the instrumentation before `Genkit()` so every action registered after it is covered. It runs alongside the Dev UI trace pipeline; the two export separately.
 
@@ -1009,7 +1123,7 @@ Set `content_capturing_mode='SPAN_ONLY'` (or `OTEL_INSTRUMENTATION_GENAI_CAPTURE
 
 ---
 
-## 7. Embedders
+## 8. Embedders
 
 Embedders vectorize documents for retrieval. Register a custom embedder with `ai.define_embedder(name, fn)` (or return an `Embedder` from a plugin's `list_actions()`), and call it with `ai.embed` or `ai.embed_many`.
 
@@ -1038,7 +1152,7 @@ Embedder options follow the same typed pattern: annotate the fn with `EmbedReque
 
 ---
 
-## 8. Evaluators
+## 9. Evaluators
 
 Evaluators score dataset rows against reference outputs and contexts. Register a per-row evaluator with `ai.define_evaluator(name, fn, ...)` or a whole-dataset evaluator with `ai.define_batch_evaluator(name, fn, ...)`, and run it with `ai.evaluate`.
 
@@ -1134,7 +1248,7 @@ print([row.evaluation[0].score for row in rows])
 
 ---
 
-## 9. Middleware
+## 10. Middleware
 
 Middleware wraps the three layers of a generate call: `wrap_generate` (the whole tool loop), `wrap_model` (each model call), and `wrap_tool` (each tool call). It can also add tools through `tools(ctx)`. Settings live on a Pydantic config, so the Dev UI can render a form for them.
 
@@ -1218,7 +1332,7 @@ The full version also restores the original chunk callback in a `finally` and re
 
 ---
 
-## 10. Runtime Architecture: Actions, Reflection, Event Loops
+## 11. Runtime Architecture: Actions, Reflection, Event Loops
 
 ### Actions and composites
 
