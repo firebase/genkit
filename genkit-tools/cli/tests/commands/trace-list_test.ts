@@ -43,6 +43,7 @@ describe('trace:list command', () => {
     traceList.setOptionValue('status', undefined);
     traceList.setOptionValue('type', undefined);
     traceList.setOptionValue('name', undefined);
+    traceList.setOptionValue('sessionId', undefined);
     traceList.setOptionValue('continuationToken', undefined);
 
     mockManager = {
