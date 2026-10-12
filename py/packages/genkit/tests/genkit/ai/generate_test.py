@@ -30,7 +30,7 @@ from genkit._ai._generate import (
 from genkit._ai._model import text_from_content, text_from_message
 from genkit._ai._tools import Interrupt, ToolRunContext, define_tool
 from genkit._core._action import ActionRunContext
-from genkit._core._error import ErrorReason, GenkitError, PublicError
+from genkit._core._error import ErrorReason, GenkitError, PublicError, _StreamingCallbackError
 from genkit._core._model import GenerateActionOptions, ModelRequest, Resume
 from genkit._core._protocols import RegistryLike
 from genkit._core._registry import Registry
@@ -4651,7 +4651,7 @@ async def test_generate_on_chunk_failure_returns_closed_history() -> None:
     assert response.message is None
     assert response.error is not None
     assert response.error.status == 'INTERNAL'
-    assert response.error.reason is None
+    assert response.error.reason is ErrorReason.STREAM_CALLBACK_FAILED
     assert response.error.message == response.finish_message
     assert [message.role for message in response.messages] == [Role.USER]
     assert response.messages[0].text == 'hi'
@@ -4738,8 +4738,8 @@ async def test_generate_on_chunk_genkit_error_is_internal_not_the_sink_reason() 
     assert response.message is None
     assert response.error is not None
     assert response.error.status == 'INTERNAL'
-    assert response.error.reason is None
-    assert response.error.details is None
+    assert response.error.reason is ErrorReason.STREAM_CALLBACK_FAILED
+    assert response.error.details == {'reason': 'STREAM_CALLBACK_FAILED'}
     assert response.error.message == response.finish_message
     assert [message.role for message in response.messages] == [Role.USER]
     assert response.messages[0].text == 'hi'
@@ -7817,7 +7817,7 @@ async def test_generate_on_chunk_validation_error_returns_closed_history() -> No
     assert response.message is None
     assert response.error is not None
     assert response.error.status == 'INTERNAL'
-    assert response.error.reason is None
+    assert response.error.reason is ErrorReason.STREAM_CALLBACK_FAILED
     assert response.error.message == response.finish_message
     assert [message.role for message in response.messages] == [Role.USER]
     assert response.messages[0].text == 'hi'
@@ -8617,8 +8617,165 @@ async def test_generate_with_failing_streaming_callback_returns_callback_message
     assert response.finish_message == 'model sink closed'
     assert response.error is not None
     assert response.error.status == 'INTERNAL'
+    assert response.error.reason is ErrorReason.STREAM_CALLBACK_FAILED
     assert response.message is None
     assert [m.role for m in response.messages] == [Role.USER]
+
+
+class _RaisingChunkRewriter(BaseMiddleware):
+    """Forwards the first chunk, then its own chunk callback hits a bug."""
+
+    async def wrap_model(
+        self,
+        params: ModelHookParams,
+        ctx: GenerateMiddlewareContext,
+        next_fn: Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+    ) -> ModelResponse:
+        seen = 0
+        previous = ctx.on_chunk
+
+        def rewrite(chunk: ModelResponseChunk) -> None:
+            nonlocal seen
+            seen += 1
+            if seen == 2:
+                raise KeyError('dish_id')
+            if previous is not None:
+                previous(chunk)
+
+        ctx.replace_on_chunk(rewrite)
+        try:
+            return await next_fn(params, ctx)
+        finally:
+            ctx.replace_on_chunk(previous)
+
+
+def _two_chunk_model(ai: Genkit) -> ScriptedModel:
+    pm, _ = define_scripted_model(ai)
+    pm.responses = [_model_says('Smoked Salmon Tartine')] * 3
+    pm.chunks = [
+        [
+            ModelResponseChunk(role=Role.MODEL, content=[Part.from_text('Smoked ')]),
+            ModelResponseChunk(role=Role.MODEL, content=[Part.from_text('Salmon')]),
+        ]
+    ] * 3
+    return pm
+
+
+@pytest.mark.asyncio
+async def test_generate_stream_with_raising_middleware_chunk_callback_fails_with_stream_callback_reason() -> None:
+    """A middleware's replaced on_chunk raising fails the turn like the caller's would, one model call."""
+    ai = Genkit(model='scriptedModel')
+    pm = _two_chunk_model(ai)
+
+    stream = ai.generate_stream(prompt='Suggest a dish.', use=[_RaisingChunkRewriter()])
+    chunks = [chunk.text async for chunk in stream]
+    response = await stream.response
+
+    assert chunks == ['Smoked ']
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.finish_message == "'dish_id'"
+    assert response.error is not None
+    assert response.error.status == 'INTERNAL'
+    assert response.error.reason is ErrorReason.STREAM_CALLBACK_FAILED
+    assert response.message is None
+    assert pm.request_count == 1
+
+
+@pytest.mark.asyncio
+async def test_generate_stream_with_middleware_assigning_raising_on_chunk_fails_with_stream_callback_reason() -> None:
+    """`ctx.on_chunk = fn` is guarded like replace_on_chunk."""
+    ai = Genkit(model='scriptedModel')
+    pm = _two_chunk_model(ai)
+
+    class AssignsOnChunk(BaseMiddleware):
+        async def wrap_model(
+            self,
+            params: ModelHookParams,
+            ctx: GenerateMiddlewareContext,
+            next_fn: Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+        ) -> ModelResponse:
+            previous = ctx.on_chunk
+
+            def broken(_: ModelResponseChunk) -> None:
+                raise RuntimeError('menu cache missing')
+
+            ctx.on_chunk = broken
+            try:
+                return await next_fn(params, ctx)
+            finally:
+                ctx.on_chunk = previous
+
+    stream = ai.generate_stream(prompt='Suggest a dish.', use=[AssignsOnChunk()])
+    chunks = [chunk.text async for chunk in stream]
+    response = await stream.response
+
+    assert chunks == []
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.error is not None
+    assert response.error.message == 'menu cache missing'
+    assert response.error.reason is ErrorReason.STREAM_CALLBACK_FAILED
+    assert pm.request_count == 1
+
+
+def test_replace_on_chunk_does_not_double_wrap_a_downstream_callback_failure() -> None:
+    """A middleware callback forwarding to a raising caller surfaces the caller's error once."""
+    caller_error = ValueError('client disconnected')
+
+    def caller(_: ModelResponseChunk) -> None:
+        raise caller_error
+
+    ctx = GenerateMiddlewareContext(ai=Genkit(), on_chunk=caller)
+    downstream = ctx.on_chunk
+
+    def forward(chunk: ModelResponseChunk) -> None:
+        assert downstream is not None
+        downstream(chunk)
+
+    previous = ctx.replace_on_chunk(forward)
+    with pytest.raises(_StreamingCallbackError) as raised:
+        ctx.send_chunk(ModelResponseChunk(role=Role.MODEL, content=[Part.from_text('Smoked ')]))
+
+    assert raised.value.__cause__ is caller_error
+    ctx.replace_on_chunk(previous)
+    assert ctx.on_chunk is previous
+
+
+@pytest.mark.asyncio
+async def test_generate_with_middleware_forwarding_to_raising_caller_keeps_caller_message() -> None:
+    """Middleware forwarding chunks to a raising caller callback: caller's message, one model call."""
+    ai = Genkit(model='scriptedModel')
+    pm = _two_chunk_model(ai)
+
+    class Forwards(BaseMiddleware):
+        async def wrap_model(
+            self,
+            params: ModelHookParams,
+            ctx: GenerateMiddlewareContext,
+            next_fn: Callable[[ModelHookParams, GenerateMiddlewareContext], Awaitable[ModelResponse]],
+        ) -> ModelResponse:
+            previous = ctx.on_chunk
+
+            def forward(chunk: ModelResponseChunk) -> None:
+                if previous is not None:
+                    previous(chunk)
+
+            ctx.replace_on_chunk(forward)
+            try:
+                return await next_fn(params, ctx)
+            finally:
+                ctx.replace_on_chunk(previous)
+
+    def on_chunk(_: object) -> None:
+        raise RuntimeError('client disconnected')
+
+    prompt = ai.define_prompt(prompt='Suggest a dish.')
+    response = await prompt(on_chunk=on_chunk, use=[Forwards()])
+
+    assert response.finish_reason == FinishReason.FAILED
+    assert response.error is not None
+    assert response.error.message == 'client disconnected'
+    assert response.error.reason is ErrorReason.STREAM_CALLBACK_FAILED
+    assert pm.request_count == 1
 
 
 @pytest.mark.asyncio

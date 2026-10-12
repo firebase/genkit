@@ -103,6 +103,8 @@ class ErrorReason(StrEnum):
     INVALID_SESSION_ID = 'INVALID_SESSION_ID'
     INVALID_SNAPSHOT_ID = 'INVALID_SNAPSHOT_ID'
     CONNECTION_CLOSED = 'CONNECTION_CLOSED'
+    # An on_chunk callback (the caller's or one middleware installed) raised; the model isn't retried.
+    STREAM_CALLBACK_FAILED = 'STREAM_CALLBACK_FAILED'
 
 
 def error_reason(details: object) -> ErrorReason | None:
@@ -349,12 +351,15 @@ class Interrupt(BaseException):
 
 
 class _StreamingCallbackError(BaseException):
-    """Internal carrier for an exception raised by the caller's ``on_chunk`` callback.
+    """Internal carrier for an exception raised by an ``on_chunk`` callback.
 
-    Subclasses ``BaseException`` (like ``Interrupt`` and ``asyncio.CancelledError``)
-    so ``except Exception`` blocks in model plugins and middleware cannot
-    catch or retry a caller-side callback failure. ``generate()`` unwraps
-    ``__cause__`` and boxes the original failure onto ``ModelResponse``.
+    Covers the caller's callback and any callback middleware installs on
+    ``GenerateMiddlewareContext.on_chunk``. Subclasses ``BaseException`` (like
+    ``Interrupt`` and ``asyncio.CancelledError``) so ``except Exception``
+    blocks in model plugins and middleware cannot catch or retry a stream
+    callback failure. ``generate()`` unwraps ``__cause__`` and boxes the
+    original failure onto ``ModelResponse`` with reason
+    ``STREAM_CALLBACK_FAILED``.
     """
 
 

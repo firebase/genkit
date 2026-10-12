@@ -72,6 +72,7 @@ from genkit._core._error import ErrorReason, Failure, GenkitError, PublicError, 
 from genkit._core._logger import get_logger, is_debug_enabled
 from genkit._core._middleware import (
     BaseMiddleware,
+    EngineOnChunk,
     GenerateHookParams,
     GenerateMiddleware,
     GenerateMiddlewareContext,
@@ -134,7 +135,7 @@ HookWrap = Callable[
 
 
 def streaming_callback_cause(*, exc: BaseException) -> Exception | None:
-    """Find the caller's on_chunk exception through whatever wrapped it."""
+    """Find the on_chunk callback's exception through whatever wrapped it."""
     current: BaseException | None = exc
     seen: set[int] = set()
     while current is not None and id(current) not in seen:
@@ -775,20 +776,14 @@ async def run_generate(
         options.tools = await expand_wildcard_tools(registry, options.tools)
 
     middleware = resolve_middleware_from_use(registry, options.use)
-    caller_on_chunk = on_chunk
 
-    def send_caller_chunk(chunk: ModelResponseChunk) -> None:
-        if caller_on_chunk is None:
-            return
-        try:
-            caller_on_chunk(chunk)
-        except Exception as exc:
-            raise _StreamingCallbackError(str(exc)) from exc
-
+    # ctx guards on_chunk: the caller's callback, or one middleware installs,
+    # raising fails the turn with STREAM_CALLBACK_FAILED instead of looking
+    # like a model failure that Retry or Fallback would act on.
     ctx = GenerateMiddlewareContext(
         ai=scope.ai,
         custom_context=dict(context or {}),
-        on_chunk=send_caller_chunk if caller_on_chunk is not None else None,
+        on_chunk=on_chunk,
         abort_signal=abort_signal if abort_signal is not None else asyncio.Event(),
     )
 
@@ -925,7 +920,7 @@ class ChunkAccumulator:
             if downstream is not None:
                 downstream(self.make(role=role, chunk=chunk))
 
-        previous = ctx.replace_on_chunk(handler)
+        previous = ctx.replace_on_chunk(EngineOnChunk(handler))
         try:
             yield
         finally:
@@ -1196,9 +1191,9 @@ def box_from_exc(
     pipe_failed = False
     if callback_cause is not None:
         # The stream pipe is framework plumbing, not a tool or model
-        # sentinel. Keep the sink's wording; drop any loop reason.
+        # sentinel. Keep the sink's wording; replace any loop reason.
         exc = callback_cause
-        reason = None
+        reason = ErrorReason.STREAM_CALLBACK_FAILED
         pipe_failed = True
     finish_message = boxed_finish_message(exc=exc, pipe_failed=pipe_failed)
     if caller_stopped:

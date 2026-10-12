@@ -64,6 +64,7 @@ def test_error_reasons_are_the_ones_helpers_write() -> None:
         'INVALID_SESSION_ID',
         'INVALID_SNAPSHOT_ID',
         'CONNECTION_CLOSED',
+        'STREAM_CALLBACK_FAILED',
     }
 
 
