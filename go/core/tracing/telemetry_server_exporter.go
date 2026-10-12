@@ -179,14 +179,16 @@ func convertEvents(evs []sdktrace.Event) []TimeEvent {
 	return tes
 }
 
+// convertStatus converts an OpenTelemetry Status to a Status. The Go SDK's
+// [codes.Code] values are internal to the SDK (Error = 1, Ok = 2), so they are
+// translated to the OTLP values that the telemetry server expects.
 func convertStatus(s sdktrace.Status) Status {
-	// Go's status-code ordinals are internal and reverse OTLP's Ok/Error values.
-	var code uint32
+	var code uint32 // STATUS_CODE_UNSET
 	switch s.Code {
 	case codes.Ok:
-		code = 1
+		code = 1 // STATUS_CODE_OK
 	case codes.Error:
-		code = 2
+		code = 2 // STATUS_CODE_ERROR
 	}
 	return Status{
 		Code:        code,

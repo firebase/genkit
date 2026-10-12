@@ -125,7 +125,9 @@ func TestConvertSpan(t *testing.T) {
 	}
 }
 
-func TestConvertStatusUsesOTLPCodes(t *testing.T) {
+// TestConvertStatus checks that the Go SDK status codes are sent with their
+// OTLP values, which reverse Ok and Error.
+func TestConvertStatus(t *testing.T) {
 	tests := []struct {
 		name string
 		code codes.Code
