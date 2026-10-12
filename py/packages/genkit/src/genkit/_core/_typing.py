@@ -20,13 +20,18 @@
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar, Generic, Literal
 
 from pydantic import ConfigDict, Field, RootModel, field_validator
 from pydantic.alias_generators import to_camel
+from typing_extensions import TypeVar
 
 from genkit._core._base import GenkitModel
 from genkit._core._compat import StrEnum
+
+# Operation's output type. Defaults to Any, same as JS's Operation<O = any>;
+# background models return Operation[ModelResponse].
+OperationOutputT = TypeVar('OperationOutputT', default=Any)
 
 
 class AgentFinishReason(StrEnum):
@@ -568,14 +573,14 @@ class MultipartToolResponse(GenkitModel):
     metadata: Metadata | None = None
 
 
-class Operation(GenkitModel):
+class Operation(GenkitModel, Generic[OperationOutputT]):
     """Model for operation data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     action: str | None = None
     id: str = Field(...)
     done: bool | None = None
-    output: Any | None = Field(default=None)
+    output: OperationOutputT | None = None
     error: OperationError | None = None
     metadata: Metadata | None = None
 

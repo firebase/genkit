@@ -23,11 +23,11 @@ from collections.abc import Awaitable, Callable, Mapping
 from functools import wraps
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from genkit._core._action import Action, ActionKind, ActionRunContext, get_current_context
 from genkit._core._config_check import check_config_json_schema, check_request_config
-from genkit._core._error import GenkitError, RuntimeErrorReason
+from genkit._core._error import GenkitError, RuntimeErrorReason, StatusName
 from genkit._core._model import ModelRequest, ModelResponse
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
@@ -55,6 +55,31 @@ def stamp_operation_action(*, operation: Operation, name: str) -> None:
     if operation.action:
         return
     operation.action = _make_action_key(ActionKind.BACKGROUND_MODEL, name)
+
+
+def as_model_operation(operation: Operation, *, name: str, status: StatusName) -> Operation[ModelResponse]:
+    """The same handle as an ``Operation[ModelResponse]``, with ``output`` validated.
+
+    A model fn may return a plain ``Operation`` or set ``op.output = {...}``,
+    which skips validation; both are converted here. ``status`` says whose
+    mistake a bad output is: INTERNAL for what a model fn returned,
+    INVALID_ARGUMENT for a handle the caller passed in.
+
+    Raises:
+        GenkitError: ``status`` when ``output`` isn't a ModelResponse.
+    """
+    output: object = operation.output
+    # Assignment skips validation, so an Operation[ModelResponse] can still hold a dict.
+    if type(operation) is Operation[ModelResponse] and (output is None or isinstance(output, ModelResponse)):
+        return operation
+    fields = {field: getattr(operation, field) for field in operation.model_fields_set}
+    try:
+        return Operation[ModelResponse](**fields)
+    except ValidationError as e:
+        raise GenkitError(
+            status=status,
+            message=f"'{name}': Operation.output must be a ModelResponse, got {type(output).__name__}.",
+        ) from e
 
 
 def _operation_action(
@@ -91,9 +116,13 @@ def _operation_action(
             # Same check as a regular model action: the whole config, after
             # every middleware, before the provider starts an operation.
             check_request_config(input, schema=config_schema, model=action.name.removesuffix(suffix))
+        if isinstance(input, Operation):
+            # check/cancel: the caller's handle, often reloaded from storage.
+            input = as_model_operation(input, name=action.name, status='INVALID_ARGUMENT')  # noqa: A001
         op = await action.params.call(fn, input, ctx)
         if isinstance(op, Operation):
             stamp_operation_action(operation=op, name=action.name.removesuffix(suffix))
+            op = as_model_operation(op, name=action.name, status='INTERNAL')
         return op
 
     action = Action(
@@ -108,9 +137,10 @@ def _operation_action(
     return action
 
 
+# A fn may return a plain Operation; its output is validated as a ModelResponse.
 StartModelOpFn = Callable[[ModelRequest, ActionRunContext], Awaitable[Operation]]
-CheckModelOpFn = Callable[[Operation, ActionRunContext], Awaitable[Operation]]
-CancelModelOpFn = Callable[[Operation, ActionRunContext], Awaitable[Operation]]
+CheckModelOpFn = Callable[[Operation[ModelResponse], ActionRunContext], Awaitable[Operation]]
+CancelModelOpFn = Callable[[Operation[ModelResponse], ActionRunContext], Awaitable[Operation]]
 
 
 def operation_context(
@@ -142,13 +172,8 @@ class BackgroundModel:
 
     Built on registered actions but isn't itself an ``Action``: each of
     start, check and cancel has its own registry key.
-    ``start`` returns an Operation; pass it to ``check`` until it's done.
-
-    Not generic: start, check and cancel always return an ``Operation``, and
-    ``Operation.output`` is untyped, so a type parameter would carry nothing.
-    If ``Operation`` gets a typed output, add one with a default
-    (``TypeVar('T', default=ModelResponse)``) so a bare ``BackgroundModel``
-    still type-checks.
+    ``start`` returns an ``Operation[ModelResponse]``; pass it to ``check`` until it's done.
+    A finished job's ``output`` is a ``ModelResponse``.
 
     Attributes:
         __action: Action metadata.
@@ -210,7 +235,7 @@ class BackgroundModel:
         input: ModelRequest | None = None,
         *,
         context: dict[str, Any] | None = None,
-    ) -> Operation:
+    ) -> Operation[ModelResponse]:
         """Start a background operation.
 
         Args:
@@ -231,7 +256,7 @@ class BackgroundModel:
         operation: Operation,
         *,
         context: dict[str, Any] | None = None,
-    ) -> Operation:
+    ) -> Operation[ModelResponse]:
         """Check the status of a background operation.
 
         Args:
@@ -254,7 +279,7 @@ class BackgroundModel:
         operation: Operation,
         *,
         context: dict[str, Any] | None = None,
-    ) -> Operation:
+    ) -> Operation[ModelResponse]:
         """Cancel a background operation.
 
         Args:
@@ -294,10 +319,10 @@ def missing_operation_error(*, name: str) -> MissingOperationError:
     )
 
 
-def _ensure_operation(*, response: object, name: str) -> Operation:
+def _ensure_operation(*, response: object, name: str) -> Operation[ModelResponse]:
     """A start/check/cancel fn returns an Operation, not a dict."""
     if isinstance(response, Operation):
-        return response
+        return as_model_operation(response, name=name, status='INTERNAL')
     raise missing_operation_error(name=name)
 
 
@@ -517,7 +542,7 @@ async def check_operation(
     *,
     context: dict[str, Any] | None = None,
     config: Mapping[str, Any] | None = None,
-) -> Operation:
+) -> Operation[ModelResponse]:
     """Check the status of a background operation.
 
     Args:
@@ -548,7 +573,7 @@ async def cancel_operation(
     *,
     context: dict[str, Any] | None = None,
     config: Mapping[str, Any] | None = None,
-) -> Operation:
+) -> Operation[ModelResponse]:
     """Cancel a background operation.
 
     Args:

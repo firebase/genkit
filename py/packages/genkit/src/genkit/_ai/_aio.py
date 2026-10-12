@@ -81,6 +81,7 @@ from genkit._core._background import (
     CancelModelOpFn,
     CheckModelOpFn,
     StartModelOpFn,
+    as_model_operation,
     cancel_operation,
     check_operation,
     define_background_model,
@@ -1965,7 +1966,7 @@ class Genkit:
         *,
         context: dict[str, Any] | None = None,
         config: Mapping[str, Any] | None = None,
-    ) -> Operation:
+    ) -> Operation[ModelResponse]:
         """Poll a background job.
 
         Pass ``context={'secrets': {'api_key': ...}}`` again when start used a
@@ -1980,7 +1981,7 @@ class Genkit:
         *,
         context: dict[str, Any] | None = None,
         config: Mapping[str, Any] | None = None,
-    ) -> Operation:
+    ) -> Operation[ModelResponse]:
         """Cancel a background job.
 
         Same ``context`` / ``config`` pockets as ``check_operation``.
@@ -1999,7 +2000,7 @@ class Genkit:
         context: dict[str, object] | None = None,
         use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
         docs: list[Document] | None = None,
-    ) -> Operation: ...
+    ) -> Operation[ModelResponse]: ...
 
     @overload
     async def generate_operation(
@@ -2013,7 +2014,7 @@ class Genkit:
         context: dict[str, object] | None = None,
         use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
         docs: list[Document] | None = None,
-    ) -> Operation: ...
+    ) -> Operation[ModelResponse]: ...
 
     async def generate_operation(
         self,
@@ -2026,7 +2027,7 @@ class Genkit:
         context: dict[str, object] | None = None,
         use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
         docs: list[Document] | None = None,
-    ) -> Operation:
+    ) -> Operation[ModelResponse]:
         """Generate content using a long-running model, returning an Operation to poll.
 
         A background start is one request that returns a job handle. There is
@@ -2091,4 +2092,4 @@ class Genkit:
             )
         if not response.operation:
             raise missing_operation_error(name=model_action.name)
-        return response.operation
+        return as_model_operation(response.operation, name=model_action.name, status='INTERNAL')

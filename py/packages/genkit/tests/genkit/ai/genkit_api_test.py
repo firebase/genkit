@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from genkit import Genkit, get_logger
+from genkit import Genkit, Message, Part, Role, get_logger
 from genkit._core._action import ActionRunContext, _action_context
 from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._model import ModelRequest, ModelResponse
@@ -220,7 +220,8 @@ async def test_genkit_check_operation() -> None:
 
     # Create mock background model with check method
     mock_background_model = MagicMock()
-    mock_background_model.check = AsyncMock(return_value=Operation(id='123', done=True, output='result'))
+    finished = ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('result')]))
+    mock_background_model.check = AsyncMock(return_value=Operation(id='123', done=True, output=finished))
 
     # Patch lookup_background_model to return our mock
     with mock.patch(
@@ -230,7 +231,8 @@ async def test_genkit_check_operation() -> None:
         updated_op = await ai.check_operation(op)
 
         assert updated_op.done is True
-        assert updated_op.output == 'result'
+        assert updated_op.output is not None
+        assert updated_op.output.text == 'result'
         mock_lookup.assert_called_once()
 
 

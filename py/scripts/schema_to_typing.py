@@ -108,13 +108,18 @@ HEADER = '''# Copyright {year} Google LLC
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar, Generic, Literal
 
 from pydantic import ConfigDict, Field, RootModel, field_validator
 from pydantic.alias_generators import to_camel
+from typing_extensions import TypeVar
 
 from genkit._core._base import GenkitModel
 from genkit._core._compat import StrEnum
+
+# Operation's output type. Defaults to Any, same as JS's Operation<O = any>;
+# background models return Operation[ModelResponse].
+OperationOutputT = TypeVar('OperationOutputT', default=Any)
 
 '''
 
@@ -320,8 +325,10 @@ def _emit_model(
     ext = ', protected_namespaces=()' if any(_camel_to_snake(k) in ('schema', 'schema_') for k in props) else ''
     frz = ', frozen=True' if name == 'PathMetadata' else ''
     cfg = f"ConfigDict(alias_generator=to_camel, extra='{'allow' if name in allow else 'forbid'}', populate_by_name=True{ext}{frz})"
+    # Operation is generic over its output, like JS Operation<O> and Go Operation[Out].
+    bases = 'GenkitModel, Generic[OperationOutputT]' if name == 'Operation' else 'GenkitModel'
     lines = [
-        f'class {name}(GenkitModel):',
+        f'class {name}({bases}):',
         f'    """Model for {name.lower().replace("_", " ")} data."""',
         f'    model_config: ClassVar[ConfigDict] = {cfg}',
     ]
@@ -358,6 +365,8 @@ def _emit_model(
             py_type_str = 'dict[str, Any]'
         if name == 'MessageData' and k == 'role':
             py_type_str = 'Role | str'
+        if name == 'Operation' and k == 'output':
+            py_type_str = 'OperationOutputT'
         desc = v.get('description')
         desc_extra = f', description={repr(desc)}' if desc else ''
         if name == 'EvalFnResponse' and field_name == 'evaluation':
