@@ -101,7 +101,7 @@ async def test_typed_nested_config_request_body() -> None:
         return _claude_reply(request)
 
     http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    ai = Genkit(plugins=[Anthropic(api_key='fake-key', http_client=http_client)])
+    ai = Genkit(plugins=[Anthropic(api_key='fake-key', client_options={'http_client': http_client})])
 
     @ai.tool(name='lookup_menu')
     async def lookup_menu(dish: str) -> str:
