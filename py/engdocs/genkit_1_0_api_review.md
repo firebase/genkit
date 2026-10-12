@@ -658,13 +658,16 @@ except GenkitError as e:
 
 ### What your `except` blocks see
 
-`Interrupt` and the internal streaming-callback carrier subclass `BaseException`, like `asyncio.CancelledError`, so `except Exception` in plugins, middleware and tool code can't swallow them. Here's where each one can reach app code:
+`Interrupt` subclasses `BaseException`, so a plain `except Exception` won't catch it. That keeps a catch-all in tool or plugin code from skipping an approval.
 
-- **`Interrupt` in a tool run by `generate`:** never raised to you. The turn comes back with `finish_reason == INTERRUPTED` and the paused calls on `response.interrupts`.
-- **`Interrupt` from a direct tool call:** `await charge_card(50)` raises it, and `except Exception` does **not** catch it. Catch `Interrupt` by name.
-- **`Interrupt` that escapes a flow body:** the flow fails with `GenkitError` `INTERNAL` ("Interrupt raised outside a tool"), so a served flow returns a 500. Catch it inside the flow if the flow calls interrupting tools directly.
-- **Inside a tool:** clean up with `try/finally`, or `except Interrupt: ...; raise`. Never `except BaseException` without re-raising.
-- **`StreamingCallbackError`:** gone from the public API (#6767). The carrier is private, and neither `ai.generate` nor `ai.generate_stream` takes a callback of yours, so app code never sees it. It exists so model plugins and `Retry`/`Fallback` can't swallow or retry a failing stream sink.
+Where you'll see it:
+
+- **Via `generate`:** you won't. The response comes back with `finish_reason == INTERRUPTED`.
+- **Calling a tool directly:** `await charge_card(50)` raises it. Use `except Interrupt`.
+- **From a flow:** if it escapes the flow body, the flow fails with `INTERNAL` (a 500 when served).
+- **In your own tool:** use `try/finally` for cleanup. If you catch it, re-raise it.
+
+`StreamingCallbackError` is gone from the public API (#6767). App code never sees it.
 
 With `ai.generate_stream()` there's no callback of yours in that path. An exception in your `async for` body is just your exception. The model call keeps running to completion in the background, and `await stream.response` still returns it.
 
