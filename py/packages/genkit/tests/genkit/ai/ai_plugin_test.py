@@ -28,7 +28,7 @@ from genkit._core._model import ModelRequest
 from genkit._core._registry import ActionKind
 from genkit._core._typing import ActionMetadata, FinishReason
 from genkit.middleware import BaseMiddleware, GenerateMiddleware
-from genkit.plugin_api import Plugin, new_middleware
+from genkit.plugin_api import Plugin
 
 
 class AsyncResolveOnlyPlugin(Plugin):
@@ -128,16 +128,16 @@ class MiddlewareListingPlugin(Plugin):
         return []
 
     def list_middleware(self) -> list[GenerateMiddleware]:
-        return [new_middleware(_RegistryMw, name='ai_plugin_test_mw')]
+        return [GenerateMiddleware(cls=_RegistryMw, name='ai_plugin_test_mw')]
 
 
 @pytest.mark.asyncio
 async def test_plugin_list_middleware_registers_on_registry() -> None:
     """Descriptors from Plugin.list_middleware appear under list_values('middleware')."""
     ai = Genkit(plugins=[MiddlewareListingPlugin()])
-    names = ai.registry.list_values('middleware')
+    names = ai._registry.list_values('middleware')
     assert 'ai_plugin_test_mw' in names
-    desc = ai.registry.lookup_value('middleware', 'ai_plugin_test_mw')
+    desc = ai._registry.lookup_value('middleware', 'ai_plugin_test_mw')
     assert desc is not None
     assert isinstance(desc, GenerateMiddleware)
 

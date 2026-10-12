@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from _ai import ai
+from _ai import ai, reply_text
 from pydantic import BaseModel
 from weather_agent import get_weather  # reuse the same tool
 
@@ -60,7 +60,7 @@ async def test_weather_agent_stateless(input: StatelessTurn, ctx: ActionRunConte
     res = await turn
     # The updated blob to round-trip on the next turn — this is the whole session.
     state = res.raw.state.model_dump(by_alias=True, mode='json') if res.raw.state else None
-    return {'state': state, 'text': res.text}
+    return {'state': state, 'text': reply_text(res)}
 
 
 if __name__ == '__main__':

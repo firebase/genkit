@@ -18,13 +18,15 @@
 
 from __future__ import annotations
 
+import inspect
 from collections.abc import Awaitable, Callable, Mapping
 from functools import wraps
-from typing import Any, Generic, TypeVar
+from typing import Any
 
 from pydantic import BaseModel
 
 from genkit._core._action import Action, ActionKind, ActionRunContext, get_current_context
+from genkit._core._config_check import check_config_json_schema, check_request_config
 from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._model import ModelRequest, ModelResponse
 from genkit._core._registry import Registry
@@ -33,9 +35,6 @@ from genkit._core._typing import (
     ModelInfo,
     Operation,
 )
-
-# Type variable for operation output
-OutputT = TypeVar('OutputT')
 
 
 def _make_action_key(action_type: ActionKind | str, name: str) -> str:
@@ -79,10 +78,19 @@ def _operation_action(
     plugin prefix after this is built, so the key is read from the action's
     live name minus ``suffix`` (e.g. ``/check``) when it runs.
     """
+    # Action rejects a sync fn, but it only sees the async wrapper below.
+    if not inspect.iscoroutinefunction(fn):
+        raise TypeError(f"Action handlers must be async functions. Got sync function for '{model_name}{suffix}'.")
+    if isinstance(config_schema, dict):
+        check_config_json_schema(config_schema, model=model_name)
 
     # wraps keeps fn's annotations on the wrapper, e.g. ModelRequest[VeoConfig].
     @wraps(fn)
     async def run_and_stamp(input: object, ctx: ActionRunContext) -> Operation:  # noqa: A002
+        if config_schema:
+            # Same check as a regular model action: the whole config, after
+            # every middleware, before the provider starts an operation.
+            check_request_config(input, schema=config_schema, model=action.name.removesuffix(suffix))
         op = await action.params.call(fn, input, ctx)
         if isinstance(op, Operation):
             stamp_operation_action(operation=op, name=action.name.removesuffix(suffix))
@@ -129,12 +137,18 @@ def operation_context(
     return folded
 
 
-class BackgroundAction(Generic[OutputT]):
+class BackgroundAction:
     """A handle over a background model's start, check and cancel actions.
 
     Built on registered actions but isn't itself an ``Action``: each of
     start, check and cancel has its own registry key.
     ``start`` returns an Operation; pass it to ``check`` until it's done.
+
+    Not generic: start, check and cancel always return an ``Operation``, and
+    ``Operation.output`` is untyped, so a type parameter would carry nothing.
+    If ``Operation`` gets a typed output, add one with a default
+    (``TypeVar('T', default=ModelResponse)``) so a bare ``BackgroundAction``
+    still type-checks.
 
     Attributes:
         __action: Action metadata.
@@ -289,16 +303,15 @@ def _ensure_operation(*, response: object, name: str) -> Operation:
 
 def background_model(
     name: str,
+    *,
     start: StartModelOpFn,
     check: CheckModelOpFn,
-    *,
     cancel: CancelModelOpFn | None = None,
-    label: str | None = None,
     info: ModelInfo | None = None,
     config_schema: type[BaseModel] | dict[str, Any] | None = None,
     metadata: dict[str, Any] | None = None,
     description: str | None = None,
-) -> BackgroundAction[ModelResponse]:
+) -> BackgroundAction:
     """Build a background model without registering it.
 
     Plugin ``init`` / ``resolve`` return this. ``define_background_model``
@@ -321,8 +334,7 @@ def background_model(
     supports['longRunning'] = True
     model_options['supports'] = supports
 
-    # Precedence: explicit label argument > info.label > fallback to model name
-    label = label or model_options.get('label') or name
+    label = model_options.get('label') or name
     model_options['label'] = label
 
     if config_schema:
@@ -373,22 +385,21 @@ def background_model(
 def define_background_model(
     registry: Registry,
     name: str,
+    *,
     start: StartModelOpFn,
     check: CheckModelOpFn,
     cancel: CancelModelOpFn | None = None,
-    label: str | None = None,
     info: ModelInfo | None = None,
     config_schema: type[BaseModel] | dict[str, Any] | None = None,
     metadata: dict[str, Any] | None = None,
     description: str | None = None,
-) -> BackgroundAction[ModelResponse]:
+) -> BackgroundAction:
     """Register a background model for long-running AI operations."""
     action = background_model(
         name,
-        start,
-        check,
+        start=start,
+        check=check,
         cancel=cancel,
-        label=label,
         info=info,
         config_schema=config_schema,
         metadata=metadata,
@@ -402,7 +413,7 @@ def define_background_model(
 async def lookup_background_action(
     registry: Registry,
     key: str,
-) -> BackgroundAction[ModelResponse] | None:
+) -> BackgroundAction | None:
     """Look up a background action by its action key.
 
     Matches JS lookupBackgroundAction from js/core/src/background-action.ts.
@@ -471,7 +482,7 @@ def require_operation(*, value: object) -> Operation:
 async def resolve_operation_action(
     registry: Registry,
     operation: Operation,
-) -> BackgroundAction[ModelResponse]:
+) -> BackgroundAction:
     """Turn a poll handle into the background action that owns it."""
     operation = require_operation(value=operation)
     if not operation.action:
