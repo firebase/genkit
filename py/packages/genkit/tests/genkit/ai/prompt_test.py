@@ -1374,7 +1374,7 @@ def _allergy_check_prompt(ai: Genkit, pm: ScriptedModel, seen: list[tuple[str, d
             ctx: MiddlewareContext,
             next_fn: Callable[[ModelHookParams, MiddlewareContext], Awaitable[ModelResponse]],
         ) -> ModelResponse:
-            seen.append(('middleware', dict(ctx.custom_context)))
+            seen.append(('middleware', dict(ctx.context)))
             return await next_fn(params, ctx)
 
     @ai.tool(name='check_allergies')

@@ -1111,7 +1111,7 @@ class AddContextMiddleware(Middleware):
         ctx: MiddlewareContext,
         next_fn: Callable[[ModelHookParams, MiddlewareContext], Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        ctx.custom_context['banana'] = True
+        ctx.context['banana'] = True
         return await next_fn(params, ctx)
 
 
@@ -1130,7 +1130,7 @@ class InjectContextMiddleware(Middleware):
                     messages=[
                         Message(
                             role=Role.USER,
-                            content=[Part.from_text(f'{txt} {ctx.custom_context}')],
+                            content=[Part.from_text(f'{txt} {ctx.context}')],
                         ),
                     ],
                 ),
@@ -1148,7 +1148,7 @@ class ContextPlugin(ExtensionPlugin):
 
 @pytest.mark.asyncio
 async def test_generate_middleware_can_modify_context() -> None:
-    """Test that middleware can modify custom_context on the shared generate ctx."""
+    """Test that middleware can modify context on the shared generate ctx."""
     ai = Genkit(plugins=[ContextPlugin()])
     define_echo_model(ai)
 
@@ -1644,7 +1644,7 @@ async def test_generate_without_context_uses_enclosing_flow_context() -> None:
             ctx: MiddlewareContext,
             next_fn: Callable[[ModelHookParams, MiddlewareContext], Awaitable[ModelResponse]],
         ) -> ModelResponse:
-            seen.append(('middleware', dict(ctx.custom_context)))
+            seen.append(('middleware', dict(ctx.context)))
             return await next_fn(params, ctx)
 
     @ai.tool(name='check_allergies')
@@ -1727,8 +1727,8 @@ async def test_generate_resume_context_reaches_tool_run() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrap_tool_middleware_custom_context_reaches_tool_run() -> None:
-    """Mutations to ``ctx.custom_context`` in ``wrap_tool`` are visible in ``ToolRunContext``."""
+async def test_wrap_tool_middleware_context_reaches_tool_run() -> None:
+    """Mutations to ``ctx.context`` in ``wrap_tool`` are visible in ``ToolRunContext``."""
     seen: list[dict[str, object]] = []
 
     ai = Genkit()
@@ -1741,7 +1741,7 @@ async def test_wrap_tool_middleware_custom_context_reaches_tool_run() -> None:
             ctx: MiddlewareContext,
             next_fn: Callable[[ToolHookParams, MiddlewareContext], Awaitable[MultipartToolResponse]],
         ) -> MultipartToolResponse:
-            ctx.custom_context['added_by_mw'] = True
+            ctx.context['added_by_mw'] = True
             return await next_fn(params, ctx)
 
     pm, _ = define_scripted_model(ai)
@@ -1782,8 +1782,8 @@ async def test_wrap_tool_middleware_custom_context_reaches_tool_run() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wrap_tool_custom_context_visible_to_generate_and_model_on_next_turn() -> None:
-    """``wrap_tool`` mutations to ``custom_context`` appear in later ``wrap_generate`` / ``wrap_model`` calls."""
+async def test_wrap_tool_context_visible_to_generate_and_model_on_next_turn() -> None:
+    """``wrap_tool`` mutations to ``context`` appear in later ``wrap_generate`` / ``wrap_model`` calls."""
     generate_ctx: list[tuple[int, dict[str, object]]] = []
     model_ctx: list[dict[str, object]] = []
 
@@ -1797,7 +1797,7 @@ async def test_wrap_tool_custom_context_visible_to_generate_and_model_on_next_tu
             ctx: MiddlewareContext,
             next_fn: Callable[[GenerateHookParams, MiddlewareContext], Awaitable[ModelResponse]],
         ) -> ModelResponse:
-            generate_ctx.append((params.iteration, dict(ctx.custom_context)))
+            generate_ctx.append((params.iteration, dict(ctx.context)))
             return await next_fn(params, ctx)
 
         async def wrap_model(
@@ -1806,7 +1806,7 @@ async def test_wrap_tool_custom_context_visible_to_generate_and_model_on_next_tu
             ctx: MiddlewareContext,
             next_fn: Callable[[ModelHookParams, MiddlewareContext], Awaitable[ModelResponse]],
         ) -> ModelResponse:
-            model_ctx.append(dict(ctx.custom_context))
+            model_ctx.append(dict(ctx.context))
             return await next_fn(params, ctx)
 
         async def wrap_tool(
@@ -1815,7 +1815,7 @@ async def test_wrap_tool_custom_context_visible_to_generate_and_model_on_next_tu
             ctx: MiddlewareContext,
             next_fn: Callable[[ToolHookParams, MiddlewareContext], Awaitable[MultipartToolResponse]],
         ) -> MultipartToolResponse:
-            ctx.custom_context['added_by_mw'] = True
+            ctx.context['added_by_mw'] = True
             return await next_fn(params, ctx)
 
     pm, _ = define_scripted_model(ai)

@@ -144,14 +144,15 @@ class MiddlewareContext:
     ``ai`` is the app's ``Genkit`` instance, so ``await ctx.ai.lookup_model(name)``,
     ``await ctx.ai.lookup_tool(name)`` and ``ctx.ai.lookup_value(kind=..., name=...)``
     find what the app defined. Inside an agent, read the session with
-    ``genkit.exp.current_session()``. Also carries caller-provided metadata
-    (``custom_context``), streaming hooks, and the abort signal for the whole
+    ``genkit.exp.current_session()``. Also carries a copy of the call's
+    ``context=`` (auth, secrets; the same dict flows and tools read as
+    ``ctx.context``), streaming hooks, and the abort signal for the whole
     generate invocation.
     """
 
     ai: GenkitLike
     abort_signal: asyncio.Event = field(default_factory=asyncio.Event)
-    custom_context: dict[str, object] = field(default_factory=dict)
+    context: dict[str, object] = field(default_factory=dict)
     on_chunk: Callable[[ModelResponseChunk], None] | None = None
     telemetry_labels: dict[str, str] | None = None
 

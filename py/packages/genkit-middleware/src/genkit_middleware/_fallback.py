@@ -138,7 +138,7 @@ class Fallback(Middleware[FallbackConfig]):
             try:
                 result = await fallback_action.run(
                     input=fallback_request,
-                    context=ctx.custom_context,
+                    context=ctx.context,
                     on_chunk=on_chunk,
                     abort_signal=ctx.abort_signal,
                 )

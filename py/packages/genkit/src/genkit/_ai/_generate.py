@@ -806,7 +806,7 @@ async def run_generate(
 
     ctx = MiddlewareContext(
         ai=scope.ai,
-        custom_context=dict(context or {}),
+        context=dict(context or {}),
         on_chunk=send_caller_chunk if caller_on_chunk is not None else None,
         abort_signal=abort_signal if abort_signal is not None else asyncio.Event(),
     )
@@ -1602,7 +1602,7 @@ async def call_model(
             )
         result = await turn_model.run(
             input=params.request,
-            context=c.custom_context,
+            context=c.context,
             on_chunk=c.on_chunk,
             abort_signal=c.abort_signal,
         )
@@ -2255,7 +2255,7 @@ async def execute_tool_request(
     ``Middleware.wrap_tool``: responses are return values, interrupts
     are exceptions.
     """
-    # run_tool_request threads custom_context/telemetry (and the abort signal) into
+    # run_tool_request threads context/telemetry (and the abort signal) into
     # the tool. We still watch abort_signal here so a tool that ignores it gets hard
     # cancelled instead of hanging past a client abort.
     abort_signal = ctx.abort_signal
