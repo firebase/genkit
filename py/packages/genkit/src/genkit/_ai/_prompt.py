@@ -54,9 +54,7 @@ from genkit._ai._model import (
     ModelResponseChunk,
     assert_correct_config_class,
     check_call_config,
-    check_config_values,
     config_class_for_generate,
-    config_field_names,
     config_schema_at_define,
     fold_config_aliases,
     normalize_config,
@@ -71,6 +69,7 @@ from genkit._core._action import (
     get_current_context,
 )
 from genkit._core._channel import Channel
+from genkit._core._config_check import check_config_values, config_field_names
 from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._logger import get_logger
 from genkit._core._middleware import BaseMiddleware, middleware_class_index

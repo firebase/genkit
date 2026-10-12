@@ -22,7 +22,7 @@ from genkit import FinishReason, Genkit, Part
 from genkit._core._action import ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._model import Message, ModelRequest, ModelResponse
-from genkit._core._typing import Role
+from genkit._core._typing import Operation, Role
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, ModelHookParams
 from genkit.model import model_ref
 
@@ -261,3 +261,76 @@ async def test_missing_field_message_is_the_same_for_class_and_dict(declared: De
 
     assert response.error is not None
     assert response.error.message == "acme/tts: config 'voice': Field required"
+
+
+def define_video(ai: Genkit, *, declared: Literal['class_only', 'json_schema']) -> list[object]:
+    """Register a background model with VoiceConfig; return the configs start saw."""
+    configs: list[object] = []
+
+    async def start(request: ModelRequest, ctx: ActionRunContext) -> Operation:
+        configs.append(request.config)
+        return Operation(id='op-1', done=False)
+
+    async def check(operation: Operation, ctx: ActionRunContext) -> Operation:
+        return operation
+
+    schema = VoiceConfig if declared == 'class_only' else VoiceConfig.model_json_schema()
+    ai.define_background_model('acme/video', start=start, check=check, config_schema=schema)
+    return configs
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('declared', ['class_only', 'json_schema'])
+async def test_background_missing_required_field_never_starts(declared: Literal['class_only', 'json_schema']) -> None:
+    """A background model's start action checks the whole config like a model action; start never runs."""
+    ai = Genkit()
+    configs = define_video(ai, declared=declared)
+
+    with pytest.raises(GenkitError) as err:
+        await ai.generate_operation(model='acme/video', prompt='Your table is ready.', config={'speed': 1.2})
+
+    assert err.value.status == 'INVALID_ARGUMENT'
+    assert "config 'voice': Field required" in str(err.value)
+    assert configs == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('declared', ['class_only', 'json_schema'])
+async def test_background_bad_value_never_starts(declared: Literal['class_only', 'json_schema']) -> None:
+    """A value the schema rejects raises before start, same as a regular model."""
+    ai = Genkit()
+    configs = define_video(ai, declared=declared)
+
+    with pytest.raises(GenkitError) as err:
+        await ai.generate_operation(model='acme/video', prompt='Your table is ready.', config={'voice': 'opera'})
+
+    assert err.value.status == 'INVALID_ARGUMENT'
+    assert "'voice'" in str(err.value)
+    assert configs == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('declared', ['class_only', 'json_schema'])
+async def test_background_complete_config_starts(declared: Literal['class_only', 'json_schema']) -> None:
+    """A complete config reaches start unchanged."""
+    ai = Genkit()
+    configs = define_video(ai, declared=declared)
+
+    operation = await ai.generate_operation(model='acme/video', prompt='Your table is ready.', config={'voice': 'echo'})
+
+    assert operation.id == 'op-1'
+    assert [voice_of(config) for config in configs] == ['echo']
+
+
+def test_background_sync_start_fails_at_define() -> None:
+    """A sync start is rejected when the background model is defined, as for a regular model."""
+    ai = Genkit()
+
+    def start(request: ModelRequest, ctx: ActionRunContext) -> Operation:
+        return Operation(id='op-1', done=False)
+
+    async def check(operation: Operation, ctx: ActionRunContext) -> Operation:
+        return operation
+
+    with pytest.raises(TypeError, match='must be async'):
+        ai.define_background_model('acme/video', start=start, check=check, config_schema=VoiceConfig)  # type: ignore[arg-type]
