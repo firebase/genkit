@@ -493,6 +493,7 @@ For jobs that outlive a request (video, deep research), a background model split
 
 ```python
 import json
+from typing import Any
 
 from genkit import FinishReason, Media, Message, ModelResponse, Operation, Part, Role
 from genkit.model import ModelContext, ModelRequest
@@ -528,7 +529,8 @@ print(op.id, op.done)
 await jobs.save(op.id, op.model_dump_json())
 
 # 5. Later, e.g. in another request: pass the stored dict back, with the same context
-op = await ai.check_operation(json.loads(await jobs.load('job_7f3a')), context=secrets)
+stored: dict[str, Any] = json.loads(await jobs.load('job_7f3a'))
+op = await ai.check_operation(stored, context=secrets)
 # op: Operation[ModelResponse]
 
 # 6. Poll until done; Operation[T] in, Operation[T] out
