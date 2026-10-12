@@ -492,6 +492,23 @@ class TestRequestClient:
         override.aio.models.recontext_image.assert_awaited_once()
 
     @pytest.mark.asyncio
+    async def test_secrets_api_key_ignores_a_location_override(self) -> None:
+        """An express key goes to the global host even when the call asks for a region."""
+        override = _client()
+        model = VirtualTryOnModel('virtual-try-on-001', _client(), client_kwargs={'vertexai': True})
+        config = VirtualTryOnConfig.model_validate({'location': 'europe-west4'})
+
+        with patch('genkit_google_genai._models._virtual_try_on.genai.Client', return_value=override) as ctor:
+            await model.generate(
+                _request(config=config), ActionRunContext(context={'secrets': {'api_key': 'sk-tenant'}})
+            )
+
+        kwargs = ctor.call_args.kwargs
+        assert kwargs['api_key'] == 'sk-tenant'
+        assert 'location' not in kwargs
+        assert kwargs['http_options'].base_url is None
+
+    @pytest.mark.asyncio
     async def test_client_knobs_route_the_client_and_stay_off_the_wire(self) -> None:
         """location, baseUrl and apiVersion pick the client; the predict body never sees them."""
         plugin = _client()

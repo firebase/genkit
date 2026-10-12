@@ -391,14 +391,14 @@ class VirtualTryOnModel:
         plugin_opts = kwargs.get('http_options')
         opts = plugin_opts.model_copy(deep=True) if plugin_opts is not None else genai_types.HttpOptions()
         if api_key is not None:
+            # An express key goes to the global Vertex host: drop the plugin's
+            # credentials, project and host and any location, keeping only a
+            # base_url this call set.
             kwargs['api_key'] = api_key
-            # The SDK rejects api_key with credentials, project, or location.
             kwargs['credentials'] = None
             kwargs.pop('project', None)
             kwargs.pop('location', None)
             location = None
-            # Express keys are not a regional Vertex host. Keep only an
-            # explicit base_url from this call.
             if not base_url:
                 opts.base_url = None
         if location:
