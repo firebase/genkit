@@ -1631,46 +1631,75 @@ def load_prompt(ai: _aio.Genkit, path: Path, filename: str, prefix: str = '', ns
     logger.debug(f'Registered prompt "{registry_key}" from "{file_path}"')
 
 
-def load_prompt_folder_recursively(ai: _aio.Genkit, dir_path: Path, ns: str, sub_dir: str = '') -> None:
+def load_prompt_folder_recursively(
+    ai: _aio.Genkit, dir_path: Path, ns: str, sub_dir: str = '', partials: set[str] | None = None
+) -> None:
     """Recursively load all prompt files from a directory.
+
+    A partial file `_name.prompt` in subdirectory `sub` registers as `sub/name`.
+    It also registers as `name` if no other partial has that name yet. Root-level
+    partials load first, so they keep their name. When two nested partials share
+    a base name, only the first one in walk order gets the short name.
 
     Args:
         ai: The app whose registry the prompts are registered in.
         dir_path: Base path to the prompts directory.
         ns: Namespace for prompts.
-        sub_dir: Current subdirectory being processed (for recursion).
+        sub_dir: Current subdirectory being processed (for recursion), with `/`
+            as the separator on every platform.
+        partials: Partial names registered so far in this walk.
     """
+    if partials is None:
+        partials = set()
     full_path = dir_path / sub_dir if sub_dir else dir_path
 
     if not full_path.exists() or not full_path.is_dir():
         return
 
-    # Iterate through directory entries
     try:
-        for entry in os.scandir(full_path):
-            if entry.is_file() and entry.name.endswith('.prompt'):
-                if entry.name.startswith('_'):
-                    # This is a partial
-                    partial_name = entry.name[1:-7]  # Remove "_" prefix and ".prompt" suffix
-                    with Path(entry.path).open(encoding='utf-8') as f:
-                        source = f.read()
+        # Sorted so that the walk order, and with it which partial gets a short
+        # name, does not depend on the filesystem.
+        with os.scandir(full_path) as it:
+            entries = sorted(it, key=lambda e: e.name)
 
-                    # Strip frontmatter if present
-                    if source.startswith('---'):
-                        end_frontmatter = source.find('---', 3)
-                        if end_frontmatter != -1:
-                            source = source[end_frontmatter + 3 :].strip()
+        # Files load before subdirectories so that a shallower partial claims
+        # its short name first.
+        for entry in entries:
+            if not entry.is_file() or not entry.name.endswith('.prompt'):
+                continue
+            if not entry.name.startswith('_'):
+                prefix_with_slash = f'{sub_dir}/' if sub_dir else ''
+                load_prompt(ai, dir_path, entry.name, prefix_with_slash, ns)
+                continue
 
-                    define_partial(ai._registry, partial_name, source)
-                    logger.debug(f'Registered Dotprompt partial "{partial_name}" from "{entry.path}"')
+            short_name = entry.name[1:-7]  # Remove "_" prefix and ".prompt" suffix
+            names = [f'{sub_dir}/{short_name}' if sub_dir else short_name]
+            if sub_dir:
+                if short_name in partials:
+                    logger.debug(
+                        f'Dotprompt partial name "{short_name}" is taken, registering "{names[0]}" '
+                        f'from "{entry.path}" only'
+                    )
                 else:
-                    # This is a regular prompt
-                    prefix_with_slash = f'{sub_dir}/' if sub_dir else ''
-                    load_prompt(ai, dir_path, entry.name, prefix_with_slash, ns)
-            elif entry.is_dir():
-                # Recursively process subdirectories
-                new_sub_dir = os.path.join(sub_dir, entry.name) if sub_dir else entry.name
-                load_prompt_folder_recursively(ai, dir_path, ns, new_sub_dir)
+                    names.append(short_name)
+
+            with Path(entry.path).open(encoding='utf-8') as f:
+                source = f.read()
+
+            # Strip frontmatter if present
+            if source.startswith('---'):
+                end_frontmatter = source.find('---', 3)
+                if end_frontmatter != -1:
+                    source = source[end_frontmatter + 3 :].strip()
+
+            for name in names:
+                define_partial(ai._registry, name, source)
+                partials.add(name)
+
+        for entry in entries:
+            if entry.is_dir():
+                new_sub_dir = f'{sub_dir}/{entry.name}' if sub_dir else entry.name
+                load_prompt_folder_recursively(ai, dir_path, ns, new_sub_dir, partials)
     except PermissionError:
         logger.warning(f'Permission denied accessing directory: {full_path}')
     except Exception as e:
