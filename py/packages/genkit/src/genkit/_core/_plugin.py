@@ -92,7 +92,7 @@ class Plugin(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def list_actions(self) -> list[ActionMetadata]:
+    async def list_actions(self) -> Sequence[Action | ActionMetadata]:
         """Return advertised actions for dev UI/reflection listing.
 
         ``ActionMetadata.action_type`` must be set (typically ``ActionKind.*``) and
