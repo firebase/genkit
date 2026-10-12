@@ -571,7 +571,7 @@ Four levels of control. Each level down gives you more of the route and leaves l
 
 - **`serve_flow`:** Genkit owns the route.
 - **`handle_genkit_request`:** you own the route signature and `Depends`; Genkit owns parsing, JSON vs SSE, and errors.
-- **`to_sse`:** you own the route and pick what to stream; Genkit owns SSE framing.
+- **`stream.to_sse()`:** you own the route and pick what to stream; Genkit owns SSE framing.
 - **`genkit.web`:** you own everything; helpers keep you on the wire contract. For Flask, Django, Starlette, or your own adapter.
 
 Wire format, shared by all four:
@@ -643,25 +643,24 @@ async def track(request: Request, user: dict[str, object] = Depends(current_user
     return await handle_genkit_request(request, action=track_order, context=user)
 ```
 
-### Level 3: `to_sse`
+### Level 3: `stream.to_sse()`
 
-You decide the input shape and what streams. `to_sse` frames any `StreamResponse`: a flow, `ai.generate_stream()`, or an agent turn. A failure mid-stream ends with one `error` frame and no `result`.
+You decide the input shape and what streams. `.to_sse()` on any `StreamResponse` (a flow, `ai.generate_stream()`, or a tool) or `AgentTurn` frames chunks, the final result, and mid-stream errors as SSE events. A failure mid-stream ends with one `error` frame and no `result`.
 
 ```python
 from fastapi.responses import StreamingResponse
-from genkit_fastapi.exp import to_sse
 
 # 1. Typed query param instead of {"data": ...}; always SSE
 @app.get('/orders/{order_id}/live')
 async def live(order_id: str, user: dict[str, object] = Depends(current_user)):
     stream = track_order.stream(order_id, context=user)
-    return StreamingResponse(to_sse(stream), media_type='text/event-stream')
+    return StreamingResponse(stream.to_sse(), media_type='text/event-stream')
 
 # 2. Stream a model call directly, no flow
 @app.post('/support/chat')
 async def chat(prompt: str, user: dict[str, object] = Depends(current_user)):
     stream = ai.generate_stream(prompt=prompt, context=user)
-    return StreamingResponse(to_sse(stream), media_type='text/event-stream')
+    return StreamingResponse(stream.to_sse(), media_type='text/event-stream')
     # => data: {"message": {"content": [{"text": "Your order"}], ...}}
     # => data: {"result": {"message": {...}, "finishReason": "stop", ...}}
 ```
@@ -686,7 +685,8 @@ async def track_endpoint(request: Request):
 
         # 3. Accept: text/event-stream or ?stream=true
         if wants_stream(accept=request.headers.get('accept'), stream=request.query_params.get('stream')):
-            return my_sse_response(track_order.stream(order_id, context=context))
+            stream = track_order.stream(order_id, context=context)
+            return StreamingResponse(stream.to_sse(), media_type='text/event-stream')
 
         result = await track_order.run(order_id, context=context)
         return JSONResponse({'result': result.response})
@@ -709,7 +709,6 @@ from fastapi import Depends, Header, Request
 from fastapi.responses import StreamingResponse
 from genkit import Operation
 from genkit_fastapi import handle_genkit_request
-from genkit_fastapi.exp import to_sse
 from genkit_google_genai import GoogleAI
 
 # 1. One dependency resolves the tenant and builds the context Genkit expects
@@ -729,7 +728,7 @@ async def track(request: Request, ctx: dict[str, object] = Depends(tenant_contex
 @app.post('/support/chat')
 async def chat(prompt: str, ctx: dict[str, object] = Depends(tenant_context)):
     stream = ai.generate_stream(prompt=prompt, context=ctx)
-    return StreamingResponse(to_sse(stream), media_type='text/event-stream')
+    return StreamingResponse(stream.to_sse(), media_type='text/event-stream')
 
 # 4. Background job: start with the tenant's key...
 veo = GoogleAI.veo('veo-3.0-generate-001')
@@ -834,21 +833,21 @@ Set `content_capturing_mode='SPAN_ONLY'` (or `OTEL_INSTRUMENTATION_GENAI_CAPTURE
 
 ## 7. Embedders
 
-Embedders vectorize text documents for retrieval workflows.
+Embedders vectorize documents for retrieval. Register a custom embedder with `ai.define_embedder(name, fn)` (or return an `Embedder` from a plugin's `list_actions()`), and call it with `ai.embed` or `ai.embed_many`.
 
 ```python
-from genkit import Genkit
-from genkit.embedder import Embedder, Embedding
+from genkit import Embedding, Genkit
+from genkit.embedder import EmbedRequest, EmbedResponse
 
 ai = Genkit()
 
-# 1. Define custom embedder
-@ai.define_embedder(name='custom/text_vectors')
-async def local_vectorizer(texts: list[str]) -> list[Embedding]:
-    # Compute embeddings (e.g. local encoder)
-    return [Embedding(embedding=[0.012, 0.451, -0.231]) for _ in texts]
+# 1. Define a custom embedder function (takes EmbedRequest, returns EmbedResponse)
+async def local_vectorizer(req: EmbedRequest) -> EmbedResponse:
+    return EmbedResponse(embeddings=[Embedding(embedding=[0.012, 0.451, -0.231]) for _ in req.input])
 
-# 2. Generate embedding for a single string
+ai.define_embedder('custom/text_vectors', local_vectorizer)
+
+# 2. Embed a single string or Document (use ai.embed_many for batches)
 result = await ai.embed(
     embedder='custom/text_vectors',
     content='Search indexed warranty policies',
@@ -861,40 +860,48 @@ print(result[0].embedding)
 
 ## 8. Evaluators
 
-Evaluators score model outputs against inputs and reference contexts.
+Evaluators score dataset rows against reference outputs and contexts. Register a per-row evaluator with `ai.define_evaluator(name, fn, ...)` or a whole-dataset evaluator with `ai.define_batch_evaluator(name, fn, ...)`, and run it with `ai.evaluate`.
 
 ```python
 from genkit import Genkit
-from genkit.evaluator import EvaluatorRequest, EvaluatorResponse, Score, ScoreStatus
+from genkit.evaluator import BaseDataPoint, EvaluatorResponse, Score, ScoreDetails, ScoreStatus
 
 ai = Genkit()
 
-# 1. Define evaluator
-@ai.define_evaluator(name='custom/relevance')
-async def relevance_evaluator(req: EvaluatorRequest) -> EvaluatorResponse:
-    # Inspect input, output, and context
-    input_text = str(req.input)
-    output_text = str(req.output)
-    
-    score = 1.0 if 'approved' in output_text else 0.0
+# 1. Score one dataset row at a time
+async def relevance_evaluator(row: BaseDataPoint, options: dict[str, object]) -> EvaluatorResponse:
+    approved = 'approved' in str(row.output).lower()
     return EvaluatorResponse(
-        test_case_id=req.test_case_id,
+        test_case_id=row.test_case_id or '',
         evaluation=[
             Score(
-                score=score,
-                status=ScoreStatus.SUCCESS,
-                details={'reason': 'Contains approval keyword'},
+                score=1.0 if approved else 0.0,
+                status=ScoreStatus.PASS if approved else ScoreStatus.FAIL,
+                details=ScoreDetails(reasoning='Checked for approval keyword'),
             )
         ],
     )
 
-# 2. Run evaluation
-eval_result = await ai.evaluate(
-    evaluator='custom/relevance',
-    target='Claim is approved for refund',
-    input='What is the claim status?',
+# 2. Register the evaluator by name
+ai.define_evaluator(
+    'custom/relevance',
+    relevance_evaluator,
+    display_name='Relevance',
+    definition='Whether the output confirms claim approval.',
 )
-print(eval_result.evaluation[0].score)
+
+# 3. Run evaluation over a dataset
+rows = await ai.evaluate(
+    evaluator='custom/relevance',
+    dataset=[
+        BaseDataPoint(
+            test_case_id='claim-1',
+            input='What is the claim status?',
+            output='Claim is approved for refund',
+        )
+    ],
+)
+print(rows[0].evaluation[0].score)
 # => 1.0
 ```
 
