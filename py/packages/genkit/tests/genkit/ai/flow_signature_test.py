@@ -223,7 +223,7 @@ async def test_flow_with_parameterized_flow_context_streams_typed_chunks() -> No
     """`ctx: FlowContext[str]` marks the context and its `send_chunk` streams to the caller."""
     ai = Genkit()
 
-    @ai.flow(chunk_type=str)
+    @ai.flow()
     async def plate(dish: str, ctx: FlowContext[str]) -> str:
         ctx.send_chunk('searing')
         return f'{dish} for {ctx.context["table"]}'
@@ -259,7 +259,7 @@ async def test_flow_with_type_checking_only_parameterized_flow_context_gets_cont
     exec(_TYPE_CHECKING_PARAMETERIZED_CONTEXT_MODULE, module_globals)  # noqa: S102 - builds a module with postponed annotations
 
     plate_fn: Callable[[str, FlowContext[str]], Awaitable[str]] = module_globals['plate']
-    plate = ai.flow(chunk_type=str)(plate_fn)
+    plate = ai.flow()(plate_fn)
     chunks: list[str] = []
     result = await plate.run('salmon', on_chunk=chunks.append, context={'table': 4})
 

@@ -131,7 +131,7 @@ from genkit._core._typing import (
     Role,
 )
 
-from ._decorators import _FlowDecorator, _FlowDecoratorWithChunk
+from ._decorators import _FlowDecorator
 from ._runtime import RuntimeManager, setup_signal_handlers
 
 logger = get_logger(__name__)
@@ -139,7 +139,6 @@ logger = get_logger(__name__)
 # TypeVars for generic input/output typing
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
-ChunkT = TypeVar('ChunkT')
 
 R = TypeVar('R')
 T = TypeVar('T')
@@ -280,31 +279,12 @@ class Genkit:
     # Registry methods
     # -------------------------------------------------------------------------
 
-    @overload
     def flow(
         self,
         name: str | None = None,
         *,
         description: str | None = None,
-        chunk_type: None = None,
-    ) -> _FlowDecorator: ...
-
-    @overload
-    def flow(
-        self,
-        name: str | None = None,
-        *,
-        description: str | None = None,
-        chunk_type: type[ChunkT],
-    ) -> _FlowDecoratorWithChunk[ChunkT]: ...
-
-    def flow(
-        self,
-        name: str | None = None,
-        *,
-        description: str | None = None,
-        chunk_type: type[Any] | None = None,
-    ) -> _FlowDecorator | _FlowDecoratorWithChunk[Any]:
+    ) -> _FlowDecorator:
         """Decorator to register an async function as a flow.
 
         A flow takes at most one input. To read the request context or stream
@@ -314,11 +294,9 @@ class Genkit:
         Args:
             name: Optional name for the flow. Defaults to the function name.
             description: Optional description for the flow.
-            chunk_type: Optional type for streaming chunks. When provided,
-                the returned Action will be typed as Action[InputT, OutputT, ChunkT].
 
         Example:
-            from genkit import Genkit
+            from genkit import FlowContext, Genkit
             from genkit_google_genai import GoogleAI
 
             ai = Genkit(plugins=[GoogleAI()], model=GoogleAI.gemini_model('gemini-flash-latest'))
@@ -328,13 +306,11 @@ class Genkit:
                 res = await ai.generate(prompt=prompt)
                 return res.text
 
-            @ai.flow(chunk_type=str)
+            @ai.flow()
             async def streaming_flow(x: int, ctx: FlowContext[str]) -> str:
                 ctx.send_chunk('progress')
                 return 'done'
         """
-        if chunk_type is not None:
-            return _FlowDecoratorWithChunk(self._registry, name, description, chunk_type)
         return _FlowDecorator(self._registry, name, description)
 
     def define_helper(self, name: str, fn: Callable[..., Any]) -> None:
