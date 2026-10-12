@@ -95,7 +95,7 @@ from pydantic import ConfigDict, ValidationError
 from pydantic.alias_generators import to_camel, to_snake
 
 from genkit import ActionRunContext, GenkitError, Message, ModelResponse, ModelResponseChunk, Part, Role
-from genkit.model import ModelConfig, ModelRequest, ModelUsage, ToolRequest, get_basic_usage_stats
+from genkit.model import GenerationUsage, ModelConfig, ModelRequest, ToolRequest, get_basic_usage_stats
 from genkit.plugin_api import loop_local_client, provider_error
 from genkit_ollama._constants import DEFAULT_OLLAMA_SERVER_URL
 from genkit_ollama._errors import wrap_connection_errors
@@ -754,21 +754,21 @@ class OllamaModel:
 
     @staticmethod
     def get_usage_info(
-        basic_generation_usage: ModelUsage,
+        basic_generation_usage: GenerationUsage,
         api_response: ollama_api.ChatResponse | None,
-    ) -> ModelUsage:
+    ) -> GenerationUsage:
         """Extracts and calculates token usage information from an Ollama API response.
 
         Updates a basic generation usage object with input, output, and total token counts
         based on the details provided in the Ollama API response.
 
         Args:
-            basic_generation_usage: An existing ModelUsage object to update.
+            basic_generation_usage: An existing GenerationUsage object to update.
             api_response: The response object received from the Ollama API,
                 containing token count details.
 
         Returns:
-            The updated ModelUsage object with token counts populated.
+            The updated GenerationUsage object with token counts populated.
         """
         if api_response:
             basic_generation_usage.input_tokens = api_response.prompt_eval_count or 0

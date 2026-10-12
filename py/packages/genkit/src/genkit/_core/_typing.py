@@ -537,8 +537,8 @@ class ModelInfo(GenkitModel):
     versions: list[str] | None = None
     label: str | None = None
     config_schema: ConfigSchema | None = None
-    supports: Supports | None = None
-    stage: Stage | None = None
+    supports: ModelSupports | None = None
+    stage: ModelStage | None = None
 
 
 class ModelReference(GenkitModel):
@@ -991,8 +991,8 @@ class GenkitErrorDetails(GenkitModel):
     trace_id: str = Field(...)
 
 
-class Supports(GenkitModel):
-    """Model for supports data."""
+class ModelSupports(GenkitModel):
+    """Model for modelsupports data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     multiturn: bool | None = None
@@ -1001,7 +1001,7 @@ class Supports(GenkitModel):
     system_role: bool | None = None
     output: list[str] | None = None
     content_type: list[str] | None = None
-    constrained: Constrained | None = None
+    constrained: ConstrainedSupport | None = None
     tool_choice: bool | None = None
     long_running: bool | None = None
 
@@ -1085,7 +1085,7 @@ class EvalResponse(RootModel[list[EvalFnResponse]]):
     root: list[EvalFnResponse]
 
 
-class Constrained(StrEnum):
+class ConstrainedSupport(StrEnum):
     """Constrained generation support (none, all, no-tools)."""
 
     NONE = 'none'
@@ -1093,7 +1093,7 @@ class Constrained(StrEnum):
     NO_TOOLS = 'no-tools'
 
 
-class Stage(StrEnum):
+class ModelStage(StrEnum):
     """Model stage (featured, stable, unstable, legacy, deprecated)."""
 
     FEATURED = 'featured'

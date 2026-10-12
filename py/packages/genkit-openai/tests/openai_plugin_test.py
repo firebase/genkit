@@ -37,7 +37,7 @@ from openai.types.chat import ChatCompletion
 from genkit import Document, Genkit, GenkitError, Message, ModelResponse, Part, Role
 from genkit._ai._formats._builtin import built_in_formats
 from genkit.embedder import EmbedRequest, EmbedResponse
-from genkit.model import Supports
+from genkit.model import ModelSupports
 from genkit.plugin_api import ActionKind, ActionMetadata, loop_local_client
 
 
@@ -102,7 +102,7 @@ def test_gpt_6_astra_catalog_entry() -> None:
     info = SUPPORTED_OPENAI_MODELS['gpt-6-astra']
 
     assert info.label == 'OpenAI - gpt-6-astra'
-    assert info.supports == Supports(
+    assert info.supports == ModelSupports(
         multiturn=True,
         media=True,
         tools=False,

@@ -67,12 +67,12 @@ from genkit import (
 )
 from genkit.model import (
     Candidate,
-    Constrained,
+    ConstrainedSupport,
+    GenerationUsage,
     ModelConfig,
     ModelInfo,
     ModelRequest,
-    ModelUsage,
-    Supports,
+    ModelSupports,
     ToolDefinition,
     get_basic_usage_stats,
 )
@@ -122,12 +122,12 @@ def _to_float(obj: Any, attr: str) -> float | None:  # noqa: ANN401
     return float(val) if val is not None else None
 
 
-def _usage_from_metadata(usage_metadata: Any) -> ModelUsage:  # noqa: ANN401
-    """Build ModelUsage from a google-genai usage_metadata block."""
+def _usage_from_metadata(usage_metadata: Any) -> GenerationUsage:  # noqa: ANN401
+    """Build GenerationUsage from a google-genai usage_metadata block."""
     if usage_metadata is None:
-        return ModelUsage()
+        return GenerationUsage()
 
-    return ModelUsage(
+    return GenerationUsage(
         input_tokens=_to_float(usage_metadata, 'prompt_token_count'),
         output_tokens=_to_float(usage_metadata, 'candidates_token_count'),
         total_tokens=_to_float(usage_metadata, 'total_token_count'),
@@ -619,64 +619,64 @@ class GemmaConfig(GeminiConfig):
     temperature: float | None = None
 
 
-GEMINI_TEXT_SUPPORTS = Supports(
+GEMINI_TEXT_SUPPORTS = ModelSupports(
     multiturn=True,
     media=True,
     tools=True,
     tool_choice=True,
     system_role=True,
-    constrained=Constrained.ALL,
+    constrained=ConstrainedSupport.ALL,
     output=['text', 'json'],
 )
 
 GEMINI_2_5_PRO_EXP_03_25 = ModelInfo(
     label='Google AI - Gemini 2.5 Pro Exp 03-25',
-    supports=Supports(
+    supports=ModelSupports(
         multiturn=True,
         media=True,
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained=Constrained.ALL,
+        constrained=ConstrainedSupport.ALL,
         output=['text', 'json'],
     ),
 )
 
 GEMINI_2_5_PRO_PREVIEW_03_25 = ModelInfo(
     label='Google AI - Gemini 2.5 Pro Preview 03-25',
-    supports=Supports(
+    supports=ModelSupports(
         multiturn=True,
         media=True,
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained=Constrained.ALL,
+        constrained=ConstrainedSupport.ALL,
         output=['text', 'json'],
     ),
 )
 
 GEMINI_2_5_PRO_PREVIEW_05_06 = ModelInfo(
     label='Google AI - Gemini 2.5 Pro Preview 05-06',
-    supports=Supports(
+    supports=ModelSupports(
         multiturn=True,
         media=True,
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained=Constrained.ALL,
+        constrained=ConstrainedSupport.ALL,
         output=['text', 'json'],
     ),
 )
 
 GEMINI_2_5_FLASH_PREVIEW_04_17 = ModelInfo(
     label='Google AI - Gemini 2.5 Flash Preview 04-17',
-    supports=Supports(
+    supports=ModelSupports(
         multiturn=True,
         media=True,
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained=Constrained.ALL,
+        constrained=ConstrainedSupport.ALL,
         output=['text', 'json'],
     ),
 )
@@ -693,52 +693,52 @@ GEMINI_2_5_FLASH = ModelInfo(
 
 GEMINI_2_5_FLASH_LITE = ModelInfo(
     label='Google AI - Gemini 2.5 Flash Lite',
-    supports=Supports(
+    supports=ModelSupports(
         multiturn=True,
         media=True,
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained=Constrained.NO_TOOLS,
+        constrained=ConstrainedSupport.NO_TOOLS,
         output=['text', 'json'],
     ),
 )
 
 GEMINI_3_FLASH_PREVIEW = ModelInfo(
     label='Google AI - Gemini 3 Flash Preview',
-    supports=Supports(
+    supports=ModelSupports(
         multiturn=True,
         media=True,
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained=Constrained.ALL,
+        constrained=ConstrainedSupport.ALL,
         output=['text', 'json'],
     ),
 )
 
 GEMINI_3_PRO_PREVIEW = ModelInfo(
     label='Google AI - Gemini 3 Pro Preview',
-    supports=Supports(
+    supports=ModelSupports(
         multiturn=True,
         media=True,
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained=Constrained.ALL,
+        constrained=ConstrainedSupport.ALL,
         output=['text', 'json'],
     ),
 )
 
 GEMINI_3_5_FLASH = ModelInfo(
     label='Google AI - Gemini 3.5 Flash',
-    supports=Supports(
+    supports=ModelSupports(
         multiturn=True,
         media=True,
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained=Constrained.ALL,
+        constrained=ConstrainedSupport.ALL,
         output=['text', 'json'],
     ),
 )
@@ -755,13 +755,13 @@ GEMINI_3_7_FLASH = ModelInfo(
 
 GEMINI_3_1_PRO_PREVIEW = ModelInfo(
     label='Google AI - Gemini 3.1 Pro Preview',
-    supports=Supports(
+    supports=ModelSupports(
         multiturn=True,
         media=True,
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained=Constrained.ALL,
+        constrained=ConstrainedSupport.ALL,
         output=['text', 'json'],
     ),
 )
@@ -769,39 +769,39 @@ GEMINI_3_1_PRO_PREVIEW = ModelInfo(
 # customtools is registered identically to pro-preview (no distinct config in JS).
 GEMINI_3_1_PRO_PREVIEW_CUSTOMTOOLS = ModelInfo(
     label='Google AI - Gemini 3.1 Pro Preview (Custom Tools)',
-    supports=Supports(
+    supports=ModelSupports(
         multiturn=True,
         media=True,
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained=Constrained.ALL,
+        constrained=ConstrainedSupport.ALL,
         output=['text', 'json'],
     ),
 )
 
 GEMINI_3_1_FLASH_LITE_PREVIEW = ModelInfo(
     label='Google AI - Gemini 3.1 Flash Lite Preview',
-    supports=Supports(
+    supports=ModelSupports(
         multiturn=True,
         media=True,
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained=Constrained.ALL,
+        constrained=ConstrainedSupport.ALL,
         output=['text', 'json'],
     ),
 )
 
 GEMINI_3_1_FLASH_LITE = ModelInfo(
     label='Google AI - Gemini 3.1 Flash Lite',
-    supports=Supports(
+    supports=ModelSupports(
         multiturn=True,
         media=True,
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained=Constrained.ALL,
+        constrained=ConstrainedSupport.ALL,
         output=['text', 'json'],
     ),
 )
@@ -811,13 +811,13 @@ GEMINI_FLASH_LITE_LATEST = ModelInfo(
     supports=GEMINI_TEXT_SUPPORTS,
 )
 
-GEMINI_IMAGE_SUPPORTS = Supports(
+GEMINI_IMAGE_SUPPORTS = ModelSupports(
     multiturn=True,
     media=True,
     tools=True,
     tool_choice=True,
     system_role=True,
-    constrained=Constrained.ALL,
+    constrained=ConstrainedSupport.ALL,
 )
 
 GEMINI_3_PRO_IMAGE = ModelInfo(
@@ -850,13 +850,13 @@ GEMINI_2_5_FLASH_IMAGE_PREVIEW = ModelInfo(
     supports=GEMINI_IMAGE_SUPPORTS,
 )
 
-GEMINI_TTS_SUPPORTS = Supports(
+GEMINI_TTS_SUPPORTS = ModelSupports(
     multiturn=False,
     media=False,
     tools=False,
     tool_choice=False,
     system_role=False,
-    constrained=Constrained.NONE,
+    constrained=ConstrainedSupport.NONE,
     output=['media'],
 )
 
@@ -875,13 +875,13 @@ GEMINI_3_1_FLASH_TTS_PREVIEW = ModelInfo(
     supports=GEMINI_TTS_SUPPORTS,
 )
 
-GEMMA_SUPPORTS = Supports(
+GEMMA_SUPPORTS = ModelSupports(
     multiturn=True,
     media=True,
     tools=True,
     tool_choice=True,
     system_role=True,
-    constrained=Constrained.ALL,
+    constrained=ConstrainedSupport.ALL,
     output=['text', 'json'],
 )
 
@@ -897,13 +897,13 @@ GEMMA_4_31B_IT = ModelInfo(
 
 GENERIC_GEMINI_MODEL = ModelInfo(
     label='Google AI - Gemini',
-    supports=Supports(
+    supports=ModelSupports(
         multiturn=True,
         media=True,
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained=Constrained.ALL,
+        constrained=ConstrainedSupport.ALL,
         output=['text', 'json'],
     ),
 )
@@ -915,13 +915,13 @@ GENERIC_TTS_MODEL = ModelInfo(
 
 GENERIC_IMAGE_MODEL = ModelInfo(
     label='Google AI - Gemini Image',
-    supports=Supports(
+    supports=ModelSupports(
         multiturn=False,
         media=True,
         tools=False,
         tool_choice=False,
         system_role=True,
-        constrained=Constrained.ALL,
+        constrained=ConstrainedSupport.ALL,
         output=['media'],
     ),
 )
@@ -1025,13 +1025,13 @@ _add_model(GEMMA_4_31B_IT, ['gemma-4-31b-it'])
 GEMINI_CATALOG_IDS = frozenset(SUPPORTED_MODELS)
 
 
-DEFAULT_SUPPORTS_MODEL = Supports(
+DEFAULT_SUPPORTS_MODEL = ModelSupports(
     multiturn=True,
     media=True,
     tools=True,
     tool_choice=True,
     system_role=True,
-    constrained=Constrained.ALL,
+    constrained=ConstrainedSupport.ALL,
 )
 
 
@@ -2006,10 +2006,12 @@ class GeminiModel:
                 # Check if the model supports constrained generation with this configuration
                 model_info = google_model_info(model_name)
                 model_supports_constrained = (
-                    model_info.supports.constrained if model_info and model_info.supports else Constrained.NO_TOOLS
+                    model_info.supports.constrained
+                    if model_info and model_info.supports
+                    else ConstrainedSupport.NO_TOOLS
                 )
-                supports_constrained = model_supports_constrained == Constrained.ALL or (
-                    model_supports_constrained == Constrained.NO_TOOLS and not request.tools
+                supports_constrained = model_supports_constrained == ConstrainedSupport.ALL or (
+                    model_supports_constrained == ConstrainedSupport.NO_TOOLS and not request.tools
                 )
 
                 response_mime_type = (
@@ -2113,7 +2115,7 @@ class GeminiModel:
             if key in config and key not in genai_types.GenerateContentConfig.model_fields:
                 del config[key]
 
-    def _create_usage_stats(self, request: ModelRequest, response: ModelResponse) -> ModelUsage:
+    def _create_usage_stats(self, request: ModelRequest, response: ModelResponse) -> GenerationUsage:
         """Create usage statistics.
 
         Args:
@@ -2124,7 +2126,7 @@ class GeminiModel:
             usage statistics
         """
         if not response.message:
-            usage = ModelUsage()
+            usage = GenerationUsage()
             usage.input_tokens = 0
             usage.output_tokens = 0
             usage.total_tokens = 0

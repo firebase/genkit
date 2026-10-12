@@ -271,16 +271,7 @@ def _new_gemini(plugin: GoogleAI | VertexAI, clean_name: str) -> GeminiModel:
 
 def _model_action(name: str, fn: Callable[..., Any], model_info: ModelInfo, config_schema: type[BaseModel]) -> Action:
     """Build a MODEL Action with family-specific request typing on ``fn``."""
-    return model(
-        name,
-        fn,
-        config_schema=config_schema,
-        metadata=model_action_metadata(
-            name=name,
-            info=model_info.model_dump(by_alias=True),
-            config_schema=config_schema,
-        ).metadata,
-    )
+    return model(name, fn, config_schema=config_schema, info=model_info)
 
 
 def googleai_name(name: str) -> str:
@@ -868,7 +859,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
             actions_list.append(
                 model_action_metadata(
                     name=googleai_name(name),
-                    info=google_model_info(name).model_dump(by_alias=True),
+                    info=google_model_info(name),
                     config_schema=get_model_config_schema(name),
                 )
             )
@@ -896,7 +887,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
             actions_list.append(
                 model_action_metadata(
                     name=googleai_name(name),
-                    info=antigravity_model_info(name).model_dump(by_alias=True),
+                    info=antigravity_model_info(name),
                     config_schema=AntigravityConfig,
                 )
             )
@@ -904,7 +895,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
             actions_list.append(
                 model_action_metadata(
                     name=googleai_name(name),
-                    info=lyria_model_info(name).model_dump(by_alias=True),
+                    info=lyria_model_info(name),
                     config_schema=InteractionsLyriaConfig,
                 )
             )
@@ -1282,7 +1273,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
             actions_list.append(
                 model_action_metadata(
                     name=vertexai_name(name),
-                    info=google_model_info(name).model_dump(by_alias=True),
+                    info=google_model_info(name),
                     config_schema=get_model_config_schema(name),
                 )
             )

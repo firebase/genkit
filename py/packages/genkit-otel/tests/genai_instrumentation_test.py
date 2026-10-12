@@ -30,7 +30,7 @@ from opentelemetry._logs import LogRecord
 from opentelemetry.trace import StatusCode
 
 from genkit import FinishReason, Interrupt, Message, ModelResponse, Part, Role
-from genkit.model import Candidate, ModelRequest, ModelUsage, OutputConfig
+from genkit.model import Candidate, GenerationUsage, ModelRequest, OutputConfig
 from genkit.telemetry import SpanMetadata, SpanNext
 
 
@@ -63,7 +63,7 @@ def _model_response(
     *,
     finish_reason: FinishReason | None = None,
     message: Message | None = None,
-    usage: ModelUsage | None = None,
+    usage: GenerationUsage | None = None,
 ) -> ModelResponse:
     return ModelResponse(
         finish_reason=finish_reason or FinishReason.STOP,
@@ -129,7 +129,7 @@ async def test_records_usage_and_finish_reason(harness) -> None:
         lambda span=None: _awaitable(
             _model_response(
                 finish_reason=FinishReason.LENGTH,
-                usage=ModelUsage(input_tokens=10, output_tokens=20),
+                usage=GenerationUsage(input_tokens=10, output_tokens=20),
             )
         ),
     )

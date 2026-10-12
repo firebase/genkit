@@ -63,9 +63,9 @@ class FallbackConfig(BaseModel):
             elif isinstance(item, dict):
                 entries.append(cast(dict[str, Any], item))
             elif isinstance(item, Action):
-                raise ValueError(f"Fallback models are names or model_ref(...); pass '{item.name}', not the action")
+                raise ValueError(f"Fallback models are names or a ModelRef(...); pass '{item.name}', not the action")
             else:
-                raise ValueError('each Fallback model must be a model name or a model_ref(...)')
+                raise ValueError('each Fallback model must be a model name or a ModelRef(...)')
         return entries
 
 
