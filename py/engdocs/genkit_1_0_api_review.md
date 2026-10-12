@@ -656,7 +656,7 @@ except GenkitError as e:
     print(e.status, e.message)
 ```
 
-### What your `except` blocks see
+### Handling Interrupt in Tools
 
 `Interrupt` subclasses `BaseException`, so a plain `except Exception` won't catch it.
 
