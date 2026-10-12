@@ -577,10 +577,10 @@ def _is_context_annotation(annotation: object) -> bool:
     return isinstance(cls, type) and issubclass(cls, ActionRunContext)
 
 
-# Public names for the run-context classes. FlowContext is an alias, so its
-# __name__ is 'ActionRunContext'; ToolContext is listed so a string annotation
-# matches even before genkit._ai._tools is imported.
-_CONTEXT_ALIAS_NAMES = frozenset({'FlowContext', 'ToolContext'})
+# Public names for the run-context classes. FlowContext and AgentContext are
+# aliases, so their __name__ is 'ActionRunContext'; ToolContext is listed so a
+# string annotation matches even before genkit._ai._tools is imported.
+_CONTEXT_ALIAS_NAMES = frozenset({'FlowContext', 'ToolContext', 'AgentContext'})
 
 
 def _string_names_context(annotation: str) -> bool:

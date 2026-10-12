@@ -80,9 +80,14 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from genkit import ToolContext
+    from genkit.exp.agent import AgentContext
 
 
 async def plate(order: str, ctx: ToolContext | None) -> str:
+    return f'{order} for table {ctx.context["table"]}'
+
+
+async def serve(order: str, ctx: AgentContext) -> str:
     return f'{order} for table {ctx.context["table"]}'
 """
 
@@ -96,6 +101,21 @@ async def test_action_with_unresolvable_context_subclass_union_gets_context() ->
 
     result = await Action(ActionKind.CUSTOM, 'plate', plate).run('soup', context={'table': 4})
 
+    assert result.response == 'soup for table 4'
+
+
+@pytest.mark.asyncio
+async def test_action_with_agent_context_string_annotation_gets_context() -> None:
+    """An unresolvable `'AgentContext'` annotation marks the context parameter rather than a second input."""
+    module_globals: dict[str, object] = {}
+    exec(_TYPE_CHECKING_CONTEXT_MODULE, module_globals)  # noqa: S102 - builds a module with postponed annotations
+    serve = cast(Callable[[str, ActionRunContext], Awaitable[str]], module_globals['serve'])
+
+    action = Action(ActionKind.CUSTOM, 'serve', serve)
+    result = await action.run('soup', context={'table': 4})
+
+    assert action.params.input is not None and action.params.input.name == 'order'
+    assert action.params.context is not None and action.params.context.name == 'ctx'
     assert result.response == 'soup for table 4'
 
 
