@@ -53,7 +53,7 @@ from genkit._core._model import ModelConfig
 from genkit._core._reflection import create_reflection_asgi_app
 from genkit._core._registry import Registry
 from genkit._core._typing import ActionMetadata, BaseDataPoint, EvaluatorRequest, EvaluatorResponse, Score
-from genkit.model import model_ref
+from genkit.model import ModelRef
 
 
 @pytest.fixture
@@ -443,8 +443,8 @@ async def test_values_default_model_ref_is_name() -> None:
     registry.register_value(
         'defaultModel',
         'defaultModel',
-        model_ref(
-            'echoModel',
+        ModelRef(
+            name='echoModel',
             config_schema=ModelConfig,
             version='001',
             config=ModelConfig(temperature=0.7),

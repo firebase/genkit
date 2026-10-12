@@ -56,7 +56,7 @@ from genkit._core._reflection_v2 import (
 )
 from genkit._core._registry import Registry
 from genkit._core._typing import ReflectionRunActionParams
-from genkit.model import model_ref
+from genkit.model import ModelRef
 from genkit.plugin_api import ActionMetadata, Plugin
 
 
@@ -338,7 +338,7 @@ async def test_reflection_server_v2_list_values_model_ref_is_name(
     registry.register_value(
         'defaultModel',
         'defaultModel',
-        model_ref('echo-model', config_schema=ModelConfig),
+        ModelRef(name='echo-model', config_schema=ModelConfig),
     )
 
     client, task = await _run_client_lifecycle(registry, fake_manager)

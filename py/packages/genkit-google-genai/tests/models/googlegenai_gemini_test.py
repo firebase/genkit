@@ -52,7 +52,7 @@ from pytest_mock import MockerFixture
 
 from genkit import ActionRunContext, FinishReason, GenkitError, Message, ModelResponse, Part, Role
 from genkit._core._compat import StrEnum
-from genkit.model import Constrained, ModelInfo, ModelRequest, OutputConfig, Supports, ToolDefinition
+from genkit.model import ConstrainedSupport, ModelInfo, ModelRequest, ModelSupports, OutputConfig, ToolDefinition
 from genkit.plugin_api import to_json_schema
 
 ALL_VERSIONS = sorted({
@@ -459,13 +459,13 @@ async def test_generate_with_system_instructions(mocker: MockerFixture) -> None:
             'gemini-3-pro-image',
             ModelInfo(
                 label='Google AI - Gemini 3 Pro Image',
-                supports=Supports(
+                supports=ModelSupports(
                     multiturn=True,
                     media=True,
                     tools=True,
                     tool_choice=True,
                     system_role=True,
-                    constrained=Constrained.ALL,
+                    constrained=ConstrainedSupport.ALL,
                 ),
             ),
         ),
@@ -473,13 +473,13 @@ async def test_generate_with_system_instructions(mocker: MockerFixture) -> None:
             'gemini-3.1-flash-image',
             ModelInfo(
                 label='Google AI - Gemini 3.1 Flash Image',
-                supports=Supports(
+                supports=ModelSupports(
                     multiturn=True,
                     media=True,
                     tools=True,
                     tool_choice=True,
                     system_role=True,
-                    constrained=Constrained.ALL,
+                    constrained=ConstrainedSupport.ALL,
                 ),
             ),
         ),
@@ -487,13 +487,13 @@ async def test_generate_with_system_instructions(mocker: MockerFixture) -> None:
             'gemini-3.1-flash-image-preview',
             ModelInfo(
                 label='Google AI - Gemini 3.1 Flash Image Preview',
-                supports=Supports(
+                supports=ModelSupports(
                     multiturn=True,
                     media=True,
                     tools=True,
                     tool_choice=True,
                     system_role=True,
-                    constrained=Constrained.ALL,
+                    constrained=ConstrainedSupport.ALL,
                 ),
             ),
         ),
@@ -501,13 +501,13 @@ async def test_generate_with_system_instructions(mocker: MockerFixture) -> None:
             'gemini-3-pro-image-preview',
             ModelInfo(
                 label='Google AI - Gemini 3 Pro Image Preview',
-                supports=Supports(
+                supports=ModelSupports(
                     multiturn=True,
                     media=True,
                     tools=True,
                     tool_choice=True,
                     system_role=True,
-                    constrained=Constrained.ALL,
+                    constrained=ConstrainedSupport.ALL,
                 ),
             ),
         ),
@@ -515,13 +515,13 @@ async def test_generate_with_system_instructions(mocker: MockerFixture) -> None:
             'gemini-2.5-flash-image',
             ModelInfo(
                 label='Google AI - Gemini 2.5 Flash Image',
-                supports=Supports(
+                supports=ModelSupports(
                     multiturn=True,
                     media=True,
                     tools=True,
                     tool_choice=True,
                     system_role=True,
-                    constrained=Constrained.ALL,
+                    constrained=ConstrainedSupport.ALL,
                 ),
             ),
         ),
@@ -529,13 +529,13 @@ async def test_generate_with_system_instructions(mocker: MockerFixture) -> None:
             'gemini-2.5-flash-image-preview',
             ModelInfo(
                 label='Google AI - Gemini 2.5 Flash Image Preview',
-                supports=Supports(
+                supports=ModelSupports(
                     multiturn=True,
                     media=True,
                     tools=True,
                     tool_choice=True,
                     system_role=True,
-                    constrained=Constrained.ALL,
+                    constrained=ConstrainedSupport.ALL,
                 ),
             ),
         ),
@@ -547,13 +547,13 @@ async def test_generate_with_system_instructions(mocker: MockerFixture) -> None:
             'gemini-2.0-flash-preview-image-generation',
             ModelInfo(
                 label='Google AI - Gemini Image',
-                supports=Supports(
+                supports=ModelSupports(
                     multiturn=False,
                     media=True,
                     tools=False,
                     tool_choice=False,
                     system_role=True,
-                    constrained=Constrained.ALL,
+                    constrained=ConstrainedSupport.ALL,
                     output=['media'],
                 ),
             ),
@@ -562,13 +562,13 @@ async def test_generate_with_system_instructions(mocker: MockerFixture) -> None:
             'gemini-2.5-flash-preview-tts',
             ModelInfo(
                 label='Google AI - Gemini 2.5 Flash Preview TTS',
-                supports=Supports(
+                supports=ModelSupports(
                     multiturn=False,
                     media=False,
                     tools=False,
                     tool_choice=False,
                     system_role=False,
-                    constrained=Constrained.NONE,
+                    constrained=ConstrainedSupport.NONE,
                     output=['media'],
                 ),
             ),
@@ -604,7 +604,7 @@ def test_gemini_3_1_models_register_real_capabilities(model_name: str) -> None:
     assert model_info.supports is not None
     assert model_info.supports.tools is True
     assert model_info.supports.tool_choice is True
-    assert model_info.supports.constrained == Constrained.ALL
+    assert model_info.supports.constrained == ConstrainedSupport.ALL
     assert model_info.supports.output == ['text', 'json']
 
 
@@ -631,7 +631,7 @@ def test_vertexai_gemini_3_x_text_models_register_real_capabilities(model_name: 
     assert model_info.supports is not None
     assert model_info.supports.tools is True
     assert model_info.supports.tool_choice is True
-    assert model_info.supports.constrained == Constrained.ALL
+    assert model_info.supports.constrained == ConstrainedSupport.ALL
     assert model_info.supports.output == ['text', 'json']
 
 
@@ -656,7 +656,7 @@ def test_stable_gemini_text_models_register_real_capabilities(model_name: str, e
     assert model_info.supports.tools is True
     assert model_info.supports.tool_choice is True
     assert model_info.supports.system_role is True
-    assert model_info.supports.constrained == Constrained.ALL
+    assert model_info.supports.constrained == ConstrainedSupport.ALL
     assert model_info.supports.output == ['text', 'json']
 
 
@@ -675,13 +675,13 @@ def test_tts_models_register_per_name_capabilities(model_name: str, expected_lab
     model_info = google_model_info(model_name)
 
     assert model_info.label == expected_label
-    assert model_info.supports == Supports(
+    assert model_info.supports == ModelSupports(
         multiturn=False,
         media=False,
         tools=False,
         tool_choice=False,
         system_role=False,
-        constrained=Constrained.NONE,
+        constrained=ConstrainedSupport.NONE,
         output=['media'],
     )
     assert get_model_config_schema(model_name) is GeminiTtsConfig
@@ -718,13 +718,13 @@ def test_gemma_4_models_register_per_name_capabilities(model_name: str, expected
     model_info = google_model_info(model_name)
 
     assert model_info.label == expected_label
-    assert model_info.supports == Supports(
+    assert model_info.supports == ModelSupports(
         multiturn=True,
         media=True,
         tools=True,
         tool_choice=True,
         system_role=True,
-        constrained=Constrained.ALL,
+        constrained=ConstrainedSupport.ALL,
         output=['text', 'json'],
     )
     assert get_model_config_schema(model_name) is GemmaConfig

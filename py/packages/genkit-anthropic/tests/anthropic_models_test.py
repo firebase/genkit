@@ -28,7 +28,15 @@ from genkit_anthropic._utils import maybe_strip_fences, strip_markdown_fences
 from pydantic import ValidationError
 
 from genkit import FinishReason, Genkit, GenkitError, Message, ModelResponseChunk, Part, Role
-from genkit.model import Constrained, ModelConfig, ModelInfo, ModelRequest, OutputConfig, Supports, ToolDefinition
+from genkit.model import (
+    ConstrainedSupport,
+    ModelConfig,
+    ModelInfo,
+    ModelRequest,
+    ModelSupports,
+    OutputConfig,
+    ToolDefinition,
+)
 
 
 def _create_sample_request() -> ModelRequest:
@@ -762,7 +770,7 @@ def test_structured_output_falls_back_when_model_disallows_constraints() -> None
     """Test that an explicit constrained=none capability disables native output."""
     mock_client = MagicMock()
     model = AnthropicModel(model_name='claude-opus-4-6', client=mock_client)
-    model._model_info = ModelInfo(label='Test model', supports=Supports(constrained=Constrained.NONE))
+    model._model_info = ModelInfo(label='Test model', supports=ModelSupports(constrained=ConstrainedSupport.NONE))
 
     request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part.from_text('Generate a cat')])],
@@ -783,7 +791,7 @@ def test_structured_output_with_no_tools_capability() -> None:
     """Test that no-tools constrained output is disabled only when tools are present."""
     mock_client = MagicMock()
     model = AnthropicModel(model_name='claude-opus-4-6', client=mock_client)
-    model._model_info = ModelInfo(label='Test model', supports=Supports(constrained=Constrained.NO_TOOLS))
+    model._model_info = ModelInfo(label='Test model', supports=ModelSupports(constrained=ConstrainedSupport.NO_TOOLS))
 
     request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part.from_text('Generate a cat')])],

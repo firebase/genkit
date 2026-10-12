@@ -40,7 +40,7 @@ from anthropic import (
 from anthropic.types import Message as AnthropicMessage
 
 from genkit import ActionRunContext, FinishReason, GenkitError, Message, ModelResponse, ModelResponseChunk, Part, Role
-from genkit.model import Constrained, ModelRequest, ModelUsage, ToolRequest, get_basic_usage_stats
+from genkit.model import ConstrainedSupport, GenerationUsage, ModelRequest, ToolRequest
 from genkit.plugin_api import StatusName, provider_error
 from genkit_anthropic._config import AnthropicConfig
 from genkit_anthropic._model_info import get_model_info
@@ -377,7 +377,7 @@ class AnthropicModel:
         content = maybe_strip_fences(request, content)
 
         response_message = Message(role=Role.MODEL, content=content)
-        basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
+        basic_usage = GenerationUsage.from_messages(request.messages, response_message)
 
         finish_reason_map: dict[str, FinishReason] = {
             'compaction': FinishReason.OTHER,
@@ -401,7 +401,7 @@ class AnthropicModel:
             finish_reason=finish_reason,
         )
 
-    def _build_usage(self, response: AnthropicMessage, basic_usage: ModelUsage) -> ModelUsage:
+    def _build_usage(self, response: AnthropicMessage, basic_usage: GenerationUsage) -> GenerationUsage:
         """Build usage stats including cache read/write token counts.
 
         Delegates to :func:`utils.build_cache_usage` for the actual
@@ -412,7 +412,7 @@ class AnthropicModel:
             basic_usage: Basic character/image usage from message content.
 
         Returns:
-            ModelUsage with token and character counts.
+            GenerationUsage with token and character counts.
         """
         return build_cache_usage(
             input_tokens=response.usage.input_tokens,
@@ -569,9 +569,9 @@ class AnthropicModel:
         """Return whether this model supports native constrained output."""
         supports = self._model_info.supports
         constrained = supports.constrained if supports else None
-        if constrained is None or constrained == Constrained.NONE:
+        if constrained is None or constrained == ConstrainedSupport.NONE:
             return False
-        return constrained != Constrained.NO_TOOLS or not has_tools
+        return constrained != ConstrainedSupport.NO_TOOLS or not has_tools
 
     async def _generate_streaming(
         self,

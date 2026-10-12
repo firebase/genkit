@@ -27,7 +27,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from genkit import FinishReason, Message, ModelResponse, ModelResponseChunk, Part, Role
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, ModelHookParams
-from genkit.model import ABNORMAL_FINISH_REASONS, ModelRequest
+from genkit.model import ModelRequest
 
 from ._catalog import A2uiCatalog, render_catalog_instructions
 from ._loader import resolve_catalog
@@ -41,7 +41,7 @@ from ._types import DEFAULT_VERSION, SURFACE_KEYS, Envelope, SupportedVersion, V
 # unrecognized provider reasons to it, so core keeps validating in case the
 # model finished, while a turn that may have stopped mid-fence would paint a
 # half-written card.
-SKIP_REWRITE_FINISH_REASONS = ABNORMAL_FINISH_REASONS | {FinishReason.UNKNOWN}
+SKIP_REWRITE_FINISH_REASONS = frozenset(r for r in FinishReason if r.is_abnormal() or r == FinishReason.UNKNOWN)
 
 
 class SurfacesConfig(BaseModel):
@@ -232,8 +232,6 @@ def transform_response(
     surface_id: Callable[[], str],
 ) -> ModelResponse:
     message = response.message
-    if message is None and response.candidates:
-        message = response.candidates[0].message
     if message is None:
         return response
     parser = StreamParser(
@@ -244,15 +242,7 @@ def transform_response(
     )
     new_content = rewrite_parts(parts=message.content, parser=parser, flush_nontext=True)
     new_message = message.model_copy(update={'content': new_content})
-    # Providers that also expose candidates[0] would otherwise leave the fence
-    # there after the top-level message is rewritten.
-    update: dict[str, object] = {'message': new_message}
-    if response.candidates:
-        update['candidates'] = [
-            candidate.model_copy(update={'message': new_message}) if i == 0 else candidate
-            for i, candidate in enumerate(response.candidates)
-        ]
-    return response.model_copy(update=update)
+    return response.model_copy(update={'message': new_message})
 
 
 def inject_instructions(*, request: ModelRequest, catalog: A2uiCatalog) -> ModelRequest:

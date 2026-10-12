@@ -12,14 +12,23 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from genkit import FinishReason, Message, ModelResponse, ModelResponseChunk, Part, Role
 from genkit._ai._model import text_from_content
-from genkit._core._error import RuntimeErrorReason
+from genkit._core._action import ActionRunContext
+from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._model import OutputConfig, chunk_for_stream
 from genkit._core._schema import InvalidOutputSchemaError, to_json_schema
 from genkit._core._typing import (
     ActionMetadata,
     ToolRequest,
 )
-from genkit.model import ModelRequest, ModelUsage, get_basic_usage_stats, model_action_metadata
+from genkit.model import (
+    ConstrainedSupport,
+    GenerationUsage,
+    ModelInfo,
+    ModelRequest,
+    ModelSupports,
+    model,
+    model_action_metadata,
+)
 
 
 class PluginConfig(BaseModel):
@@ -200,7 +209,7 @@ def test_chunk_wrapper_output_uses_parser() -> None:
         [
             [],
             Message(role='model', content=[]),
-            ModelUsage(
+            GenerationUsage(
                 input_images=0,
                 input_videos=0,
                 input_characters=0,
@@ -244,7 +253,7 @@ def test_chunk_wrapper_output_uses_parser() -> None:
                     Part.from_media('data:video'),
                 ],
             ),
-            ModelUsage(
+            GenerationUsage(
                 input_images=2,
                 input_videos=2,
                 input_characters=2,
@@ -257,13 +266,27 @@ def test_chunk_wrapper_output_uses_parser() -> None:
         ],
     ),
 )
-def test_get_basic_usage_stats(
+def test_generation_usage_from_messages(
     test_input: list[Message],
     test_response: Message,
-    expected_output: ModelUsage,
+    expected_output: GenerationUsage,
 ) -> None:
-    """Test get_basic_usage_stats utility."""
-    assert get_basic_usage_stats(input_=test_input, response=test_response) == expected_output
+    """Test GenerationUsage.from_messages utility."""
+    assert GenerationUsage.from_messages(test_input, test_response) == expected_output
+    assert GenerationUsage.from_messages(messages=test_input, response=test_response) == expected_output
+
+
+def test_finish_reason_is_abnormal() -> None:
+    """Test FinishReason.is_abnormal()."""
+    abnormal = {
+        FinishReason.BLOCKED,
+        FinishReason.ABORTED,
+        FinishReason.FAILED,
+        FinishReason.INTERRUPTED,
+        FinishReason.OTHER,
+    }
+    for reason in FinishReason:
+        assert reason.is_abnormal() == (reason in abnormal)
 
 
 def test_response_wrapper_tool_requests() -> None:
@@ -358,14 +381,53 @@ def test_model_action_metadata() -> None:
     """Test for model_action_metadata."""
     action_metadata = model_action_metadata(
         name='test_model',
-        info={'label': 'test_label'},
+        info=ModelInfo(label='test_label'),
         config_schema=None,
     )
 
     assert isinstance(action_metadata, ActionMetadata)
     assert action_metadata.input_schema is not None
     assert action_metadata.output_schema is not None
-    assert action_metadata.metadata == {'model': {'customOptions': None, 'label': 'test_label'}}
+    assert action_metadata.metadata == {'model': {'label': 'test_label'}}
+
+
+def test_model_action_metadata_label_defaults_to_name() -> None:
+    """With no label, the listed model shows its action name like model() does."""
+    action_metadata = model_action_metadata(name='bistro/menu-writer')
+
+    assert action_metadata.metadata == {'model': {'label': 'bistro/menu-writer'}}
+
+
+@pytest.mark.parametrize(
+    'info',
+    [
+        None,
+        ModelInfo(),
+        ModelInfo(label='Menu Writer'),
+        ModelInfo(
+            label='Menu Writer',
+            versions=['001'],
+            supports=ModelSupports(multiturn=True, tools=True, constrained=ConstrainedSupport.NO_TOOLS),
+        ),
+    ],
+)
+@pytest.mark.parametrize('config_schema', [None, PluginConfig])
+def test_model_action_metadata_matches_model(info: ModelInfo | None, config_schema: type[BaseModel] | None) -> None:
+    """Listed and resolved models carry identical ``model`` metadata for the same input."""
+
+    async def menu_writer(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('Smoked Salmon Tartine')]))
+
+    listed = model_action_metadata(name='bistro/menu-writer', info=info, config_schema=config_schema)
+    resolved = model('bistro/menu-writer', menu_writer, info=info, config_schema=config_schema)
+
+    assert listed.metadata == {'model': resolved.metadata['model']}
+
+
+def test_model_action_metadata_rejects_long_running() -> None:
+    """A model action can't claim longRunning; that's a background model."""
+    with pytest.raises(GenkitError, match='longRunning'):
+        model_action_metadata(name='bistro/video', info=ModelInfo(supports=ModelSupports(long_running=True)))
 
 
 def test_text_from_content_with_parts() -> None:

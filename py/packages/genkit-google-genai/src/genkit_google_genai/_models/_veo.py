@@ -40,7 +40,7 @@ from google.genai.errors import APIError
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from genkit import ActionRunContext, FinishReason, GenkitError, Message, ModelResponse, Operation, Part, Role
-from genkit.model import ModelInfo, ModelRequest, OperationError, Supports
+from genkit.model import ModelInfo, ModelRequest, ModelSupports, OperationError
 
 # Quote autocomplete needs a Literal, so this alias is the Veo catalog.
 # ``veo_model`` takes ``KnownVeo | str`` so unlisted ids still work.
@@ -121,7 +121,7 @@ class VeoConfig(BaseModel):
         return data
 
 
-DEFAULT_VEO_SUPPORT = Supports(
+DEFAULT_VEO_SUPPORT = ModelSupports(
     media=True,
     multiturn=False,
     tools=False,
