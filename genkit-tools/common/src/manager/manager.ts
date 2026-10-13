@@ -94,6 +94,17 @@ export abstract class BaseRuntimeManager {
     readonly suppressRuntimeTelemetry: boolean = false
   ) {}
 
+  /**
+   * Telemetry server URL to hand to runtimes over the reflection handshake.
+   * Withheld under `suppressRuntimeTelemetry` (--experimental-use-otel) so the
+   * runtime keeps native direct export off; `telemetryServerUrl` itself is
+   * still used for the manager's own Dev UI reads. Every handshake path must
+   * go through this so they can't drift apart.
+   */
+  get runtimeTelemetryServerUrl(): string | undefined {
+    return this.suppressRuntimeTelemetry ? undefined : this.telemetryServerUrl;
+  }
+
   abstract listRuntimes(): RuntimeInfo[];
   abstract getRuntimeById(id: string): RuntimeInfo | undefined;
   abstract getMostRecentRuntime(): RuntimeInfo | undefined;
@@ -764,12 +775,7 @@ export class RuntimeManager extends BaseRuntimeManager {
       await axios.post(
         `${runtime.reflectionServerUrl}/api/notify`,
         {
-          // Withheld in --experimental-use-otel mode so the runtime keeps
-          // native direct export off; the manager still uses
-          // telemetryServerUrl for its own UI reads.
-          telemetryServerUrl: this.suppressRuntimeTelemetry
-            ? undefined
-            : this.telemetryServerUrl,
+          telemetryServerUrl: this.runtimeTelemetryServerUrl,
           reflectionApiSpecVersion: GENKIT_REFLECTION_API_SPEC_VERSION,
         },
         { headers: this.authHeaders(runtime) }

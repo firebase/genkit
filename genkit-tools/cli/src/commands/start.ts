@@ -99,18 +99,20 @@ export const start = new Command('start')
       );
     }
 
-    // A generated secret is only useful if it can be handed to a runtime: one
-    // we spawn, or one started from --write-env-file. Otherwise v2 would
-    // require a token nobody has. An operator-set GENKIT_REFLECTION_SECRET_TOKEN
-    // still applies either way.
-    const canHandOffSecret = start.args.length > 0 || !!options.writeEnvFile;
-    if (options.experimentalAuth && !canHandOffSecret) {
+    // Env vars we compute (the reflection secret, OTLP endpoints) only reach a
+    // runtime we spawn or one started from --write-env-file.
+    const canHandOffEnv = start.args.length > 0 || !!options.writeEnvFile;
+
+    // A generated secret is only useful if it can be handed to a runtime.
+    // Otherwise v2 would require a token nobody has. An operator-set
+    // GENKIT_REFLECTION_SECRET_TOKEN still applies either way.
+    if (options.experimentalAuth && !canHandOffEnv) {
       logger.warn(
         '--experimental-auth has no effect without a command to run or --write-env-file. ' +
           `To share a secret with a runtime you start yourself, set ${REFLECTION_SECRET_ENV}.`
       );
     }
-    const auth = !!options.experimentalAuth && canHandOffSecret;
+    const auth = !!options.experimentalAuth && canHandOffEnv;
 
     const devEnv = await getDevEnvVars(projectRoot, {
       disableRealtimeTelemetry: options.disableRealtimeTelemetry,
@@ -125,11 +127,29 @@ export const start = new Command('start')
     if (options.experimentalUseOtel) {
       // Without an app-side OTel SDK the trace list just stays empty with no
       // error anywhere, so call it out up front.
-      logger.warn(
-        'Native Genkit Dev UI tracing is off (--experimental-use-otel). Traces ' +
-          'show up only if your app starts an OpenTelemetry SDK that reads the ' +
-          'OTEL_EXPORTER_OTLP_* env vars.'
-      );
+      if (canHandOffEnv) {
+        logger.warn(
+          'Native Genkit Dev UI tracing is off (--experimental-use-otel). Traces ' +
+            'show up only if your app starts an OpenTelemetry SDK that reads the ' +
+            'OTEL_EXPORTER_OTLP_* env vars.'
+        );
+      } else {
+        // Nothing carries the OTLP endpoints to an app started elsewhere, so
+        // spell out what it needs. Warn rather than fail: the user may well
+        // set these by hand.
+        const otelExports = Object.entries(envVars)
+          .filter(
+            ([k]) => k.startsWith('OTEL_') || k === 'GENKIT_TELEMETRY_SERVER'
+          )
+          .map(([k, v]) => `  export ${k}=${v}`)
+          .join('\n');
+        logger.warn(
+          'Native Genkit Dev UI tracing is off (--experimental-use-otel), and ' +
+            'without a command to run or --write-env-file the CLI cannot hand ' +
+            "the OTLP endpoints to your app. Set these in the app's environment " +
+            `and start an OpenTelemetry SDK that reads them:\n${otelExports}`
+        );
+      }
     }
 
     if (options.writeEnvFile) {

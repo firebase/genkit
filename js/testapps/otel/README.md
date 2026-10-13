@@ -24,8 +24,8 @@ genkit flow:run weatherFlow '"Paris"'
 ```
 
 To preview what the OTel pipeline emits in the Developer UI itself (instead of
-an external collector), start with `genkit start --use-otel -- npx tsx --watch
-src/index.ts`.
+an external collector), start with
+`genkit start --experimental-use-otel -- npx tsx --watch src/index.ts`.
 
 ## Local telemetry stack
 
@@ -58,9 +58,9 @@ genkit start --experimental-use-otel -- npx tsx src/index.ts
 ```
 
 This is the "what would my traces look like in prod" view: only what the app's
-own OTel instrumentation emits shows up (the `gen_ai.*` client spans), not
-Genkit's more detailed native dev spans. For the richer native view, run
-`genkit start` without `--experimental-use-otel`.
+own OTel instrumentation emits shows up (the flow span plus the `gen_ai.*`
+client and tool spans), not Genkit's more detailed native dev spans. For the
+richer native view, run `genkit start` without `--experimental-use-otel`.
 
 Note: only traces and logs (`http/json`) are pointed at the dev telemetry
 server. Metrics are left alone and go wherever the app's OTel config sends them

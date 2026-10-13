@@ -22,7 +22,6 @@ import {
   it,
   jest,
 } from '@jest/globals';
-import axios from 'axios';
 import fs from 'fs/promises';
 import http from 'http';
 import os from 'os';
@@ -65,57 +64,106 @@ describe('RuntimeManager', () => {
     await manager.stop();
   });
 
-  describe('notifyRuntime', () => {
-    const runtime = { id: 'r1', reflectionServerUrl: 'http://localhost:9999' };
-
-    // Spy rather than jest.mock('axios'): the reflection auth tests below talk
-    // to a real local server and need the real axios.
-    afterEach(() => {
-      jest.restoreAllMocks();
-    });
-
-    it('sends telemetryServerUrl to the runtime by default', async () => {
-      const postSpy = jest
-        .spyOn(axios, 'post')
-        .mockResolvedValue({ data: {} } as any);
+  describe('runtimeTelemetryServerUrl', () => {
+    it('is the telemetry server URL by default', async () => {
       const manager = await RuntimeManager.create({
         projectRoot: '.',
         telemetryServerUrl: 'http://localhost:4033',
       });
-
-      await (manager as any).notifyRuntime(runtime);
-
-      expect(postSpy).toHaveBeenCalledWith(
-        'http://localhost:9999/api/notify',
-        expect.objectContaining({
-          telemetryServerUrl: 'http://localhost:4033',
-        }),
-        expect.anything()
-      );
+      expect(manager.runtimeTelemetryServerUrl).toBe('http://localhost:4033');
       await manager.stop();
     });
 
-    it('withholds telemetryServerUrl when suppressRuntimeTelemetry is set, but keeps it for UI reads', async () => {
-      const postSpy = jest
-        .spyOn(axios, 'post')
-        .mockResolvedValue({ data: {} } as any);
+    it('is withheld when suppressRuntimeTelemetry is set, but the manager keeps the URL for UI reads', async () => {
       const manager = await RuntimeManager.create({
         projectRoot: '.',
         telemetryServerUrl: 'http://localhost:4033',
         suppressRuntimeTelemetry: true,
       });
-
-      await (manager as any).notifyRuntime(runtime);
-
-      expect(postSpy).toHaveBeenCalledWith(
-        'http://localhost:9999/api/notify',
-        expect.objectContaining({ telemetryServerUrl: undefined }),
-        expect.anything()
-      );
-      // The manager still knows the URL so the Dev UI can read traces/logs.
+      expect(manager.runtimeTelemetryServerUrl).toBeUndefined();
       expect(manager.telemetryServerUrl).toBe('http://localhost:4033');
       await manager.stop();
     });
+  });
+});
+
+describe('RuntimeManager notify handshake', () => {
+  const TELEMETRY_URL = 'http://localhost:4033';
+  let server: http.Server;
+  let serverUrl: string;
+  let notifyBodies: Record<string, unknown>[];
+  let projectRoot: string;
+  let manager: RuntimeManager | undefined;
+
+  beforeEach(async () => {
+    notifyBodies = [];
+    // A real local runtime stub: answers the health check and records what
+    // the manager posts to /api/notify.
+    server = http.createServer((req, res) => {
+      let body = '';
+      req.on('data', (chunk: Buffer) => (body += chunk.toString()));
+      req.on('end', () => {
+        if (req.url === '/api/notify') {
+          notifyBodies.push(JSON.parse(body) as Record<string, unknown>);
+        }
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end('{}');
+      });
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, '127.0.0.1', resolve)
+    );
+    const address = server.address();
+    if (typeof address === 'string' || address === null) {
+      throw new Error('expected a TCP address');
+    }
+    serverUrl = `http://127.0.0.1:${address.port}`;
+    projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'genkit-notify-'));
+  });
+
+  afterEach(async () => {
+    await manager?.stop();
+    manager = undefined;
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await fs.rm(projectRoot, { recursive: true, force: true });
+  });
+
+  /** Registers a runtime pointing at the stub and waits for the notify. */
+  async function registerRuntime(suppressRuntimeTelemetry: boolean) {
+    manager = (await RuntimeManager.create({
+      projectRoot,
+      manageHealth: false,
+      telemetryServerUrl: TELEMETRY_URL,
+      suppressRuntimeTelemetry,
+    })) as RuntimeManager;
+    const dir = path.join(projectRoot, '.genkit', 'runtimes');
+    await fs.mkdir(dir, { recursive: true });
+    const file = path.join(dir, 'notify-runtime.json');
+    await fs.writeFile(
+      file,
+      JSON.stringify({
+        id: 'rt-notify',
+        pid: 1234,
+        reflectionServerUrl: serverUrl,
+        timestamp: new Date().toISOString(),
+        genkitVersion: 'nodejs/1.0.0',
+        reflectionApiSpecVersion: 1,
+      })
+    );
+    // Same entry point the file watcher uses (see the reflection auth tests).
+    await (manager as any).handleNewRuntime(file);
+  }
+
+  it('sends telemetryServerUrl to the runtime by default', async () => {
+    await registerRuntime(false);
+    expect(notifyBodies).toHaveLength(1);
+    expect(notifyBodies[0].telemetryServerUrl).toBe(TELEMETRY_URL);
+  });
+
+  it('withholds telemetryServerUrl when suppressRuntimeTelemetry is set', async () => {
+    await registerRuntime(true);
+    expect(notifyBodies).toHaveLength(1);
+    expect('telemetryServerUrl' in notifyBodies[0]).toBe(false);
   });
 });
 

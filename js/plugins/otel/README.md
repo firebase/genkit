@@ -36,7 +36,7 @@ import { GenAiInstrumentation } from '@genkit-ai/otel';
 
 // 1. The app owns the OTel SDK. With no arguments it configures exporters
 //    from the standard OTEL_* env vars (endpoint, protocol), so it works
-//    against a local collector and under `genkit start --use-otel`.
+//    against a local collector and under `genkit start --experimental-use-otel`.
 const sdk = new NodeSDK();
 sdk.start();
 

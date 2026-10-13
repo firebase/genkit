@@ -19,6 +19,7 @@ import {
   REFLECTION_SECRET_ENV,
   RuntimeEvent,
   RuntimeManager,
+  type BaseRuntimeManager,
 } from '@genkit-ai/tools-common/manager';
 import { logger } from '@genkit-ai/tools-common/utils';
 import {
@@ -33,6 +34,8 @@ import {
   getDevEnvVars,
   resolveReflectionSecret,
   runWithManager,
+  startDevProcessManager,
+  startManager,
   waitForActionKeys,
   waitForRuntime,
 } from '../../src/utils/manager-utils';
@@ -121,6 +124,69 @@ describe('getDevEnvVars', () => {
     );
     await expect(app.start({ nonInteractive: true })).resolves.toBeUndefined();
   });
+});
+
+// The env vars and the manager's handshake suppression are each tested on
+// their own; these pin the wiring between experimentalUseOtel and
+// suppressRuntimeTelemetry so neither half can be dropped silently.
+describe('experimentalUseOtel -> suppressRuntimeTelemetry', () => {
+  const TELEMETRY_URL = 'http://localhost:4033';
+  let createSpy: jest.SpiedFunction<typeof RuntimeManager.create>;
+
+  beforeEach(() => {
+    createSpy = jest
+      .spyOn(RuntimeManager, 'create')
+      .mockResolvedValue({} as BaseRuntimeManager);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it.each([true, false])(
+    'startManager passes suppressRuntimeTelemetry=%s',
+    async (useOtel) => {
+      await startManager({
+        projectRoot: '/root',
+        telemetryServerUrl: TELEMETRY_URL,
+        experimentalUseOtel: useOtel,
+      });
+
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          telemetryServerUrl: TELEMETRY_URL,
+          suppressRuntimeTelemetry: useOtel,
+        })
+      );
+    }
+  );
+
+  it.each([true, false])(
+    'startDevProcessManager passes suppressRuntimeTelemetry=%s',
+    async (useOtel) => {
+      // Pre-resolved envVars + telemetryServerUrl skip getDevEnvVars; the
+      // spawned command exits immediately.
+      const { processPromise } = await startDevProcessManager(
+        '/root',
+        'node',
+        ['-e', ''],
+        {
+          envVars: { GENKIT_ENV: 'dev' },
+          telemetryServerUrl: TELEMETRY_URL,
+          experimentalUseOtel: useOtel,
+          nonInteractive: true,
+        }
+      );
+      await processPromise;
+
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          telemetryServerUrl: TELEMETRY_URL,
+          suppressRuntimeTelemetry: useOtel,
+        })
+      );
+    }
+  );
 });
 
 describe('waitForRuntime', () => {
