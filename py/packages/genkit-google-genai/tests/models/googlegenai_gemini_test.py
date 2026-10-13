@@ -1299,7 +1299,10 @@ def test_gemini_model__convert_schema_property_keeps_keywords(gemini_model_insta
             'label': {'type': ['string', 'null'], 'format': 'date-time'},
             'pick': {'type': ['string', 'integer']},
             'kind': {'anyOf': [{'type': 'string'}, {'type': 'integer'}], 'description': 'string or int'},
-            'ratio': {'anyOf': [{'type': 'number'}, {'type': 'null'}], 'title': 'Ratio'},
+            'ratio': {
+                'anyOf': [{'type': 'number', 'minimum': 0.5, 'maximum': 1.5}, {'type': 'null'}],
+                'title': 'Ratio',
+            },
             'tags': {'type': 'array', 'items': {'type': 'string'}, 'minItems': 1, 'maxItems': 3},
             'anything': {'title': 'Anything'},
         },
@@ -1320,7 +1323,7 @@ def test_gemini_model__convert_schema_property_keeps_keywords(gemini_model_insta
                 ],
                 description='string or int',
             ),
-            'ratio': genai_types.Schema(type=genai_types.Type.NUMBER, nullable=True),
+            'ratio': genai_types.Schema(type=genai_types.Type.NUMBER, nullable=True, minimum=0.5, maximum=1.5),
             'tags': genai_types.Schema(
                 type=genai_types.Type.ARRAY,
                 items=genai_types.Schema(type=genai_types.Type.STRING),
@@ -1694,6 +1697,27 @@ def test_gemini_model__convert_schema_property_leaves_out_untyped_constraint(
 ) -> None:
     """Without strict, a node that constrains without a type is left out of its parent."""
     assert gemini_model_instance._convert_schema_property(input_schema) == expected
+
+
+@pytest.mark.parametrize(
+    'annotations',
+    [
+        {'title': 'Note', 'default': None},
+        {'description': 'd', 'examples': [1], 'deprecated': True},
+        {'readOnly': True, 'writeOnly': False, '$comment': 'c'},
+        {'$schema': 'https://json-schema.org/draft/2020-12/schema', '$id': 'note', '$defs': {}},
+    ],
+)
+def test_gemini_model__convert_schema_property_strict_leaves_out_annotation_only_property(
+    annotations: dict[str, object],
+    gemini_model_instance: GeminiModel,
+) -> None:
+    """In strict mode an optional property with only annotations and no type is left out rather than raising."""
+    schema: dict[str, object] = {'type': 'object', 'properties': {'note': annotations, 'text': {'type': 'string'}}}
+
+    assert gemini_model_instance._convert_schema_property(schema, strict=True) == genai_types.Schema(
+        type=genai_types.Type.OBJECT, properties={'text': genai_types.Schema(type=genai_types.Type.STRING)}
+    )
 
 
 @pytest.mark.asyncio

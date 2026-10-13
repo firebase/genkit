@@ -263,32 +263,40 @@ async def test_googleai_runtime_clients_are_loop_local(mock_client_ctor: MagicMo
 
 @patch('genkit_google_genai._google.genai.client.Client')
 @pytest.mark.asyncio
-@pytest.mark.parametrize('legacy_response_schema', [False, True])
+@pytest.mark.parametrize('legacy_response_schema', [None, False, True])
 async def test_googleai_legacy_response_schema_threads_to_gemini_model(
-    mock_client_ctor: MagicMock, legacy_response_schema: bool
+    mock_client_ctor: MagicMock, legacy_response_schema: bool | None
 ) -> None:
-    """The plugin option reaches every GeminiModel GoogleAI constructs.
+    """The plugin option reaches every GeminiModel GoogleAI constructs, and is off when left out.
 
     Runs under the event loop because _new_gemini fetches the loop-local client.
     """
-    plugin = GoogleAI(api_key='test-key', legacy_response_schema=legacy_response_schema)
+    plugin = (
+        GoogleAI(api_key='test-key')
+        if legacy_response_schema is None
+        else GoogleAI(api_key='test-key', legacy_response_schema=legacy_response_schema)
+    )
 
-    assert _new_gemini(plugin, 'gemini-2.5-flash')._legacy_response_schema is legacy_response_schema
+    assert _new_gemini(plugin, 'gemini-2.5-flash')._legacy_response_schema is bool(legacy_response_schema)
 
 
 @patch('genkit_google_genai._google.genai.client.Client')
 @pytest.mark.asyncio
-@pytest.mark.parametrize('legacy_response_schema', [False, True])
+@pytest.mark.parametrize('legacy_response_schema', [None, False, True])
 async def test_vertexai_legacy_response_schema_threads_to_gemini_model(
-    mock_client_ctor: MagicMock, legacy_response_schema: bool
+    mock_client_ctor: MagicMock, legacy_response_schema: bool | None
 ) -> None:
-    """The plugin option reaches every GeminiModel VertexAI constructs.
+    """The plugin option reaches every GeminiModel VertexAI constructs, and is off when left out.
 
     Runs under the event loop because _new_gemini fetches the loop-local client.
     """
-    plugin = VertexAI(project='test-project', legacy_response_schema=legacy_response_schema)
+    plugin = (
+        VertexAI(project='test-project')
+        if legacy_response_schema is None
+        else VertexAI(project='test-project', legacy_response_schema=legacy_response_schema)
+    )
 
-    assert _new_gemini(plugin, 'gemini-2.5-flash')._legacy_response_schema is legacy_response_schema
+    assert _new_gemini(plugin, 'gemini-2.5-flash')._legacy_response_schema is bool(legacy_response_schema)
 
 
 def test_genai_models_container() -> None:
