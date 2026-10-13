@@ -1435,6 +1435,10 @@ Test content
 	if lookedUp == nil {
 		t.Fatalf("Prompt 'ns/single' was not registered")
 	}
+	// Tooling such as the Dev UI and the agents middleware reads the descriptor.
+	if got, want := lookedUp.(api.Action).Desc().Description, "A single prompt test"; got != want {
+		t.Errorf("Desc().Description = %q, want %q", got, want)
+	}
 }
 
 func TestLoadPromptFromRaw(t *testing.T) {

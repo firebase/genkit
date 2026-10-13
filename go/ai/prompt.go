@@ -166,7 +166,7 @@ func DefinePrompt(r api.Registry, name string, opts ...PromptOption) Prompt {
 		metadata["prompt"] = promptMetadata
 	}
 
-	a := core.NewActionOf(api.ActionTypeExecutablePrompt, name, &core.ActionOptions{Metadata: metadata, InputSchema: p.InputSchema}, p.buildRequest)
+	a := core.NewActionOf(api.ActionTypeExecutablePrompt, name, &core.ActionOptions{Description: p.Description, Metadata: metadata, InputSchema: p.InputSchema}, p.buildRequest)
 	a.Register(r)
 	p.Action = *a
 
