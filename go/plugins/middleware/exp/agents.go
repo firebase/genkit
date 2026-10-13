@@ -923,19 +923,17 @@ func (a *Agents) buildInstructions(g *genkit.Genkit, continuable bool) string {
 
 // discoverDescription returns the agent's description from its action
 // descriptor, falling back to the backing prompt's description, or "" if none.
-// The keys are built with [api.KeyFromName] rather than by hand: a prompt
-// registers under "executable-prompt", not "prompt", so a literal key silently
-// finds nothing.
+// The agent key is built with [api.KeyFromName] rather than by hand. The prompt
+// goes through [genkit.LookupPrompt], so it resolves the same way the agent's
+// own prompt does.
 func discoverDescription(g *genkit.Genkit, name string) string {
-	for _, key := range []string{
-		api.KeyFromName(api.ActionTypeAgent, name),
-		api.KeyFromName(api.ActionTypeExecutablePrompt, name),
-	} {
-		if action := genkit.LookupAction(g, key); action != nil {
-			if d := action.Desc().Description; d != "" {
-				return d
-			}
+	if action := genkit.LookupAction(g, api.KeyFromName(api.ActionTypeAgent, name)); action != nil {
+		if d := action.Desc().Description; d != "" {
+			return d
 		}
+	}
+	if p, ok := genkit.LookupPrompt(g, name).(api.Action); ok {
+		return p.Desc().Description
 	}
 	return ""
 }
