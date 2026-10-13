@@ -123,6 +123,40 @@ print(operation.output)
 
 Runnable version: [google-genai-media](https://github.com/genkit-ai/genkit/tree/main/py/samples/google-genai-media).
 
+### Virtual Try-On (Vertex AI)
+
+`virtual-try-on-001` dresses a person in a product and returns the composited
+images. The inputs are media parts on the last message, tagged so the model
+knows which is which: `metadata={'type': 'personImage'}` for the person and
+`metadata={'type': 'productImage'}` for the product. Each `url` is a `data:`
+url, bare base64 image data, or a `gs://` path; http(s) urls are not fetched.
+
+```python
+from genkit import Genkit, Message, Part, Role
+from genkit_google_genai import VertexAI
+
+ai = Genkit(plugins=[VertexAI()])
+
+response = await ai.generate(
+    model=VertexAI.virtual_try_on_model('virtual-try-on-001'),
+    messages=[
+        Message(
+            role=Role.USER,
+            content=[
+                Part.from_media(
+                    'gs://my-bucket/person.png', content_type='image/png', metadata={'type': 'personImage'}
+                ),
+                Part.from_media(
+                    'gs://my-bucket/shirt.png', content_type='image/png', metadata={'type': 'productImage'}
+                ),
+            ],
+        )
+    ],
+)
+for part in response.message.content:
+    print(part.media.url)
+```
+
 ### Vertex AI Evaluators
 
 Built-in evaluators for assessing model output quality, accessed via `ai.evaluate()`. The VertexAI plugin registers them only when a project resolves (`VertexAI(project=...)` or `GOOGLE_CLOUD_PROJECT`); `VertexAI(api_key=...)` without a project lists none. They authenticate with Application Default Credentials, not `api_key` or `credentials`:
