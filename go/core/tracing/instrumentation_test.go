@@ -178,13 +178,19 @@ func TestRunInNewSpan_FallbackIDsWithoutProviderIDs(t *testing.T) {
 	}
 }
 
-// TestResetInstrumentation_IgnoresEnv guards against the registry reading
-// GENKIT_TELEMETRY_SERVER on its own: only genkit.Init and the reflection
-// server enable Direct, so a reset chain stays clean whatever the shell has.
-func TestResetInstrumentation_IgnoresEnv(t *testing.T) {
-	t.Setenv("GENKIT_TELEMETRY_SERVER", "http://127.0.0.1:1")
+// TestResetInstrumentation_ClearsDevProvider checks that a reset drops the dev
+// Direct provider along with configured ones, leaving the implicit default.
+func TestResetInstrumentation_ClearsDevProvider(t *testing.T) {
 	t.Cleanup(resetInstrumentation)
+	SetInstrumentation(&fakeInstrumentation{})
+	setDevTelemetryServer("http://127.0.0.1:1")
+	if chain := activeInstrumentations(); len(chain) != 2 {
+		t.Fatalf("chain before reset = %v, want Direct plus the fake", chain)
+	}
 	resetInstrumentation()
+	if direct != nil {
+		t.Error("Direct provider survived the reset")
+	}
 	if chain := activeInstrumentations(); len(chain) != 1 || chain[0] != defaultOTel {
 		t.Errorf("chain after reset = %v, want [defaultOTel]", chain)
 	}
@@ -354,6 +360,79 @@ func TestCompositeSpan_FirstNonEmptyIDsAndFanOut(t *testing.T) {
 	if len(primary.meta) != 1 || len(secondary.meta) != 1 {
 		t.Errorf("SetMetadata fan-out: primary=%d secondary=%d, want 1/1",
 			len(primary.meta), len(secondary.meta))
+	}
+}
+
+// TestCompositeSpan_IDsFromOneProvider checks that a provider reporting a
+// trace id but no span id is not paired with a later provider's span id.
+func TestCompositeSpan_IDsFromOneProvider(t *testing.T) {
+	partial := &fakeInstrumentation{traceID: "T1"}
+	full := &fakeInstrumentation{traceID: "T2", spanID: "S2"}
+	useInstrumentation(t, partial, full)
+
+	var got TraceInfo
+	_, err := RunInNewSpan(context.Background(), &SpanMetadata{Name: "n"}, "in",
+		func(ctx context.Context, _ string) (string, error) {
+			got = SpanTraceInfo(ctx)
+			return "", nil
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (TraceInfo{TraceID: "T1"}); got != want {
+		t.Errorf("SpanTraceInfo = %+v, want %+v", got, want)
+	}
+}
+
+// TestSpanResult_IsFailureSource checks that providers see failure-source
+// attribution: only the span the error originated in is marked, for both
+// returned errors and panics.
+func TestSpanResult_IsFailureSource(t *testing.T) {
+	nested := func(leaf func(context.Context, string) (string, error)) func() {
+		return func() {
+			RunInNewSpan(context.Background(), &SpanMetadata{Name: "flow"}, "in",
+				func(ctx context.Context, in string) (string, error) {
+					return RunInNewSpan(ctx, &SpanMetadata{Name: "generate"}, in,
+						func(ctx context.Context, in string) (string, error) {
+							return RunInNewSpan(ctx, &SpanMetadata{Name: "tool"}, in, leaf)
+						})
+				})
+		}
+	}
+	tests := []struct {
+		name string
+		run  func()
+	}{
+		{"error", nested(func(context.Context, string) (string, error) { return "", errors.New("boom") })},
+		{"panic", func() {
+			defer func() { _ = recover() }()
+			nested(func(context.Context, string) (string, error) { panic("kaboom") })()
+		}},
+		// A non-comparable panic value cannot be matched, so every span that
+		// re-panics with it is counted (more, never fewer).
+		{"non-comparable panic", func() {
+			defer func() { _ = recover() }()
+			nested(func(context.Context, string) (string, error) { panic([]string{"kaboom"}) })()
+		}},
+	}
+	want := map[string]map[string]bool{
+		"error":                {"tool": true, "generate": false, "flow": false},
+		"panic":                {"tool": true, "generate": false, "flow": false},
+		"non-comparable panic": {"tool": true, "generate": true, "flow": true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := &fakeInstrumentation{}
+			useInstrumentation(t, fake)
+			tt.run()
+			got := map[string]bool{}
+			for i, info := range fake.spans {
+				got[info.Name()] = fake.results[len(fake.results)-1-i].IsFailureSource()
+			}
+			if diff := cmp.Diff(want[tt.name], got); diff != "" {
+				t.Errorf("IsFailureSource by span (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 

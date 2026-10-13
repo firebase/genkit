@@ -31,9 +31,9 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/ai/tool"
 	"github.com/firebase/genkit/go/core/api"
-	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/firebase/genkit/go/internal/tracingtest"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -52,45 +52,6 @@ func defineTool(t *testing.T, r api.Registry, name string) ai.Tool {
 		}) (string, error) {
 			return "result:" + input.V, nil
 		})
-}
-
-// spanCollector records the spans a run produces via the Direct
-// instrumentation, so a test can assert on their genkit attributes without an
-// OpenTelemetry SDK.
-type spanCollector struct {
-	client *tracing.TestOnlyTelemetryClient
-}
-
-// collectSpans routes the run's spans through a Direct instrumentation over an
-// in-memory client for the duration of the test. Reset on cleanup.
-func collectSpans(t *testing.T) *spanCollector {
-	t.Helper()
-	client := tracing.NewTestOnlyTelemetryClient()
-	tracing.SetInstrumentation(tracing.NewDirectTelemetryInstrumentation(client))
-	t.Cleanup(func() { tracing.SetInstrumentation() })
-	return &spanCollector{client: client}
-}
-
-// byName returns every recorded span with the given display name.
-func (c *spanCollector) byName(name string) []*tracing.SpanData {
-	var out []*tracing.SpanData
-	for _, s := range c.client.Spans() {
-		if s.DisplayName == name {
-			out = append(out, s)
-		}
-	}
-	return out
-}
-
-// spanAttr returns the string value of the named genkit span attribute, if
-// present.
-func spanAttr(span *tracing.SpanData, key string) (string, bool) {
-	v, ok := span.Attributes[key]
-	if !ok {
-		return "", false
-	}
-	s, ok := v.(string)
-	return s, ok
 }
 
 // twoToolModelHandler returns a model handler that requests two tools on the first call,
@@ -200,7 +161,7 @@ func TestToolApprovalInterruptIsTracedOnce(t *testing.T) {
 	safe := defineTool(t, r, "safe")
 	dangerous := defineTool(t, r, "dangerous")
 
-	collector := collectSpans(t)
+	collector := tracingtest.Capture(t)
 
 	ta := &ToolApproval{AllowedTools: []string{"safe"}}
 	if _, err := ai.Generate(ctx, r,
@@ -212,14 +173,14 @@ func TestToolApprovalInterruptIsTracedOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	spans := collector.byName("dangerous")
+	spans := collector.ByName("dangerous")
 	if len(spans) != 1 {
 		t.Fatalf("got %d spans named %q, want exactly 1", len(spans), "dangerous")
 	}
 	// An approval interrupt resolves the call without running the tool, and
 	// must still look exactly like a tool call in the trace.
 	const subtypeKey = "genkit:metadata:subtype"
-	subtype, ok := spanAttr(spans[0], subtypeKey)
+	subtype, ok := tracingtest.Attr(spans[0], subtypeKey)
 	if !ok {
 		t.Fatalf("span %q: missing attribute %q", "dangerous", subtypeKey)
 	}

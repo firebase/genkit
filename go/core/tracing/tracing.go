@@ -123,9 +123,14 @@ func Tracer() trace.Tracer {
 // such as one that writes to a file.
 //
 // Deprecated: registers a span processor on the Genkit-managed global
-// TracerProvider. Configure OpenTelemetry export yourself, or rely on the dev
-// UI's Direct export / the Google Cloud / Firebase plugins. Removed in the next
-// major version.
+// TracerProvider. To keep sending Genkit spans to client, export them
+// directly, listing OTelInstrumentation too if you also export through
+// OpenTelemetry:
+//
+//	tracing.SetInstrumentation(&tracing.OTelInstrumentation{},
+//		tracing.NewDirectTelemetryInstrumentation(client))
+//
+// Removed in the next major version.
 func WriteTelemetryImmediate(client TelemetryClient) {
 	e := newTelemetryServerExporter(client)
 	TracerProvider().RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
@@ -140,9 +145,10 @@ func WriteTelemetryImmediate(client TelemetryClient) {
 // and perform other cleanup.
 //
 // Deprecated: registers a span processor on the Genkit-managed global
-// TracerProvider. Configure OpenTelemetry export yourself, or rely on the dev
-// UI's Direct export / the Google Cloud / Firebase plugins. Removed in the next
-// major version.
+// TracerProvider. Use [NewDirectTelemetryInstrumentation] as shown on
+// [WriteTelemetryImmediate]; it saves each span as it ends, without batching,
+// so wrap client in your own batching if Save is expensive. Removed in the
+// next major version.
 func WriteTelemetryBatch(client TelemetryClient) (shutdown func(context.Context) error) {
 	e := newTelemetryServerExporter(client)
 	TracerProvider().RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
@@ -158,9 +164,10 @@ func WriteTelemetryBatch(client TelemetryClient) (shutdown func(context.Context)
 // [WriteTelemetryImmediate].
 //
 // Deprecated: registers a span processor on the Genkit-managed global
-// TracerProvider. Configure OpenTelemetry export yourself, or rely on the dev
-// UI's Direct export / the Google Cloud / Firebase plugins. Removed in the next
-// major version.
+// TracerProvider. Use [NewDirectTelemetryInstrumentation] as shown on
+// [WriteTelemetryImmediate]; it also saves each span when it starts while
+// GENKIT_ENABLE_REALTIME_TELEMETRY=true (set by `genkit start`). Removed in
+// the next major version.
 func WriteTelemetryRealtime(client TelemetryClient) {
 	TracerProvider().RegisterSpanProcessor(newRealtimeSpanProcessor(client))
 }
@@ -263,13 +270,32 @@ func RunInNewSpan[I, O any](
 	chain := activeInstrumentations()
 	spans := make([]Span, 0, len(chain))
 	res := &SpanResult{}
+	// Set once the span is open, so the deferred end log (which needs both)
+	// knows whether to fire and under which context.
+	var (
+		spanCtx  context.Context
+		logDebug bool
+		start    time.Time
+	)
 	defer func() {
 		r := recover()
 		if r != nil {
 			res.err = panicError(r)
 			sm.State = spanStateError
 			sm.Error = res.err.Error()
-			sm.IsFailureSource = true
+			// Each enclosing span recovers and re-panics with the same value,
+			// so only the span that saw it first is the source.
+			sm.IsFailureSource = !sm.hasChildPanic(r)
+			if parentSM != nil {
+				parentSM.addChildPanic(r)
+			}
+		}
+		res.failureSource = sm.IsFailureSource
+		// Logged here rather than in a separate defer so it sees the final
+		// state on panic too, and before endSpans so it lands on a span that
+		// is still open.
+		if logDebug {
+			logSpanFinished(spanCtx, sm, time.Since(start))
 		}
 		endSpans(spans, res)
 		if r != nil {
@@ -298,14 +324,12 @@ func RunInNewSpan[I, O any](
 	// to every active provider.
 	ctx = currentSpanKey.NewContext(ctx, handle)
 
-	// These logs run under the new span's context, so they land on this span
-	// in the Dev UI. The deferred one is registered after the span-ending
-	// defer, so it fires first, while the span is still open. This is the
-	// hottest path in the framework, so the log arguments are only built when
-	// some handler accepts debug records (the console at
-	// GENKIT_LOG_LEVEL=debug, or the Dev UI export sink).
-	start := time.Now()
-	logDebug := logger.FromContext(ctx).Enabled(ctx, slog.LevelDebug)
+	// The start and end logs run under the new span's context, so they land on
+	// this span in the Dev UI. This is the hottest path in the framework, so
+	// the log arguments are only built when some handler accepts debug records
+	// (the console at GENKIT_LOG_LEVEL=debug, or the Dev UI export sink).
+	spanCtx, start = ctx, time.Now()
+	logDebug = logger.FromContext(ctx).Enabled(ctx, slog.LevelDebug)
 	if logDebug {
 		startArgs := []any{"name", metadata.Name}
 		if metadata.Type != "" {
@@ -315,13 +339,6 @@ func RunInNewSpan[I, O any](
 			startArgs = append(startArgs, "subtype", metadata.Subtype)
 		}
 		logger.Debug(ctx, "span started", startArgs...)
-		defer func() {
-			endArgs := []any{"name", metadata.Name, "state", string(sm.State), "duration", time.Since(start).Round(time.Millisecond)}
-			if sm.Error != "" {
-				endArgs = append(endArgs, "error", sm.Error)
-			}
-			logger.Debug(ctx, "span finished", endArgs...)
-		}()
 	}
 
 	output, err := f(ctx, input)
@@ -351,6 +368,15 @@ func RunInNewSpan[I, O any](
 	}
 	res.output, res.err = output, err
 	return output, err
+}
+
+// logSpanFinished writes the debug record for a span's end.
+func logSpanFinished(ctx context.Context, sm *spanMetadata, elapsed time.Duration) {
+	args := []any{"name", sm.Name, "state", string(sm.State), "duration", elapsed.Round(time.Millisecond)}
+	if sm.Error != "" {
+		args = append(args, "error", sm.Error)
+	}
+	logger.Debug(ctx, "span finished", args...)
 }
 
 // fallbackTraceInfo mints ids for a span no provider assigned ids to. It stays
@@ -437,8 +463,9 @@ type spanMetadata struct {
 	Subtype         string            // span subtype (tool, model, flow, etc.)
 	Metadata        map[string]string // additional custom metadata
 
-	mu        sync.Mutex
-	childErrs []error // errors returned by failing child spans, guarded by mu
+	mu          sync.Mutex
+	childErrs   []error // errors returned by failing child spans, guarded by mu
+	childPanics []any   // values child spans panicked with, guarded by mu
 
 	// Cached JSON encodings of Input, Init and Output, so the providers in a
 	// chain, and a span's start and end writes, marshal each payload once.
@@ -460,6 +487,30 @@ func (sm *spanMetadata) childErrors() []error {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	return slices.Clone(sm.childErrs)
+}
+
+// addChildPanic records r as the value a child span panicked with.
+func (sm *spanMetadata) addChildPanic(r any) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.childPanics = append(sm.childPanics, r)
+}
+
+// hasChildPanic reports whether a child span panicked with r. A value of a
+// non-comparable type never matches, which errs toward marking more spans as
+// the source, never fewer (as isDerivedFrom does).
+func (sm *spanMetadata) hasChildPanic(r any) bool {
+	if r == nil || !reflect.TypeOf(r).Comparable() {
+		return false
+	}
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	for _, c := range sm.childPanics {
+		if reflect.TypeOf(c).Comparable() && c == r {
+			return true
+		}
+	}
+	return false
 }
 
 // ioAttrJSON returns the JSON encoding of v for the genkit:input, genkit:init,

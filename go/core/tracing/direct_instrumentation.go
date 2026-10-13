@@ -64,9 +64,13 @@ type clientBox struct {
 	url string // set for URL-built clients, so a repeated URL is a no-op
 }
 
-// NewDirectTelemetryInstrumentation returns a Direct provider that exports to
-// client. Useful for wiring a custom or in-memory [TelemetryClient] (e.g. in
-// tests via [SetInstrumentation]); the dev wiring is URL-based and internal.
+// NewDirectTelemetryInstrumentation returns a provider that saves Genkit spans
+// to client directly, with no OpenTelemetry SDK involved. Install it with
+// [SetInstrumentation] to send traces to a custom [TelemetryClient] (it
+// replaces the deprecated WriteTelemetry* functions) or to capture them in
+// memory in tests. Each span is saved when it ends, and also when it starts
+// while GENKIT_ENABLE_REALTIME_TELEMETRY=true. The Developer UI wiring builds
+// its own instance internally.
 func NewDirectTelemetryInstrumentation(client TelemetryClient) *DirectTelemetryInstrumentation {
 	d := &DirectTelemetryInstrumentation{
 		parentKey:  base.NewContextKey[*directParent](),

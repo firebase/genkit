@@ -25,6 +25,7 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/firebase/genkit/go/internal/tracingtest"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -314,51 +315,10 @@ func defineFakeTool(t *testing.T, r api.Registry, name, description string) Tool
 		})
 }
 
-// spanCollector records the spans a run produces via the Direct
-// instrumentation, so a test can assert on their genkit attributes without an
-// OpenTelemetry SDK. It reads the SpanData the telemetry client accumulates.
-type spanCollector struct {
-	client *tracing.TestOnlyTelemetryClient
-}
-
-// allByName returns every recorded span with the given display name.
-func (c *spanCollector) allByName(name string) []*tracing.SpanData {
-	var out []*tracing.SpanData
-	for _, s := range c.client.Spans() {
-		if s.DisplayName == name {
-			out = append(out, s)
-		}
-	}
-	return out
-}
-
-// collectSpans routes the run's spans through a Direct instrumentation over an
-// in-memory client for the duration of the test, so spans are captured with
-// their genkit attributes and no OpenTelemetry SDK is involved. Reset on
-// cleanup.
-func collectSpans(t *testing.T) *spanCollector {
-	t.Helper()
-	client := tracing.NewTestOnlyTelemetryClient()
-	tracing.SetInstrumentation(tracing.NewDirectTelemetryInstrumentation(client))
-	t.Cleanup(func() { tracing.SetInstrumentation() })
-	return &spanCollector{client: client}
-}
-
-// spanAttr returns the string value of the named genkit span attribute, if
-// present.
-func spanAttr(span *tracing.SpanData, key string) (string, bool) {
-	v, ok := span.Attributes[key]
-	if !ok {
-		return "", false
-	}
-	s, ok := v.(string)
-	return s, ok
-}
-
 // assertSpanAttr fails the test unless span carries key with value want.
 func assertSpanAttr(t *testing.T, span *tracing.SpanData, key, want string) {
 	t.Helper()
-	got, ok := spanAttr(span, key)
+	got, ok := tracingtest.Attr(span, key)
 	if !ok {
 		t.Errorf("span %q: missing attribute %q", span.DisplayName, key)
 		return

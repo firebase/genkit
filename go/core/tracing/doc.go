@@ -55,9 +55,10 @@ variables (OTEL_TRACES_EXPORTER, OTEL_EXPORTER_OTLP_ENDPOINT, ...) honored, or
 use the Google Cloud / Firebase plugins, which configure OpenTelemetry for you.
 
 Genkit reads whatever provider you register (otel.GetTracerProvider) to create
-its spans; when nothing is configured, spans carry no trace ids and are not
-exported. To keep Genkit spans on a dedicated provider instead of the global
-one:
+its spans; when nothing is configured, the OpenTelemetry spans are no-ops and
+nothing is exported. Genkit still assigns local trace and span ids, so
+[SpanTraceInfo] and log correlation keep working. To keep Genkit spans on a
+dedicated provider instead of the global one:
 
 	tracing.SetInstrumentation(&tracing.OTelInstrumentation{TracerProvider: tp})
 

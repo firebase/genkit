@@ -24,6 +24,7 @@ import (
 
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/firebase/genkit/go/internal/tracingtest"
 )
 
 func TestRunInFlow(t *testing.T) {
@@ -260,33 +261,12 @@ func TestFlowNameFromContextOutsideFlow(t *testing.T) {
 	})
 }
 
-// stepSpanCollector records the spans a run produces via the Direct
-// instrumentation, so a test can assert on how they nest, without an
-// OpenTelemetry SDK.
-type stepSpanCollector struct {
-	client *tracing.TestOnlyTelemetryClient
-}
-
-func (c *stepSpanCollector) byName(name string) *tracing.SpanData {
-	for _, s := range c.client.Spans() {
-		if s.DisplayName == name {
-			return s
-		}
-	}
-	return nil
-}
-
-func collectStepSpans(t *testing.T) *stepSpanCollector {
-	t.Helper()
-	return &stepSpanCollector{client: captureTraces(t)}
-}
-
 // TestRunWithContextNesting is the reason RunWithContext exists: work started
 // with the context it hands over belongs to the step, while work started with
 // the enclosing context escapes to the flow.
 func TestRunWithContextNesting(t *testing.T) {
 	r := registry.New()
-	c := collectStepSpans(t)
+	c := tracingtest.Capture(t)
 
 	flow := defineFlow(r, "nesting", func(ctx context.Context, _ any) (int, error) {
 		// The step's own context reaches the callee, so its span nests.
@@ -312,9 +292,9 @@ func TestRunWithContextNesting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	step := c.byName("with-context")
-	nested := c.byName("inner-nested")
-	escaped := c.byName("inner-escaped")
+	step := c.First("with-context")
+	nested := c.First("inner-nested")
+	escaped := c.First("inner-escaped")
 	for name, s := range map[string]*tracing.SpanData{
 		"with-context": step, "inner-nested": nested, "inner-escaped": escaped,
 	} {
@@ -326,7 +306,7 @@ func TestRunWithContextNesting(t *testing.T) {
 	if got, want := nested.ParentSpanID, step.SpanID; got != want {
 		t.Errorf("inner-nested parent = %s, want the with-context step %s", got, want)
 	}
-	if got := escaped.ParentSpanID; got == c.byName("without-context").SpanID {
+	if got := escaped.ParentSpanID; got == c.First("without-context").SpanID {
 		t.Errorf("inner-escaped nested under its step, so Run now propagates context and this test is stale")
 	}
 }

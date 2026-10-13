@@ -28,6 +28,7 @@ import (
 	"github.com/firebase/genkit/go/core/status"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/firebase/genkit/go/internal/tracingtest"
 )
 
 func inc(_ context.Context, x int, _ noStream) (int, error) {
@@ -202,7 +203,7 @@ func TestActionStreaming(t *testing.T) {
 func TestActionTracing(t *testing.T) {
 	r := registry.New()
 	// An isolated client, so the assertions hold under -count=N.
-	tc := captureTraces(t)
+	tc := tracingtest.Capture(t)
 	name := api.NewName("test", "TestTracing-inc")
 	a := defineStreamingAction(r, name, api.ActionTypeCustom, nil, nil, inc)
 	if _, err := a.Run(context.Background(), 3, nil); err != nil {

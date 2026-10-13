@@ -150,8 +150,9 @@ func (i *SpanInfo) spanMeta() *spanMetadata {
 // SpanResult is how a span's run ended. The dispatcher builds one per span and
 // passes the same value to every provider's [Span.End]; it is read-only.
 type SpanResult struct {
-	output any
-	err    error
+	output        any
+	err           error
+	failureSource bool
 }
 
 // Output is the run's output. It can be non-nil alongside a non-nil Err: a
@@ -171,6 +172,14 @@ func (r *SpanResult) Err() error {
 		return nil
 	}
 	return r.err
+}
+
+// IsFailureSource reports whether this span is where a failure originated, as
+// opposed to an enclosing span that only propagated a child's error or panic.
+// Always false on success. Backends that count failures should count only
+// these spans, so one failure is not counted once per enclosing span.
+func (r *SpanResult) IsFailureSource() bool {
+	return r != nil && r.failureSource
 }
 
 // Span is the backend-independent handle a provider returns for the span it
@@ -222,6 +231,7 @@ var (
 func init() {
 	rebuildChainLocked()
 	tracingbridge.SetDevTelemetryServer = setDevTelemetryServer
+	tracingbridge.HasSpan = func(ctx context.Context) bool { return spanMetaKey.FromContext(ctx) != nil }
 }
 
 // SetInstrumentation sets the providers every Genkit span is reported to, in
@@ -362,22 +372,20 @@ func handleFor(spans []Span) spanHandle {
 	return compositeSpan(spans)
 }
 
-// compositeSpan resolves TraceInfo as the first non-empty ids across the chain
-// (Direct wins in dev) and fans SetMetadata out to every provider.
+// compositeSpan resolves TraceInfo from the first span in the chain that
+// reports a trace id (Direct wins in dev) and fans SetMetadata out to every
+// provider.
 type compositeSpan []Span
 
+// TraceInfo takes both ids from one provider: mixing one provider's trace id
+// with another's span id would name a span that exists in neither backend.
 func (cs compositeSpan) TraceInfo() TraceInfo {
-	var out TraceInfo
 	for _, s := range cs {
-		ti := s.TraceInfo()
-		if out.TraceID == "" && ti.TraceID != "" {
-			out.TraceID = ti.TraceID
-		}
-		if out.SpanID == "" && ti.SpanID != "" {
-			out.SpanID = ti.SpanID
+		if ti := s.TraceInfo(); ti.TraceID != "" {
+			return ti
 		}
 	}
-	return out
+	return TraceInfo{}
 }
 
 func (cs compositeSpan) SetMetadata(md map[string]string) {

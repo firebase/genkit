@@ -35,6 +35,7 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/status"
 	"github.com/firebase/genkit/go/core/tracing"
+	"github.com/firebase/genkit/go/internal/tracingtest"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace/noop"
 )
@@ -82,8 +83,7 @@ func devEnvWithoutInitServer(t *testing.T) {
 // race it. TestRunActionWithoutProviderIDs swaps it out temporarily; it is not
 // parallel.
 func TestMain(m *testing.M) {
-	tracing.SetInstrumentation(
-		tracing.NewDirectTelemetryInstrumentation(tracing.NewTestOnlyTelemetryClient()))
+	tracingtest.InstallDefault()
 	os.Exit(m.Run())
 }
 
@@ -726,8 +726,7 @@ func TestRunActionWithoutProviderIDs(t *testing.T) {
 	tracing.SetInstrumentation()
 	t.Cleanup(func() {
 		otel.SetTracerProvider(prevTP)
-		tracing.SetInstrumentation(
-			tracing.NewDirectTelemetryInstrumentation(tracing.NewTestOnlyTelemetryClient()))
+		tracingtest.InstallDefault()
 	})
 
 	g := Init(context.Background())

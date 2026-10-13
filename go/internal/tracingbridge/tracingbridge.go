@@ -15,14 +15,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package tracingbridge is an internal bridge that lets first-party Genkit
-// packages (genkit.Init and the reflection server) drive dev-only tracing
-// wiring in core/tracing without it being public API. core/tracing installs
-// the hooks from its init; because this package lives under go/internal, code
-// outside the Genkit module cannot import it.
+// packages (genkit.Init, the reflection server, core/logger) reach tracing
+// wiring in core/tracing without it being public API, or without an import
+// cycle in core/logger's case. core/tracing installs the hooks from its init;
+// because this package lives under go/internal, code outside the Genkit module
+// cannot import it.
 package tracingbridge
+
+import "context"
 
 // SetDevTelemetryServer points the Developer UI's trace export at the
 // telemetry server at url. An empty url is ignored, and repeated calls with
 // the same url are no-ops; a new url retargets export without disturbing spans
 // that are still open. Installed by core/tracing's init.
 var SetDevTelemetryServer func(url string)
+
+// HasSpan reports whether ctx carries a Genkit span. core/logger uses it to
+// decide whether a log call's own context or a logger's bound context names
+// the active span: with no OpenTelemetry SDK installed, Genkit spans are not
+// visible through the OTel context. Installed by core/tracing's init; nil when
+// core/tracing is not linked in.
+var HasSpan func(ctx context.Context) bool

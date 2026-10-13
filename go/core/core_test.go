@@ -20,36 +20,17 @@ import (
 	"os"
 	"testing"
 
-	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/firebase/genkit/go/internal/tracingtest"
 	"github.com/google/go-cmp/cmp"
 )
 
-// testTelemetryClient captures every span the package's tests produce. TestMain
-// wires it as the default Direct instrumentation so runs carry real trace ids
-// with no OpenTelemetry SDK; tests that inspect traces read from it.
-var testTelemetryClient = tracing.NewTestOnlyTelemetryClient()
-
-// TestMain routes the package's spans through a Direct instrumentation over
-// testTelemetryClient. Tests that inspect traces use captureTraces instead.
+// TestMain routes the package's spans through an in-memory Direct
+// instrumentation, so runs carry real trace ids with no OpenTelemetry SDK.
+// Tests that inspect traces use tracingtest.Capture.
 func TestMain(m *testing.M) {
-	tracing.SetInstrumentation(
-		tracing.NewDirectTelemetryInstrumentation(testTelemetryClient))
+	tracingtest.InstallDefault()
 	os.Exit(m.Run())
-}
-
-// captureTraces routes spans to a fresh client for the rest of the test, then
-// restores the package-wide default (see TestMain) rather than clearing it, so
-// later tests still carry trace ids.
-func captureTraces(t *testing.T) *tracing.TestOnlyTelemetryClient {
-	t.Helper()
-	client := tracing.NewTestOnlyTelemetryClient()
-	tracing.SetInstrumentation(tracing.NewDirectTelemetryInstrumentation(client))
-	t.Cleanup(func() {
-		tracing.SetInstrumentation(
-			tracing.NewDirectTelemetryInstrumentation(testTelemetryClient))
-	})
-	return client
 }
 
 func TestRegisterSchema(t *testing.T) {
