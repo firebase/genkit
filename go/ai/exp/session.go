@@ -46,14 +46,21 @@ func applyTransform[State any](ctx context.Context, t StateTransform[State], sta
 }
 
 // Terminal reports whether the status is settled: no further transition will
-// happen on its own. [SnapshotStatusPending] and [SnapshotStatusAborting] are
-// the non-terminal statuses, the two rows a live worker is still owed a write
-// for (an empty status counts as [SnapshotStatusCompleted], matching the
-// documented default), so waiters stop on completed, failed, aborted, and
-// expired alike. An expired snapshot's raw store row is still pending or
-// aborting, but its worker is presumed dead, so nothing will finalize it.
+// happen on its own. Waiters stop on completed, failed, aborted, and expired
+// alike, and on an empty status, which counts as [SnapshotStatusCompleted],
+// matching the documented default. [SnapshotStatusPending] and
+// [SnapshotStatusAborting] are the rows a live worker is still owed a write
+// for. An expired snapshot's raw store row is still pending or aborting, but
+// its worker is presumed dead, so nothing will finalize it.
+//
+// A status this runtime does not know, such as one a newer server sends, is
+// not terminal, so a waiter keeps asking rather than take it as final.
 func (s SnapshotStatus) Terminal() bool {
-	return s != SnapshotStatusPending && s != SnapshotStatusAborting
+	switch s {
+	case "", SnapshotStatusCompleted, SnapshotStatusFailed, SnapshotStatusAborted, SnapshotStatusExpired:
+		return true
+	}
+	return false
 }
 
 // CarriesResult reports whether a turn that ended for this reason produced an

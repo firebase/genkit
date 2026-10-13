@@ -73,12 +73,12 @@ const taskStatusUnknown = "unknown"
 
 // reportSettled reports whether a task report's status can no longer change on
 // its own, which is the rule the wait tool counts by. Report statuses are the
-// runtime's snapshot statuses plus taskStatusUnknown, and the runtime's own
-// rule ([aix.SnapshotStatus.Terminal]) decides for all of them: a pending row
-// and an aborting one (winding down toward its finalize) are the two still in
-// flight, and unknown, like every other status, is settled (see above).
+// runtime's snapshot statuses plus taskStatusUnknown, which is settled (see
+// above). The runtime's own rule ([aix.SnapshotStatus.Terminal]) decides for
+// the rest: a pending row, an aborting one (winding down toward its finalize),
+// and a status the runtime does not know are still in flight.
 func reportSettled(reportStatus string) bool {
-	return aix.SnapshotStatus(reportStatus).Terminal()
+	return reportStatus == taskStatusUnknown || aix.SnapshotStatus(reportStatus).Terminal()
 }
 
 // noTaskIDsNote is the guidance returned when a background-task tool is called

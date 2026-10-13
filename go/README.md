@@ -384,7 +384,7 @@ if err := server.Start(ctx, "127.0.0.1:8080", mux); err != nil {
 
 ### Call a Remote Agent
 
-`DefineRemoteAgent` registers an agent that another Genkit app serves, so it delegates, runs in the background, and reads snapshots like a local one:
+`DefineRemoteAgent` registers an agent that another Genkit app serves, in Go, JS, or Dart, so it delegates, runs in the background, and reads snapshots like a local one:
 
 ```go
 // *aix.AgentHandle

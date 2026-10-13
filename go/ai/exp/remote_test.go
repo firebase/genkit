@@ -122,9 +122,18 @@ func TestRemoteAgent_Errors(t *testing.T) {
 				http.Error(w, `snapshot "gone" not found`, http.StatusNotFound)
 			case "moved":
 				http.Redirect(w, r, "/agents/a/elsewhere", http.StatusTemporaryRedirect)
-			case "zombie":
-				writeResult(w, &SessionSnapshot[json.RawMessage]{SnapshotID: "zombie", Status: "zombie"})
 			}
+		},
+		// A JS server's abort: the status from before the abort, and none for
+		// a snapshot it does not have.
+		"/abort": func(w http.ResponseWriter, r *http.Request) {
+			var req AgentAbortRequest
+			decodeData(t, r, &req)
+			st := SnapshotStatusPending
+			if req.SnapshotID == "missing" {
+				st = ""
+			}
+			writeResult(w, &AgentAbortResponse{SnapshotID: req.SnapshotID, Status: st})
 		},
 		// The redirect target must never be reached: following it would
 		// replay the request, and its credentials, to whatever the server
@@ -140,8 +149,18 @@ func TestRemoteAgent_Errors(t *testing.T) {
 		}
 	})
 	t.Run("a route the server does not publish is UNIMPLEMENTED", func(t *testing.T) {
-		if _, err := h.Abort(ctx, "s"); statusOf(err) != status.Unimplemented {
+		if _, err := NewRemoteAgent("a", url+"/nowhere").Abort(ctx, "s"); statusOf(err) != status.Unimplemented {
 			t.Errorf("error = %v, want UNIMPLEMENTED", err)
+		}
+	})
+	t.Run("an abort answered with the previous status reports aborting", func(t *testing.T) {
+		if st, err := h.Abort(ctx, "s"); err != nil || st != SnapshotStatusAborting {
+			t.Errorf("Abort = %q, %v; want aborting", st, err)
+		}
+	})
+	t.Run("an abort answered with no status is NOT_FOUND", func(t *testing.T) {
+		if _, err := h.Abort(ctx, "missing"); statusOf(err) != status.NotFound {
+			t.Errorf("error = %v, want NOT_FOUND", err)
 		}
 	})
 	t.Run("an older Genkit server's 404 is NOT_FOUND, not a missing route", func(t *testing.T) {
@@ -160,12 +179,6 @@ func TestRemoteAgent_Errors(t *testing.T) {
 		}
 		if n := redirected.Load(); n != 0 {
 			t.Errorf("the redirect target was reached %d times", n)
-		}
-	})
-	t.Run("an unknown snapshot status is rejected", func(t *testing.T) {
-		// Read as settled, it would be cached as a final report.
-		if _, err := h.GetSnapshot(ctx, "zombie"); statusOf(err) != status.Internal {
-			t.Errorf("error = %v, want INTERNAL", err)
 		}
 	})
 }
@@ -207,6 +220,20 @@ func TestRemoteAgent_Run(t *testing.T) {
 				sse(w, output(&AgentOutput[json.RawMessage]{FinishReason: AgentFinishReasonDetached}))
 			case "cut":
 				sse(w, wire.MessageResponse{Message: chunk})
+			// The error frames JS servers end a failed stream with: Express
+			// wraps the error, Next.js does not.
+			case "express-error":
+				sse(w, wire.MessageResponse{Message: chunk})
+				fmt.Fprint(w, `error: {"error":{"status":"FAILED_PRECONDITION","message":"no"}}`+"\n\n")
+			case "next-error":
+				w.Header().Set("Content-Type", "text/event-stream")
+				fmt.Fprint(w, `error: {"status":"FAILED_PRECONDITION","message":"no"}`+"\n\nEND")
+			case "next-refused":
+				// Next.js refuses before the stream starts, in plain text,
+				// with an HTTP code that alone would read INVALID_ARGUMENT.
+				w.Header().Set("Content-Type", "text/plain;charset=UTF-8")
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprint(w, `error: {"status":"FAILED_PRECONDITION","message":"no"}`+"\n\nEND")
 			}
 		},
 	})
@@ -253,6 +280,17 @@ func TestRemoteAgent_Run(t *testing.T) {
 			t.Errorf("error = %v, want PERMISSION_DENIED", err)
 		}
 	})
+	t.Run("a JS error frame keeps its status", func(t *testing.T) {
+		for text, want := range map[string]status.Name{
+			"express-error": status.FailedPrecondition,
+			"next-error":    status.FailedPrecondition,
+			"next-refused":  status.FailedPrecondition,
+		} {
+			if _, err := run(ctx, text, nil); statusOf(err) != want || !strings.Contains(err.Error(), "no") {
+				t.Errorf("%s: error = %v, want %s with the server's message", text, err, want)
+			}
+		}
+	})
 	t.Run("a detached output without a snapshot is rejected", func(t *testing.T) {
 		if _, err := run(ctx, "detach-without-id", nil); statusOf(err) != status.Internal {
 			t.Errorf("error = %v, want INTERNAL", err)
@@ -286,6 +324,53 @@ func TestRemoteAgent_WaitForSnapshot(t *testing.T) {
 		snap, err := NewRemoteAgent("a", url).WaitForSnapshot(ctx, "s")
 		if err != nil || snap.Status != SnapshotStatusCompleted || waits.Load() != 3 {
 			t.Errorf("WaitForSnapshot = %+v, %v after %d waits; want completed after 3", snap, err, waits.Load())
+		}
+	})
+
+	t.Run("asks again while the status is one it does not know", func(t *testing.T) {
+		// A newer server may add a status; read as settled, it would be
+		// taken as the task's final report.
+		var waits atomic.Int32
+		url := remoteTestServer(t, map[string]http.HandlerFunc{
+			"/waitForSnapshot": func(w http.ResponseWriter, r *http.Request) {
+				st := SnapshotStatus("paused")
+				if waits.Add(1) == 2 {
+					st = SnapshotStatusCompleted
+				}
+				writeResult(w, &SessionSnapshot[json.RawMessage]{SnapshotID: "s", Status: st})
+			},
+		})
+		snap, err := NewRemoteAgent("a", url).WaitForSnapshot(ctx, "s")
+		if err != nil || snap.Status != SnapshotStatusCompleted {
+			t.Errorf("WaitForSnapshot = %+v, %v; want completed", snap, err)
+		}
+	})
+
+	t.Run("a plain-text 404 wait is confirmed by a read", func(t *testing.T) {
+		// Dart's router answers a route it does not serve like this.
+		notFound := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(w, "Not found")
+		}
+		url := remoteTestServer(t, map[string]http.HandlerFunc{
+			"/waitForSnapshot": notFound,
+			"/getSnapshot": func(w http.ResponseWriter, r *http.Request) {
+				var req GetSnapshotRequest
+				decodeData(t, r, &req)
+				if req.SnapshotID == "missing" {
+					writeWireError(w, status.NotFound, `snapshot "missing" not found`)
+					return
+				}
+				writeResult(w, &SessionSnapshot[json.RawMessage]{SnapshotID: req.SnapshotID, Status: SnapshotStatusCompleted})
+			},
+		})
+		h := NewRemoteAgent("a", url)
+		if snap, err := h.WaitForSnapshot(ctx, "s"); err != nil || snap.Status != SnapshotStatusCompleted {
+			t.Errorf("WaitForSnapshot = %+v, %v; want completed", snap, err)
+		}
+		if _, err := h.WaitForSnapshot(ctx, "missing"); statusOf(err) != status.NotFound {
+			t.Errorf("WaitForSnapshot(missing) error = %v, want NOT_FOUND", err)
 		}
 	})
 

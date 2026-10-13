@@ -96,16 +96,16 @@ func WithAgentMetadata(meta *AgentMetadata) RemoteAgentOption {
 // --- NewRemoteAgent ---
 
 // NewRemoteAgent returns a handle to an agent that a Genkit app serves over
-// HTTP with the genkit/exp package's AgentRoutes layout. url is the agent's
-// turn route (e.g. "https://billing.internal/agents/billing"); the snapshot
-// companions are at url+"/getSnapshot", url+"/waitForSnapshot", and
-// url+"/abort". It performs no I/O.
+// HTTP, in Go (the genkit/exp package's AgentRoutes layout), JS, or Dart. url
+// is the agent's turn route (e.g. "https://billing.internal/agents/billing");
+// the snapshot companions are at url+"/getSnapshot", url+"/waitForSnapshot",
+// and url+"/abort". It performs no I/O.
 //
 // The handle's operations work as they do for an agent in this process,
 // detached runs and their tasks included, as far as the server allows. Errors
 // from the server keep their status name; a route the server does not publish
-// is UNIMPLEMENTED, and a wait the server cannot answer falls back to polling
-// GetSnapshot.
+// is UNIMPLEMENTED, and a wait the server cannot answer, such as one to a
+// server without a wait route, falls back to polling GetSnapshot.
 //
 // To call the agent by name (from the agents middleware, the Dev UI, or
 // [LookupAgent]), register the handle with [AgentHandle.Register], or use the
@@ -212,7 +212,11 @@ func (t *httpTransport) Run(ctx context.Context, input *AgentInput, init *AgentI
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 0, 64<<10), maxResponseBytes)
 	for scanner.Scan() {
-		data, ok := bytes.CutPrefix(scanner.Bytes(), []byte(wire.SSEDataPrefix))
+		line := scanner.Bytes()
+		if frame, ok := bytes.CutPrefix(line, []byte(errorFramePrefix)); ok {
+			return nil, t.errorFrame(frame)
+		}
+		data, ok := bytes.CutPrefix(line, []byte(wire.SSEDataPrefix))
 		if !ok {
 			continue
 		}
@@ -251,6 +255,27 @@ func (t *httpTransport) Run(ctx context.Context, input *AgentInput, init *AgentI
 	return nil, status.Errorf(status.ErrUnavailable, "agent %q: the stream ended without a result", t.name)
 }
 
+// errorFramePrefix starts the frame that JS servers end a failed stream with,
+// in place of a data event carrying the error.
+const errorFramePrefix = "error: "
+
+// errorFrame decodes an error frame: {"error": {status, message}} as the
+// Express plugin sends it, or a bare {status, message} as the Next.js plugin
+// does.
+func (t *httpTransport) errorFrame(frame []byte) error {
+	var wrapped struct {
+		Error *status.Error `json:"error"`
+	}
+	var bare status.Error
+	switch {
+	case json.Unmarshal(frame, &wrapped) == nil && wrapped.Error != nil && wrapped.Error.Status != "":
+		return wrapped.Error
+	case json.Unmarshal(frame, &bare) == nil && bare.Status != "":
+		return &bare
+	}
+	return status.Errorf(status.ErrInternal, "agent %q: malformed error frame: %.200s", t.name, frame)
+}
+
 // checkOutput rejects an output the middleware and handles could not act on.
 func (t *httpTransport) checkOutput(out *AgentOutput[json.RawMessage]) error {
 	if out.FinishReason == AgentFinishReasonDetached && out.SnapshotID == "" {
@@ -270,11 +295,15 @@ func (t *httpTransport) GetSnapshot(ctx context.Context, req *GetSnapshotRequest
 // ends the request first, it answers with the snapshot as it stands, so a
 // client timeout under the server's wait limit costs a re-request, not the
 // wait.
+//
+// A NOT_FOUND wait is confirmed by the poll's first read: a router that
+// answers a missing route in plain text (Dart's does, with "Not found") reads
+// the same as a server that has no such snapshot.
 func (t *httpTransport) WaitForSnapshot(ctx context.Context, req *GetSnapshotRequest) (*SessionSnapshot[json.RawMessage], error) {
 	snap, err := t.snapshot(ctx, "/waitForSnapshot", req)
 	var netErr net.Error
 	switch {
-	case status.Of(err) == status.Unimplemented:
+	case status.Of(err) == status.Unimplemented, status.Of(err) == status.NotFound:
 		return t.pollSnapshot(ctx, req)
 	case ctx.Err() == nil && errors.As(err, &netErr) && netErr.Timeout():
 		return t.readSnapshotNow(ctx, req)
@@ -283,7 +312,9 @@ func (t *httpTransport) WaitForSnapshot(ctx context.Context, req *GetSnapshotReq
 }
 
 // readSnapshotNow reads the snapshot's metadata and, once it is settled, the
-// full snapshot, so a pending snapshot costs no state payload.
+// full snapshot, so a pending snapshot costs no state payload. A JS server
+// drops the metadataOnly field it does not know and sends the full snapshot
+// each time, which costs payload but changes no result.
 func (t *httpTransport) readSnapshotNow(ctx context.Context, req *GetSnapshotRequest) (*SessionSnapshot[json.RawMessage], error) {
 	read := *req
 	read.MetadataOnly = true
@@ -328,33 +359,19 @@ func (t *httpTransport) Abort(ctx context.Context, req *AgentAbortRequest) (*Age
 	if err != nil {
 		return nil, err
 	}
-	if !knownSnapshotStatus(resp.Status) {
-		return nil, status.Errorf(status.ErrInternal, "agent %q: abort answered with unknown status %q", t.name, resp.Status)
+	// A JS server answers with the status from before the abort, and with
+	// none when there is no such snapshot.
+	switch resp.Status {
+	case "":
+		return nil, status.Errorf(status.ErrNotFound, "agent %q: snapshot %q not found", t.name, req.SnapshotID)
+	case SnapshotStatusPending:
+		resp.Status = SnapshotStatusAborting
 	}
 	return resp, nil
 }
 
 func (t *httpTransport) snapshot(ctx context.Context, suffix string, req *GetSnapshotRequest) (*SessionSnapshot[json.RawMessage], error) {
-	snap, err := call[SessionSnapshot[json.RawMessage]](ctx, t, suffix, req)
-	if err != nil {
-		return nil, err
-	}
-	// An unknown status would read as settled and be cached as final.
-	if !knownSnapshotStatus(snap.Status) {
-		return nil, status.Errorf(status.ErrInternal, "agent %q: snapshot %q has unknown status %q", t.name, snap.SnapshotID, snap.Status)
-	}
-	return snap, nil
-}
-
-// knownSnapshotStatus reports whether s is a status this runtime knows. Empty
-// reads as completed, as it does from a store.
-func knownSnapshotStatus(s SnapshotStatus) bool {
-	switch s {
-	case "", SnapshotStatusPending, SnapshotStatusAborting, SnapshotStatusCompleted,
-		SnapshotStatusAborted, SnapshotStatusFailed, SnapshotStatusExpired:
-		return true
-	}
-	return false
+	return call[SessionSnapshot[json.RawMessage]](ctx, t, suffix, req)
 }
 
 // call posts data to the route suffix names and returns its result.
@@ -439,6 +456,12 @@ func (t *httpTransport) responseError(resp *http.Response, suffix string) error 
 		if json.Unmarshal(raw, &e) == nil && e.Status != "" {
 			return &e
 		}
+	}
+	// The Next.js plugin refuses a stream before it starts with an error
+	// frame, ended by a blank line.
+	if frame, ok := bytes.CutPrefix(raw, []byte(errorFramePrefix)); ok {
+		frame, _, _ = bytes.Cut(frame, []byte("\n"))
+		return t.errorFrame(frame)
 	}
 	route := "turn"
 	if suffix != "" {

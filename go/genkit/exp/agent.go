@@ -201,12 +201,12 @@ func DefineCustomAgent[State any](
 	return aix.DefineCustomAgent(genkitbridge.RegistryOf(g), name, fn, opts...)
 }
 
-// DefineRemoteAgent registers an agent that a Genkit app serves over HTTP and
-// returns its [aix.AgentHandle]. It is [aix.NewRemoteAgent] followed by
-// [aix.AgentHandle.Register]: url is the agent's turn route in the
-// [AgentRoutes] layout (e.g. "https://billing.internal/agents/billing"), and
-// opts configure the HTTP client and headers and declare what the agent
-// supports.
+// DefineRemoteAgent registers an agent that a Genkit app in Go, JS, or Dart
+// serves over HTTP and returns its [aix.AgentHandle]. It is
+// [aix.NewRemoteAgent] followed by [aix.AgentHandle.Register]: url is the
+// agent's turn route in the [AgentRoutes] layout (e.g.
+// "https://billing.internal/agents/billing"), and opts configure the HTTP
+// client and headers and declare what the agent supports.
 //
 // Once registered, the agent resolves by name like one defined in this
 // process: the agents middleware delegates to it with an [aix.AgentRef], and
