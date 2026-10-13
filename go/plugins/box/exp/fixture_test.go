@@ -37,20 +37,40 @@ import (
 const fixtureEnv = "BOX_TEST_FIXTURE"
 
 func TestMain(m *testing.M) {
-	if os.Getenv(fixtureEnv) != "" {
+	// A self-mode box re-runs the test binary with the test flags; IsRuntime
+	// tells it apart from the test run.
+	if os.Getenv(fixtureEnv) != "" || IsRuntime() {
 		runFixture()
 		return
 	}
 	os.Exit(m.Run())
 }
 
-// runFixture serves the fixture actions until the process is killed.
+// runFixture serves the fixture actions until the process is stopped, the
+// way a self-mode program would.
 func runFixture() {
 	ctx := context.Background()
 	g := genkit.Init(ctx)
 	defineFixtureActions(g)
-	<-ctx.Done() // never: the parent kills the process
-	select {}
+	defineNestedFixture(g)
+	if !ServeIfRuntime(ctx) {
+		select {} // a plain v1/v2 runtime: the test kills it
+	}
+}
+
+// defineNestedFixture is the middle level of the nesting test: the "nested"
+// flow runs in an agentBox runtime and calls the pid tool in a toolBox the
+// runtime starts itself, reporting both pids.
+func defineNestedFixture(g *genkit.Genkit) {
+	toolBox := New(g, ExecRunner(Self()), WithName("toolBox"))
+	pid := NewTool[string, string](toolBox, "pid", "")
+	genkit.DefineFlow(g, "nested", func(ctx context.Context, _ string) (string, error) {
+		inner, err := pid.RunRaw(ctx, "")
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("%d>%v", os.Getpid(), inner), nil
+	})
 }
 
 // defineFixtureActions registers what the subprocess tests call.

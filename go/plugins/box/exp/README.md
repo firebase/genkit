@@ -123,6 +123,51 @@ Each proxied call is a real action span on the caller's side, marked with
 `genkit:metadata:box` (the box id). `genkit:metadata:box:traceId` links it to
 the trace the box records for the same call.
 
+## Subprocess runner
+
+`box.ExecRunner` runs each box as a local child process that dials back into a
+per-runner reflection host.
+
+```go
+// Self mode: one program defines the tool and boxes it; the body runs in a child.
+b := box.New(g, box.ExecRunner(box.Self()))
+boxedRunShell := box.NewToolFrom(b, runShell)
+if box.ServeIfRuntime(ctx) { // in the child: serve, then stop here
+	return
+}
+
+// Separate entry: stronger code isolation, and it can be another language.
+box.New(g, box.ExecRunner(box.Cmd("go", "run", "./boxed")))
+```
+
+Call `box.ServeIfRuntime(ctx)` after defining every action. In self mode the
+runner re-runs your whole program, so without it a program that does its work
+and exits would exit in the box too. It also makes a box runtime stop the boxes
+it started itself, so nested self-mode boxes are never orphaned. A box also
+exits when its host dies.
+
+Environment and readiness:
+
+```go
+box.ExecRunner(box.Cmd("./boxed"),
+	box.WithInheritEnv(box.InheritBase("GEMINI_API_KEY")), // default: box.InheritAll()
+	box.WithEnv(map[string]string{"MODE": "boxed"}),      // set on top
+	box.WithReadyTimeout(2*time.Minute),                   // default 30s
+)
+```
+
+- By default the box inherits the caller's environment (API keys, `GENKIT_ENV`).
+  `InheritBase` narrows that to what a runtime needs (`PATH`, `HOME`, locale,
+  temp dirs, the Go toolchain's settings, `GENKIT_ENV`,
+  `GENKIT_TELEMETRY_SERVER`) plus the names you list.
+- Reflection settings are always the runner's own. Under `genkit start` the
+  caller carries the CLI's secret and URL, which the box's host would reject.
+- No `GENKIT_ENV=dev` is forced on boxes: the runner sets
+  `GENKIT_REFLECTION_ENABLED=true`, so boxes work even when the caller runs
+  outside dev or has turned its own reflection off.
+
+See [`samples/box-tools`](../../../samples/box-tools) for a runnable example.
+
 ## Runners
 
 A runner owns box lifecycle and the routing-key to instance mapping:

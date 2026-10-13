@@ -135,6 +135,9 @@ func newReflectionHost(secret string) (*reflectionHost, error) {
 // url is what runtimes dial.
 func (h *reflectionHost) url() string { return "ws://" + h.ln.Addr().String() }
 
+// port is the host's loopback port.
+func (h *reflectionHost) port() int { return h.ln.Addr().(*net.TCPAddr).Port }
+
 func (h *reflectionHost) accept(w http.ResponseWriter, r *http.Request) {
 	conn, err := websocket.Accept(w, r, nil)
 	if err != nil {
