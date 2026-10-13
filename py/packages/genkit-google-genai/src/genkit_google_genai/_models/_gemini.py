@@ -1401,13 +1401,13 @@ class GeminiModel:
     ) -> genai_types.Schema | None:
         """Convert a JSON Schema dict into a Gemini ``Schema``.
 
-        Resolves local ``$ref``, maps ``anyOf`` and ``oneOf`` to ``any_of``,
-        folds a ``null`` branch of either or of a ``type`` list into
-        ``nullable``, maps the ``enum`` type to STRING and a string ``const``
-        to a one-value ``enum``. An ``enum`` is kept only on a STRING node
-        whose members are all strings, dropping a ``null`` member; a node
-        with such an ``enum`` and no ``type`` is treated as a string. Any
-        other node with no ``type``, an array with no ``items`` object or
+        Resolves local ``$ref``, maps ``anyOf`` and ``oneOf`` on a node with
+        no ``type`` to ``any_of``, folds a ``null`` branch of either or of a
+        ``type`` list into ``nullable``, maps the ``enum`` type to STRING and a
+        string ``const`` to a one-value ``enum``. An ``enum`` is kept only on a
+        STRING node whose members are all strings, dropping a ``null`` member;
+        a node with such an ``enum`` and no ``type`` is treated as a string.
+        Any other node with no ``type``, an array with no ``items`` object or
         whose ``items`` convert to None, and a ``$ref`` back to a definition
         that contains it convert to None and are left out of the parent's
         ``properties`` and ``required``.
@@ -1460,14 +1460,13 @@ class GeminiModel:
 
                 return schema
 
-        for keyword in ('anyOf', 'oneOf'):
-            branches = input_schema.get(keyword)
-            if isinstance(branches, list):
-                return self._convert_union(
-                    input_schema, keyword, cast(list[object], branches), defs, strict=strict, refs=refs
-                )
-
         if 'type' not in input_schema:
+            for keyword in ('anyOf', 'oneOf'):
+                branches = input_schema.get(keyword)
+                if isinstance(branches, list):
+                    return self._convert_union(
+                        input_schema, keyword, cast(list[object], branches), defs, strict=strict, refs=refs
+                    )
             enum = input_schema.get('enum')
             if isinstance(enum, list) and self._string_enum_members(cast(list[object], enum)) is not None:
                 nullable = any(m is None for m in cast(list[object], enum))

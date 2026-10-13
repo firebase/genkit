@@ -1601,6 +1601,59 @@ def test_gemini_model__create_tool_wraps_only_a_converted_input(
 
 
 @pytest.mark.parametrize(
+    'input_schema, expected',
+    [
+        (
+            {
+                'type': 'object',
+                'properties': {'id': {'type': 'string'}, 'name': {'type': 'string'}},
+                'anyOf': [{'required': ['id']}, {'required': ['name']}],
+            },
+            genai_types.Schema(
+                type=genai_types.Type.OBJECT,
+                properties={
+                    'id': genai_types.Schema(type=genai_types.Type.STRING),
+                    'name': genai_types.Schema(type=genai_types.Type.STRING),
+                },
+            ),
+        ),
+        (
+            {
+                'type': 'object',
+                'properties': {
+                    'mode': {
+                        'type': 'string',
+                        'oneOf': [{'const': 'fast', 'title': 'Fast'}, {'const': 'slow', 'title': 'Slow'}],
+                    },
+                },
+                'required': ['mode'],
+            },
+            genai_types.Schema(
+                type=genai_types.Type.OBJECT,
+                required=['mode'],
+                properties={'mode': genai_types.Schema(type=genai_types.Type.STRING)},
+            ),
+        ),
+    ],
+    ids=['anyOf-required', 'titled-oneOf'],
+)
+def test_gemini_model__create_tool_keeps_type_next_to_union(
+    input_schema: dict[str, object],
+    expected: genai_types.Schema,
+    gemini_model_instance: GeminiModel,
+) -> None:
+    """A node with its own type converts by that type and leaves out a sibling anyOf or oneOf, strict or not."""
+    tool = ToolDefinition(name='t', description='d', input_schema=input_schema)
+
+    gemini_tool, _ = gemini_model_instance._create_tool(tool)
+    declarations = gemini_tool.function_declarations
+
+    assert declarations is not None
+    assert declarations[0].parameters == expected
+    assert gemini_model_instance._convert_schema_property(input_schema, strict=True) == expected
+
+
+@pytest.mark.parametrize(
     'input_schema',
     [
         {'allOf': [{'type': 'string'}]},

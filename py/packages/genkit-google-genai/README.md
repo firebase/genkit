@@ -93,12 +93,12 @@ country = await ai.generate(prompt='Give quick facts about Japan.', output_schem
 To send the schema as the older OpenAPI-style `responseSchema` field instead,
 construct the plugin with `GoogleAI(legacy_response_schema=True)` or
 `VertexAI(legacy_response_schema=True)`. The schema is converted to that shape.
-Keywords the conversion does not map, such as `pattern`, `minLength` and
-`additionalProperties`, are left out, as are a `$ref` back to a model that
-contains it and an array with no convertible `items`. A constraint with no
-`type`, a `type` list, `anyOf` or `oneOf` that would lose some but not all of
-its non-null branches, or a required property or whole schema that cannot be
-converted, is rejected.
+Keywords the conversion does not map, such as `pattern`, `minLength`,
+`additionalProperties` and an `anyOf` or `oneOf` next to a `type`, are left
+out, as are a `$ref` back to a model that contains it and an array with no
+convertible `items`. A constraint with no `type`, a `type` list, `anyOf` or
+`oneOf` that would lose some but not all of its non-null branches, or a
+required property or whole schema that cannot be converted, is rejected.
 
 ### Video generation (Veo)
 
