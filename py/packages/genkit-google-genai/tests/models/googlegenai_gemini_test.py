@@ -1253,7 +1253,7 @@ def test_gemini_model__convert_schema_property_null_type_list_branch_is_nullable
     strict: bool,
     gemini_model_instance: GeminiModel,
 ) -> None:
-    """A branch typed ``['null']`` makes the union nullable rather than adding a nullable STRING branch."""
+    """A branch typed ``['null']`` counts as a null branch and makes the union nullable."""
     schema: dict[str, object] = {'anyOf': [{'type': 'integer'}, {'type': ['null']}]}
 
     assert gemini_model_instance._convert_schema_property(schema, strict=strict) == genai_types.Schema(
@@ -1405,7 +1405,7 @@ def test_gemini_model__convert_schema_property_rejects_unsupported_type(
     raw_type: object,
     gemini_model_instance: GeminiModel,
 ) -> None:
-    """A type the Gemini Schema cannot express raises INVALID_ARGUMENT instead of going out as written."""
+    """A type the Gemini Schema cannot express raises INVALID_ARGUMENT."""
     with pytest.raises(GenkitError) as exc_info:
         gemini_model_instance._convert_schema_property({'type': raw_type})
 
@@ -2005,7 +2005,7 @@ async def test_gemini_model__legacy_response_schema_sends_converted_schema() -> 
 async def test_gemini_model__legacy_unconvertible_output_schema_raises(
     json_schema: dict[str, Any], needle: str
 ) -> None:
-    """A schema that response_schema cannot hold fails loudly instead of going out unconstrained."""
+    """A schema that response_schema cannot hold raises INVALID_ARGUMENT."""
     model = GeminiModel('version', MagicMock(spec=genai.Client), legacy_response_schema=True)
     request = _output_request(format='json', json_schema=json_schema, constrained=True)
 

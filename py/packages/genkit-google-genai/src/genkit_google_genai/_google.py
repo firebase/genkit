@@ -638,8 +638,9 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
             api_version: The API version to use (e.g., 'v1beta'). Defaults to None.
             base_url: The base URL for the API. Defaults to None.
             legacy_response_schema: Send JSON output schemas as Gemini's
-                ``responseSchema`` field instead of ``responseJsonSchema``.
-                Defaults to False.
+                ``responseSchema`` field instead of ``responseJsonSchema``,
+                converted to its format; a schema that cannot be converted
+                raises ``INVALID_ARGUMENT``. Defaults to False.
 
         Raises:
             ValueError: If `api_key` is not provided and the 'GEMINI_API_KEY'
@@ -1039,8 +1040,9 @@ class VertexAI(GoogleFamilyRefs, Plugin):
             api_version: The API version to use. Defaults to None.
             base_url: The base URL for the API. Defaults to None.
             legacy_response_schema: Send JSON output schemas as Gemini's
-                ``responseSchema`` field instead of ``responseJsonSchema``.
-                Defaults to False.
+                ``responseSchema`` field instead of ``responseJsonSchema``,
+                converted to its format; a schema that cannot be converted
+                raises ``INVALID_ARGUMENT``. Defaults to False.
         """
         # Store project and location on the plugin for evaluator registration
         # and multi-region routing. This avoids reaching into client internals.
