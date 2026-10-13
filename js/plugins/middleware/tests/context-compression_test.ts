@@ -644,10 +644,7 @@ describe('contextCompression middleware', () => {
       msgs.map((m) => m.role),
       ['system', 'user']
     );
-    assert.strictEqual(
-      msgs[0].metadata?.contextCompression?.standaloneNotice,
-      true
-    );
+    assert.strictEqual(compressionMetadata(msgs[0])?.standaloneNotice, true);
     assert.strictEqual(msgs[1].content[0].text, 'u3');
   });
 
@@ -4446,6 +4443,7 @@ describe('contextCompression middleware', () => {
       assert.deepStrictEqual(labels.slice(2), expectedTail);
     }
   });
+
   it('estimates tool responses by name and raw output length, without JSON escaping', async () => {
     const ai = genkit({});
     const pm = ai.defineModel({ name: 'rawEstimateModel' }, async () => ({
@@ -4453,7 +4451,7 @@ describe('contextCompression middleware', () => {
     }));
 
     const output = 'a "line"\n'.repeat(100);
-    const response = (await ai.generate({
+    const response = await ai.generate({
       model: pm,
       messages: [
         {
@@ -4468,14 +4466,15 @@ describe('contextCompression middleware', () => {
           toolResponses: { maxChars: 50, preserveRecent: 0 },
         }),
       ],
-    })) as any;
+    });
 
     // 'logs' + output + 'go', at 3.5 chars per token.
     assert.strictEqual(
-      response.custom?.contextCompression?.inputTokensBefore,
+      compressionStats(response)?.inputTokensBefore,
       Math.ceil(('logs'.length + output.length + 'go'.length) / 3.5)
     );
   });
+
   it('falls back to message truncation when dedupe or tool truncation alone cannot reach the token budget', async () => {
     const ai = genkit({});
     let capturedRequest: GenerateRequest | undefined;
@@ -4523,6 +4522,7 @@ describe('contextCompression middleware', () => {
       plain
     );
   });
+
   it('reports the newest compression of a tool loop on the top-level response', async () => {
     const ai = genkit({});
     const big = 'B'.repeat(2000);
@@ -4549,7 +4549,7 @@ describe('contextCompression middleware', () => {
       return { message: { role: 'model', content: [{ text: 'done' }] } };
     });
 
-    const response = (await ai.generate({
+    const response = await ai.generate({
       model: pm,
       tools: [bigTool],
       messages: [
@@ -4569,15 +4569,16 @@ describe('contextCompression middleware', () => {
           toolResponses: { maxChars: 50, preserveRecent: 0 },
         }),
       ],
-    })) as any;
+    });
 
     assert.strictEqual(response.text, 'done');
     // Iteration 0 compressed 3 messages and truncated r1; iteration 1
     // compressed 5 and truncated r2 as well.
-    const stats = response.custom?.contextCompression;
+    const stats = compressionStats(response);
     assert.strictEqual(stats?.messagesOriginal, 5);
     assert.strictEqual(stats?.toolResponsesTruncated, 2);
   });
+
   it('keeps raw tool output in the history when an over-budget turn compresses nothing', async () => {
     const ai = genkit({});
     let capturedRequest: GenerateRequest | undefined;
@@ -4640,7 +4641,7 @@ describe('contextCompression middleware', () => {
       rawOutput.length
     );
     assert.strictEqual(
-      history[2].content[0].metadata?.contextCompression?.rawOutput,
+      compressionMetadata(history[2].content[0])?.rawOutput,
       true
     );
     assert.strictEqual(history[4].metadata?.contextCompression, undefined);
@@ -4670,18 +4671,22 @@ function messageLabels(messages: MessageData[]): string[] {
 function anchoredToolLoopHistory(
   lastModelMetadata?: MessageData['metadata']
 ): MessageData[] {
-  const call = (name: string, metadata?: MessageData['metadata']) =>
-    ({
-      role: 'model',
-      ...(metadata ? { metadata } : {}),
-      content: [{ toolRequest: { name, ref: name, input: {} } }],
-    }) as MessageData;
-  const resp = (name: string, metadata?: MessageData['metadata']) =>
-    ({
-      role: 'tool',
-      ...(metadata ? { metadata } : {}),
-      content: [{ toolResponse: { name, ref: name, output: `out ${name}` } }],
-    }) as MessageData;
+  const call = (
+    name: string,
+    metadata?: MessageData['metadata']
+  ): MessageData => ({
+    role: 'model',
+    ...(metadata ? { metadata } : {}),
+    content: [{ toolRequest: { name, ref: name, input: {} } }],
+  });
+  const resp = (
+    name: string,
+    metadata?: MessageData['metadata']
+  ): MessageData => ({
+    role: 'tool',
+    ...(metadata ? { metadata } : {}),
+    content: [{ toolResponse: { name, ref: name, output: `out ${name}` } }],
+  });
   return [
     { role: 'system', content: [{ text: 'sys' }] },
     { role: 'user', content: [{ text: 'u' }] },
@@ -4696,4 +4701,18 @@ function anchoredToolLoopHistory(
     call('d', lastModelMetadata),
     resp('d'),
   ];
+}
+
+function compressionStats(response: { custom: unknown }) {
+  return (
+    response.custom as
+      | { contextCompression?: Record<string, unknown> }
+      | undefined
+  )?.contextCompression;
+}
+
+function compressionMetadata(target: { metadata?: Record<string, unknown> }) {
+  return target.metadata?.contextCompression as
+    | Record<string, unknown>
+    | undefined;
 }
