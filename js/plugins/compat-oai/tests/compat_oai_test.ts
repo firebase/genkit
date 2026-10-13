@@ -241,6 +241,37 @@ describe('toOpenAiMessages', () => {
       ],
     },
     {
+      should: 'keep text alongside tool request content',
+      inputMessages: [
+        {
+          role: 'model',
+          content: [
+            { text: 'Let me look that up.' },
+            {
+              toolRequest: {
+                ref: 'call_1',
+                name: 'lookup',
+                input: {},
+              },
+            },
+          ],
+        },
+      ],
+      expectedOutput: [
+        {
+          role: 'assistant',
+          content: 'Let me look that up.',
+          tool_calls: [
+            {
+              id: 'call_1',
+              type: 'function',
+              function: { name: 'lookup', arguments: '{}' },
+            },
+          ],
+        },
+      ],
+    },
+    {
       should: 'transform tool response text content correctly',
       inputMessages: [
         {
@@ -489,6 +520,7 @@ describe('fromOpenAiChoice', () => {
         message: {
           role: 'model',
           content: [
+            { text: 'Tool call' },
             {
               toolRequest: {
                 name: 'exampleTool',
@@ -540,6 +572,69 @@ describe('fromOpenAiChoice', () => {
         message: {
           role: 'model',
           content: [{ reasoning: 'Let me think...' }, { text: 'Final answer' }],
+        },
+      },
+    },
+    {
+      should: 'keep reasoning_content and content alongside tool_calls',
+      choice: {
+        index: 0,
+        message: {
+          role: 'assistant',
+          content: 'Let me look that up.',
+          reasoning_content: 'Need to call lookup.',
+          refusal: null,
+          tool_calls: [
+            {
+              id: 'ref123',
+              type: 'function',
+              function: { name: 'lookup', arguments: '{}' },
+            },
+          ],
+        } as any,
+        finish_reason: 'tool_calls',
+        logprobs: null,
+      },
+      expectedOutput: {
+        finishReason: 'stop',
+        message: {
+          role: 'model',
+          content: [
+            { reasoning: 'Need to call lookup.' },
+            { text: 'Let me look that up.' },
+            { toolRequest: { name: 'lookup', input: {}, ref: 'ref123' } },
+          ],
+        },
+      },
+    },
+    {
+      should: 'not parse preamble text as json when tool_calls are present',
+      jsonMode: true,
+      choice: {
+        index: 0,
+        message: {
+          role: 'assistant',
+          content: 'Let me look that up.',
+          refusal: null,
+          tool_calls: [
+            {
+              id: 'ref123',
+              type: 'function',
+              function: { name: 'lookup', arguments: '{}' },
+            },
+          ],
+        },
+        finish_reason: 'tool_calls',
+        logprobs: null,
+      },
+      expectedOutput: {
+        finishReason: 'stop',
+        message: {
+          role: 'model',
+          content: [
+            { text: 'Let me look that up.' },
+            { toolRequest: { name: 'lookup', input: {}, ref: 'ref123' } },
+          ],
         },
       },
     },
@@ -643,6 +738,7 @@ describe('fromOpenAiChunkChoice', () => {
         message: {
           role: 'model',
           content: [
+            { text: 'Tool call' },
             {
               toolRequest: {
                 name: 'exampleTool',
