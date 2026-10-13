@@ -1322,6 +1322,12 @@ func TestLoadPromptDirFromFS_NestedPrompts(t *testing.T) {
 			}
 		})
 	}
+
+	// The stored metadata must split the variant the same way as the name.
+	meta := LookupPrompt(reg, "ns/v1.0/greet.fun").(*prompt).Desc().Metadata["prompt"].(map[string]any)
+	if meta["name"] != "ns/v1.0/greet" || meta["variant"] != "fun" {
+		t.Errorf("metadata name, variant = %q, %q, want %q, %q", meta["name"], meta["variant"], "ns/v1.0/greet", "fun")
+	}
 }
 
 func TestLoadPromptDirFromFS_NestedPartials(t *testing.T) {
