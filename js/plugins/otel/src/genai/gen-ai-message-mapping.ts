@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,13 +76,31 @@ export function mapPart(part: Part): Record<string, unknown> {
     const { url, contentType } = part.media;
     return {
       type: 'media',
-      content: url,
+      content: truncateDataUri(url),
       ...(contentType != null ? { content_type: contentType } : {}),
     };
   }
   // Unknown/opaque part: represent it structurally without losing the fact
   // that it existed.
   return { type: 'text', content: JSON.stringify(part) };
+}
+
+/** Inline `data:` payloads longer than this are replaced with a placeholder. */
+const MAX_INLINE_DATA_LENGTH = 128;
+
+/**
+ * Replaces the payload of a large inline `data:` URI with
+ * `<header>,<omitted N bytes>`, so base64 images/audio don't blow past span
+ * attribute and log record size limits. Remote URLs pass through unchanged.
+ * Matches the Python implementation.
+ */
+export function truncateDataUri(url: string): string {
+  if (!url.startsWith('data:')) return url;
+  const comma = url.indexOf(',');
+  if (comma === -1) return url;
+  const data = url.slice(comma + 1);
+  if (data.length <= MAX_INLINE_DATA_LENGTH) return url;
+  return `${url.slice(0, comma)},<omitted ${data.length} bytes>`;
 }
 
 /** Whether `part` is a tool-request part. */

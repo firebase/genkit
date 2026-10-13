@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +60,8 @@ export const GenAiAttr = {
   toolType: 'gen_ai.tool.type',
 
   // Content attributes (opt-in; may contain PII).
+  toolCallArguments: 'gen_ai.tool.call.arguments',
+  toolCallResult: 'gen_ai.tool.call.result',
   inputMessages: 'gen_ai.input.messages',
   outputMessages: 'gen_ai.output.messages',
   systemInstructions: 'gen_ai.system_instructions',

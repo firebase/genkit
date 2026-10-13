@@ -65,14 +65,14 @@ without an error.
 
 `new GenAiInstrumentation(options)` accepts:
 
-| Option                 | Default          | Description                                                         |
-| ---------------------- | ---------------- | ------------------------------------------------------------------- |
-| `contentCapturingMode` | env-gated        | Where spec-shaped message content is recorded (see below).          |
-| `captureActionIO`      | `false`          | Record raw Genkit input/output as `genkit.input` / `genkit.output`. |
-| `emitToolSpans`        | `false`          | Emit `execute_tool` spans for tool actions.                         |
-| `emitMetrics`          | `true`           | Emit the GenAI client metrics.                                      |
-| `scopeName`            | `'genkit-genai'` | Instrumentation scope for the tracer/meter/logger.                  |
-| `tracer`/`meter`       | resolved         | Escape hatches to inject explicit instruments.                      |
+| Option                    | Default          | Description                                                         |
+| ------------------------- | ---------------- | ------------------------------------------------------------------- |
+| `contentCapturingMode`    | env-gated        | Where spec-shaped message content is recorded (see below).          |
+| `captureActionIO`         | `false`          | Record raw Genkit input/output as `genkit.input` / `genkit.output`. |
+| `emitToolSpans`           | `false`          | Emit `execute_tool` spans for tool actions.                         |
+| `emitMetrics`             | `true`           | Emit the GenAI client metrics.                                      |
+| `scopeName`               | `'genkit-genai'` | Instrumentation scope for the tracer/meter/logger.                  |
+| `tracer`/`meter`/`logger` | resolved         | Escape hatches to inject explicit instruments.                      |
 
 ### Content capture
 
@@ -90,6 +90,12 @@ When `contentCapturingMode` is omitted, the env var
 `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` is consulted (same enum
 names); an explicit option overrides the env var. Content and raw IO may
 contain PII, so both are opt-in.
+
+Content covers model messages (`gen_ai.input.messages`,
+`gen_ai.output.messages`, `gen_ai.system_instructions`) and, with
+`emitToolSpans`, tool call arguments and results (`gen_ai.tool.call.arguments`,
+`gen_ai.tool.call.result`). Inline `data:` media longer than 128 characters is
+replaced with `<header>,<omitted N bytes>` to stay within attribute size limits.
 
 > [!NOTE]
 > `EVENT_ONLY` emits content on the OpenTelemetry **logs** signal (a

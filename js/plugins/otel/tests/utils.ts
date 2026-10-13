@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,28 @@
  */
 
 import type { Tracer } from '@opentelemetry/api';
+import type { LogRecord, Logger } from '@opentelemetry/api-logs';
 import {
   BasicTracerProvider,
   SimpleSpanProcessor,
   type SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
+
+/**
+ * A minimal in-memory Logger. Avoids pulling in `@opentelemetry/sdk-logs` just
+ * to assert on emitted operation.details events.
+ */
+export class RecordingLogger implements Logger {
+  readonly records: LogRecord[] = [];
+
+  emit(record: LogRecord): void {
+    this.records.push(record);
+  }
+
+  enabled(): boolean {
+    return true;
+  }
+}
 
 /** Builds a real Tracer that exports finished spans to `exporter`. */
 export function getTracer(exporter: SpanExporter): Tracer {

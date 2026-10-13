@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import {
   mapPart,
   mapRole,
   normalizeMessages,
+  truncateDataUri,
 } from '../src/genai/gen-ai-message-mapping.js';
 
 describe('mapRole', () => {
@@ -88,10 +89,48 @@ describe('mapPart', () => {
     );
   });
 
+  it('truncates large inline media payloads', () => {
+    const data = 'A'.repeat(50_000);
+    assert.deepStrictEqual(
+      mapPart({
+        media: {
+          url: `data:image/png;base64,${data}`,
+          contentType: 'image/png',
+        },
+      }),
+      {
+        type: 'media',
+        content: 'data:image/png;base64,<omitted 50000 bytes>',
+        content_type: 'image/png',
+      }
+    );
+  });
+
   it('falls back to text for opaque parts', () => {
     const result = mapPart({ custom: { foo: 'bar' } });
     assert.strictEqual(result.type, 'text');
     assert.match(result.content as string, /foo/);
+  });
+});
+
+describe('truncateDataUri', () => {
+  it('keeps small data URIs intact', () => {
+    const url = `data:text/plain,${'x'.repeat(128)}`;
+    assert.strictEqual(truncateDataUri(url), url);
+  });
+
+  it('truncates data URIs over the limit', () => {
+    assert.strictEqual(
+      truncateDataUri(`data:text/plain,${'x'.repeat(129)}`),
+      'data:text/plain,<omitted 129 bytes>'
+    );
+  });
+
+  it('passes remote and malformed URLs through', () => {
+    const remote = `https://example.com/${'x'.repeat(500)}.png`;
+    assert.strictEqual(truncateDataUri(remote), remote);
+    const noComma = `data:${'x'.repeat(500)}`;
+    assert.strictEqual(truncateDataUri(noComma), noComma);
   });
 });
 

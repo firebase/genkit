@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,9 +23,10 @@ import {
   type Attributes,
   type Meter,
   type Span,
+  type SpanOptions,
   type Tracer,
 } from '@opentelemetry/api';
-import { logs } from '@opentelemetry/api-logs';
+import { logs, type Logger } from '@opentelemetry/api-logs';
 import { logger } from 'genkit/logging';
 import type {
   GenerateRequest,
@@ -77,7 +78,7 @@ export interface GenAiInstrumentationOptions {
    * Whether to capture raw Genkit action input/output as `genkit.input` /
    * `genkit.output` JSON attributes on every span (model, tool, flow, etc.).
    *
-   * Independent of {@link captureContent}: it records the raw Genkit payloads
+   * Independent of {@link contentCapturingMode}: it records the raw Genkit payloads
    * rather than the spec-shaped `gen_ai.*` content. May contain PII, off by
    * default.
    */
@@ -100,6 +101,12 @@ export interface GenAiInstrumentationOptions {
 
   /** Optional explicit meter (escape hatch). */
   meter?: Meter;
+
+  /**
+   * Optional explicit logger for the `gen_ai.client.inference.operation.details`
+   * event emitted in `EVENT_ONLY` / `SPAN_AND_EVENT` modes (escape hatch).
+   */
+  logger?: Logger;
 }
 
 function contentCapturingModeFromEnv(): ContentCapturingMode {
@@ -153,9 +160,11 @@ export class GenAiInstrumentation implements Instrumentation {
   private readonly scopeName: string;
   private readonly injectedTracer?: Tracer;
   private readonly injectedMeter?: Meter;
+  private readonly injectedLogger?: Logger;
 
   private cachedTracer?: Tracer;
   private cachedMetrics?: GenAiMetrics;
+  private cachedLogger?: Logger;
   private warnedNotRecording = false;
 
   constructor(options: GenAiInstrumentationOptions = {}) {
@@ -173,6 +182,7 @@ export class GenAiInstrumentation implements Instrumentation {
     this.scopeName = options.scopeName ?? 'genkit-genai';
     this.injectedTracer = options.tracer;
     this.injectedMeter = options.meter;
+    this.injectedLogger = options.logger;
   }
 
   private get tracer(): Tracer {
@@ -184,6 +194,11 @@ export class GenAiInstrumentation implements Instrumentation {
     return (this.cachedMetrics ??= new GenAiMetrics(
       this.injectedMeter ?? metrics.getMeter(this.scopeName)
     ));
+  }
+
+  private get otelLogger(): Logger {
+    return (this.cachedLogger ??=
+      this.injectedLogger ?? logs.getLogger(this.scopeName));
   }
 
   async runInNewSpan<T>(
@@ -228,7 +243,7 @@ export class GenAiInstrumentation implements Instrumentation {
 
     return this.tracer.startActiveSpan(
       `${GenAiOperation.chat} ${model}`,
-      { kind: SpanKind.CLIENT, attributes: attrs },
+      spanOptions(info, SpanKind.CLIENT, attrs),
       async (span) => {
         this.maybeWarnNotRecording(span);
         try {
@@ -272,11 +287,14 @@ export class GenAiInstrumentation implements Instrumentation {
     };
     return this.tracer.startActiveSpan(
       `${GenAiOperation.executeTool} ${info.metadata.name}`,
-      { kind: SpanKind.INTERNAL, attributes: attrs },
+      spanOptions(info, SpanKind.INTERNAL, attrs),
       async (span) => {
         this.maybeWarnNotRecording(span);
         try {
           const output = await next(span, spanContextOf(span));
+          if (this.contentCapturingMode !== 'NO_CONTENT') {
+            this.recordToolContent(span, info.metadata.input, output);
+          }
           this.maybeCaptureActionIO(span, info.metadata.input, output);
           return output;
         } catch (e) {
@@ -299,7 +317,7 @@ export class GenAiInstrumentation implements Instrumentation {
       : {};
     return this.tracer.startActiveSpan(
       info.metadata.name,
-      { kind: SpanKind.INTERNAL, attributes: attrs },
+      spanOptions(info, SpanKind.INTERNAL, attrs),
       async (span) => {
         this.maybeWarnNotRecording(span);
         try {
@@ -454,47 +472,49 @@ export class GenAiInstrumentation implements Instrumentation {
       outputMessages.push(mapOutputMessage(message, reason));
     }
 
-    // SPAN_ONLY / SPAN_AND_EVENT: attach content to the span as JSON strings.
-    if (this.captureOnSpan) {
-      if (inputMessages) {
-        this.setJsonAttribute(
-          span,
-          GenAiAttr.inputMessages,
-          inputMessages.messages
+    // Encoded once and shared by the span and event sinks.
+    const content: Attributes = {};
+    if (inputMessages) {
+      content[GenAiAttr.inputMessages] = safeStringify(inputMessages.messages);
+      if (inputMessages.systemInstructions.length) {
+        content[GenAiAttr.systemInstructions] = safeStringify(
+          inputMessages.systemInstructions
         );
-        if (inputMessages.systemInstructions.length) {
-          this.setJsonAttribute(
-            span,
-            GenAiAttr.systemInstructions,
-            inputMessages.systemInstructions
-          );
-        }
-      }
-      if (outputMessages.length) {
-        this.setJsonAttribute(span, GenAiAttr.outputMessages, outputMessages);
       }
     }
+    if (outputMessages.length) {
+      content[GenAiAttr.outputMessages] = safeStringify(outputMessages);
+    }
+    this.writeContent(span, content);
+  }
 
-    // EVENT_ONLY / SPAN_AND_EVENT: emit a single operation.details event
-    // correlated to the span via the active context.
+  /**
+   * Records tool call arguments/result (`gen_ai.tool.call.*`) on an
+   * `execute_tool` span and/or the operation.details event.
+   */
+  private recordToolContent(span: Span, input: unknown, output: unknown): void {
+    const content: Attributes = {};
+    if (input !== undefined) {
+      content[GenAiAttr.toolCallArguments] = safeStringify(input);
+    }
+    if (output !== undefined) {
+      content[GenAiAttr.toolCallResult] = safeStringify(output);
+    }
+    this.writeContent(span, content);
+  }
+
+  /**
+   * Routes pre-encoded content attributes per the capturing mode: onto the span
+   * (SPAN_ONLY / SPAN_AND_EVENT) and/or into a single operation.details event
+   * correlated to the span via the active context (EVENT_ONLY /
+   * SPAN_AND_EVENT).
+   */
+  private writeContent(span: Span, content: Attributes): void {
+    if (this.captureOnSpan) span.setAttributes(content);
     if (this.captureOnEvent) {
-      const eventAttrs: Attributes = {};
-      if (inputMessages) {
-        eventAttrs[GenAiAttr.inputMessages] = JSON.stringify(
-          inputMessages.messages
-        );
-        if (inputMessages.systemInstructions.length) {
-          eventAttrs[GenAiAttr.systemInstructions] = JSON.stringify(
-            inputMessages.systemInstructions
-          );
-        }
-      }
-      if (outputMessages.length) {
-        eventAttrs[GenAiAttr.outputMessages] = JSON.stringify(outputMessages);
-      }
-      logs.getLogger(this.scopeName).emit({
+      this.otelLogger.emit({
         eventName: genAiOperationDetailsEvent,
-        attributes: eventAttrs,
+        attributes: content,
       });
     }
   }
@@ -527,14 +547,39 @@ export class GenAiInstrumentation implements Instrumentation {
 
   private setJsonAttribute(span: Span, key: string, value: unknown): void {
     if (value == null) return;
-    let encoded: string;
-    try {
-      encoded = JSON.stringify(value);
-    } catch (e) {
-      encoded = `Unable to encode: ${e}`;
-    }
-    span.setAttribute(key, encoded);
+    span.setAttribute(key, safeStringify(value));
   }
+}
+
+/**
+ * JSON-encodes `value` without throwing: telemetry must never fail the user's
+ * action, so BigInts, circular references, etc. become a placeholder string.
+ */
+function safeStringify(value: unknown): string {
+  try {
+    // JSON.stringify returns undefined for undefined/functions/symbols.
+    return JSON.stringify(value) ?? String(value);
+  } catch (e) {
+    return `Unable to encode: ${e}`;
+  }
+}
+
+/**
+ * Builds the span options shared by all span kinds. Forwards span links and
+ * copies Genkit labels (including user `telemetryLabels`) as attributes,
+ * matching core's OTelInstrumentation and the Go plugin. GenAI attributes are
+ * spread last so a label can never clobber them.
+ */
+function spanOptions(
+  info: InstrumentationSpanInfo,
+  kind: SpanKind,
+  attrs: Attributes
+): SpanOptions {
+  return {
+    kind,
+    attributes: { ...info.labels, ...attrs },
+    ...(info.links?.length ? { links: info.links } : {}),
+  };
 }
 
 /** Reports the error type for the `error.type` attribute. */
@@ -568,9 +613,16 @@ function spanContextOf(span: Span): GenkitSpanContext {
     },
     setMetadata(values: Record<string, unknown>) {
       for (const [k, v] of Object.entries(values)) {
+        if (v == null) continue;
+        // Prefixed (unlike core's providers) to keep ad-hoc metadata out of
+        // the reserved gen_ai.* namespace; matches the Go and Python plugins.
         span.setAttribute(
           `genkit:metadata:${k}`,
-          typeof v === 'string' ? v : JSON.stringify(v)
+          typeof v === 'string' ||
+            typeof v === 'number' ||
+            typeof v === 'boolean'
+            ? v
+            : safeStringify(v)
         );
       }
     },
