@@ -87,7 +87,17 @@ Set the output schema on the request; the plugin sends it to Gemini as
 bounds reach the model as written.
 
 ```python
-country = await ai.generate(prompt='Give quick facts about Japan.', output_schema=Country)
+from pydantic import BaseModel
+
+
+class Country(BaseModel):
+    name: str
+    capital: str
+    population: int
+
+
+response = await ai.generate(prompt='Give quick facts about Japan.', output_schema=Country)
+print(response.output)
 ```
 
 To send the schema as the older OpenAPI-style `responseSchema` field instead,
@@ -96,9 +106,11 @@ construct the plugin with `GoogleAI(legacy_response_schema=True)` or
 Keywords the conversion does not map, such as `pattern`, `minLength`,
 `additionalProperties` and an `anyOf` or `oneOf` next to a `type`, are left
 out, as are a `$ref` back to a model that contains it and an array with no
-convertible `items`. A constraint with no `type`, a `type` list, `anyOf` or
-`oneOf` that would lose some but not all of its non-null branches, or a
-required property or whole schema that cannot be converted, is rejected.
+convertible `items`. It raises `INVALID_ARGUMENT` for a constraint with no
+`type` (an `enum` of strings counts as a string), for a `type` list, `anyOf`
+or `oneOf` that would lose some but not all of its non-null branches, and for a
+required property or whole schema that cannot be converted. Enum output always
+goes out this way, as `text/x.enum` with a converted `responseSchema`.
 
 ### Video generation (Veo)
 
