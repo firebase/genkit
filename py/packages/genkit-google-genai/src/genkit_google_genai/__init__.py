@@ -54,7 +54,7 @@ Example:
 
     # 2. Generate content with Gemini Pro on Vertex AI
     res = await ai.generate(
-        model=VertexAI.gemini_model('gemini-pro-latest'),
+        model=VertexAI.gemini_model('gemini-2.5-pro'),
         prompt='Explain quantum entanglement in one sentence.',
     )
 

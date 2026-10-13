@@ -962,7 +962,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
     Model Types:
         | Type | Action Kind | Example |
         |---|---|---|
-        | Gemini / Gemma | MODEL | ``vertexai/gemini-flash-latest`` |
+        | Gemini | MODEL | ``vertexai/gemini-2.5-flash`` |
         | Veo (Video) | BACKGROUND_MODEL | ``vertexai/veo-3.1-generate-001`` |
         | Virtual Try-On | MODEL | ``vertexai/virtual-try-on-001`` |
         | Embedders | EMBEDDER | ``vertexai/text-embedding-005`` |
@@ -977,7 +977,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
 
         # 2. Generate text using Gemini on Vertex AI
         res = await ai.generate(
-            model=VertexAI.gemini_model('gemini-flash-latest'),
+            model=VertexAI.gemini_model('gemini-2.5-flash'),
             prompt='Explain quantum computing in one sentence.',
         )
 
