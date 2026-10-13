@@ -1531,7 +1531,7 @@ def load_prompt(ai: _aio.Genkit, path: Path, filename: str, prefix: str = '', ns
         parts = base_name.split('.')
         base_name = parts[0]
         variant = parts[1]
-    name = f'{prefix}{base_name}' if prefix else base_name
+    name = f'{prefix}{base_name}'
 
     file_path = path / (prefix.rstrip('/') + '/' + filename if prefix else filename)
 
@@ -1653,6 +1653,7 @@ def load_prompt_folder_recursively(
     if partials is None:
         partials = set()
     full_path = dir_path / sub_dir if sub_dir else dir_path
+    prefix = f'{sub_dir}/' if sub_dir else ''
 
     if not full_path.exists() or not full_path.is_dir():
         return
@@ -1669,12 +1670,11 @@ def load_prompt_folder_recursively(
             if not entry.is_file() or not entry.name.endswith('.prompt'):
                 continue
             if not entry.name.startswith('_'):
-                prefix_with_slash = f'{sub_dir}/' if sub_dir else ''
-                load_prompt(ai, dir_path, entry.name, prefix_with_slash, ns)
+                load_prompt(ai, dir_path, entry.name, prefix, ns)
                 continue
 
             short_name = entry.name[1:-7]  # Remove "_" prefix and ".prompt" suffix
-            names = [f'{sub_dir}/{short_name}' if sub_dir else short_name]
+            names = [f'{prefix}{short_name}']
             if sub_dir:
                 if short_name in partials:
                     logger.debug(
@@ -1699,8 +1699,7 @@ def load_prompt_folder_recursively(
 
         for entry in entries:
             if entry.is_dir():
-                new_sub_dir = f'{sub_dir}/{entry.name}' if sub_dir else entry.name
-                load_prompt_folder_recursively(ai, dir_path, ns, new_sub_dir, partials)
+                load_prompt_folder_recursively(ai, dir_path, ns, f'{prefix}{entry.name}', partials)
     except PermissionError:
         logger.warning(f'Permission denied accessing directory: {full_path}')
     except Exception as e:
