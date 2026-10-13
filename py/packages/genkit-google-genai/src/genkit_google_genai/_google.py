@@ -58,6 +58,7 @@ from google.auth import default as google_auth_default
 from google.auth.credentials import Credentials
 from google.auth.exceptions import DefaultCredentialsError
 from google.genai.client import DebugConfig
+from google.genai.errors import APIError
 from google.genai.types import HttpOptions, HttpOptionsDict, Model as GenaiModel
 from pydantic import BaseModel
 
@@ -158,6 +159,7 @@ from genkit_google_genai._models._virtual_try_on import (
     is_virtual_try_on_model,
     virtual_try_on_model_info,
 )
+from genkit_google_genai._provider_errors import TRANSPORT_ERRORS, api_error, transport_error
 
 logger = logging.getLogger(__name__)
 
@@ -239,8 +241,15 @@ def _categorize_genai_model(m: GenaiModel, models: GenaiModels, is_vertex: bool)
 async def _list_genai_models(client: genai.Client, is_vertex: bool) -> GenaiModels:
     """Discover and categorize models through the SDK's asynchronous client."""
     models = GenaiModels()
-    async for listed_model in await client.aio.models.list():
-        _categorize_genai_model(listed_model, models, is_vertex)
+    try:
+        async for listed_model in await client.aio.models.list():
+            _categorize_genai_model(listed_model, models, is_vertex)
+    except APIError as e:
+        raise api_error(e) from e
+    except GOOGLE_AUTH_ERRORS as e:
+        raise_auth_error(e)
+    except TRANSPORT_ERRORS as e:
+        raise transport_error(e) from e
     return models
 
 
