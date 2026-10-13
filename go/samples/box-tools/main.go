@@ -127,26 +127,19 @@ func main() {
 	// Exercises the boxed tool directly, without the model.
 	genkit.DefineFlow(g, "runInBox", func(ctx context.Context, in ShellInput) (ShellOutput, error) {
 		var out ShellOutput
-		raw, err := boxedRunShell.RunJSON(ctx, mustJSON(in), nil)
+		// RunRaw reports the output in its JSON form; decode it back.
+		raw, err := boxedRunShell.RunRaw(ctx, in)
 		if err != nil {
 			return out, err
 		}
-		// A tool's JSON surface returns the multipart envelope.
-		var env struct {
-			Output ShellOutput `json:"output"`
+		b, err := json.Marshal(raw)
+		if err != nil {
+			return out, err
 		}
-		err = json.Unmarshal(raw, &env)
-		return env.Output, err
+		err = json.Unmarshal(b, &out)
+		return out, err
 	})
 
 	// Serve the Dev UI until interrupted; the deferred Close stops the box.
 	<-ctx.Done()
-}
-
-func mustJSON(v any) json.RawMessage {
-	b, err := json.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-	return b
 }

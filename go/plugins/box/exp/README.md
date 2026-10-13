@@ -206,6 +206,55 @@ For untrusted code, use the podman runner.
 
 See [`samples/box-tools`](../../../samples/box-tools) for a runnable example.
 
+## Container runner
+
+`box.PodmanRunner` runs each box as a podman (or docker) container. It is the
+first runner with real containment.
+
+```go
+b := box.New(g, box.PodmanRunner(box.PodmanOptions{
+	Image:     "docker.io/library/alpine:3",
+	Build:     &box.GoBuild{Package: "./boxed"}, // cross-compiled on the host
+	Env:       map[string]string{"GEMINI_API_KEY": key}, // nothing else is inherited
+	ExtraArgs: []string{"--memory=512m", "--pids-limit=256"},
+}))
+```
+
+What the container runs, one of:
+
+- `Build: &box.GoBuild{Package: "./boxed"}`: the runner builds the package with
+  `CGO_ENABLED=0 GOOS=linux GOARCH=<engine arch>` (asked of the engine, so
+  Apple Silicon gets `arm64`) and mounts the binary read-only. This is what
+  makes a Mac host work: no Go toolchain or Containerfile needed, and any image
+  with what your tools use will do. Built once per runner, before the ready
+  timeout starts.
+- `Self: true`: the same, for the current program (`go run .` or a package
+  path), run with this process's arguments.
+- `Cmd: []string{"/app/boxed"}`: a command already in the image (a prebuilt
+  binary, a cgo program, another language).
+
+Containment and wiring:
+
+- **Egress is blocked by default.** Boxes run on an auto-created `--internal`
+  network; published ports still work. `Bridge: true` opts out.
+- **Nothing is inherited.** No host env and no host filesystem beyond the
+  project dir, which is mounted at its own absolute path as the working
+  directory (`NoProjectMount` skips it).
+- **Each container gets its own random reflection secret**, sent on every call
+  and redacted from debug logs; the published port binds `127.0.0.1` only.
+- **Production defaults.** The box gets `GENKIT_REFLECTION_ENABLED=true`, not
+  `GENKIT_ENV=dev`.
+
+### Why reflection v1 here
+
+This runner uses v1: the box serves HTTP on a fixed port (3100) inside its own
+network namespace and the runner publishes it on a free host port. Blocking
+egress and a v2 dial-back are the same route, so they are mutually exclusive:
+on an `--internal` network the host is unreachable from the container, while
+published ports, injected from the host side, keep working.
+
+See [`samples/box-podman`](../../../samples/box-podman).
+
 ## Runners
 
 A runner owns box lifecycle and the routing-key to instance mapping:
