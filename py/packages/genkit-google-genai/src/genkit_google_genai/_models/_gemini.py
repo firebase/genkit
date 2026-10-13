@@ -1417,8 +1417,10 @@ class GeminiModel:
             defs: Dictionary with definitions. Optional.
             strict: Raise ``INVALID_ARGUMENT`` for a node that constrains
                 without a ``type``, for a required property that converts to
-                None and for a keyword value that cannot be coerced, instead
-                of leaving them out.
+                None, for a ``type`` list, ``anyOf`` or ``oneOf`` that would
+                lose some but not all of its non-null branches and for a
+                keyword value that cannot be coerced, instead of leaving them
+                out.
             refs: Names of the definitions being expanded on the current path.
 
         Returns:
@@ -1461,7 +1463,9 @@ class GeminiModel:
         for keyword in ('anyOf', 'oneOf'):
             branches = input_schema.get(keyword)
             if isinstance(branches, list):
-                return self._convert_union(input_schema, cast(list[object], branches), defs, strict=strict, refs=refs)
+                return self._convert_union(
+                    input_schema, keyword, cast(list[object], branches), defs, strict=strict, refs=refs
+                )
 
         if 'type' not in input_schema:
             enum = input_schema.get('enum')
@@ -1487,6 +1491,11 @@ class GeminiModel:
         raw_type = input_schema['type']
         if isinstance(raw_type, list):
             non_null = [t for t in raw_type if t != 'null']
+            if strict and len(non_null) > 1:
+                raise GenkitError(
+                    status='INVALID_ARGUMENT',
+                    message=f'{self._version}: schema type {raw_type!r} cannot be converted',
+                )
             if len(non_null) < len(raw_type):
                 schema.nullable = True
             raw_type = non_null[0] if non_null else 'string'
@@ -1541,20 +1550,31 @@ class GeminiModel:
     def _convert_union(
         self,
         input_schema: dict[str, object],
+        keyword: str,
         union: list[object],
         defs: dict[str, object] | None,
         *,
         strict: bool,
         refs: frozenset[str],
     ) -> genai_types.Schema | None:
-        """Convert an ``anyOf`` or ``oneOf`` node to ``any_of``; a ``null`` branch becomes ``nullable``."""
+        """Convert an ``anyOf`` or ``oneOf`` node to ``any_of``; a ``null`` branch becomes ``nullable``.
+
+        A branch that converts to None is left out, and the node converts to
+        None when every branch does. With ``strict``, leaving out some branches
+        but not all raises instead.
+        """
         branches = [cast(dict[str, object], b) for b in union if isinstance(b, dict)]
-        typed = [b for b in branches if b.get('type') != 'null']
+        typed = [b for b in branches if b.get('type') not in ('null', ['null'])]
         converted = [
             s for b in typed if (s := self._convert_schema_property(b, defs, strict=strict, refs=refs)) is not None
         ]
         if not converted:
             return None
+        if strict and len(converted) < len(typed):
+            raise GenkitError(
+                status='INVALID_ARGUMENT',
+                message=f'{self._version}: schema {keyword} branch cannot be converted',
+            )
 
         schema = converted[0] if len(converted) == 1 else genai_types.Schema(any_of=converted)
         if len(typed) < len(branches):

@@ -96,8 +96,9 @@ construct the plugin with `GoogleAI(legacy_response_schema=True)` or
 Keywords the conversion does not map, such as `pattern`, `minLength` and
 `additionalProperties`, are left out, as are a `$ref` back to a model that
 contains it and an array with no convertible `items`. A constraint with no
-`type`, or a required property or whole schema that cannot be converted, is
-rejected.
+`type`, a `type` list, `anyOf` or `oneOf` that would lose some but not all of
+its non-null branches, or a required property or whole schema that cannot be
+converted, is rejected.
 
 ### Video generation (Veo)
 

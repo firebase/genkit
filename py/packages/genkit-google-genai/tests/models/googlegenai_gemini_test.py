@@ -1129,6 +1129,18 @@ class _Grid(BaseModel):
     rows: list[list['_Grid']] = []
 
 
+class _Mixed(BaseModel):
+    x: list['_Mixed'] | int
+
+
+class _OptionalMixed(BaseModel):
+    x: list['_OptionalMixed'] | int | None = None
+
+
+class _NodeOrInt(BaseModel):
+    next: '_NodeOrInt | int'
+
+
 def test_gemini_model__create_tool_leaves_out_recursive_param(gemini_model_instance: GeminiModel) -> None:
     """A property that refers back to a model that contains it is left out."""
     tool = ToolDefinition(name='t', description='d', input_schema=to_json_schema(_LinkedList))
@@ -1200,6 +1212,66 @@ def test_gemini_model__convert_schema_property_strict_rejects_required_recursive
 
     assert exc_info.value.status == 'INVALID_ARGUMENT'
     assert 'next' in exc_info.value.original_message
+
+
+@pytest.mark.parametrize(
+    'input_schema, needle',
+    [
+        (to_json_schema(_Mixed), 'anyOf branch'),
+        (to_json_schema(_OptionalMixed), 'anyOf branch'),
+        (to_json_schema(_NodeOrInt), 'anyOf branch'),
+        ({'oneOf': [{'type': 'integer'}, {'type': 'array'}]}, 'oneOf branch'),
+        ({'type': ['string', 'integer', 'null']}, "type ['string', 'integer', 'null']"),
+    ],
+)
+def test_gemini_model__convert_schema_property_strict_rejects_union_losing_a_branch(
+    input_schema: dict[str, object],
+    needle: str,
+    gemini_model_instance: GeminiModel,
+) -> None:
+    """In strict mode a union with a branch that cannot be converted raises instead of narrowing to the others."""
+    with pytest.raises(GenkitError) as exc_info:
+        gemini_model_instance._convert_schema_property(input_schema, strict=True)
+
+    assert exc_info.value.status == 'INVALID_ARGUMENT'
+    assert needle in exc_info.value.original_message
+
+
+@pytest.mark.parametrize(
+    'input_schema, expected',
+    [
+        (
+            to_json_schema(_Mixed),
+            genai_types.Schema(
+                type=genai_types.Type.OBJECT,
+                title='_Mixed',
+                required=['x'],
+                properties={'x': genai_types.Schema(type=genai_types.Type.INTEGER, title='X')},
+            ),
+        ),
+        ({'type': ['string', 'integer', 'null']}, genai_types.Schema(type=genai_types.Type.STRING, nullable=True)),
+    ],
+)
+def test_gemini_model__convert_schema_property_leaves_out_union_branch(
+    input_schema: dict[str, object],
+    expected: genai_types.Schema,
+    gemini_model_instance: GeminiModel,
+) -> None:
+    """Without strict, a union branch that cannot be converted is left out and the others are kept."""
+    assert gemini_model_instance._convert_schema_property(input_schema) == expected
+
+
+@pytest.mark.parametrize('strict', [False, True])
+def test_gemini_model__convert_schema_property_null_type_list_branch_is_nullable(
+    strict: bool,
+    gemini_model_instance: GeminiModel,
+) -> None:
+    """A branch typed ``['null']`` makes the union nullable rather than adding a nullable STRING branch."""
+    schema: dict[str, object] = {'anyOf': [{'type': 'integer'}, {'type': ['null']}]}
+
+    assert gemini_model_instance._convert_schema_property(schema, strict=strict) == genai_types.Schema(
+        type=genai_types.Type.INTEGER, nullable=True
+    )
 
 
 def test_gemini_model__convert_schema_property_expands_repeated_ref(gemini_model_instance: GeminiModel) -> None:
@@ -1435,22 +1507,9 @@ def test_gemini_model__convert_schema_property_rejects_required_untyped_property
     assert 'data' in exc_info.value.original_message
 
 
-def test_gemini_model__create_tool_leaves_out_untyped_param(gemini_model_instance: GeminiModel) -> None:
-    """A tool parameter with no type is left out of the declaration instead of failing the request."""
-
-    class Args(BaseModel):
-        value: Any
-        count: int
-
-    tool = ToolDefinition(name='t', description='d', input_schema=to_json_schema(Args))
-
-    gemini_tool, _ = gemini_model_instance._create_tool(tool)
-    declarations = gemini_tool.function_declarations
-
-    assert declarations is not None
-    params = declarations[0].parameters
-    assert params is not None and params.type == genai_types.Type.OBJECT
-    assert list(params.properties or {}) == ['count']
+class _RequiredAny(BaseModel):
+    value: Any
+    count: int
 
 
 class _RequiredValues(BaseModel):
@@ -1461,6 +1520,15 @@ class _RequiredValues(BaseModel):
 @pytest.mark.parametrize(
     'input_schema, expected',
     [
+        (
+            to_json_schema(_RequiredAny),
+            genai_types.Schema(
+                type=genai_types.Type.OBJECT,
+                title='_RequiredAny',
+                required=['count'],
+                properties={'count': genai_types.Schema(type=genai_types.Type.INTEGER, title='Count')},
+            ),
+        ),
         (
             to_json_schema(_RequiredValues),
             genai_types.Schema(
@@ -1498,6 +1566,38 @@ def test_gemini_model__create_tool_drops_left_out_param_from_required(
 
     assert declarations is not None
     assert declarations[0].parameters == expected
+
+
+@pytest.mark.parametrize(
+    'input_schema, expected, wrapped',
+    [
+        (to_json_schema(list[Any]), genai_types.Schema(type=genai_types.Type.OBJECT, properties={}), False),
+        (
+            to_json_schema(int),
+            genai_types.Schema(
+                type=genai_types.Type.OBJECT,
+                properties={'input': genai_types.Schema(type=genai_types.Type.INTEGER)},
+                required=['input'],
+            ),
+            True,
+        ),
+    ],
+)
+def test_gemini_model__create_tool_wraps_only_a_converted_input(
+    input_schema: dict[str, object],
+    expected: genai_types.Schema,
+    wrapped: bool,
+    gemini_model_instance: GeminiModel,
+) -> None:
+    """A non-object input is wrapped after conversion; one that converts to None makes a tool with no arguments."""
+    tool = ToolDefinition(name='t', description='d', input_schema=input_schema)
+
+    gemini_tool, wire = gemini_model_instance._create_tool(tool)
+    declarations = gemini_tool.function_declarations
+
+    assert declarations is not None
+    assert declarations[0].parameters == expected
+    assert wire.wrapped is wrapped
 
 
 @pytest.mark.parametrize(
@@ -1818,6 +1918,7 @@ async def test_gemini_model__legacy_response_schema_sends_converted_schema() -> 
         ({'type': 'array'}, 'cannot be converted'),
         (to_json_schema(list[Any]), 'cannot be converted'),
         (to_json_schema(tuple[int, str]), 'cannot be converted'),
+        (to_json_schema(_Mixed), 'anyOf branch'),
     ],
 )
 async def test_gemini_model__legacy_unconvertible_output_schema_raises(
