@@ -1573,7 +1573,7 @@ export const contextCompression: GenerateMiddleware<
         1,
         cap - systemMessages.length - (noticeConsumesSlot ? 1 : 0)
       );
-      let kept = keepCount === 0 ? [] : nonSystemMessages.slice(-keepCount);
+      let kept = nonSystemMessages.slice(-keepCount);
 
       // Strip leading orphaned tool messages so a toolResponse is never separated
       // from the model toolRequest that preceded it.
@@ -1588,7 +1588,6 @@ export const contextCompression: GenerateMiddleware<
       // trailing tool turn (e.g. keepCount === 1), rescue the final [model, ...tool] group.
       if (
         kept.length === 0 &&
-        keepCount > 0 &&
         nonSystemMessages.length > 0 &&
         nonSystemMessages[nonSystemMessages.length - 1].role === 'tool'
       ) {
@@ -1609,7 +1608,7 @@ export const contextCompression: GenerateMiddleware<
         const firstUserIdx = kept.findIndex((m) => m.role === 'user');
         if (firstUserIdx >= 0) {
           kept = kept.slice(firstUserIdx);
-        } else if (keepCount > 0) {
+        } else {
           const droppedPrefix = nonSystemMessages.slice(
             0,
             nonSystemMessages.length - kept.length
