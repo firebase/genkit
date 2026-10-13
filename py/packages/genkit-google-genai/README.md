@@ -109,8 +109,9 @@ out, as are a `$ref` back to a model that contains it and an array with no
 convertible `items`. It raises `INVALID_ARGUMENT` for a constraint with no
 `type` (an `enum` of strings counts as a string), for a `type` list, `anyOf`
 or `oneOf` that would lose some but not all of its non-null branches, and for a
-required property or whole schema that cannot be converted. Enum output always
-goes out this way, as `text/x.enum` with a converted `responseSchema`.
+required property or whole schema that cannot be converted. Constrained enum
+output always goes out this way, as `text/x.enum` with a converted
+`responseSchema`.
 
 ### Video generation (Veo)
 

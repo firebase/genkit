@@ -2236,9 +2236,11 @@ class GeminiModel:
     def _apply_output_config(self, cfg: genai_types.GenerateContentConfig, request: ModelRequest) -> None:
         """Set the response MIME type and schema for the request's output format.
 
-        JSON output sends the schema verbatim as ``response_json_schema``, or as
-        a converted ``response_schema`` when ``legacy_response_schema`` is set.
-        Enum output sends ``text/x.enum`` with a converted ``response_schema``.
+        JSON output turns on JSON mode, and constrained JSON output also sends
+        the schema verbatim as ``response_json_schema``, or as a converted
+        ``response_schema`` when ``legacy_response_schema`` is set. Constrained
+        enum output sends ``text/x.enum`` with a converted ``response_schema``;
+        enum output without a constrained schema sends neither.
         """
         schema = request.output_schema
         json_mode = request.output_format == 'json' or request.output_content_type == 'application/json'
@@ -2251,10 +2253,9 @@ class GeminiModel:
                     cfg.response_schema = self._output_response_schema(schema)
                 else:
                     cfg.response_json_schema = schema
-        elif enum_mode:
+        elif enum_mode and schema and request.output_constrained:
             cfg.response_mime_type = 'text/x.enum'
-            if schema and request.output_constrained:
-                cfg.response_schema = self._output_response_schema(schema)
+            cfg.response_schema = self._output_response_schema(schema)
 
     def _output_response_schema(self, output_schema: dict[str, Any]) -> genai_types.Schema:
         """Convert the request's output schema for ``response_schema``."""

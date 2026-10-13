@@ -1907,11 +1907,13 @@ async def test_gemini_model__content_type_alone_turns_on_json_mode(gemini_model_
 
 
 @pytest.mark.asyncio
-async def test_gemini_model__json_unconstrained_sets_mime_type_only(gemini_model_instance: GeminiModel) -> None:
+@pytest.mark.parametrize('legacy_response_schema', [False, True])
+async def test_gemini_model__json_unconstrained_sets_mime_type_only(legacy_response_schema: bool) -> None:
     """Unconstrained JSON output turns on JSON mode without a schema."""
+    model = GeminiModel('version', MagicMock(spec=genai.Client), legacy_response_schema=legacy_response_schema)
     request = _output_request(format='json', json_schema=_STRUCTURED_SCHEMA, constrained=False)
 
-    cfg = await gemini_model_instance._genkit_to_googleai_cfg(request)
+    cfg = await model._genkit_to_googleai_cfg(request)
 
     assert cfg is not None
     assert cfg.response_mime_type == 'application/json'
@@ -1963,18 +1965,45 @@ async def test_gemini_model__legacy_unconvertible_output_schema_raises(
 @pytest.mark.asyncio
 @pytest.mark.parametrize('legacy_response_schema', [False, True])
 @pytest.mark.parametrize('schema_type', ['string', 'enum'])
-async def test_gemini_model__enum_output_sets_text_x_enum(schema_type: str, legacy_response_schema: bool) -> None:
+@pytest.mark.parametrize(
+    'enum_output',
+    [{'format': 'enum'}, {'content_type': 'text/enum'}, {'format': 'enum', 'content_type': 'text/enum'}],
+    ids=['format', 'content_type', 'both'],
+)
+async def test_gemini_model__enum_output_sets_text_x_enum(
+    enum_output: dict[str, str], schema_type: str, legacy_response_schema: bool
+) -> None:
     """Constrained enum output sends text/x.enum with a string schema listing the values."""
     model = GeminiModel('version', MagicMock(spec=genai.Client), legacy_response_schema=legacy_response_schema)
-    request = _output_request(
-        format='enum', json_schema={'type': schema_type, 'enum': ['a', 'b']}, constrained=True, content_type='text/enum'
-    )
+    request = _output_request(json_schema={'type': schema_type, 'enum': ['a', 'b']}, constrained=True, **enum_output)
 
     cfg = await model._genkit_to_googleai_cfg(request)
 
     assert cfg is not None
     assert cfg.response_mime_type == 'text/x.enum'
     assert cfg.response_schema == genai_types.Schema(type=genai_types.Type.STRING, enum=['a', 'b'])
+    assert cfg.response_json_schema is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    'enum_output',
+    [
+        {'format': 'enum'},
+        {'content_type': 'text/enum'},
+        {'format': 'enum', 'json_schema': {'type': 'string', 'enum': ['a', 'b']}, 'constrained': False},
+    ],
+    ids=['no-schema', 'content-type-only', 'unconstrained'],
+)
+async def test_gemini_model__enum_output_without_constrained_schema_sends_neither(
+    enum_output: dict[str, Any], gemini_model_instance: GeminiModel
+) -> None:
+    """Enum output without a constrained schema sends neither text/x.enum nor a schema."""
+    cfg = await gemini_model_instance._genkit_to_googleai_cfg(_output_request(**enum_output))
+
+    assert cfg is not None
+    assert cfg.response_mime_type is None
+    assert cfg.response_schema is None
     assert cfg.response_json_schema is None
 
 
