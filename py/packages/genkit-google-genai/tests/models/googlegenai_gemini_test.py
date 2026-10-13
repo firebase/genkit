@@ -1915,6 +1915,74 @@ async def test_429_retry_info_sets_retry_delay(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ('code', 'body', 'status'),
+    [
+        (
+            400,
+            {'error': {'code': 400, 'message': 'User location is not supported', 'status': 'FAILED_PRECONDITION'}},
+            'FAILED_PRECONDITION',
+        ),
+        (409, {'error': {'code': 409, 'message': 'exists', 'status': 'ALREADY_EXISTS'}}, 'ALREADY_EXISTS'),
+        (500, {'error': {'code': 500, 'message': 'lost', 'status': 'DATA_LOSS'}}, 'DATA_LOSS'),
+        (500, {'error': {'code': 500, 'message': 'unknown', 'status': 'UNKNOWN'}}, 'INTERNAL'),
+        (402, {'error': {'code': 402, 'message': 'Prepay credit depleted', 'status': 'RESOURCE_EXHAUSTED'}}, 'UNKNOWN'),
+        (502, {'message': '<html>Bad Gateway</html>', 'status': 'Bad Gateway'}, 'INTERNAL'),
+    ],
+)
+async def test_error_body_status_picks_among_statuses_sharing_the_code(
+    mocker: MockerFixture, code: int, body: dict[str, Any], status: str
+) -> None:
+    """The body's status narrows a shared HTTP code and never overrides a different code."""
+    error = await _generate_failure(mocker, APIError(code, body))
+
+    assert error.status == status
+
+
+@pytest.mark.asyncio
+async def test_rejected_api_key_is_unauthenticated(mocker: MockerFixture) -> None:
+    """A 400 INVALID_ARGUMENT whose ErrorInfo reason is API_KEY_INVALID is UNAUTHENTICATED."""
+    message = 'API key not valid. Please pass a valid API key.'
+    localized = {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': message}
+    error_info = {
+        '@type': 'type.googleapis.com/google.rpc.ErrorInfo',
+        'reason': 'API_KEY_INVALID',
+        'domain': 'googleapis.com',
+        'metadata': {'service': 'generativelanguage.googleapis.com'},
+    }
+    details = [localized, error_info]
+    body = {'error': {'code': 400, 'message': message, 'status': 'INVALID_ARGUMENT', 'details': details}}
+    rejected = APIError(400, body)
+
+    error = await _generate_failure(mocker, rejected)
+
+    assert error.status == 'UNAUTHENTICATED'
+    assert error.original_message == message
+    assert error.cause is rejected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ('code', 'status', 'reason'),
+    [
+        (403, 'PERMISSION_DENIED', 'API_KEY_SERVICE_BLOCKED'),
+        (403, 'PERMISSION_DENIED', 'SERVICE_DISABLED'),
+        (429, 'RESOURCE_EXHAUSTED', 'RATE_LIMIT_EXCEEDED'),
+    ],
+)
+async def test_other_error_info_reasons_keep_the_body_status(
+    mocker: MockerFixture, code: int, status: str, reason: str
+) -> None:
+    """An ErrorInfo reason other than API_KEY_INVALID leaves the body's status as it is."""
+    error_info = {'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': reason}
+    body = {'error': {'code': code, 'message': 'request refused', 'status': status, 'details': [error_info]}}
+
+    error = await _generate_failure(mocker, APIError(code, body))
+
+    assert error.status == status
+
+
+@pytest.mark.asyncio
 @patch('genkit_google_genai._models._gemini.validate_context_cache_request', new_callable=MagicMock)
 @pytest.mark.parametrize(
     ('failing_call', 'code', 'status'),
