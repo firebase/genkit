@@ -312,6 +312,32 @@ published ports, injected from the host side, keep working.
 
 See [`samples/box-podman`](../../../samples/box-podman).
 
+## Already-running runtimes
+
+`box.RemoteRunner` points a box at a runtime someone else started: a sidecar
+container, a Cloud Run service, another machine.
+
+```go
+b := box.New(g, box.RemoteRunner(box.RemoteOptions{
+	URL:          "http://127.0.0.1:3100",
+	Secret:       os.Getenv("BOX_REFLECTION_SECRET"),
+	ReadyTimeout: time.Minute, // optional, default 30s
+}))
+```
+
+Start the runtime with the same reflection contract the podman runner uses:
+`GENKIT_REFLECTION_ENABLED=true`, `GENKIT_REFLECTION_PORT`, and a matching
+`GENKIT_REFLECTION_SECRET_TOKEN` (plus `GENKIT_REFLECTION_HOST=0.0.0.0` if the
+caller is on another host).
+
+- **One runtime for every key.** There is no lifecycle to own, so every routing
+  key maps to the same runtime, and `Release`/`Close` leave it running.
+- **Routes are accepted, not rejected.** A config can use `ExecRunner` locally
+  and `RemoteRunner` in production without changing its route. Routes and idle
+  timeouts still run; they just start and stop nothing.
+- **Readiness is checked once.** A failed health check is not cached, so the
+  next call checks again.
+
 ## Runners
 
 A runner owns box lifecycle and the routing-key to instance mapping:
