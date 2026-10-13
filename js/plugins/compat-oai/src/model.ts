@@ -297,11 +297,18 @@ export function toOpenAIMessages(
           }));
         if (toolCalls.length > 0) {
           const text = msg.text;
+          // Providers with thinking modes (e.g. DeepSeek, Qwen) require the
+          // reasoning of a tool-calling turn to be echoed back on later turns.
+          const reasoning = msg.content
+            .map((part) => part.reasoning)
+            .filter(Boolean)
+            .join('');
           apiMessages.push({
             role: role,
             ...(text ? { content: text } : {}),
+            ...(reasoning ? { reasoning_content: reasoning } : {}),
             tool_calls: toolCalls,
-          });
+          } as ChatCompletionMessageParam);
         } else {
           apiMessages.push({
             role: role,
@@ -530,14 +537,23 @@ export function fromOpenAIChunkChoice(
     content.push({ reasoning: choice.delta.reasoning_content as string });
   }
 
-  // Handle regular content if present. Text that accompanies tool calls is a
-  // preamble, not JSON output, so it is never parsed.
+  // Handle regular content if present. A streamed delta is usually only a
+  // fragment of the response, so it is emitted as `data` only when it happens
+  // to be a complete JSON object/array; anything else (partial JSON, or a
+  // preamble that accompanies tool calls) is emitted as text and the full
+  // response is parsed once streaming finishes.
   if (choice.delta.content) {
-    content.push(
-      jsonMode && !hasToolRequests
-        ? { data: JSON.parse(choice.delta.content!) }
-        : { text: choice.delta.content! }
-    );
+    const text = choice.delta.content;
+    let data: unknown;
+    if (jsonMode && !hasToolRequests) {
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed !== null && typeof parsed === 'object') data = parsed;
+      } catch {
+        // Not a complete JSON value on its own; fall through to text.
+      }
+    }
+    content.push(data !== undefined ? { data } : { text });
   }
 
   if (hasToolRequests) {
