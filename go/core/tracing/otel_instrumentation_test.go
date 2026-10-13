@@ -23,6 +23,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -40,6 +41,26 @@ func TestOTelInstrumentation_EmptyIDsWhenUnconfigured(t *testing.T) {
 	o := &OTelInstrumentation{}
 	info := &SpanInfo{metadata: &spanMetadata{Name: "n"}}
 	_, span := o.StartSpan(context.Background(), info)
+	got := span.TraceInfo()
+	span.End(&SpanResult{})
+	if got.TraceID != "" || got.SpanID != "" {
+		t.Errorf("TraceInfo = %+v, want empty (no provider configured)", got)
+	}
+}
+
+// TestOTelInstrumentation_EmptyIDsUnderRemoteParent covers a request carrying
+// a traceparent with nothing configured: the no-op span echoes the remote
+// parent's context, which must not be reported as this span's ids.
+func TestOTelInstrumentation_EmptyIDsUnderRemoteParent(t *testing.T) {
+	prev := otel.GetTracerProvider()
+	t.Cleanup(func() { otel.SetTracerProvider(prev) })
+	otel.SetTracerProvider(noop.NewTracerProvider())
+
+	ctx := propagation.TraceContext{}.Extract(context.Background(), propagation.MapCarrier{
+		"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+	})
+	o := &OTelInstrumentation{}
+	_, span := o.StartSpan(ctx, &SpanInfo{metadata: &spanMetadata{Name: "n"}})
 	got := span.TraceInfo()
 	span.End(&SpanResult{})
 	if got.TraceID != "" || got.SpanID != "" {

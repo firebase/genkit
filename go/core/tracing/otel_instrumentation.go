@@ -68,16 +68,28 @@ func (o *OTelInstrumentation) getTracer() trace.Tracer {
 type otelSpan struct {
 	span trace.Span
 	sm   *spanMetadata
+	// ownIDs is false when span has no ids of its own; see hasOwnSpanContext.
+	ownIDs bool
+}
+
+// hasOwnSpanContext reports whether span got span ids of its own. The no-op
+// provider (nothing configured) returns a span carrying the parent's span
+// context from ctx: invalid at the root, but the parent's (valid) ids under a
+// remote parent extracted from a traceparent header. Reporting those would
+// give every Genkit span in the request the parent's span id.
+func hasOwnSpanContext(parent trace.SpanContext, span trace.Span) bool {
+	sc := span.SpanContext()
+	return sc.IsValid() && !(parent.IsValid() && sc.SpanID() == parent.SpanID())
 }
 
 func (s *otelSpan) TraceInfo() TraceInfo {
-	sc := s.span.SpanContext()
-	// The no-op provider (nothing configured) yields all-zero, invalid ids.
-	// Report those as empty so the composite and log/callback correlation treat
-	// this provider as tracking no ids, rather than a real zero span.
-	if !sc.IsValid() {
+	// Without ids of its own (the no-op provider), report empty so the
+	// composite and log/callback correlation treat this provider as tracking
+	// no ids, rather than a zero span or the parent's span.
+	if !s.ownIDs {
 		return TraceInfo{}
 	}
+	sc := s.span.SpanContext()
 	return TraceInfo{TraceID: sc.TraceID().String(), SpanID: sc.SpanID().String()}
 }
 
@@ -126,6 +138,7 @@ func (o *OTelInstrumentation) StartSpan(ctx context.Context, info *SpanInfo) (co
 		opts = append(opts, trace.WithAttributes(sm.inputAttributes()...))
 	}
 
+	parent := trace.SpanContextFromContext(ctx)
 	ctx, span := o.getTracer().Start(ctx, sm.Name, opts...)
-	return ctx, &otelSpan{span: span, sm: sm}
+	return ctx, &otelSpan{span: span, sm: sm, ownIDs: hasOwnSpanContext(parent, span)}
 }
