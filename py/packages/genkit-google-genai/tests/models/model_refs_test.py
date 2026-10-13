@@ -57,18 +57,12 @@ _SHARED_GEMINI = {
     'gemini-2.5-pro',
     'gemini-2.5-flash-lite',
     'gemini-3-flash-preview',
-    'gemini-3-pro-preview',
     'gemini-3.1-flash-lite',
-    'gemini-3.1-flash-lite-preview',
     'gemini-3.1-pro-preview',
     'gemini-3.1-pro-preview-customtools',
     'gemini-3.5-flash',
     'gemini-3.6-flash',
     'gemini-3.7-flash',
-    'gemini-2.5-flash-preview-04-17',
-    'gemini-2.5-pro-exp-03-25',
-    'gemini-2.5-pro-preview-03-25',
-    'gemini-2.5-pro-preview-05-06',
 }
 _GOOGLEAI_LATEST = {'gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-pro-latest'}
 _SHARED_TTS = {
@@ -78,14 +72,17 @@ _SHARED_TTS = {
     'gemini-3.8-flash-tts',
     'gemini-3.8-flash-lite-tts',
 }
-_SHARED_IMAGE = {
-    'gemini-2.5-flash-image',
-    'gemini-2.5-flash-image-preview',
-    'gemini-3-pro-image',
-    'gemini-3-pro-image-preview',
-    'gemini-3.1-flash-image',
-    'gemini-3.1-flash-image-preview',
+_SHARED_IMAGE = {'gemini-2.5-flash-image', 'gemini-3-pro-image', 'gemini-3.1-flash-image'}
+# Registered in SUPPORTED_MODELS, but neither backend serves them, so they do not autocomplete.
+_RETIRED_GEMINI = {
+    'gemini-2.5-flash-preview-04-17',
+    'gemini-2.5-pro-exp-03-25',
+    'gemini-2.5-pro-preview-03-25',
+    'gemini-2.5-pro-preview-05-06',
+    'gemini-3-pro-preview',
+    'gemini-3.1-flash-lite-preview',
 }
+_RETIRED_IMAGE = {'gemini-2.5-flash-image-preview', 'gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview'}
 
 _BACKEND_IDS: dict[tuple[type, str], set[str] | None] = {
     (GoogleAI, 'gemini_model'): _SHARED_GEMINI | _GOOGLEAI_LATEST,
@@ -324,17 +321,21 @@ class TestKnownIdLiterals:
     """Constructor name types are string Literals so quotes autocomplete."""
 
     def test_known_gemini_matches_catalog(self) -> None:
-        """Each backend autocompletes every registered text id it serves."""
+        """Each backend autocompletes every registered text id it serves; only retired ids are hidden."""
         registered = _registered(is_gemini_model)
         googleai = set(get_args(KnownGoogleAIGemini))
         vertexai = set(get_args(KnownVertexAIGemini))
-        assert googleai == registered
-        assert registered - vertexai == _GOOGLEAI_LATEST
+        assert googleai | vertexai <= registered
+        assert registered - googleai == _RETIRED_GEMINI
+        assert registered - vertexai == _RETIRED_GEMINI | _GOOGLEAI_LATEST
         assert not any(is_tts_model(value) or is_image_model(value) or is_gemma_model(value) for value in googleai)
 
     def test_known_gemini_image_matches_catalog(self) -> None:
-        """Every registered image id autocompletes."""
-        assert set(get_args(KnownGeminiImage)) == _registered(is_image_model)
+        """Every registered image id autocompletes except the retired ``-preview`` ids."""
+        known = set(get_args(KnownGeminiImage))
+        registered = _registered(is_image_model)
+        assert known <= registered
+        assert registered - known == _RETIRED_IMAGE
 
     def test_family_literals_match_their_catalog(self) -> None:
         """Registered TTS and Gemma ids autocomplete, and every autocomplete id routes to its family."""
