@@ -66,6 +66,63 @@ box.DefineToolFrom(b, runShell, "boxedRunShell") // calls /tool.v2/runShell in t
 Tool proxies call the box's `tool.v2` action, so content parts the boxed tool
 attaches (`tool.AttachParts`) reach the caller too.
 
+## Agents
+
+Box a whole agent (model calls, tools, conversation state) and register it, so
+it is visible and chattable in the Dev UI like a local one:
+
+```go
+// The agent lives only in the box (a separate entry, or another language):
+// declare what the Dev UI needs to know.
+notes := box.DefineAgent(agentBox, box.AgentSpec{
+	Name:            "notesAgent",
+	StateManagement: aix.AgentStateManagementServer, // must match the boxed agent
+	Abortable:       true,
+	StateSchema:     box.SchemaFor[NotesState](),
+})
+
+// Same language: hand over the real agent; its metadata is copied.
+boxedCoder := box.DefineAgentFrom(myBox, coder, "boxedCoder")
+
+// Either way you get an *aix.AgentHandle:
+out, err := notes.RunText(ctx, "fix the failing test", aix.WithSessionID[json.RawMessage](sid))
+
+// Or stream the turn, e.g. for a chat UI:
+turn := notes.StreamText(ctx, "fix the failing test", aix.WithSessionID[json.RawMessage](sid))
+for chunk, err := range turn.Receive() {
+	if err != nil {
+		return err
+	}
+	if chunk.ModelChunk != nil {
+		fmt.Print(chunk.ModelChunk.Text())
+	}
+}
+out, err = turn.Output()
+```
+
+`DefineAgent` registers `/agent/<name>` with its `agent-snapshot`,
+`agent-wait` and `agent-abort` companions (abort only when `Abortable`). Each
+input is one boxed turn; when a caller streams several inputs into one
+invocation, the proxy runs them turn by turn and threads the snapshot (or the
+client state) between them, so the box records one trace per turn.
+
+It returns an `*aix.AgentHandle` rather than an `*aix.Agent`: an `Agent` runs
+its session runtime in-process, while this one lives in the box, so the
+untyped handle (custom state as JSON) is the honest surface.
+
+For an unregistered handle with a fixed routing context, use `box.Agent`:
+
+```go
+agent := box.Agent(agentBox, "concierge", core.ActionContext{"sessionId": sid})
+```
+
+To give each conversation its own box, use `box.WithRoute(box.SessionRoute)`
+(see [One box per session](#one-box-per-session)). A registered agent has no
+per-proxy context, so it routes by the session in the agent's init
+(`aix.WithSessionID`, the Dev UI); give the boxed agent a durable store so
+turns that carry only a snapshot id can resume on the shared box. See
+[`samples/box-agent`](../../../samples/box-agent).
+
 ## Lifecycle: route + idle timeout
 
 `WithRoute` decides which box a call goes to; `WithIdleTimeout` decides how long

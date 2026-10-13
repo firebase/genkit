@@ -25,9 +25,12 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	aix "github.com/firebase/genkit/go/ai/exp"
+	"github.com/firebase/genkit/go/ai/exp/localstore"
 	"github.com/firebase/genkit/go/ai/tool"
 	"github.com/firebase/genkit/go/core/status"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/internal/genkitbridge"
 )
 
 // fixtureEnv makes the test binary run as a Genkit runtime instead of the
@@ -53,6 +56,7 @@ func runFixture() {
 	g := genkit.Init(ctx)
 	defineFixtureActions(g)
 	defineNestedFixture(g)
+	defineStoredAgentFixture(g)
 	if !ServeIfRuntime(ctx) {
 		select {} // a plain v1/v2 runtime: the test kills it
 	}
@@ -61,6 +65,40 @@ func runFixture() {
 // defineNestedFixture is the middle level of the nesting test: the "nested"
 // flow runs in an agentBox runtime and calls the pid tool in a toolBox the
 // runtime starts itself, reporting both pids.
+func defineStoredAgentFixture(g *genkit.Genkit) {
+	dir := os.Getenv("BOX_TEST_STORE")
+	if dir == "" {
+		return
+	}
+	store, err := localstore.NewFileSessionStore[noteState](dir)
+	if err != nil {
+		panic(err)
+	}
+	// A model-free agent: each turn appends the user's text to the notes in
+	// custom state and answers with the pid and every note so far.
+	aix.DefineCustomAgent(genkitbridge.RegistryOf(g), "notes",
+		func(ctx context.Context, resp aix.Responder, sess *aix.SessionRunner[noteState]) (*aix.AgentResult, error) {
+			if err := sess.Run(ctx, func(ctx context.Context, in *aix.AgentInput) (*aix.TurnResult, error) {
+				sess.UpdateCustom(func(s noteState) noteState {
+					s.Notes = append(s.Notes, in.Message.Text())
+					return s
+				})
+				reply := fmt.Sprintf("%d:%s", os.Getpid(), strings.Join(sess.Custom().Notes, ","))
+				sess.AddMessages(ai.NewModelTextMessage(reply))
+				return &aix.TurnResult{}, nil
+			}); err != nil {
+				return nil, err
+			}
+			return sess.Result(), nil
+		},
+		aix.WithSessionStore(store),
+	)
+}
+
+type noteState struct {
+	Notes []string `json:"notes"`
+}
+
 func defineNestedFixture(g *genkit.Genkit) {
 	toolBox := New(g, ExecRunner(Self()), WithName("toolBox"))
 	pid := NewTool[string, string](toolBox, "pid", "")

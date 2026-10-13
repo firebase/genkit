@@ -18,6 +18,7 @@ package exp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
@@ -27,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	aix "github.com/firebase/genkit/go/ai/exp"
 	"github.com/firebase/genkit/go/core/status"
 )
 
@@ -246,4 +248,50 @@ func TestExecRunnerNestsSelfModeBoxes(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitFor(t, func() bool { return !processAlive(inner) })
+}
+
+func TestExecRunnerBoxedAgent(t *testing.T) {
+	ctx := context.Background()
+	t.Setenv("BOX_TEST_STORE", t.TempDir())
+
+	t.Run("turns resume in the box", func(t *testing.T) {
+		b := newSelfBox(t, "agentSingleton", nil)
+		notes := DefineAgent(b, AgentSpec{Name: "notes", StateManagement: aix.AgentStateManagementServer})
+		first, err := notes.RunText(ctx, "milk", aix.WithSessionID[json.RawMessage]("s-single"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		second, err := notes.RunText(ctx, "eggs", aix.WithSessionID[json.RawMessage]("s-single"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.HasSuffix(first.Message.Text(), ":milk") || !strings.HasSuffix(second.Message.Text(), ":milk,eggs") {
+			t.Errorf("replies %q, %q; want the notes to accumulate", first.Message.Text(), second.Message.Text())
+		}
+		snap, err := notes.GetSnapshot(ctx, second.SnapshotID)
+		if err != nil || snap.SnapshotID != second.SnapshotID {
+			t.Errorf("GetSnapshot = %+v, %v", snap, err)
+		}
+	})
+
+	t.Run("a shared store continues a session on another box", func(t *testing.T) {
+		b := newSelfBox(t, "agentPerRequest", nil, WithRoute(PerRequest))
+		notes := DefineAgent(b, AgentSpec{Name: "notes", StateManagement: aix.AgentStateManagementServer})
+		first, err := notes.RunText(ctx, "a", aix.WithSessionID[json.RawMessage]("s-moved"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		second, err := notes.RunText(ctx, "b", aix.WithSessionID[json.RawMessage]("s-moved"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		p1, _, _ := strings.Cut(first.Message.Text(), ":")
+		p2, notes2, _ := strings.Cut(second.Message.Text(), ":")
+		if p1 == p2 {
+			t.Errorf("both turns ran in box %s, want two", p1)
+		}
+		if notes2 != "a,b" {
+			t.Errorf("second box saw notes %q, want a,b from the shared store", notes2)
+		}
+	})
 }

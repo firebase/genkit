@@ -74,7 +74,9 @@ type wireError struct {
 
 // toStatusError turns a box's error report into a [status.Error] with the
 // same status, so a caller can branch on it (status.Of) across the hop. The
-// message stays the box's own; the box's trace id and stack ride in Details.
+// message stays the box's own. The box's stack goes under "stack", where the
+// reflection API reads it ahead of the host-side one, so the Dev UI points at
+// the code that failed; the box's trace id goes under "boxTraceId".
 func (w *wireError) toStatusError() *status.Error {
 	name := status.FromCode(w.Code)
 	if w.Code == 0 {
@@ -86,7 +88,7 @@ func (w *wireError) toStatusError() *status.Error {
 		details["boxTraceId"] = w.Details.TraceID
 	}
 	if w.Details.Stack != "" {
-		details["boxStack"] = w.Details.Stack
+		details["stack"] = w.Details.Stack
 	}
 	if len(details) > 0 {
 		e.Details = details
