@@ -85,6 +85,13 @@ func defineFixtureActions(g *genkit.Genkit) {
 	genkit.DefineTool(g, "pid", "Reports the runtime pid and env.", func(_ *ai.ToolContext, name string) (string, error) {
 		return fmt.Sprintf("%d %s", os.Getpid(), os.Getenv(name)), nil
 	})
+	genkit.DefineTool(g, "write", "Writes a file and reports the error, if any.", func(_ *ai.ToolContext, path string) (string, error) {
+		if err := os.WriteFile(path, []byte("x"), 0o600); err != nil {
+			return err.Error(), nil
+		}
+		_ = os.Remove(path)
+		return "ok", nil
+	})
 	genkit.DefineStreamingFlow(g, "count", func(ctx context.Context, n int, cb func(context.Context, countChunk) error) (string, error) {
 		for i := 1; i <= n; i++ {
 			if cb != nil {

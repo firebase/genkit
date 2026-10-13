@@ -166,6 +166,44 @@ box.ExecRunner(box.Cmd("./boxed"),
   `GENKIT_REFLECTION_ENABLED=true`, so boxes work even when the caller runs
   outside dev or has turned its own reflection off.
 
+### Local sandboxes
+
+`box.WithIsolation` runs each box under an OS sandbox:
+
+```go
+// seatbelt on macOS, bubblewrap on Linux; panics elsewhere (e.g. Windows)
+box.ExecRunner(box.Self(), box.WithIsolation(box.LocalSandbox()))
+
+box.Bubblewrap(box.BubblewrapOptions{ExtraROBind: []string{"/path/to/repo"}})
+box.SandboxExec(box.SandboxExecOptions{Profile: "(version 1)\n(deny default)\n(allow network* (local ip))"})
+```
+
+#### Isolation levels (read this before trusting it)
+
+The local sandboxes are **dev-time guardrails against accidents, not
+containment for hostile code.**
+
+| Option | FS read | FS write | Network egress | CPU/mem/syscalls |
+| --- | --- | --- | --- | --- |
+| none | full | full | full | none |
+| `SandboxExec` (macOS) | **full** | blocked except the temp dirs and `/dev` | **full** | none |
+| `Bubblewrap` (Linux) | confined: ro `/usr /bin /lib /lib64 /etc` + the box program's dir + tmpfs `/tmp` | `/tmp` tmpfs only | **full** | none |
+
+- **Network egress is open on both.** The box must reach its host on loopback,
+  and the default profiles allow all network. A boxed tool can exfiltrate.
+- **macOS restricts writes only.** A boxed tool can still read anything you can
+  (`~/.aws/credentials`, `~/.ssh`, source). `sandbox-exec` is deprecated by
+  Apple but still works on current macOS.
+- **Linux confines the filesystem view.** Your home dir, repo and credentials
+  are not mounted. The box program's directory is (read-only), so a self-mode
+  binary, including one `go run` built under `/tmp`, still runs. A box that
+  reads files from your repo needs `ExtraROBind`.
+- **No resource limits.** No CPU, memory or pid caps, no seccomp.
+- **The environment is the runner's call.** Pair a sandbox with
+  `box.WithInheritEnv(box.InheritBase())` to keep API keys out.
+
+For untrusted code, use the podman runner.
+
 See [`samples/box-tools`](../../../samples/box-tools) for a runnable example.
 
 ## Runners

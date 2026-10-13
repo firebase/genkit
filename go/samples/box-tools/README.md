@@ -1,8 +1,9 @@
 # Genkit in a Box: tools
 
-One program defines a `runShell` tool and boxes it (`box.ExecRunner(box.Self())`),
-while the model call and the Gemini API key stay in the main process. Only
-`runShell` calls cross into the box.
+One program defines a `runShell` tool and boxes it in a local OS sandbox
+(`box.ExecRunner(box.Self(), box.WithIsolation(box.LocalSandbox()))`), while
+the model call and the Gemini API key stay in the main (unsandboxed) process.
+Only `runShell` calls cross into the box.
 
 ## Run
 
@@ -22,6 +23,21 @@ Then, in the Dev UI:
   uses `runShell`, that call executes inside the box.
 - Open a trace: the `runShell` span carries `genkit:metadata:box`, and
   `genkit:metadata:box:traceId` links it to the box's own trace.
+
+## What the sandbox blocks
+
+`box.LocalSandbox()` picks seatbelt on macOS and bubblewrap on Linux (and
+panics elsewhere, e.g. Windows). Both are guardrails, not containment:
+
+- **macOS**: writes outside the temp dirs fail. Try `{"cmd": "echo hi > ~/nope.txt"}`
+  ("Operation not permitted") versus `{"cmd": "echo hi > /tmp/ok.txt && cat /tmp/ok.txt"}`.
+  Reads are open: `{"cmd": "ls ~"}` works.
+- **Linux**: the box sees a read-only system plus a tmpfs `/tmp`; `{"cmd": "ls ~"}`
+  fails because your home dir is not mounted.
+- **Both**: network egress is open (`{"cmd": "curl -sI https://example.com"}`
+  works), and there are no CPU or memory limits.
+
+For real containment, use the podman runner (see `samples/box-podman`).
 
 ## How self mode works
 

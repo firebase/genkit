@@ -13,8 +13,9 @@
 // limitations under the License.
 
 // This sample is Genkit in a Box in self mode: one program defines a runShell
-// tool and boxes it, so every call runs in a separate process. The agent and
-// the Gemini API key stay in this process; only runShell calls cross over.
+// tool and boxes it in a local OS sandbox (seatbelt on macOS, bubblewrap on
+// Linux), so every call runs jailed in a separate process. The agent and the
+// Gemini API key stay in this process; only runShell calls cross over.
 //
 // The runner re-runs this same program as the box (box.Self()). The box
 // inherits none of this process's env beyond the basics (InheritBase), so
@@ -32,6 +33,10 @@
 // the key is empty and BOX_DEMO is what the host passed in. Chat with
 // codingAgent, and open a trace: the runShell span is marked as boxed, and
 // box:traceId links it to the box's own trace.
+//
+// What the sandbox blocks: on macOS {"cmd": "echo hi > ~/nope.txt"} fails with
+// "Operation not permitted" while {"cmd": "echo hi > /tmp/ok.txt && cat /tmp/ok.txt"}
+// works. On Linux {"cmd": "ls ~"} fails: your home dir is not mounted.
 package main
 
 import (
@@ -78,13 +83,19 @@ func main() {
 			defer cancel()
 			out, err := exec.CommandContext(ctx, "sh", "-c", in.Cmd).Output()
 			if err != nil {
-				return ShellOutput{Error: err.Error()}, nil
+				// Report failures to the model rather than failing the call.
+				msg := err.Error()
+				if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+					msg += ": " + strings.TrimSpace(string(ee.Stderr))
+				}
+				return ShellOutput{Stdout: strings.TrimSpace(string(out)), Error: msg}, nil
 			}
 			return ShellOutput{Stdout: strings.TrimSpace(string(out))}, nil
 		})
 
 	myBox := box.New(g, box.ExecRunner(
 		box.Self(),
+		box.WithIsolation(box.LocalSandbox()),
 		box.WithInheritEnv(box.InheritBase()),
 		box.WithEnv(map[string]string{"BOX_DEMO": "set by the host"}),
 	))
