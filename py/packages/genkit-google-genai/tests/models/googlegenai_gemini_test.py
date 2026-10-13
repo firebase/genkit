@@ -18,6 +18,7 @@
 """Tests for the Gemini model implementation."""
 
 import base64
+import math
 from datetime import date, datetime
 from typing import Annotated, Any, Literal, cast, get_args
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -1336,6 +1337,10 @@ def test_gemini_model__convert_schema_property_keeps_keywords(gemini_model_insta
     [
         ({'type': 'integer', 'minimum': 'zero'}, 'minimum'),
         ({'type': 'object', 'propertyOrdering': 'ab'}, 'propertyOrdering'),
+        ({'type': 'number', 'default': math.inf}, 'default'),
+        ({'type': 'number', 'maximum': math.nan}, 'maximum'),
+        ({'type': 'number', 'minimum': 10**400}, 'minimum'),
+        ({'type': 'array', 'items': {'type': 'string'}, 'minItems': math.inf}, 'minItems'),
     ],
 )
 def test_gemini_model__convert_schema_property_rejects_bad_keyword_value(
@@ -1356,6 +1361,13 @@ def test_gemini_model__convert_schema_property_rejects_bad_keyword_value(
     [
         ({'type': 'integer', 'minimum': 'zero'}, genai_types.Schema(type=genai_types.Type.INTEGER)),
         ({'type': 'object', 'propertyOrdering': 'ab'}, genai_types.Schema(type=genai_types.Type.OBJECT, properties={})),
+        ({'type': 'number', 'default': math.inf}, genai_types.Schema(type=genai_types.Type.NUMBER)),
+        ({'type': 'number', 'maximum': math.nan}, genai_types.Schema(type=genai_types.Type.NUMBER)),
+        ({'type': 'number', 'minimum': 10**400}, genai_types.Schema(type=genai_types.Type.NUMBER)),
+        (
+            {'type': 'array', 'items': {'type': 'string'}, 'minItems': math.inf},
+            genai_types.Schema(type=genai_types.Type.ARRAY, items=genai_types.Schema(type=genai_types.Type.STRING)),
+        ),
     ],
 )
 def test_gemini_model__convert_schema_property_leaves_out_bad_keyword_value(
@@ -1365,6 +1377,24 @@ def test_gemini_model__convert_schema_property_leaves_out_bad_keyword_value(
 ) -> None:
     """Without strict, a keyword value that cannot be coerced is left out."""
     assert gemini_model_instance._convert_schema_property(input_schema) == expected
+
+
+def test_gemini_model__convert_schema_property_non_object_property(gemini_model_instance: GeminiModel) -> None:
+    """A property whose schema is not an object is left out, and raises in strict mode when it is required."""
+    schema: dict[str, object] = {
+        'type': 'object',
+        'properties': {'x': 'string', 'y': {'type': 'string'}},
+        'required': ['x', 'y'],
+    }
+
+    assert gemini_model_instance._convert_schema_property(schema) == genai_types.Schema(
+        type=genai_types.Type.OBJECT,
+        required=['y'],
+        properties={'y': genai_types.Schema(type=genai_types.Type.STRING)},
+    )
+    with pytest.raises(GenkitError) as exc_info:
+        gemini_model_instance._convert_schema_property(schema, strict=True)
+    assert 'required property x' in exc_info.value.original_message
 
 
 @pytest.mark.parametrize('raw_type', ['bogus', None, 123])

@@ -17,6 +17,8 @@
 """Gemini models."""
 
 import asyncio
+import json
+import math
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta, timezone
 from functools import cached_property
@@ -127,6 +129,20 @@ def _to_string_list(value: Any) -> list[str]:  # noqa: ANN401
     if not isinstance(value, list):
         raise TypeError(f'expected a list, got {type(value).__name__}')
     return [str(item) for item in value]
+
+
+def _to_finite_float(value: Any) -> float:  # noqa: ANN401
+    """Coerce a JSON Schema bound; infinity and NaN have no JSON encoding."""
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f'{value!r} is not a finite number')
+    return number
+
+
+def _to_json_value(value: Any) -> Any:  # noqa: ANN401
+    """Return *value* unchanged when it encodes as strict JSON."""
+    json.dumps(value, allow_nan=False)
+    return value
 
 
 def _usage_from_metadata(usage_metadata: Any) -> ModelUsage:  # noqa: ANN401
@@ -1367,9 +1383,9 @@ class GeminiModel:
     # JSON Schema keywords copied onto a Gemini Schema: (keyword, attribute, coercion).
     _SCHEMA_SCALAR_KEYS: tuple[tuple[str, str, Callable[[Any], Any]], ...] = (
         ('format', 'format', str),
-        ('default', 'default', lambda v: v),
-        ('minimum', 'minimum', float),
-        ('maximum', 'maximum', float),
+        ('default', 'default', _to_json_value),
+        ('minimum', 'minimum', _to_finite_float),
+        ('maximum', 'maximum', _to_finite_float),
         ('minItems', 'min_items', int),
         ('maxItems', 'max_items', int),
         ('propertyOrdering', 'property_ordering', _to_string_list),
@@ -1530,9 +1546,13 @@ class GeminiModel:
             schema.properties = {}
             properties_value = input_schema.get('properties', {})
             if isinstance(properties_value, dict):
-                properties = cast(dict[str, dict[str, object]], properties_value)
-                for key in properties:
-                    nested_schema = self._convert_schema_property(properties[key], defs, strict=strict, refs=refs)
+                properties = cast(dict[str, object], properties_value)
+                for key, value in properties.items():
+                    nested_schema = (
+                        self._convert_schema_property(cast(dict[str, object], value), defs, strict=strict, refs=refs)
+                        if isinstance(value, dict)
+                        else None
+                    )
                     if nested_schema is not None:
                         schema.properties[key] = nested_schema
                     elif key in (schema.required or ()):
@@ -1595,7 +1615,7 @@ class GeminiModel:
                 continue
             try:
                 setattr(schema, attr, coerce(value))
-            except (TypeError, ValueError) as e:
+            except (TypeError, ValueError, OverflowError) as e:
                 if not strict:
                     continue
                 raise GenkitError(
