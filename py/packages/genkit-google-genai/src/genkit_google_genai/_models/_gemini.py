@@ -976,16 +976,14 @@ GENERIC_GEMMA_MODEL = ModelInfo(
 )
 
 
-# Quote autocomplete needs a Literal, so these aliases are the model-id
-# catalog. Constructors take ``Known* | str``: listed ids autocomplete,
-# and an id Google ships after this release still type-checks and routes.
-KnownGemini: TypeAlias = Literal[
+# Quote autocomplete needs a Literal, so these aliases list the ids each
+# constructor autocompletes; SUPPORTED_MODELS is the runtime catalog.
+# Constructors take ``Known* | str``, so an unlisted id still type-checks
+# and routes.
+KnownSharedGemini: TypeAlias = Literal[
     'gemini-2.5-flash',
     'gemini-2.5-pro',
     'gemini-2.5-flash-lite',
-    'gemini-flash-latest',
-    'gemini-flash-lite-latest',
-    'gemini-pro-latest',
     'gemini-3-flash-preview',
     'gemini-3-pro-preview',
     'gemini-3.1-flash-lite',
@@ -1000,6 +998,14 @@ KnownGemini: TypeAlias = Literal[
     'gemini-2.5-pro-preview-03-25',
     'gemini-2.5-pro-preview-05-06',
 ]
+# Vertex AI does not serve the rotating ``-latest`` aliases.
+KnownGoogleAIGemini: TypeAlias = Literal[
+    KnownSharedGemini,
+    'gemini-flash-latest',
+    'gemini-flash-lite-latest',
+    'gemini-pro-latest',
+]
+KnownVertexAIGemini: TypeAlias = KnownSharedGemini
 KnownGeminiTts: TypeAlias = Literal[
     'gemini-2.5-flash-preview-tts',
     'gemini-2.5-pro-preview-tts',
