@@ -115,7 +115,8 @@ async def test_gemini_object_tool_declaration_unchanged(mocker: MockerFixture) -
 
     assert _declared_parameters(sent) == genai_types.Schema(
         type=genai_types.Type.OBJECT,
-        properties={'city': genai_types.Schema(type=genai_types.Type.STRING)},
+        title='WeatherInput',
+        properties={'city': genai_types.Schema(type=genai_types.Type.STRING, title='City')},
         required=['city'],
     )
 
@@ -237,7 +238,7 @@ async def test_gemini_enum_ref_tool_declares_input_enum(mocker: MockerFixture) -
 
     assert _declared_parameters(sent) == genai_types.Schema(
         type=genai_types.Type.OBJECT,
-        properties={'input': genai_types.Schema(type=genai_types.Type.STRING, enum=['red', 'blue'])},
+        properties={'input': genai_types.Schema(type=genai_types.Type.STRING, title='Color', enum=['red', 'blue'])},
         required=['input'],
     )
 
