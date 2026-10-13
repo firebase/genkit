@@ -1107,6 +1107,15 @@ describe('prompt', () => {
       .render({});
 
     assert.strictEqual(messages[0].content[0].text, 'Hello from v1.0', 'text');
+
+    const action: PromptAction = await ai.registry.lookupAction(
+      '/prompt/v1.0/greet.fun'
+    );
+    assert.strictEqual(
+      action.__action.metadata?.prompt?.name,
+      'v1.0/greet',
+      'metadata name'
+    );
   });
 
   it('loads partials from sub folders', async () => {

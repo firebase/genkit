@@ -432,6 +432,16 @@ function definePromptAsync<
   return executablePrompt;
 }
 
+/**
+ * Strips the variant from a prompt name such as `support/main.casual`. The
+ * variant follows the first dot of the last path segment, so a directory such
+ * as `v1.0/` stays part of the name.
+ */
+function withoutVariant(name: string): string {
+  const dot = name.indexOf('.', name.lastIndexOf('/') + 1);
+  return dot === -1 ? name : name.substring(0, dot);
+}
+
 function promptMetadata(options: PromptConfig<any, any, any>) {
   const metadata = {
     ...options.metadata,
@@ -441,9 +451,7 @@ function promptMetadata(options: PromptConfig<any, any, any>) {
       input: {
         schema: options.input ? toJsonSchema(options.input) : undefined,
       },
-      name: options.name.includes('.')
-        ? options.name.split('.')[0]
-        : options.name,
+      name: withoutVariant(options.name),
       model: modelName(options.model),
       tools: (options.tools ?? []).map(toolName).filter(Boolean) as string[],
       toolChoice: options.toolChoice,
@@ -797,6 +805,9 @@ export function loadPromptFolderRecursively(
 ): void {
   const promptsPath = resolve(dir);
   const parentPath = join(promptsPath, subDir);
+  // Subdirectory paths use "/" on every platform because they become prompt
+  // and partial names.
+  const prefix = subDir ? `${subDir}/` : '';
   // Sorted so that the walk order, and with it which partial gets a short
   // name, does not depend on the filesystem.
   const dirEnts = readdirSync(parentPath, { withFileTypes: true }).sort(
@@ -812,18 +823,12 @@ export function loadPromptFolderRecursively(
     if (!fileName.startsWith('_')) {
       // If this prompt is in a subdirectory, we need to include that
       // in the namespace to prevent naming conflicts.
-      loadPrompt(
-        registry,
-        promptsPath,
-        fileName,
-        subDir ? `${subDir}/` : '',
-        ns
-      );
+      loadPrompt(registry, promptsPath, fileName, prefix, ns);
       continue;
     }
     const filePath = join(parentPath, fileName);
     const shortName = fileName.substring(1, fileName.length - 7);
-    const names = [subDir ? `${subDir}/${shortName}` : shortName];
+    const names = [`${prefix}${shortName}`];
     if (subDir) {
       if (partials.has(shortName)) {
         logger.debug(
@@ -842,10 +847,13 @@ export function loadPromptFolderRecursively(
   }
   for (const dirEnt of dirEnts) {
     if (dirEnt.isDirectory()) {
-      // Subdirectory paths use "/" on every platform because they become
-      // prompt and partial names.
-      const childDir = subDir ? `${subDir}/${dirEnt.name}` : dirEnt.name;
-      loadPromptFolderRecursively(registry, dir, ns, childDir, partials);
+      loadPromptFolderRecursively(
+        registry,
+        dir,
+        ns,
+        `${prefix}${dirEnt.name}`,
+        partials
+      );
     }
   }
 }
@@ -882,8 +890,8 @@ function loadPrompt(
     name = parts[0];
     variant = parts[1];
   }
-  name = `${prefix ?? ''}${name}`;
-  const source = readFileSync(join(path, prefix ?? '', filename), 'utf8');
+  name = `${prefix}${name}`;
+  const source = readFileSync(join(path, prefix, filename), 'utf8');
   const parsedPrompt = registry.dotprompt.parse(source);
   definePromptAsync(
     registry,
