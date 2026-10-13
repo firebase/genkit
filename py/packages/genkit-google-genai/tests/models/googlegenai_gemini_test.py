@@ -26,14 +26,12 @@ import pytest
 from genkit_google_genai._models import _gemini
 from genkit_google_genai._models._gemini import (
     DEFAULT_SUPPORTS_MODEL,
+    GEMINI_CATALOG_IDS,
     GeminiConfig,
     GeminiImageConfig,
     GeminiModel,
     GeminiTtsConfig,
     GemmaConfig,
-    KnownGemini,
-    KnownGeminiImage,
-    KnownGeminiTts,
     KnownGemma,
     SpeechConfig,
     _to_finish_reason,
@@ -55,12 +53,7 @@ from genkit._core._compat import StrEnum
 from genkit.model import Constrained, ModelInfo, ModelRequest, OutputConfig, Supports, ToolDefinition
 from genkit.plugin_api import to_json_schema
 
-ALL_VERSIONS = sorted({
-    *get_args(KnownGemini),
-    *get_args(KnownGeminiTts),
-    *get_args(KnownGeminiImage),
-    *get_args(KnownGemma),
-})
+ALL_VERSIONS = sorted({*GEMINI_CATALOG_IDS, *get_args(KnownGemma)})
 IMAGE_GENERATION_VERSIONS = ['gemini-2.5-flash']
 
 

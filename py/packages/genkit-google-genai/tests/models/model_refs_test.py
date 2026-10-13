@@ -17,8 +17,9 @@
 """Tests for the typed family ref constructors on GoogleAI / VertexAI."""
 
 import importlib
+import inspect
 from collections.abc import Callable
-from typing import get_args
+from typing import Literal, get_args, get_origin, get_type_hints
 
 import genkit_google_genai
 import pytest
@@ -33,22 +34,80 @@ from genkit_google_genai import (
 )
 from genkit_google_genai._models._gemini import (
     GEMINI_CATALOG_IDS,
-    KnownGemini,
     KnownGeminiImage,
     KnownGeminiTts,
     KnownGemma,
+    KnownGoogleAIGemini,
+    KnownVertexAIGemini,
     is_gemini_model,
     is_gemma_model,
     is_image_model,
     is_tts_model,
 )
 from genkit_google_genai._models._interactions_registry import KnownLyria, is_lyria_model_name
-from genkit_google_genai._models._veo import KnownVeo, VeoConfig, is_veo_model
+from genkit_google_genai._models._veo import KnownGoogleAIVeo, KnownVertexAIVeo, VeoConfig, is_veo_model
 from genkit_google_genai._models._virtual_try_on import KnownVirtualTryOn, is_virtual_try_on_model
 
 from genkit import GenkitError
 from genkit.embedder import EmbedderRef
 from genkit.model import ModelRef
+
+_SHARED_GEMINI = {
+    'gemini-2.5-flash',
+    'gemini-2.5-pro',
+    'gemini-2.5-flash-lite',
+    'gemini-3-flash-preview',
+    'gemini-3.1-flash-lite',
+    'gemini-3.1-pro-preview',
+    'gemini-3.1-pro-preview-customtools',
+    'gemini-3.5-flash',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
+}
+_GOOGLEAI_LATEST = {'gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-pro-latest'}
+_SHARED_TTS = {
+    'gemini-2.5-flash-preview-tts',
+    'gemini-2.5-pro-preview-tts',
+    'gemini-3.1-flash-tts-preview',
+    'gemini-3.8-flash-tts',
+    'gemini-3.8-flash-lite-tts',
+}
+_SHARED_IMAGE = {'gemini-2.5-flash-image', 'gemini-3-pro-image', 'gemini-3.1-flash-image'}
+# Registered in SUPPORTED_MODELS, but neither backend serves them, so they do not autocomplete.
+_RETIRED_GEMINI = {
+    'gemini-2.5-flash-preview-04-17',
+    'gemini-2.5-pro-exp-03-25',
+    'gemini-2.5-pro-preview-03-25',
+    'gemini-2.5-pro-preview-05-06',
+    'gemini-3-pro-preview',
+    'gemini-3.1-flash-lite-preview',
+}
+_RETIRED_IMAGE = {'gemini-2.5-flash-image-preview', 'gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview'}
+
+_BACKEND_IDS: dict[tuple[type, str], set[str] | None] = {
+    (GoogleAI, 'gemini_model'): _SHARED_GEMINI | _GOOGLEAI_LATEST,
+    (VertexAI, 'gemini_model'): _SHARED_GEMINI,
+    (GoogleAI, 'gemini_tts_model'): _SHARED_TTS,
+    (VertexAI, 'gemini_tts_model'): _SHARED_TTS,
+    (GoogleAI, 'gemini_image_model'): _SHARED_IMAGE,
+    (VertexAI, 'gemini_image_model'): _SHARED_IMAGE,
+    (GoogleAI, 'gemma_model'): {
+        'gemma-3-1b-it',
+        'gemma-3-4b-it',
+        'gemma-3-12b-it',
+        'gemma-3-27b-it',
+        'gemma-3n-e4b-it',
+        'gemma-4-26b-a4b-it',
+        'gemma-4-31b-it',
+    },
+    (VertexAI, 'gemma_model'): None,
+    (GoogleAI, 'veo_model'): {
+        'veo-3.1-generate-preview',
+        'veo-3.1-fast-generate-preview',
+        'veo-3.1-lite-generate-preview',
+    },
+    (VertexAI, 'veo_model'): {'veo-3.1-generate-001', 'veo-3.1-fast-generate-001', 'veo-3.1-lite-generate-001'},
+}
 
 
 class TestHappyPaths:
@@ -76,6 +135,8 @@ class TestHappyPaths:
         image = VertexAI.gemini_image_model('gemini-2.5-flash-image')
         gemma = GoogleAI.gemma_model('gemma-3-12b-it')
         veo = GoogleAI.veo_model('veo-3.1-fast-generate-preview')
+        vertex_gemma = VertexAI.gemma_model('gemma-3-12b-it')
+        vertex_veo = VertexAI.veo_model('veo-3.1-generate-001')
 
         assert tts.config_schema is GeminiTtsConfig
         assert image.config_schema is GeminiImageConfig
@@ -83,6 +144,10 @@ class TestHappyPaths:
         assert gemma.config_schema is GemmaConfig
         assert veo.config_schema is VeoConfig
         assert veo.name == 'googleai/veo-3.1-fast-generate-preview'
+        assert vertex_gemma.config_schema is GemmaConfig
+        assert vertex_gemma.name == 'vertexai/gemma-3-12b-it'
+        assert vertex_veo.config_schema is VeoConfig
+        assert vertex_veo.name == 'vertexai/veo-3.1-generate-001'
 
     def test_config_instance_rides_along(self) -> None:
         """A default config passed at construction survives into the ref."""
@@ -256,36 +321,42 @@ class TestKnownIdLiterals:
     """Constructor name types are string Literals so quotes autocomplete."""
 
     def test_known_gemini_matches_catalog(self) -> None:
-        """Quote autocomplete and the registered text catalog are the same set of ids."""
-        known = set(get_args(KnownGemini))
-        assert known == _registered(is_gemini_model)
-        assert not any(is_tts_model(value) or is_image_model(value) or is_gemma_model(value) for value in known)
+        """Each backend autocompletes every registered text id it serves; only retired ids are hidden."""
+        registered = _registered(is_gemini_model)
+        googleai = set(get_args(KnownGoogleAIGemini))
+        vertexai = set(get_args(KnownVertexAIGemini))
+        assert googleai | vertexai <= registered
+        assert registered - googleai == _RETIRED_GEMINI
+        assert registered - vertexai == _RETIRED_GEMINI | _GOOGLEAI_LATEST
+        assert not any(is_tts_model(value) or is_image_model(value) or is_gemma_model(value) for value in googleai)
+
+    def test_known_gemini_image_matches_catalog(self) -> None:
+        """Every registered image id autocompletes except the retired ``-preview`` ids."""
+        known = set(get_args(KnownGeminiImage))
+        registered = _registered(is_image_model)
+        assert known <= registered
+        assert registered - known == _RETIRED_IMAGE
 
     def test_family_literals_match_their_catalog(self) -> None:
-        """Every registered id autocompletes, and every autocomplete id routes to its family."""
+        """Registered TTS and Gemma ids autocomplete, and every autocomplete id routes to its family."""
         assert set(get_args(KnownGeminiTts)) == _registered(is_tts_model)
-        assert set(get_args(KnownGeminiImage)) == _registered(is_image_model)
         # Gemma 3 ids resolve through the generic Gemma info, not _add_model.
         assert _registered(is_gemma_model) <= set(get_args(KnownGemma))
         assert all(is_gemma_model(value) for value in get_args(KnownGemma))
-        assert all(is_veo_model(value) for value in get_args(KnownVeo))
+        assert all(is_veo_model(value) for value in get_args(KnownGoogleAIVeo) + get_args(KnownVertexAIVeo))
         assert all(is_lyria_model_name(value) for value in get_args(KnownLyria))
         assert all(is_virtual_try_on_model(value) for value in get_args(KnownVirtualTryOn))
-
-    def test_latest_aliases_autocomplete_on_gemini_model(self) -> None:
-        """Every rotating ``-latest`` alias is offered by ``gemini_model``."""
-        assert {'gemini-pro-latest', 'gemini-flash-latest', 'gemini-flash-lite-latest'} <= set(get_args(KnownGemini))
 
     def test_infix_tts_id_autocompletes_on_the_tts_constructor(self) -> None:
         """A ``-tts`` infix belongs to the TTS constructor, not the text one."""
         assert 'gemini-3.1-flash-tts-preview' in get_args(KnownGeminiTts)
-        assert 'gemini-3.1-flash-tts-preview' not in get_args(KnownGemini)
+        assert 'gemini-3.1-flash-tts-preview' not in get_args(KnownGoogleAIGemini)
 
     def test_gemini_3_8_tts_ids_autocomplete_on_the_tts_constructor(self) -> None:
         """The 3.8 TTS ids are offered by ``gemini_tts_model``, not ``gemini_model``."""
         ids = {'gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts'}
         assert ids <= set(get_args(KnownGeminiTts))
-        assert not ids & set(get_args(KnownGemini))
+        assert not ids & set(get_args(KnownGoogleAIGemini))
         for name in ids:
             assert GoogleAI.gemini_tts_model(name).config_schema is GeminiTtsConfig
 
@@ -293,16 +364,43 @@ class TestKnownIdLiterals:
         """The gemma-4 ids are offered by ``gemma_model``."""
         assert {'gemma-4-26b-a4b-it', 'gemma-4-31b-it'} <= set(get_args(KnownGemma))
 
-    def test_veo_catalog_is_the_3_1_family(self) -> None:
-        """KnownVeo is the six Veo 3.1 ids."""
-        assert set(get_args(KnownVeo)) == {
-            'veo-3.1-generate-preview',
-            'veo-3.1-fast-generate-preview',
-            'veo-3.1-lite-generate-preview',
-            'veo-3.1-generate-001',
-            'veo-3.1-fast-generate-001',
-            'veo-3.1-lite-generate-001',
-        }
+
+def _autocomplete_ids(method: Callable[..., object]) -> set[str] | None:
+    """The Literal ids a constructor's ``name`` param offers, or None for plain ``str``."""
+    hint = get_type_hints(method)['name']
+    if hint is str:
+        return None
+    members = get_args(hint)
+    assert str in members
+    literals = [member for member in members if get_origin(member) is Literal]
+    assert len(literals) == 1
+    return set(get_args(literals[0]))
+
+
+def _signature_without_name_type(fn: Callable[..., object]) -> inspect.Signature:
+    sig = inspect.signature(fn)
+    params = [p.replace(annotation=inspect.Parameter.empty) if p.name == 'name' else p for p in sig.parameters.values()]
+    return sig.replace(parameters=params)
+
+
+class TestPerBackendAutocomplete:
+    """Each plugin class autocompletes only the ids its backend serves."""
+
+    @pytest.mark.parametrize(
+        ('plugin', 'method'),
+        list(_BACKEND_IDS),
+        ids=[f'{plugin.__name__}.{method}' for plugin, method in _BACKEND_IDS],
+    )
+    def test_name_param_offers_the_backend_ids(self, plugin: type, method: str) -> None:
+        """The ``name`` annotation pins the exact id set for this backend and family."""
+        assert _autocomplete_ids(getattr(plugin, method)) == _BACKEND_IDS[(plugin, method)]
+
+    @pytest.mark.parametrize('method', ['gemini_model', 'gemma_model', 'veo_model'])
+    def test_backends_share_the_signature_except_name(self, method: str) -> None:
+        """Per-backend signatures differ only in the ``name`` annotation."""
+        assert _signature_without_name_type(getattr(GoogleAI, method)) == _signature_without_name_type(
+            getattr(VertexAI, method)
+        )
 
 
 class TestVirtualTryOnConstructor:

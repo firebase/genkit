@@ -108,10 +108,11 @@ from genkit_google_genai._models._gemini import (
     GeminiModel,
     GeminiTtsConfig,
     GemmaConfig,
-    KnownGemini,
     KnownGeminiImage,
     KnownGeminiTts,
     KnownGemma,
+    KnownGoogleAIGemini,
+    KnownVertexAIGemini,
     get_model_config_schema,
     google_model_info,
     is_gemma_model,
@@ -145,7 +146,8 @@ from genkit_google_genai._models._routing import (
     strip_ref_prefixes,
 )
 from genkit_google_genai._models._veo import (
-    KnownVeo,
+    KnownGoogleAIVeo,
+    KnownVertexAIVeo,
     VeoConfig,
     VeoModel,
     is_veo_model,
@@ -412,23 +414,6 @@ class GoogleFamilyRefs:
     name: str  # plugin namespace ('googleai' or 'vertexai')
 
     @classmethod
-    def gemini_model(cls, name: KnownGemini | str, *, config: GeminiConfig | None = None) -> ModelRef[GeminiConfig]:
-        """Typed ref for a Gemini text model, e.g. ``GoogleAI.gemini_model('gemini-2.5-flash')``.
-
-        Unknown ids are allowed so a brand-new Gemini release works before
-        this plugin learns its name; ids from other families are refused.
-        """
-        return family_model_ref(
-            name,
-            namespace=cls.name,
-            plugin_class=cls.__name__,
-            family='gemini',
-            method='gemini_model',
-            config_schema=GeminiConfig,
-            config=config,
-        )
-
-    @classmethod
     def gemini_tts_model(
         cls, name: KnownGeminiTts | str, *, config: GeminiTtsConfig | None = None
     ) -> ModelRef[GeminiTtsConfig]:
@@ -459,19 +444,6 @@ class GoogleFamilyRefs:
         )
 
     @classmethod
-    def gemma_model(cls, name: KnownGemma | str, *, config: GemmaConfig | None = None) -> ModelRef[GemmaConfig]:
-        """Typed ref for a Gemma open model (``gemma-…``)."""
-        return family_model_ref(
-            name,
-            namespace=cls.name,
-            plugin_class=cls.__name__,
-            family='gemma',
-            method='gemma_model',
-            config_schema=GemmaConfig,
-            config=config,
-        )
-
-    @classmethod
     def imagen_model(cls, name: str, *, config: object | None = None) -> NoReturn:
         """Always raises: Imagen is no longer supported. Use ``gemini_image_model``."""
         raise GenkitError(
@@ -480,19 +452,6 @@ class GoogleFamilyRefs:
                 f'{cls.__name__}.imagen_model: Imagen is no longer supported; '
                 f'for image generation use {cls.__name__}.gemini_image_model().'
             ),
-        )
-
-    @classmethod
-    def veo_model(cls, name: KnownVeo | str, *, config: VeoConfig | None = None) -> ModelRef[VeoConfig]:
-        """Typed ref for a Veo video model (``veo-…``)."""
-        return family_model_ref(
-            name,
-            namespace=cls.name,
-            plugin_class=cls.__name__,
-            family='veo',
-            method='veo_model',
-            config_schema=VeoConfig,
-            config=config,
         )
 
     @classmethod
@@ -574,6 +533,51 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
 
     name = GOOGLEAI_PLUGIN_NAME
     _vertexai = False
+
+    @classmethod
+    def gemini_model(
+        cls, name: KnownGoogleAIGemini | str, *, config: GeminiConfig | None = None
+    ) -> ModelRef[GeminiConfig]:
+        """Typed ref for a Gemini text model, e.g. ``GoogleAI.gemini_model('gemini-flash-latest')``.
+
+        Unknown ids are allowed so a brand-new Gemini release works before
+        this plugin learns its name; ids from other families are refused.
+        """
+        return family_model_ref(
+            name,
+            namespace=cls.name,
+            plugin_class=cls.__name__,
+            family='gemini',
+            method='gemini_model',
+            config_schema=GeminiConfig,
+            config=config,
+        )
+
+    @classmethod
+    def gemma_model(cls, name: KnownGemma | str, *, config: GemmaConfig | None = None) -> ModelRef[GemmaConfig]:
+        """Typed ref for a Gemma open model (``gemma-…``)."""
+        return family_model_ref(
+            name,
+            namespace=cls.name,
+            plugin_class=cls.__name__,
+            family='gemma',
+            method='gemma_model',
+            config_schema=GemmaConfig,
+            config=config,
+        )
+
+    @classmethod
+    def veo_model(cls, name: KnownGoogleAIVeo | str, *, config: VeoConfig | None = None) -> ModelRef[VeoConfig]:
+        """Typed ref for a Veo video model (``veo-…``)."""
+        return family_model_ref(
+            name,
+            namespace=cls.name,
+            plugin_class=cls.__name__,
+            family='veo',
+            method='veo_model',
+            config_schema=VeoConfig,
+            config=config,
+        )
 
     @classmethod
     def deep_research_model(
@@ -958,7 +962,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
     Model Types:
         | Type | Action Kind | Example |
         |---|---|---|
-        | Gemini / Gemma | MODEL | ``vertexai/gemini-flash-latest`` |
+        | Gemini | MODEL | ``vertexai/gemini-2.5-flash`` |
         | Veo (Video) | BACKGROUND_MODEL | ``vertexai/veo-3.1-generate-001`` |
         | Virtual Try-On | MODEL | ``vertexai/virtual-try-on-001`` |
         | Embedders | EMBEDDER | ``vertexai/text-embedding-005`` |
@@ -973,7 +977,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
 
         # 2. Generate text using Gemini on Vertex AI
         res = await ai.generate(
-            model=VertexAI.gemini_model('gemini-flash-latest'),
+            model=VertexAI.gemini_model('gemini-2.5-flash'),
             prompt='Explain quantum computing in one sentence.',
         )
 
@@ -993,6 +997,51 @@ class VertexAI(GoogleFamilyRefs, Plugin):
     _vertexai = True
 
     name = VERTEXAI_PLUGIN_NAME
+
+    @classmethod
+    def gemini_model(
+        cls, name: KnownVertexAIGemini | str, *, config: GeminiConfig | None = None
+    ) -> ModelRef[GeminiConfig]:
+        """Typed ref for a Gemini text model, e.g. ``VertexAI.gemini_model('gemini-2.5-flash')``.
+
+        Unknown ids are allowed so a brand-new Gemini release works before
+        this plugin learns its name; ids from other families are refused.
+        """
+        return family_model_ref(
+            name,
+            namespace=cls.name,
+            plugin_class=cls.__name__,
+            family='gemini',
+            method='gemini_model',
+            config_schema=GeminiConfig,
+            config=config,
+        )
+
+    @classmethod
+    def gemma_model(cls, name: str, *, config: GemmaConfig | None = None) -> ModelRef[GemmaConfig]:
+        """Typed ref for a Gemma open model (``gemma-…``); Vertex AI serves none through generate_content."""
+        return family_model_ref(
+            name,
+            namespace=cls.name,
+            plugin_class=cls.__name__,
+            family='gemma',
+            method='gemma_model',
+            config_schema=GemmaConfig,
+            config=config,
+        )
+
+    @classmethod
+    def veo_model(cls, name: KnownVertexAIVeo | str, *, config: VeoConfig | None = None) -> ModelRef[VeoConfig]:
+        """Typed ref for a Veo video model (``veo-…``)."""
+        return family_model_ref(
+            name,
+            namespace=cls.name,
+            plugin_class=cls.__name__,
+            family='veo',
+            method='veo_model',
+            config_schema=VeoConfig,
+            config=config,
+        )
 
     @classmethod
     def virtual_try_on_model(
