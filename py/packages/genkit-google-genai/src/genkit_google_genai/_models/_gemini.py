@@ -1366,7 +1366,6 @@ class GeminiModel:
 
     # JSON Schema keywords copied onto a Gemini Schema: (keyword, attribute, coercion).
     _SCHEMA_SCALAR_KEYS: tuple[tuple[str, str, Callable[[Any], Any]], ...] = (
-        ('title', 'title', str),
         ('format', 'format', str),
         ('default', 'default', lambda v: v),
         ('minimum', 'minimum', float),

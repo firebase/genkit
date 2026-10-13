@@ -326,21 +326,17 @@ def test_convert_schema_property(mocker: MockerFixture) -> None:
 
     assert gemini._convert_schema_property(to_json_schema(Simple)) == genai_types.Schema(
         type=genai_types.Type.OBJECT,
-        title='Simple',
         properties={
             'foo': genai_types.Schema(
                 type=genai_types.Type.STRING,
-                title='Foo',
                 description='foo field',
             ),
             'bar': genai_types.Schema(
                 type=genai_types.Type.INTEGER,
-                title='Bar',
                 description='bar field',
             ),
             'baz': genai_types.Schema(
                 type=genai_types.Type.ARRAY,
-                title='Baz',
                 description='baz field',
                 nullable=True,
                 items=genai_types.Schema(type=genai_types.Type.STRING),
@@ -358,21 +354,17 @@ def test_convert_schema_property(mocker: MockerFixture) -> None:
 
     assert gemini._convert_schema_property(to_json_schema(WithNested)) == genai_types.Schema(
         type=genai_types.Type.OBJECT,
-        title='WithNested',
         properties={
             'foo': genai_types.Schema(
                 type=genai_types.Type.STRING,
-                title='Foo',
                 description='foo field',
             ),
             'bar': genai_types.Schema(
                 type=genai_types.Type.OBJECT,
-                title='Nested',
                 description='bar field',
                 properties={
                     'baz': genai_types.Schema(
                         type=genai_types.Type.INTEGER,
-                        title='Baz',
                         description='baz field',
                     ),
                 },
@@ -391,11 +383,9 @@ def test_convert_schema_property(mocker: MockerFixture) -> None:
 
     assert gemini._convert_schema_property(to_json_schema(WitEnum)) == genai_types.Schema(
         type=genai_types.Type.OBJECT,
-        title='WitEnum',
         properties={
             'foo': genai_types.Schema(
                 type=genai_types.Type.STRING,
-                title='TestEnum',
                 description='foo field',
                 enum=['foo', 'bar'],
             ),
@@ -1151,9 +1141,8 @@ def test_gemini_model__create_tool_leaves_out_recursive_param(gemini_model_insta
     assert declarations is not None
     assert declarations[0].parameters == genai_types.Schema(
         type=genai_types.Type.OBJECT,
-        title='_LinkedList',
         required=['value'],
-        properties={'value': genai_types.Schema(type=genai_types.Type.INTEGER, title='Value')},
+        properties={'value': genai_types.Schema(type=genai_types.Type.INTEGER)},
     )
 
 
@@ -1169,9 +1158,7 @@ def test_gemini_model__create_tool_leaves_out_recursive_items(
     declarations = gemini_tool.function_declarations
 
     assert declarations is not None
-    assert declarations[0].parameters == genai_types.Schema(
-        type=genai_types.Type.OBJECT, title=model.__name__, properties={}
-    )
+    assert declarations[0].parameters == genai_types.Schema(type=genai_types.Type.OBJECT, properties={})
 
 
 def test_gemini_model__convert_schema_property_strict_leaves_out_recursive_items(
@@ -1180,7 +1167,7 @@ def test_gemini_model__convert_schema_property_strict_leaves_out_recursive_items
     """In strict mode an optional array whose items refer back to a model that contains it is left out."""
     schema = gemini_model_instance._convert_schema_property(to_json_schema(_Tree), strict=True)
 
-    assert schema == genai_types.Schema(type=genai_types.Type.OBJECT, title='_Tree', properties={})
+    assert schema == genai_types.Schema(type=genai_types.Type.OBJECT, properties={})
 
 
 def test_gemini_model__convert_schema_property_strict_rejects_required_recursive_items(
@@ -1244,9 +1231,8 @@ def test_gemini_model__convert_schema_property_strict_rejects_union_losing_a_bra
             to_json_schema(_Mixed),
             genai_types.Schema(
                 type=genai_types.Type.OBJECT,
-                title='_Mixed',
                 required=['x'],
-                properties={'x': genai_types.Schema(type=genai_types.Type.INTEGER, title='X')},
+                properties={'x': genai_types.Schema(type=genai_types.Type.INTEGER)},
             ),
         ),
         ({'type': ['string', 'integer', 'null']}, genai_types.Schema(type=genai_types.Type.STRING, nullable=True)),
@@ -1289,15 +1275,14 @@ def test_gemini_model__convert_schema_property_expands_repeated_ref(gemini_model
     assert schema is not None and schema.properties is not None
     point = genai_types.Schema(
         type=genai_types.Type.OBJECT,
-        title='Point',
         required=['x'],
-        properties={'x': genai_types.Schema(type=genai_types.Type.INTEGER, title='X')},
+        properties={'x': genai_types.Schema(type=genai_types.Type.INTEGER)},
     )
     assert schema.properties == {'start': point, 'end': point}
 
 
 def test_gemini_model__convert_schema_property_keeps_keywords(gemini_model_instance: GeminiModel) -> None:
-    """anyOf, type lists, format, title, default, bounds and propertyOrdering survive conversion.
+    """anyOf, type lists, format, default, bounds and propertyOrdering survive conversion.
 
     A type list without null is not nullable, and an optional untyped property
     is left out.
@@ -1321,13 +1306,10 @@ def test_gemini_model__convert_schema_property_keeps_keywords(gemini_model_insta
 
     assert gemini_model_instance._convert_schema_property(schema) == genai_types.Schema(
         type=genai_types.Type.OBJECT,
-        title='Thing',
         property_ordering=['count', 'label', 'kind', 'ratio', 'tags'],
         required=['count'],
         properties={
-            'count': genai_types.Schema(
-                type=genai_types.Type.INTEGER, title='Count', default=1, minimum=0.0, maximum=10.0
-            ),
+            'count': genai_types.Schema(type=genai_types.Type.INTEGER, default=1, minimum=0.0, maximum=10.0),
             'label': genai_types.Schema(type=genai_types.Type.STRING, format='date-time', nullable=True),
             'pick': genai_types.Schema(type=genai_types.Type.STRING),
             'kind': genai_types.Schema(
@@ -1337,7 +1319,7 @@ def test_gemini_model__convert_schema_property_keeps_keywords(gemini_model_insta
                 ],
                 description='string or int',
             ),
-            'ratio': genai_types.Schema(type=genai_types.Type.NUMBER, title='Ratio', nullable=True),
+            'ratio': genai_types.Schema(type=genai_types.Type.NUMBER, nullable=True),
             'tags': genai_types.Schema(
                 type=genai_types.Type.ARRAY,
                 items=genai_types.Schema(type=genai_types.Type.STRING),
@@ -1414,28 +1396,24 @@ def test_gemini_model__convert_schema_property_discriminated_union(gemini_model_
 
     assert gemini_model_instance._convert_schema_property(to_json_schema(Pets)) == genai_types.Schema(
         type=genai_types.Type.OBJECT,
-        title='Pets',
         required=['pet'],
         properties={
             'pet': genai_types.Schema(
-                title='Pet',
                 any_of=[
                     genai_types.Schema(
                         type=genai_types.Type.OBJECT,
-                        title='Cat',
                         required=['kind', 'meows'],
                         properties={
-                            'kind': genai_types.Schema(type=genai_types.Type.STRING, title='Kind', enum=['cat']),
-                            'meows': genai_types.Schema(type=genai_types.Type.INTEGER, title='Meows'),
+                            'kind': genai_types.Schema(type=genai_types.Type.STRING, enum=['cat']),
+                            'meows': genai_types.Schema(type=genai_types.Type.INTEGER),
                         },
                     ),
                     genai_types.Schema(
                         type=genai_types.Type.OBJECT,
-                        title='Dog',
                         required=['kind', 'barks'],
                         properties={
-                            'kind': genai_types.Schema(type=genai_types.Type.STRING, title='Kind', enum=['dog']),
-                            'barks': genai_types.Schema(type=genai_types.Type.BOOLEAN, title='Barks'),
+                            'kind': genai_types.Schema(type=genai_types.Type.STRING, enum=['dog']),
+                            'barks': genai_types.Schema(type=genai_types.Type.BOOLEAN),
                         },
                     ),
                 ],
@@ -1463,9 +1441,7 @@ def test_gemini_model__convert_schema_property_keeps_only_string_enums(gemini_mo
     assert convert({'type': 'string', 'enum': ['a', 1]}) == genai_types.Schema(type=genai_types.Type.STRING)
     pick = convert(to_json_schema(Pick), strict=True)
     assert pick is not None and pick.properties is not None
-    assert pick.properties['tag'] == genai_types.Schema(
-        type=genai_types.Type.STRING, nullable=True, enum=['a'], title='Tag'
-    )
+    assert pick.properties['tag'] == genai_types.Schema(type=genai_types.Type.STRING, nullable=True, enum=['a'])
 
 
 def test_gemini_model__convert_schema_property_keeps_pydantic_string_formats(
@@ -1524,31 +1500,28 @@ class _RequiredValues(BaseModel):
             to_json_schema(_RequiredAny),
             genai_types.Schema(
                 type=genai_types.Type.OBJECT,
-                title='_RequiredAny',
                 required=['count'],
-                properties={'count': genai_types.Schema(type=genai_types.Type.INTEGER, title='Count')},
+                properties={'count': genai_types.Schema(type=genai_types.Type.INTEGER)},
             ),
         ),
         (
             to_json_schema(_RequiredValues),
             genai_types.Schema(
                 type=genai_types.Type.OBJECT,
-                title='_RequiredValues',
                 required=['count'],
-                properties={'count': genai_types.Schema(type=genai_types.Type.INTEGER, title='Count')},
+                properties={'count': genai_types.Schema(type=genai_types.Type.INTEGER)},
             ),
         ),
         (
             to_json_schema(_RequiredTree),
-            genai_types.Schema(type=genai_types.Type.OBJECT, title='_RequiredTree', properties={}),
+            genai_types.Schema(type=genai_types.Type.OBJECT, properties={}),
         ),
         (
             to_json_schema(_RequiredLinkedList),
             genai_types.Schema(
                 type=genai_types.Type.OBJECT,
-                title='_RequiredLinkedList',
                 required=['value'],
-                properties={'value': genai_types.Schema(type=genai_types.Type.INTEGER, title='Value')},
+                properties={'value': genai_types.Schema(type=genai_types.Type.INTEGER)},
             ),
         ),
     ],
@@ -1857,7 +1830,6 @@ _STRUCTURED_SCHEMA: dict[str, Any] = {
 
 _STRUCTURED_RESPONSE_SCHEMA = genai_types.Schema(
     type=genai_types.Type.OBJECT,
-    title='Thing',
     required=['n'],
     properties={
         'a': genai_types.Schema(type=genai_types.Type.STRING, nullable=True),
