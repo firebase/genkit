@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package otel
+package otelgenai
 
 import (
 	"context"
@@ -25,22 +25,22 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/plugins/otel/genai"
+	"github.com/firebase/genkit/go/plugins/otelgenai/internal/genai"
 )
 
 // recordContent attaches spec-shaped message content to the span (SPAN modes)
 // and/or emits a dedicated operation.details event (EVENT modes).
-func (g *GenAiInstrumentation) recordContent(ctx context.Context, span oteltrace.Span, request *ai.ModelRequest, response *ai.ModelResponse, failed bool) {
+func (g *Instrumentation) recordContent(ctx context.Context, span oteltrace.Span, request *ai.ModelRequest, response *ai.ModelResponse, failed bool) {
 	var input *genai.NormalizedMessages
 	if request != nil {
 		nm := genai.NormalizeMessages(request.Messages)
 		input = &nm
 	}
 	var outputMessages []map[string]any
-	if msg := resolveMessage(response); msg != nil {
+	if response != nil && response.Message != nil {
 		// resolveFinishReasons always returns exactly one element.
 		reason := resolveFinishReasons(response, failed)[0]
-		outputMessages = append(outputMessages, genai.MapOutputMessage(msg, reason))
+		outputMessages = append(outputMessages, genai.MapOutputMessage(response.Message, reason))
 	}
 
 	if g.captureOnSpan {
@@ -62,18 +62,25 @@ func (g *GenAiInstrumentation) recordContent(ctx context.Context, span oteltrace
 
 // emitOperationDetails emits a single gen_ai operation.details log event,
 // correlated to the active span via ctx, carrying the captured content.
-func (g *GenAiInstrumentation) emitOperationDetails(ctx context.Context, input *genai.NormalizedMessages, outputMessages []map[string]any) {
+//
+// Unlike the span attributes (JSON strings, which is what trace backends
+// render), the event carries content as structured MAP / SLICE values, as the
+// spec defines for this event.
+func (g *Instrumentation) emitOperationDetails(ctx context.Context, input *genai.NormalizedMessages, outputMessages []map[string]any) {
 	var rec otellog.Record
 	rec.SetTimestamp(time.Now())
 	rec.SetEventName(genai.OperationDetailsEvent)
+	add := func(key string, v any) {
+		rec.AddAttributes(attribute.KeyValue{Key: attribute.Key(key), Value: structuredValue(v)})
+	}
 	if input != nil {
-		rec.AddAttributes(attribute.String(genai.AttrInputMessages, jsonString(input.Messages)))
+		add(genai.AttrInputMessages, input.Messages)
 		if len(input.SystemInstructions) > 0 {
-			rec.AddAttributes(attribute.String(genai.AttrSystemInstructions, jsonString(input.SystemInstructions)))
+			add(genai.AttrSystemInstructions, input.SystemInstructions)
 		}
 	}
 	if len(outputMessages) > 0 {
-		rec.AddAttributes(attribute.String(genai.AttrOutputMessages, jsonString(outputMessages)))
+		add(genai.AttrOutputMessages, outputMessages)
 	}
 	g.logger.Emit(ctx, rec)
 }
@@ -82,7 +89,7 @@ func (g *GenAiInstrumentation) emitOperationDetails(ctx context.Context, input *
 // a model call. Token usage is recorded for a failed call too when it returned
 // a response: those tokens were billed. The duration point of a failed call
 // carries error.type.
-func (g *GenAiInstrumentation) recordModelMetrics(ctx context.Context, start time.Time, base []attribute.KeyValue, response *ai.ModelResponse, err error) {
+func (g *Instrumentation) recordModelMetrics(ctx context.Context, start time.Time, base []attribute.KeyValue, response *ai.ModelResponse, err error) {
 	if response != nil && response.Usage != nil {
 		g.metrics.RecordTokenUsage(ctx, base, response.Usage.InputTokens, response.Usage.OutputTokens)
 	}
@@ -96,10 +103,39 @@ func (g *GenAiInstrumentation) recordModelMetrics(ctx context.Context, start tim
 // maybeCaptureActionIO records raw Genkit input/output on span as genkit.* JSON
 // attributes when CaptureActionIO is enabled. Kept out of the reserved gen_ai.*
 // namespace so GenAI-aware backends do not misrender it.
-func (g *GenAiInstrumentation) maybeCaptureActionIO(span oteltrace.Span, input, output any) {
+func (g *Instrumentation) maybeCaptureActionIO(span oteltrace.Span, input, output any) {
 	if !g.captureActionIO {
 		return
 	}
-	setJSONAttribute(span, genai.AttrGenkitInput, input)
-	setJSONAttribute(span, genai.AttrGenkitOutput, output)
+	setJSONAttribute(span, genai.AttrGenkitInput, redactInlineMedia(input))
+	setJSONAttribute(span, genai.AttrGenkitOutput, redactInlineMedia(output))
+}
+
+// redactInlineMedia replaces inline data: media in a model request or response
+// with size markers, so a multi-megabyte base64 image is not recorded verbatim:
+// it would get truncated mid-JSON by attribute limits and can push the OTLP
+// batch past the receiver's size cap, failing every span in it. Other values
+// (e.g. flow inputs) have no known shape and pass through.
+func redactInlineMedia(v any) any {
+	switch v := v.(type) {
+	case *ai.ModelRequest:
+		if v == nil {
+			return v
+		}
+		if msgs, changed := genai.RedactMessages(v.Messages); changed {
+			cp := *v
+			cp.Messages = msgs
+			return &cp
+		}
+	case *ai.ModelResponse:
+		if v == nil {
+			return v
+		}
+		if msg, changed := genai.RedactMessage(v.Message); changed {
+			cp := *v
+			cp.Message = msg
+			return &cp
+		}
+	}
+	return v
 }

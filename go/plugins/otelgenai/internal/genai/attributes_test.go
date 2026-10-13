@@ -123,24 +123,3 @@ func TestDeriveOutputType(t *testing.T) {
 		}
 	}
 }
-
-func TestParseContentCapturingMode(t *testing.T) {
-	tests := []struct {
-		in     string
-		want   ContentCapturingMode
-		wantOK bool
-	}{
-		{"", NoContent, true},
-		{"no_content", NoContent, true},
-		{"SPAN_ONLY", SpanOnly, true},
-		{"span_and_event", SpanAndEvent, true},
-		{"  event_only  ", EventOnly, true},
-		{"bogus", NoContent, false},
-	}
-	for _, tt := range tests {
-		got, ok := ParseContentCapturingMode(tt.in)
-		if got != tt.want || ok != tt.wantOK {
-			t.Errorf("ParseContentCapturingMode(%q) = (%q, %v), want (%q, %v)", tt.in, got, ok, tt.want, tt.wantOK)
-		}
-	}
-}

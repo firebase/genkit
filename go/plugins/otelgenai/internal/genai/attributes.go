@@ -119,46 +119,6 @@ const (
 // content independently of the span, per the spec.
 const OperationDetailsEvent = "gen_ai.client.inference.operation.details"
 
-// CaptureContentEnvVar is the spec's canonical opt-in env var for capturing
-// message content.
-const CaptureContentEnvVar = "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT"
-
-// ContentCapturingMode mirrors the OTel GenAI ContentCapturingMode: where
-// captured message content is recorded.
-//
-// Content may contain PII and is often large, so the default is NoContent.
-// EventOnly keeps structured content on a dedicated log event and is preferred
-// for production; SpanOnly puts it on span attributes as a JSON string (easy to
-// eyeball, but subject to backend attribute/envelope limits), best for
-// development.
-type ContentCapturingMode string
-
-const (
-	NoContent    ContentCapturingMode = "NO_CONTENT"
-	SpanOnly     ContentCapturingMode = "SPAN_ONLY"
-	EventOnly    ContentCapturingMode = "EVENT_ONLY"
-	SpanAndEvent ContentCapturingMode = "SPAN_AND_EVENT"
-)
-
-// ParseContentCapturingMode parses the spec env var into a ContentCapturingMode.
-// It accepts the spec's enum names (case-insensitive); unset/empty maps to
-// NoContent. The second return is false for an unrecognized value so the caller
-// can warn.
-func ParseContentCapturingMode(raw string) (ContentCapturingMode, bool) {
-	switch strings.ToUpper(strings.TrimSpace(raw)) {
-	case "", string(NoContent):
-		return NoContent, true
-	case string(SpanOnly):
-		return SpanOnly, true
-	case string(EventOnly):
-		return EventOnly, true
-	case string(SpanAndEvent):
-		return SpanAndEvent, true
-	default:
-		return NoContent, false
-	}
-}
-
 // SplitModelName splits a fully qualified Genkit model name into (prefix, model).
 //
 // "googleai/gemini-flash-latest" -> ("googleai", "gemini-flash-latest").

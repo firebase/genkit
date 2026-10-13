@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package otel
+package otelgenai
 
 import (
 	"bytes"
@@ -23,6 +23,7 @@ import (
 	"strings"
 	"testing"
 
+	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -32,15 +33,15 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/otel/genai"
+	"github.com/firebase/genkit/go/plugins/otelgenai/internal/genai"
 )
 
 // defineToolCallingModel defines a model that requests the getWeather tool on
 // its first turn and answers on the second.
-func defineToolCallingModel(g *genkit.Genkit) ai.Model {
-	return genkit.DefineModel(g, "test/weather-bot",
+func defineToolCallingModel(g *genkit.Genkit) *ai.ModelAction {
+	return genkit.DefineModelAction(g, "test/weather-bot",
 		&ai.ModelOptions{Supports: &ai.ModelSupports{Tools: true, Multiturn: true}},
-		func(ctx context.Context, req *ai.ModelRequest, _ ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+		func(ctx context.Context, req *ai.ModelRequest, _ any, _ ai.ModelStreamCallback) (*ai.ModelResponse, error) {
 			last := req.Messages[len(req.Messages)-1]
 			if last.Role != ai.RoleTool {
 				return &ai.ModelResponse{
@@ -61,7 +62,7 @@ func defineToolCallingModel(g *genkit.Genkit) ai.Model {
 // genkit.Generate, so span subtypes are the ones Genkit actually produces
 // (tools register as tool.v2).
 func TestGenkitToolAndModel(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{EmitToolSpans: true})
+	sr := setup(t, Options{EmitToolSpans: true})
 	ctx := context.Background()
 	g := genkit.Init(ctx)
 
@@ -87,7 +88,7 @@ func TestGenkitToolAndModel(t *testing.T) {
 }
 
 func TestTelemetryLabels(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{EmitToolSpans: true})
+	sr := setup(t, Options{EmitToolSpans: true})
 	labels := map[string]string{"tenant": "acme"}
 
 	for _, md := range []*tracing.SpanMetadata{
@@ -121,7 +122,7 @@ func TestWarnWhenNoSDK(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			ctx := logger.WithContext(context.Background(), slog.New(slog.NewTextHandler(&buf, nil)))
-			tracing.SetInstrumentation(NewGenAiInstrumentation(GenAiInstrumentationOptions{Tracer: tt.provider.Tracer("test")}))
+			tracing.SetInstrumentation(New(Options{TracerProvider: tt.provider}))
 			t.Cleanup(func() { tracing.SetInstrumentation() })
 
 			for range 2 {
@@ -135,5 +136,35 @@ func TestWarnWhenNoSDK(t *testing.T) {
 				t.Errorf("warnings = %d, want %d; log:\n%s", got, tt.wantWarns, buf.String())
 			}
 		})
+	}
+}
+
+// TestRemoteParentWithoutSDK covers a request carrying a traceparent with no
+// SDK installed: the no-op span echoes the remote parent's context, which must
+// not be reported as this span's ids (every Genkit span would share them).
+func TestRemoteParentWithoutSDK(t *testing.T) {
+	var buf bytes.Buffer
+	ctx := logger.WithContext(context.Background(), slog.New(slog.NewTextHandler(&buf, nil)))
+	const parentSpanID = "00f067aa0ba902b7"
+	ctx = propagation.TraceContext{}.Extract(ctx, propagation.MapCarrier{
+		"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-" + parentSpanID + "-01",
+	})
+	tracing.SetInstrumentation(New(Options{TracerProvider: noop.NewTracerProvider()}))
+	t.Cleanup(func() { tracing.SetInstrumentation() })
+
+	var spanIDs []string
+	ctx = tracing.WithTelemetryCallback(ctx, func(_, spanID string) { spanIDs = append(spanIDs, spanID) })
+	for range 2 {
+		_, err := tracing.RunInNewSpan(ctx, &tracing.SpanMetadata{Name: "myFlow", Type: "action", Subtype: "flow"}, "in",
+			func(ctx context.Context, _ string) (string, error) { return "out", nil })
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(spanIDs) != 2 || spanIDs[0] == parentSpanID || spanIDs[0] == spanIDs[1] {
+		t.Errorf("span ids = %v, want distinct ids other than the parent %s", spanIDs, parentSpanID)
+	}
+	if got := strings.Count(buf.String(), "no opentelemetry sdk is installed"); got != 1 {
+		t.Errorf("warnings = %d, want 1", got)
 	}
 }

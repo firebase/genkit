@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Demonstrates the OpenTelemetry GenAI instrumentation plugin
-// (go/plugins/otel). The app owns OTel SDK setup, configured from the standard
+// (go/plugins/otelgenai). The app owns OTel SDK setup, configured from the standard
 // OTEL_* env vars (the Go analog of JS's `new NodeSDK()`), defaulting to OTLP
 // at localhost:4318. It runs a single generate call, which produces a gen_ai
 // chat span you can inspect in Jaeger or the Dev UI.
@@ -44,8 +44,7 @@ import (
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
-	genaiotel "github.com/firebase/genkit/go/plugins/otel"
-	"github.com/firebase/genkit/go/plugins/otel/genai"
+	"github.com/firebase/genkit/go/plugins/otelgenai"
 )
 
 func main() {
@@ -57,8 +56,8 @@ func main() {
 
 	// 2. Route Genkit telemetry through the GenAI instrumentation. SPAN_ONLY
 	// captures message content on spans (development-friendly; may contain PII).
-	tracing.SetInstrumentation(genaiotel.NewGenAiInstrumentation(genaiotel.GenAiInstrumentationOptions{
-		ContentCapturingMode: genai.SpanOnly,
+	tracing.SetInstrumentation(otelgenai.New(otelgenai.Options{
+		ContentCapturingMode: otelgenai.SpanOnly,
 		EmitToolSpans:        true,
 	}))
 

@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package otel
+package otelgenai
 
 import (
 	"testing"
@@ -23,7 +23,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/plugins/otel/genai"
+	"github.com/firebase/genkit/go/plugins/otelgenai/internal/genai"
 )
 
 // geminiLikeConfig mimics googlegenai's GenerateContentConfig: pointer fields
@@ -92,6 +92,14 @@ func TestRequestConfigAttributes(t *testing.T) {
 			want:   map[string]any{genai.AttrRequestTopP: 0.5},
 		},
 		{
+			// 2^53+1 is not representable as a float64.
+			name: "large integer seed stays exact",
+			config: struct {
+				Seed int64 `json:"seed"`
+			}{Seed: 9007199254740993},
+			want: map[string]any{genai.AttrRequestSeed: int64(9007199254740993)},
+		},
+		{
 			name:   "nil config",
 			config: nil,
 			want:   map[string]any{},
@@ -121,5 +129,37 @@ func attrValue(v attribute.Value) any {
 		return v.AsStringSlice()
 	default:
 		return v.AsInterface()
+	}
+}
+
+func TestParseContentCapturingMode(t *testing.T) {
+	tests := []struct {
+		in     string
+		want   ContentCapturingMode
+		wantOK bool
+	}{
+		{"", NoContent, true},
+		{"no_content", NoContent, true},
+		{"SPAN_ONLY", SpanOnly, true},
+		{"span_and_event", SpanAndEvent, true},
+		{"  event_only  ", EventOnly, true},
+		{"bogus", NoContent, false},
+	}
+	for _, tt := range tests {
+		got, ok := parseContentCapturingMode(tt.in)
+		if got != tt.want || ok != tt.wantOK {
+			t.Errorf("parseContentCapturingMode(%q) = (%q, %v), want (%q, %v)", tt.in, got, ok, tt.want, tt.wantOK)
+		}
+	}
+}
+
+func TestContentCapturingModeFromEnv(t *testing.T) {
+	t.Setenv(CaptureContentEnvVar, "span_only")
+	if got := New(Options{}).contentMode; got != SpanOnly {
+		t.Errorf("mode from env = %q, want %q", got, SpanOnly)
+	}
+	// An explicit option wins over the env var.
+	if got := New(Options{ContentCapturingMode: NoContent}).contentMode; got != NoContent {
+		t.Errorf("explicit mode = %q, want %q", got, NoContent)
 	}
 }

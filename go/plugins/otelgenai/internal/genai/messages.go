@@ -18,6 +18,7 @@ package genai
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
@@ -142,6 +143,70 @@ func dataURIPayloadSize(header, payload string) int {
 		return len(payload)
 	}
 	return len(payload)*3/4 - strings.Count(payload[max(0, len(payload)-2):], "=")
+}
+
+// RedactDataURI replaces an inline data: URI's payload with a size marker,
+// e.g. "data:image/png;base64,[1834 bytes omitted]". It reports false, leaving
+// url as is, when url is not a data: URI.
+func RedactDataURI(url string) (string, bool) {
+	rest, ok := strings.CutPrefix(url, "data:")
+	if !ok {
+		return url, false
+	}
+	header, payload, _ := strings.Cut(rest, ",")
+	return fmt.Sprintf("data:%s,[%d bytes omitted]", header, dataURIPayloadSize(header, payload)), true
+}
+
+// RedactMessages returns messages with inline data: media replaced by size
+// markers (see RedactDataURI), and whether anything was replaced. Messages and
+// parts are copied only when they hold such media; the input is never
+// modified.
+func RedactMessages(messages []*ai.Message) ([]*ai.Message, bool) {
+	var out []*ai.Message
+	for i, m := range messages {
+		rm, changed := RedactMessage(m)
+		if changed && out == nil {
+			out = append(make([]*ai.Message, 0, len(messages)), messages[:i]...)
+		}
+		if out != nil {
+			out = append(out, rm)
+		}
+	}
+	if out == nil {
+		return messages, false
+	}
+	return out, true
+}
+
+// RedactMessage is RedactMessages for a single message.
+func RedactMessage(m *ai.Message) (*ai.Message, bool) {
+	if m == nil {
+		return nil, false
+	}
+	var parts []*ai.Part
+	for i, p := range m.Content {
+		var redacted string
+		ok := false
+		if p != nil && p.IsMedia() {
+			redacted, ok = RedactDataURI(p.Text)
+		}
+		if ok && parts == nil {
+			parts = append(make([]*ai.Part, 0, len(m.Content)), m.Content[:i]...)
+		}
+		if ok {
+			cp := *p
+			cp.Text = redacted
+			parts = append(parts, &cp)
+		} else if parts != nil {
+			parts = append(parts, p)
+		}
+	}
+	if parts == nil {
+		return m, false
+	}
+	cm := *m
+	cm.Content = parts
+	return &cm, true
 }
 
 // mapParts maps a slice of Genkit parts to GenAI content parts.

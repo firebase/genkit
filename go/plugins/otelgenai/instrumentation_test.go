@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package otel
+package otelgenai
 
 import (
 	"context"
@@ -34,19 +34,19 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/status"
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/plugins/otel/genai"
+	"github.com/firebase/genkit/go/plugins/otelgenai/internal/genai"
 )
 
 // setup installs an in-memory OTel span recorder and configures the GenAI
 // instrumentation, returning the recorder and restoring global state on cleanup.
-func setup(t *testing.T, opts GenAiInstrumentationOptions) *tracetest.SpanRecorder {
+func setup(t *testing.T, opts Options) *tracetest.SpanRecorder {
 	t.Helper()
 	sr := tracetest.NewSpanRecorder()
 	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(sr))
 	prev := otel.GetTracerProvider()
 	otel.SetTracerProvider(tp)
 
-	tracing.SetInstrumentation(NewGenAiInstrumentation(opts))
+	tracing.SetInstrumentation(New(opts))
 	t.Cleanup(func() {
 		tracing.SetInstrumentation()
 		otel.SetTracerProvider(prev)
@@ -101,7 +101,7 @@ func modelResponse() *ai.ModelResponse {
 }
 
 func TestModelSpan(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{})
+	sr := setup(t, Options{})
 
 	_, err := tracing.RunInNewSpan(context.Background(),
 		&tracing.SpanMetadata{Name: "googleai/gemini-flash-latest", Type: "action", Subtype: "model"},
@@ -145,7 +145,7 @@ func TestModelSpan(t *testing.T) {
 }
 
 func TestModelSpanToolCallsFinishReason(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{})
+	sr := setup(t, Options{})
 
 	resp := &ai.ModelResponse{
 		Message: ai.NewMessage(ai.RoleModel, nil,
@@ -169,7 +169,7 @@ func TestModelSpanToolCallsFinishReason(t *testing.T) {
 }
 
 func TestToolSpanDisabledByDefault(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{})
+	sr := setup(t, Options{})
 
 	runTool(t, "getWeather")
 
@@ -183,7 +183,7 @@ func TestToolSpanDisabledByDefault(t *testing.T) {
 }
 
 func TestToolSpanEnabled(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{EmitToolSpans: true})
+	sr := setup(t, Options{EmitToolSpans: true})
 
 	runTool(t, "getWeather")
 
@@ -201,7 +201,7 @@ func TestToolSpanEnabled(t *testing.T) {
 }
 
 func TestGenericSpan(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{})
+	sr := setup(t, Options{})
 
 	_, err := tracing.RunInNewSpan(context.Background(),
 		&tracing.SpanMetadata{Name: "myFlow", Type: "action", Subtype: "flow"},
@@ -220,7 +220,7 @@ func TestGenericSpan(t *testing.T) {
 }
 
 func TestContentCaptureNoContentByDefault(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{})
+	sr := setup(t, Options{})
 	runModel(t)
 	a := attrMap(findSpan(t, sr, "chat gemini-flash-latest"))
 	if _, ok := a[genai.AttrInputMessages]; ok {
@@ -229,7 +229,7 @@ func TestContentCaptureNoContentByDefault(t *testing.T) {
 }
 
 func TestContentCaptureSpanOnly(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{ContentCapturingMode: genai.SpanOnly})
+	sr := setup(t, Options{ContentCapturingMode: SpanOnly})
 	runModel(t)
 	a := attrMap(findSpan(t, sr, "chat gemini-flash-latest"))
 	if a[genai.AttrInputMessages].AsString() == "" {
@@ -244,7 +244,7 @@ func TestContentCaptureSpanOnly(t *testing.T) {
 }
 
 func TestCaptureActionIO(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{CaptureActionIO: true})
+	sr := setup(t, Options{CaptureActionIO: true})
 	runModel(t)
 	a := attrMap(findSpan(t, sr, "chat gemini-flash-latest"))
 	if a[genai.AttrGenkitInput].AsString() == "" {
@@ -255,8 +255,43 @@ func TestCaptureActionIO(t *testing.T) {
 	}
 }
 
+// TestCaptureActionIORedactsInlineMedia checks that genkit.input/output carry a
+// size marker instead of a base64 payload, without touching the caller's data.
+func TestCaptureActionIORedactsInlineMedia(t *testing.T) {
+	sr := setup(t, Options{CaptureActionIO: true})
+	payload := strings.Repeat("QUJD", 1000) // 4000 base64 chars, 3000 bytes
+	img := "data:image/png;base64," + payload
+	req := &ai.ModelRequest{Messages: []*ai.Message{
+		ai.NewUserMessage(ai.NewTextPart("describe"), ai.NewMediaPart("image/png", img)),
+	}}
+	resp := &ai.ModelResponse{Message: ai.NewModelMessage(ai.NewMediaPart("image/png", img))}
+	_, err := tracing.RunInNewSpan(context.Background(),
+		&tracing.SpanMetadata{Name: "googleai/gemini-flash-latest", Type: "action", Subtype: "model"},
+		req,
+		func(ctx context.Context, _ *ai.ModelRequest) (*ai.ModelResponse, error) { return resp, nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := attrMap(findSpan(t, sr, "chat gemini-flash-latest"))
+	for _, key := range []string{genai.AttrGenkitInput, genai.AttrGenkitOutput} {
+		got := a[key].AsString()
+		if strings.Contains(got, payload) {
+			t.Errorf("%s contains the inline payload", key)
+		}
+		if !strings.Contains(got, "data:image/png;base64,[3000 bytes omitted]") {
+			t.Errorf("%s = %s, want a size marker", key, got)
+		}
+	}
+	if req.Messages[0].Content[1].Text != img || resp.Message.Content[0].Text != img {
+		t.Error("redaction modified the caller's request or response")
+	}
+	if !strings.Contains(a[genai.AttrGenkitInput].AsString(), "describe") {
+		t.Error("non-media parts should be kept")
+	}
+}
+
 func TestModelSpanError(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{})
+	sr := setup(t, Options{})
 
 	wantErr := errors.New("boom")
 	_, err := tracing.RunInNewSpan(context.Background(),
@@ -306,7 +341,7 @@ func TestErrorTypeIsStatusName(t *testing.T) {
 // (e.g. output schema validation): the response it returned alongside the
 // error is still recorded, with an error finish reason.
 func TestModelSpanPartialResponse(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{ContentCapturingMode: genai.SpanOnly, CaptureActionIO: true})
+	sr := setup(t, Options{ContentCapturingMode: SpanOnly, CaptureActionIO: true})
 
 	resp := &ai.ModelResponse{
 		Message:      ai.NewModelTextMessage("not json"),
@@ -341,7 +376,7 @@ func TestModelSpanPartialResponse(t *testing.T) {
 }
 
 func TestGenericSpanErrorKeepsOutput(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{CaptureActionIO: true})
+	sr := setup(t, Options{CaptureActionIO: true})
 
 	_, err := tracing.RunInNewSpan(context.Background(),
 		&tracing.SpanMetadata{Name: "myFlow", Type: "action", Subtype: "flow"},
@@ -357,7 +392,7 @@ func TestGenericSpanErrorKeepsOutput(t *testing.T) {
 }
 
 func TestGenericSpanErrorOmitsNilOutput(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{CaptureActionIO: true})
+	sr := setup(t, Options{CaptureActionIO: true})
 
 	_, _ = tracing.RunInNewSpan(context.Background(),
 		&tracing.SpanMetadata{Name: "myFlow", Type: "action", Subtype: "flow"},
@@ -395,7 +430,7 @@ func runModel(t *testing.T) {
 // TestChildSpansNestUnderParent checks that StartSpan hands the dispatcher a
 // context carrying the OTel span, so nested Genkit spans become its children.
 func TestChildSpansNestUnderParent(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{EmitToolSpans: true})
+	sr := setup(t, Options{EmitToolSpans: true})
 
 	_, err := tracing.RunInNewSpan(context.Background(),
 		&tracing.SpanMetadata{Name: "myFlow", Type: "action", Subtype: "flow"}, "in",
@@ -419,7 +454,7 @@ func TestChildSpansNestUnderParent(t *testing.T) {
 // TestModelSpanPanicRecordsError checks that a panicking model call still ends
 // its span with error status, since Genkit ends spans from a defer.
 func TestModelSpanPanicRecordsError(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{})
+	sr := setup(t, Options{})
 
 	func() {
 		defer func() { _ = recover() }()
@@ -439,8 +474,8 @@ func TestModelSpanPanicRecordsError(t *testing.T) {
 // default OTel encoding on one tracer provider: both spans are emitted, the
 // GenAI span nested under the genkit:* one.
 func TestComposesWithOTelInstrumentation(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{})
-	tracing.SetInstrumentation(&tracing.OTelInstrumentation{}, NewGenAiInstrumentation(GenAiInstrumentationOptions{}))
+	sr := setup(t, Options{})
+	tracing.SetInstrumentation(&tracing.OTelInstrumentation{}, New(Options{}))
 
 	runModel(t)
 

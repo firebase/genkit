@@ -14,8 +14,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package otel provides GenAiInstrumentation, an OpenTelemetry GenAI
-// semantic-conventions provider for Genkit.
+// Package otelgenai provides an OpenTelemetry GenAI semantic-conventions
+// instrumentation for Genkit.
 //
 // The application owns SDK setup: configure a TracerProvider / MeterProvider /
 // LoggerProvider (e.g. via the OTel SDK) before constructing Genkit. When no
@@ -24,8 +24,8 @@
 //
 // Wire it up with [tracing.SetInstrumentation]:
 //
-//	tracing.SetInstrumentation(otel.NewGenAiInstrumentation(otel.GenAiInstrumentationOptions{
-//		ContentCapturingMode: genai.SpanOnly,
+//	tracing.SetInstrumentation(otelgenai.New(otelgenai.Options{
+//		ContentCapturingMode: otelgenai.SpanOnly,
 //		EmitToolSpans:        true,
 //	}))
 //	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
@@ -42,11 +42,13 @@
 //
 // See the spec:
 // https://github.com/open-telemetry/semantic-conventions-genai
-package otel
+package otelgenai
 
 import (
 	"context"
 	"log/slog"
+	"os"
+	"strings"
 	"sync"
 
 	"go.opentelemetry.io/otel"
@@ -58,21 +60,58 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
-	"github.com/firebase/genkit/go/plugins/otel/genai"
+	"github.com/firebase/genkit/go/plugins/otelgenai/internal/genai"
 )
 
-// GenAiInstrumentationOptions configures a [GenAiInstrumentation].
-type GenAiInstrumentationOptions struct {
+// CaptureContentEnvVar is the spec's canonical opt-in env var for capturing
+// message content. It is consulted when [Options.ContentCapturingMode] is unset.
+const CaptureContentEnvVar = "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT"
+
+// ContentCapturingMode mirrors the OTel GenAI ContentCapturingMode: where
+// captured message content is recorded.
+//
+// Content may contain PII and is often large, so the default is NoContent.
+// EventOnly puts structured content on a dedicated log event and is preferred
+// for production; SpanOnly puts it on span attributes as a JSON string (easy to
+// eyeball, but subject to backend attribute/envelope limits), best for
+// development.
+type ContentCapturingMode string
+
+const (
+	NoContent    ContentCapturingMode = "NO_CONTENT"
+	SpanOnly     ContentCapturingMode = "SPAN_ONLY"
+	EventOnly    ContentCapturingMode = "EVENT_ONLY"
+	SpanAndEvent ContentCapturingMode = "SPAN_AND_EVENT"
+)
+
+// parseContentCapturingMode parses the spec env var. It accepts the spec's
+// enum names (case-insensitive); unset/empty maps to NoContent. The second
+// return is false for an unrecognized value so the caller can warn.
+func parseContentCapturingMode(raw string) (ContentCapturingMode, bool) {
+	switch m := ContentCapturingMode(strings.ToUpper(strings.TrimSpace(raw))); m {
+	case "":
+		return NoContent, true
+	case NoContent, SpanOnly, EventOnly, SpanAndEvent:
+		return m, true
+	default:
+		return NoContent, false
+	}
+}
+
+// Options configures an [Instrumentation].
+type Options struct {
 	// ContentCapturingMode selects where spec-shaped GenAI message content
 	// (gen_ai.system_instructions, gen_ai.input.messages, gen_ai.output.messages)
 	// is recorded. Content may contain PII, so the default is NoContent. When
 	// the zero value is passed, the env var CaptureContentEnvVar is consulted;
 	// an explicit value here overrides it.
-	ContentCapturingMode genai.ContentCapturingMode
+	ContentCapturingMode ContentCapturingMode
 
 	// CaptureActionIO records raw Genkit action input/output as genkit.input /
 	// genkit.output JSON attributes on every span (model, tool, flow, etc.).
 	// Independent of ContentCapturingMode. May contain PII, off by default.
+	// Inline data: media in model requests and responses is replaced with a
+	// size marker; other actions' values (e.g. flow inputs) are recorded as is.
 	CaptureActionIO bool
 
 	// EmitToolSpans emits execute_tool spans for tool actions. Off by default.
@@ -87,19 +126,22 @@ type GenAiInstrumentationOptions struct {
 	// Defaults to "genkit-genai".
 	ScopeName string
 
-	// Tracer optionally injects a tracer (escape hatch). When nil the tracer is
-	// resolved from the global TracerProvider.
-	Tracer oteltrace.Tracer
+	// TracerProvider creates the spans. Nil means the global provider.
+	TracerProvider oteltrace.TracerProvider
 
-	// Meter optionally injects a meter (escape hatch). When nil the meter is
-	// resolved from the global MeterProvider.
-	Meter metric.Meter
+	// MeterProvider creates the GenAI client metrics. Nil means the global
+	// provider.
+	MeterProvider metric.MeterProvider
+
+	// LoggerProvider receives the gen_ai.client.inference.operation.details
+	// events (EventOnly / SpanAndEvent). Nil means the global provider.
+	LoggerProvider otellog.LoggerProvider
 }
 
-// GenAiInstrumentation is a [tracing.Instrumentation] that emits OpenTelemetry
+// Instrumentation is a [tracing.Instrumentation] that emits OpenTelemetry
 // telemetry following the OTel GenAI semantic conventions.
-type GenAiInstrumentation struct {
-	contentMode     genai.ContentCapturingMode
+type Instrumentation struct {
+	contentMode     ContentCapturingMode
 	captureOnSpan   bool
 	captureOnEvent  bool
 	captureActionIO bool
@@ -113,13 +155,14 @@ type GenAiInstrumentation struct {
 	warnOnce sync.Once
 }
 
-// NewGenAiInstrumentation builds a GenAiInstrumentation from options.
+// New builds an Instrumentation from options.
 //
-// The tracer, meter, and logger are resolved here, once. That still picks up
-// an SDK installed later: the OTel globals hand out delegating instruments
-// that switch to the real provider when it is set. Resolving per span instead
-// would take the SDK provider's lock on every span start.
-func NewGenAiInstrumentation(opts GenAiInstrumentationOptions) *GenAiInstrumentation {
+// The tracer, meter, and logger are resolved here, once. With the global
+// providers that still picks up an SDK installed later: the OTel globals hand
+// out delegating instruments that switch to the real provider when it is set.
+// Resolving per span instead would take the SDK provider's lock on every span
+// start.
+func New(opts Options) *Instrumentation {
 	mode := opts.ContentCapturingMode
 	if mode == "" {
 		mode = contentCapturingModeFromEnv()
@@ -128,29 +171,35 @@ func NewGenAiInstrumentation(opts GenAiInstrumentationOptions) *GenAiInstrumenta
 	if scope == "" {
 		scope = "genkit-genai"
 	}
-	g := &GenAiInstrumentation{
+	tp := opts.TracerProvider
+	if tp == nil {
+		tp = otel.GetTracerProvider()
+	}
+	lp := opts.LoggerProvider
+	if lp == nil {
+		lp = otellogglobal.GetLoggerProvider()
+	}
+	g := &Instrumentation{
 		contentMode:     mode,
-		captureOnSpan:   mode == genai.SpanOnly || mode == genai.SpanAndEvent,
-		captureOnEvent:  mode == genai.EventOnly || mode == genai.SpanAndEvent,
+		captureOnSpan:   mode == SpanOnly || mode == SpanAndEvent,
+		captureOnEvent:  mode == EventOnly || mode == SpanAndEvent,
 		captureActionIO: opts.CaptureActionIO,
 		emitToolSpans:   opts.EmitToolSpans,
-		tracer:          opts.Tracer,
-		logger: otellogglobal.Logger(scope,
+		tracer: tp.Tracer(scope,
+			oteltrace.WithInstrumentationVersion(internal.Version),
+			oteltrace.WithSchemaURL(genai.SchemaURL)),
+		logger: lp.Logger(scope,
 			otellog.WithInstrumentationVersion(internal.Version),
 			otellog.WithSchemaURL(genai.SchemaURL)),
 	}
-	if g.tracer == nil {
-		g.tracer = otel.Tracer(scope,
-			oteltrace.WithInstrumentationVersion(internal.Version),
-			oteltrace.WithSchemaURL(genai.SchemaURL))
-	}
 	if !opts.DisableMetrics {
-		meter := opts.Meter
-		if meter == nil {
-			meter = otel.Meter(scope,
-				metric.WithInstrumentationVersion(internal.Version),
-				metric.WithSchemaURL(genai.SchemaURL))
+		mp := opts.MeterProvider
+		if mp == nil {
+			mp = otel.GetMeterProvider()
 		}
+		meter := mp.Meter(scope,
+			metric.WithInstrumentationVersion(internal.Version),
+			metric.WithSchemaURL(genai.SchemaURL))
 		m, err := genai.NewMetrics(meter)
 		if err != nil {
 			slog.Warn("failed to create genai metrics, metrics disabled", "error", err)
@@ -163,11 +212,11 @@ func NewGenAiInstrumentation(opts GenAiInstrumentationOptions) *GenAiInstrumenta
 
 // contentCapturingModeFromEnv reads the spec env var. It runs at construction
 // with no context, hence slog rather than core/logger.
-func contentCapturingModeFromEnv() genai.ContentCapturingMode {
-	mode, ok := genai.ParseContentCapturingMode(getenv(genai.CaptureContentEnvVar))
+func contentCapturingModeFromEnv() ContentCapturingMode {
+	mode, ok := parseContentCapturingMode(os.Getenv(CaptureContentEnvVar))
 	if !ok {
 		slog.Warn("invalid content capturing mode, defaulting to NO_CONTENT",
-			"env", genai.CaptureContentEnvVar)
+			"env", CaptureContentEnvVar)
 	}
 	return mode
 }
@@ -175,7 +224,7 @@ func contentCapturingModeFromEnv() genai.ContentCapturingMode {
 // StartSpan dispatches on the Genkit action type and opens a span encoded with
 // the OTel GenAI conventions. The returned span records the result when Genkit
 // ends it.
-func (g *GenAiInstrumentation) StartSpan(ctx context.Context, info *tracing.SpanInfo) (context.Context, tracing.Span) {
+func (g *Instrumentation) StartSpan(ctx context.Context, info *tracing.SpanInfo) (context.Context, tracing.Span) {
 	if info == nil {
 		// Nothing to encode; the dispatcher tolerates a nil span.
 		return ctx, nil
@@ -196,4 +245,4 @@ func (g *GenAiInstrumentation) StartSpan(ctx context.Context, info *tracing.Span
 	return g.startGenericSpan(ctx, info, actionType)
 }
 
-var _ tracing.Instrumentation = (*GenAiInstrumentation)(nil)
+var _ tracing.Instrumentation = (*Instrumentation)(nil)

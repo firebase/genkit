@@ -1,6 +1,6 @@
 # Genkit + OpenTelemetry GenAI sample (Go)
 
-A minimal Genkit Go app wired to the `go/plugins/otel` GenAI instrumentation,
+A minimal Genkit Go app wired to the `go/plugins/otelgenai` GenAI instrumentation,
 which emits OpenTelemetry GenAI semantic-convention traces and metrics.
 
 The app owns the OTel SDK. `setupOTel` initializes it from the standard `OTEL_*`

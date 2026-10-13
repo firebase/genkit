@@ -14,14 +14,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package otel
+package otelgenai
 
 import (
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/plugins/otel/genai"
+	"github.com/firebase/genkit/go/plugins/otelgenai/internal/genai"
 )
 
 // Config keys per gen_ai.request.* attribute, in lookup order. Configs arrive
@@ -47,13 +47,15 @@ func requestConfigAttributes(request *ai.ModelRequest) []attribute.KeyValue {
 	var attrs []attribute.KeyValue
 	cfg := configMap(request.Config)
 	addFloat := func(attr string, keys []string) {
-		if v, ok := lookupNumber(cfg, keys); ok {
+		if n, ok := lookupNumber(cfg, keys); ok {
+			v, _ := n.float()
 			attrs = append(attrs, attribute.Float64(attr, v))
 		}
 	}
 	addInt := func(attr string, keys []string) {
-		if v, ok := lookupNumber(cfg, keys); ok {
-			attrs = append(attrs, attribute.Int64(attr, int64(v)))
+		if n, ok := lookupNumber(cfg, keys); ok {
+			v, _ := n.int()
+			attrs = append(attrs, attribute.Int64(attr, v))
 		}
 	}
 	addFloat(genai.AttrRequestTemperature, keysTemperature)
@@ -68,8 +70,10 @@ func requestConfigAttributes(request *ai.ModelRequest) []attribute.KeyValue {
 	addFloat(genai.AttrRequestPresencePenalty, keysPresencePenalty)
 	addInt(genai.AttrRequestSeed, keysSeed)
 	// The spec asks to omit choice.count when it is 1.
-	if n, ok := lookupNumber(cfg, keysChoiceCount); ok && n != 1 {
-		attrs = append(attrs, attribute.Int64(genai.AttrRequestChoiceCount, int64(n)))
+	if n, ok := lookupNumber(cfg, keysChoiceCount); ok {
+		if v, _ := n.int(); v != 1 {
+			attrs = append(attrs, attribute.Int64(genai.AttrRequestChoiceCount, v))
+		}
 	}
 	if request.Output != nil {
 		if ot := genai.DeriveOutputType(request.Output.Format, request.Output.ContentType); ot != "" {
@@ -110,7 +114,7 @@ func resolveFinishReasons(response *ai.ModelResponse, failed bool) []string {
 	if response == nil {
 		return []string{genai.MapFinishReason("", failed)}
 	}
-	if msg := resolveMessage(response); msg != nil && genai.HasToolRequestPart(msg.Content) {
+	if msg := response.Message; msg != nil && genai.HasToolRequestPart(msg.Content) {
 		return []string{"tool_calls"}
 	}
 	return []string{genai.MapFinishReason(string(response.FinishReason), failed)}

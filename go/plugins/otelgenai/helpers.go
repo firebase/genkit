@@ -14,13 +14,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package otel
+package otelgenai
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -30,15 +30,10 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/status"
 	"github.com/firebase/genkit/go/internal/base"
-	"github.com/firebase/genkit/go/plugins/otel/genai"
+	"github.com/firebase/genkit/go/plugins/otelgenai/internal/genai"
 )
 
-func getenv(key string) string { return os.Getenv(key) }
-
-// asModelRequest returns the input as an *ai.ModelRequest when it is one. The
-// model span's input is an *ai.ModelRequest (or, at the util turn, a value that
-// carries Messages); we only need the request shape, so a type assertion is
-// enough here.
+// asModelRequest returns the input as an *ai.ModelRequest when it is one.
 func asModelRequest(input any) *ai.ModelRequest {
 	if req, ok := input.(*ai.ModelRequest); ok {
 		return req
@@ -62,8 +57,10 @@ func asModelResponse(output any) *ai.ModelResponse {
 // this package cannot depend on. The JSON form is the one shape they all
 // share, and decoding into a map (rather than a typed struct) keeps key
 // presence, so an explicit 0 is distinguishable from unset, and one field of
-// an unexpected type cannot fail the whole decode. It runs once per model
-// call, next to a network round trip, so the marshal cost is negligible.
+// an unexpected type cannot fail the whole decode. Numbers decode as
+// json.Number so integers above 2^53 (e.g. a seed) stay exact. It runs once
+// per model call, next to a network round trip, so the marshal cost is
+// negligible.
 func configMap(config any) map[string]any {
 	if config == nil {
 		return nil
@@ -75,21 +72,62 @@ func configMap(config any) map[string]any {
 	if err != nil {
 		return nil
 	}
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.UseNumber()
 	var m map[string]any
-	if err := json.Unmarshal(b, &m); err != nil {
+	if err := dec.Decode(&m); err != nil {
 		return nil // Not a JSON object.
 	}
 	return m
 }
 
-// lookupNumber returns the first numeric value present under keys.
-func lookupNumber(m map[string]any, keys []string) (float64, bool) {
-	for _, k := range keys {
-		if v, ok := m[k].(float64); ok {
-			return v, true
-		}
+// configNumber is a numeric config value. Values decoded by configMap are
+// json.Number; a map[string]any config passed through as is can hold Go
+// numeric types.
+type configNumber struct{ v any }
+
+func (n configNumber) float() (float64, bool) {
+	switch v := n.v.(type) {
+	case json.Number:
+		f, err := v.Float64()
+		return f, err == nil
+	case float64:
+		return v, true
+	case float32:
+		return float64(v), true
+	case int:
+		return float64(v), true
+	case int64:
+		return float64(v), true
 	}
 	return 0, false
+}
+
+func (n configNumber) int() (int64, bool) {
+	switch v := n.v.(type) {
+	case json.Number:
+		if i, err := v.Int64(); err == nil {
+			return i, true
+		}
+	case int:
+		return int64(v), true
+	case int64:
+		return v, true
+	}
+	// Fractional or out-of-range values truncate, as a float would.
+	f, ok := n.float()
+	return int64(f), ok
+}
+
+// lookupNumber returns the first numeric value present under keys.
+func lookupNumber(m map[string]any, keys []string) (configNumber, bool) {
+	for _, k := range keys {
+		n := configNumber{m[k]}
+		if _, ok := n.float(); ok {
+			return n, true
+		}
+	}
+	return configNumber{}, false
 }
 
 // lookupStrings returns the first string list (or single string, as OpenAI's
@@ -112,17 +150,8 @@ func lookupStrings(m map[string]any, keys []string) []string {
 	return nil
 }
 
-// resolveMessage resolves the response message. Modern plugins set Message
-// directly; there is no candidates fallback in Go's ModelResponse.
-func resolveMessage(response *ai.ModelResponse) *ai.Message {
-	if response == nil {
-		return nil
-	}
-	return response.Message
-}
-
 // recordError sets the error status, error.type attribute, and exception event.
-func (g *GenAiInstrumentation) recordError(span oteltrace.Span, err error) {
+func (g *Instrumentation) recordError(span oteltrace.Span, err error) {
 	span.SetStatus(codes.Error, err.Error())
 	span.SetAttributes(attribute.String(genai.AttrErrorType, errorTypeOf(err)))
 	span.RecordError(err)
@@ -139,12 +168,22 @@ func errorTypeOf(err error) string {
 	return string(status.Of(err))
 }
 
+// hasOwnSpanContext reports whether span got span ids of its own. Without an
+// SDK, the global tracer returns a non-recording span that carries the
+// parent's span context from ctx: invalid at the root, but the parent's ids
+// (valid) under a remote parent extracted from a traceparent header. Reporting
+// those would give every Genkit span in the request the parent's span id.
+func hasOwnSpanContext(parent oteltrace.SpanContext, span oteltrace.Span) bool {
+	sc := span.SpanContext()
+	return sc.IsValid() && !(parent.IsValid() && sc.SpanID() == parent.SpanID())
+}
+
 // maybeWarnNotRecording warns once when no OpenTelemetry SDK is installed, so
-// GenAI telemetry is silently dropped. Without an SDK, a span has an invalid
-// span context. A span the SDK sampled out is also non-recording but keeps a
-// valid context, so this does not fire for a working, sampled setup.
-func (g *GenAiInstrumentation) maybeWarnNotRecording(ctx context.Context, span oteltrace.Span) {
-	if span.SpanContext().IsValid() {
+// GenAI telemetry is silently dropped. A span the SDK sampled out is also
+// non-recording but gets its own ids, so this does not fire for a working,
+// sampled setup.
+func (g *Instrumentation) maybeWarnNotRecording(ctx context.Context, ownIDs bool) {
+	if ownIDs {
 		return
 	}
 	g.warnOnce.Do(func() {

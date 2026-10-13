@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package otel
+package otelgenai
 
 import (
 	"context"
@@ -29,17 +29,17 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/status"
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/plugins/otel/genai"
+	"github.com/firebase/genkit/go/plugins/otelgenai/internal/genai"
 )
 
 // setupMetrics configures the instrumentation with a meter backed by a manual
 // reader, on top of the span recorder from setup.
 func setupMetrics(t *testing.T) *sdkmetric.ManualReader {
 	t.Helper()
-	setup(t, GenAiInstrumentationOptions{})
+	setup(t, Options{})
 	reader := sdkmetric.NewManualReader()
 	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
-	tracing.SetInstrumentation(NewGenAiInstrumentation(GenAiInstrumentationOptions{Meter: mp.Meter("test")}))
+	tracing.SetInstrumentation(New(Options{MeterProvider: mp}))
 	return reader
 }
 
@@ -75,7 +75,7 @@ func points[N int64 | float64](t *testing.T, agg metricdata.Aggregation) []point
 	for _, dp := range h.DataPoints {
 		attrs := map[string]string{}
 		for _, kv := range dp.Attributes.ToSlice() {
-			attrs[string(kv.Key)] = kv.Value.Emit()
+			attrs[string(kv.Key)] = kv.Value.String()
 		}
 		out = append(out, point{Attrs: attrs, Count: dp.Count, Sum: float64(dp.Sum)})
 	}
@@ -102,7 +102,7 @@ func withAttrs(extra ...attribute.KeyValue) map[string]string {
 		m[k] = v
 	}
 	for _, kv := range extra {
-		m[string(kv.Key)] = kv.Value.Emit()
+		m[string(kv.Key)] = kv.Value.String()
 	}
 	return m
 }
@@ -156,10 +156,10 @@ func TestModelMetricsError(t *testing.T) {
 }
 
 func TestMetricsDisabled(t *testing.T) {
-	setup(t, GenAiInstrumentationOptions{})
+	setup(t, Options{})
 	reader := sdkmetric.NewManualReader()
 	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
-	tracing.SetInstrumentation(NewGenAiInstrumentation(GenAiInstrumentationOptions{Meter: mp.Meter("test"), DisableMetrics: true}))
+	tracing.SetInstrumentation(New(Options{MeterProvider: mp, DisableMetrics: true}))
 
 	runModelWith(t, modelResponse(), nil)
 	if got := collect(t, reader); len(got) != 0 {
@@ -174,7 +174,7 @@ var sortPoints = cmpopts.SortSlices(func(a, b point) bool {
 // TestEventOnlyKeepsContentOffSpan verifies EVENT_ONLY does not attach content
 // to span attributes (it emits a log event instead, which needs no SDK here).
 func TestEventOnlyKeepsContentOffSpan(t *testing.T) {
-	sr := setup(t, GenAiInstrumentationOptions{ContentCapturingMode: genai.EventOnly})
+	sr := setup(t, Options{ContentCapturingMode: EventOnly})
 	runModel(t)
 	a := attrMap(findSpan(t, sr, "chat gemini-flash-latest"))
 	if _, ok := a[genai.AttrInputMessages]; ok {

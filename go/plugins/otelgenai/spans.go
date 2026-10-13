@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package otel
+package otelgenai
 
 import (
 	"context"
@@ -25,20 +25,23 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/plugins/otel/genai"
+	"github.com/firebase/genkit/go/plugins/otelgenai/internal/genai"
 )
 
 // genaiSpan is the tracing.Span over one OTel span. StartSpan records what is
 // known up front; End records the result (response, content, metrics, error)
 // and ends the OTel span.
 type genaiSpan struct {
-	g    *GenAiInstrumentation
+	g    *Instrumentation
 	span oteltrace.Span
 	// ctx carries span as the active span. Kept because End has no context of
 	// its own, and the content log record and metrics must correlate to this
 	// span, as they did when they were recorded inside the span's scope.
 	ctx   context.Context
 	input any
+	// ownIDs is false when span only echoes its parent's (or no) span context,
+	// which happens without an SDK; see hasOwnSpanContext.
+	ownIDs bool
 	// model is set for model spans only.
 	model *modelCall
 }
@@ -52,10 +55,11 @@ type modelCall struct {
 }
 
 func (s *genaiSpan) TraceInfo() tracing.TraceInfo {
-	sc := s.span.SpanContext()
-	if !sc.IsValid() {
+	if !s.ownIDs {
+		// Empty ids let the dispatcher mint its own.
 		return tracing.TraceInfo{}
 	}
+	sc := s.span.SpanContext()
 	return tracing.TraceInfo{TraceID: sc.TraceID().String(), SpanID: sc.SpanID().String()}
 }
 
@@ -80,7 +84,7 @@ func (s *genaiSpan) End(res *tracing.SpanResult) {
 		if response != nil {
 			addResponseAttributes(s.span, response, err != nil)
 		}
-		if g.contentMode != genai.NoContent {
+		if g.contentMode != NoContent {
 			g.recordContent(s.ctx, s.span, m.request, response, err != nil)
 		}
 		if g.metrics != nil {
@@ -106,17 +110,19 @@ func labelAttrs(info *tracing.SpanInfo) []attribute.KeyValue {
 }
 
 // startSpan opens an OTel span and wraps it.
-func (g *GenAiInstrumentation) startSpan(ctx context.Context, info *tracing.SpanInfo, name string, kind oteltrace.SpanKind, attrs []attribute.KeyValue) (context.Context, *genaiSpan) {
+func (g *Instrumentation) startSpan(ctx context.Context, info *tracing.SpanInfo, name string, kind oteltrace.SpanKind, attrs []attribute.KeyValue) (context.Context, *genaiSpan) {
+	parent := oteltrace.SpanContextFromContext(ctx)
 	ctx, span := g.tracer.Start(ctx, name,
 		oteltrace.WithSpanKind(kind),
 		oteltrace.WithAttributes(attrs...))
-	g.maybeWarnNotRecording(ctx, span)
-	return ctx, &genaiSpan{g: g, span: span, ctx: ctx, input: info.Input()}
+	ownIDs := hasOwnSpanContext(parent, span)
+	g.maybeWarnNotRecording(ctx, ownIDs)
+	return ctx, &genaiSpan{g: g, span: span, ctx: ctx, input: info.Input(), ownIDs: ownIDs}
 }
 
 // startModelSpan opens a gen_ai chat CLIENT span for a model action, carrying
 // the request config; End adds the response attributes, content, and metrics.
-func (g *GenAiInstrumentation) startModelSpan(ctx context.Context, info *tracing.SpanInfo) (context.Context, tracing.Span) {
+func (g *Instrumentation) startModelSpan(ctx context.Context, info *tracing.SpanInfo) (context.Context, tracing.Span) {
 	prefix, model := genai.SplitModelName(info.Name())
 	provider := genai.DeriveProviderName(prefix)
 	request := asModelRequest(info.Input())
@@ -140,7 +146,7 @@ func (g *GenAiInstrumentation) startModelSpan(ctx context.Context, info *tracing
 }
 
 // startToolSpan opens an execute_tool INTERNAL span for a tool action.
-func (g *GenAiInstrumentation) startToolSpan(ctx context.Context, info *tracing.SpanInfo) (context.Context, tracing.Span) {
+func (g *Instrumentation) startToolSpan(ctx context.Context, info *tracing.SpanInfo) (context.Context, tracing.Span) {
 	attrs := append(labelAttrs(info),
 		attribute.String(genai.AttrOperationName, genai.OperationExecuteTool),
 		attribute.String(genai.AttrToolName, info.Name()),
@@ -151,7 +157,7 @@ func (g *GenAiInstrumentation) startToolSpan(ctx context.Context, info *tracing.
 
 // startGenericSpan opens a plain INTERNAL span for action types with no GenAI
 // mapping (flow, util, ...), keeping the trace tree connected.
-func (g *GenAiInstrumentation) startGenericSpan(ctx context.Context, info *tracing.SpanInfo, subtype string) (context.Context, tracing.Span) {
+func (g *Instrumentation) startGenericSpan(ctx context.Context, info *tracing.SpanInfo, subtype string) (context.Context, tracing.Span) {
 	attrs := labelAttrs(info)
 	if subtype != "" {
 		attrs = append(attrs, attribute.String(genai.AttrGenkitActionType, subtype))
