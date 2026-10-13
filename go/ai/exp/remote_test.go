@@ -103,6 +103,14 @@ func TestNewRemoteAgent_RejectsBadInput(t *testing.T) {
 			NewRemoteAgent(tc.name, tc.url)
 		})
 	}
+	t.Run("a bad route URL", func(t *testing.T) {
+		defer func() {
+			if recover() == nil {
+				t.Error("NewRemoteAgent with a relative route URL did not panic")
+			}
+		}()
+		NewRemoteAgent("a", "https://h/agents/a", WithRouteURLs(AgentRouteURLs{Abort: "/agents/a-abort"}))
+	})
 }
 
 func TestRemoteAgent_Errors(t *testing.T) {
@@ -426,6 +434,18 @@ func TestRemoteAgent_WaitForSnapshot(t *testing.T) {
 		h := NewRemoteAgent("a", url, WithHTTPClient(&http.Client{Timeout: 50 * time.Millisecond}))
 		snap, err := h.WaitForSnapshot(ctx, "s")
 		if err != nil || snap.Status != SnapshotStatusCompleted {
+			t.Errorf("WaitForSnapshot = %+v, %v; want completed", snap, err)
+		}
+	})
+
+	t.Run("reads the snapshot where WithRouteURLs puts it", func(t *testing.T) {
+		url := remoteTestServer(t, map[string]http.HandlerFunc{
+			"Snapshot": func(w http.ResponseWriter, r *http.Request) {
+				writeResult(w, &SessionSnapshot[json.RawMessage]{SnapshotID: "s", Status: SnapshotStatusCompleted})
+			},
+		})
+		h := NewRemoteAgent("a", url, WithRouteURLs(AgentRouteURLs{GetSnapshot: url + "Snapshot"}))
+		if snap, err := h.WaitForSnapshot(ctx, "s"); err != nil || snap.Status != SnapshotStatusCompleted {
 			t.Errorf("WaitForSnapshot = %+v, %v; want completed", snap, err)
 		}
 	})

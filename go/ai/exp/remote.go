@@ -51,6 +51,7 @@ type RemoteAgentOption interface {
 type remoteAgentOptions struct {
 	httpClient  *http.Client
 	headers     func(context.Context) (http.Header, error)
+	routes      *AgentRouteURLs
 	description string
 	metadata    *AgentMetadata
 }
@@ -61,6 +62,9 @@ func (o *remoteAgentOptions) applyRemoteAgent(opts *remoteAgentOptions) {
 	}
 	if o.headers != nil {
 		opts.headers = o.headers
+	}
+	if o.routes != nil {
+		opts.routes = o.routes
 	}
 	if o.metadata != nil {
 		opts.metadata = o.metadata
@@ -84,6 +88,23 @@ func WithHeaders(fn func(ctx context.Context) (http.Header, error)) RemoteAgentO
 	return &remoteAgentOptions{headers: fn}
 }
 
+// AgentRouteURLs names the snapshot companion routes of a remote agent whose
+// server does not serve them next to its turn route, such as a Next.js app
+// with a route file per action. Each is an absolute http or https URL; an
+// empty field keeps the default, the turn route's URL with "/getSnapshot",
+// "/waitForSnapshot", or "/abort" appended.
+type AgentRouteURLs struct {
+	GetSnapshot     string
+	WaitForSnapshot string
+	Abort           string
+}
+
+// WithRouteURLs sets the URLs of a remote agent's snapshot companion routes.
+// A server that serves no wait route is polled through GetSnapshot instead.
+func WithRouteURLs(urls AgentRouteURLs) RemoteAgentOption {
+	return &remoteAgentOptions{routes: &urls}
+}
+
 // WithAgentMetadata declares a remote agent's capability metadata: who manages
 // its state and whether its background work can be aborted. Callers such as
 // the agents middleware gate on it, so declare what the agent's server
@@ -99,7 +120,8 @@ func WithAgentMetadata(meta *AgentMetadata) RemoteAgentOption {
 // HTTP, in Go (the genkit/exp package's AgentRoutes layout), JS, or Dart. url
 // is the agent's turn route (e.g. "https://billing.internal/agents/billing");
 // the snapshot companions are at url+"/getSnapshot", url+"/waitForSnapshot",
-// and url+"/abort". It performs no I/O.
+// and url+"/abort", unless [WithRouteURLs] puts them elsewhere. It performs no
+// I/O.
 //
 // The handle's operations work as they do for an agent in this process,
 // detached runs and their tasks included, as far as the server allows. Errors
@@ -111,19 +133,19 @@ func WithAgentMetadata(meta *AgentMetadata) RemoteAgentOption {
 // [LookupAgent]), register the handle with [AgentHandle.Register], or use the
 // genkit/exp package's DefineRemoteAgent.
 //
-// It panics if name is empty or url is not an absolute http or https URL
-// without user info, query, or fragment.
+// It panics if name is empty or url, or a URL [WithRouteURLs] sets, is not
+// an absolute http or https URL without user info, query, or fragment.
 func NewRemoteAgent(name, url string, opts ...RemoteAgentOption) *AgentHandle {
 	if name == "" {
 		panic("aix.NewRemoteAgent: name is required")
 	}
-	base, err := parseAgentURL(url)
-	if err != nil {
-		panic(fmt.Sprintf("aix.NewRemoteAgent: agent %q: %v", name, err))
-	}
 	var o remoteAgentOptions
 	for _, opt := range opts {
 		opt.applyRemoteAgent(&o)
+	}
+	urls, err := routeURLs(url, o.routes)
+	if err != nil {
+		panic(fmt.Sprintf("aix.NewRemoteAgent: agent %q: %v", name, err))
 	}
 	client := http.DefaultClient
 	if o.httpClient != nil {
@@ -136,12 +158,43 @@ func NewRemoteAgent(name, url string, opts ...RemoteAgentOption) *AgentHandle {
 	}
 	return NewAgentHandle(name,
 		&AgentHandleOptions{Description: o.description, Metadata: o.metadata},
-		&httpTransport{name: name, base: base, client: &c, headers: o.headers})
+		&httpTransport{name: name, urls: urls, client: &c, headers: o.headers})
 }
 
-// parseAgentURL parses a remote agent's turn route. A query or fragment would
-// not survive the companion paths appended to it, and user info would put a
-// credential in every log line that prints the URL.
+// routeURLs returns the URL of each route a remote agent's transport calls,
+// keyed by its suffix under the turn route ("" for the turn route itself).
+func routeURLs(turn string, set *AgentRouteURLs) (map[string]string, error) {
+	base, err := parseAgentURL(turn)
+	if err != nil {
+		return nil, err
+	}
+	if set == nil {
+		set = &AgentRouteURLs{}
+	}
+	urls := map[string]string{"": base.String()}
+	for suffix, raw := range map[string]string{
+		"/getSnapshot":     set.GetSnapshot,
+		"/waitForSnapshot": set.WaitForSnapshot,
+		"/abort":           set.Abort,
+	} {
+		if raw == "" {
+			u := *base
+			u.Path += suffix
+			urls[suffix] = u.String()
+			continue
+		}
+		u, err := parseAgentURL(raw)
+		if err != nil {
+			return nil, err
+		}
+		urls[suffix] = u.String()
+	}
+	return urls, nil
+}
+
+// parseAgentURL parses the URL of a remote agent's route. A query or fragment
+// would not survive the companion paths appended to it, and user info would
+// put a credential in every log line that prints the URL.
 func parseAgentURL(raw string) (*url.URL, error) {
 	u, err := url.Parse(raw)
 	if err != nil {
@@ -179,18 +232,16 @@ const (
 // wire format in internal/wire.
 type httpTransport struct {
 	name    string
-	base    *url.URL
+	urls    map[string]string // by route suffix; see routeURLs
 	client  *http.Client
 	headers func(context.Context) (http.Header, error)
 }
 
 var _ SnapshotTransport = (*httpTransport)(nil)
 
-// endpoint returns the URL of the route suffix names under the agent's base.
+// endpoint returns the URL of the route suffix names.
 func (t *httpTransport) endpoint(suffix string) string {
-	u := *t.base
-	u.Path += suffix
-	return u.String()
+	return t.urls[suffix]
 }
 
 // Run posts the turn to the agent's turn route, streaming, so chunks reach cb

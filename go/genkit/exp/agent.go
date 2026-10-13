@@ -206,7 +206,7 @@ func DefineCustomAgent[State any](
 // [aix.NewRemoteAgent] followed by [aix.AgentHandle.Register]: url is the
 // agent's turn route in the [AgentRoutes] layout (e.g.
 // "https://billing.internal/agents/billing"), and opts configure the HTTP
-// client and headers and declare what the agent supports.
+// client, headers, and route URLs and declare what the agent supports.
 //
 // Once registered, the agent resolves by name like one defined in this
 // process: the agents middleware delegates to it with an [aix.AgentRef], and
