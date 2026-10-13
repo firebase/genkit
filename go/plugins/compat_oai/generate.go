@@ -575,7 +575,7 @@ func (g *ModelGenerator) applyResponseFormat(output *ai.ModelOutputConfig) {
 	}
 	if output != nil && output.Constrained && output.Schema != nil && slices.Contains(g.outputFormats, output.Format) {
 		switch output.Format {
-		case "array", "enum":
+		case ai.OutputFormatArray, ai.OutputFormatEnum:
 			format = jsonSchemaFormat(output.Schema)
 		}
 	}
@@ -604,7 +604,7 @@ func getResponseFormat(output *ai.ModelOutputConfig) openai.ChatCompletionNewPar
 	}
 
 	switch output.Format {
-	case "json":
+	case ai.OutputFormatJSON:
 		if output.Schema != nil {
 			format = jsonSchemaFormat(output.Schema)
 		} else {
