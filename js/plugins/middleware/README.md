@@ -266,7 +266,8 @@ Compresses conversation context when it grows too large, reducing token usage an
 3. **Tool response truncation**: Truncates tool responses exceeding a character limit (`toolResponses`), preserving the most recent tool response messages and appending a `[Truncated N characters]` marker.
 4. **Message count cap**: Drops older non-system messages when exceeding `maxMessages`, preserving system messages and ensuring conversation history begins with a user turn.
 5. **Summarization**: Summarizes older conversation history using an LLM (`summarize`), with optional threshold skipping (`skipSummarizationThreshold`) and dynamic overshoot adjustment.
-6. **Non-destructive session history**: By default (`preserveOriginalMessages: true`), compression state is saved in message metadata (`message.metadata.contextCompression`) rather than modifying original messages in place. Model calls receive the compressed view while session and UI logs retain full original messages. Use `resolveCompressedHistory(messages)` to extract active messages.
+6. **Token budget fallback**: If deduplication and tool response truncation cannot bring the context under `maxInputTokens`, and no summary replaces older messages, older non-system messages are dropped down to `preserveRecent`.
+7. **Non-destructive session history**: By default (`preserveOriginalMessages: true`), compression state is saved in message metadata (`message.metadata.contextCompression`) rather than modifying original messages in place. Model calls receive the compressed view while session and UI logs retain full original messages. Use `resolveCompressedHistory(messages)` to extract active messages.
 
 > **Ordering note:** When combining `contextCompression` with context-injecting middleware (such as `filesystem()`, `skills()`, or `artifacts()`), place `contextCompression` **after** those middlewares in `use: [...]` so their injected instructions and tool outputs are accounted for during compression.
 
@@ -286,7 +287,7 @@ const response = await ai.generate({
       deduplicateToolResponses: { matchBy: 'name-and-input' },
       toolResponses: { maxChars: 2000, preserveRecent: 2 },
       summarize: {
-        model: googleAI.model('gemini-2.5-flash'),
+        model: googleAI.model('gemini-flash-lite-latest'),
         preserveRecent: 6,
       },
       skipSummarizationThreshold: 0.25, // Skip LLM summary if cheap strategies save >= 25%
@@ -323,7 +324,7 @@ const activeMessages = resolveCompressedHistory(response.messages);
 | `summarize.preserveRecent` | `number` | `6` | Number of most recent non-system messages to keep un-summarized (defaults to top-level `preserveRecent` if set, and falls back to `preserveRecent` on shorter over-budget histories). |
 | `summarize.prompt` | `string` | standard prompt | Custom summarization prompt. Use `{conversation}` as a placeholder for the rendered messages to summarize. |
 | `skipSummarizationThreshold` | `number` | — | Skip summarization if cheap strategies save at least this fraction (`0..1`) of context and bring estimated tokens within `maxInputTokens`. |
-| `maxMessages` | `number` | — | Maximum message count target. Drops older non-system messages, ensuring history begins with a user turn. |
+| `maxMessages` | `number` | — | Maximum message count target. Drops older non-system messages, ensuring history begins with a user turn. May be exceeded when system messages and the truncation notice fill the cap, since the newest turn is always kept. |
 | `insertTruncationNotice` | `boolean` | `true` | Inserts an advisory notice when messages are dropped. |
 | `truncationNotice` | `string` | standard text | Custom notice text to use when messages are dropped. |
 | `preserveOriginalMessages` | `boolean` | `true` | Preserves original uncompressed messages in `request.messages` and `response.messages` while storing compression state in `message.metadata.contextCompression`. Set to `false` to overwrite `request.messages` in place. |
