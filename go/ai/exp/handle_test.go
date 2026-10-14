@@ -662,7 +662,7 @@ func TestWaitValidation(t *testing.T) {
 	}
 }
 
-// recordingTransport is an [agentTransport] that records what reached it and
+// recordingTransport is an [AgentTransport] that records what reached it and
 // answers from canned values. It is how the delegation tests see the seam: a
 // real transport would prove only that the call worked, not which arguments
 // the handle chose to send.
@@ -924,5 +924,231 @@ func TestAgentHandle_MetadataOnlyPrefersTheStoreCapability(t *testing.T) {
 	if store.metadataReads != 1 || store.latestMetadataReads != 1 || store.fullReads != 0 || store.latestFullReads != 0 {
 		t.Errorf("reads: metadata=%d latestMetadata=%d full=%d latestFull=%d, want the capability path only (1, 1, 0, 0)",
 			store.metadataReads, store.latestMetadataReads, store.fullReads, store.latestFullReads)
+	}
+}
+
+// TestNewAgentHandle covers the public constructor a non-local transport
+// uses: the handle delegates to it and reports the metadata it was given,
+// detached from the caller's copy.
+func TestNewAgentHandle(t *testing.T) {
+	tr := &recordingTransport{}
+	meta := &AgentMetadata{
+		StateManagement: AgentStateManagementServer,
+		Abortable:       true,
+		StateSchema:     map[string]any{"type": "object"},
+	}
+	h := NewAgentHandle("remote", meta, tr)
+	meta.StateSchema["type"] = "mutated"
+
+	got := h.Metadata()
+	if got == nil || got.StateManagement != AgentStateManagementServer || !got.Abortable {
+		t.Fatalf("Metadata() = %+v, want the metadata passed in", got)
+	}
+	if got.StateSchema["type"] != "object" {
+		t.Errorf("Metadata().StateSchema = %v, want a copy unaffected by the caller", got.StateSchema)
+	}
+	if _, err := h.RunText(context.Background(), "hi", WithSessionID[json.RawMessage]("s1")); err != nil {
+		t.Fatal(err)
+	}
+	if tr.runInit == nil || tr.runInit.SessionID != "s1" || tr.runInput.Message.Text() != "hi" {
+		t.Errorf("transport got input %+v init %+v", tr.runInput, tr.runInit)
+	}
+	if NewAgentHandle("unknown", nil, tr).Metadata() != nil {
+		t.Error("Metadata() for a handle built without metadata is not nil")
+	}
+}
+
+// streamingTransport is an [AgentTransport] whose Run streams chunks through
+// the callback, then returns out (or err). gate, if set, holds the turn open
+// after the chunks until it is closed.
+type streamingTransport struct {
+	recordingTransport
+	chunks []string
+	gate   chan struct{}
+	out    *AgentOutput[json.RawMessage]
+	err    error
+	cbErrs []error
+}
+
+func (t *streamingTransport) Run(ctx context.Context, input *AgentInput, init *AgentInit[json.RawMessage], cb func(context.Context, json.RawMessage) error) (*AgentOutput[json.RawMessage], error) {
+	t.recordingTransport.Run(ctx, input, init, cb)
+	for _, c := range t.chunks {
+		if cb != nil {
+			t.cbErrs = append(t.cbErrs, cb(ctx, json.RawMessage(c)))
+		}
+	}
+	if t.gate != nil {
+		select {
+		case <-t.gate:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	return t.out, t.err
+}
+
+func tokenChunk(text string) string {
+	return fmt.Sprintf(`{"modelChunk":{"content":[{"text":%q}]}}`, text)
+}
+
+func TestAgentHandle_Stream(t *testing.T) {
+	ctx := context.Background()
+	out := &AgentOutput[json.RawMessage]{FinishReason: AgentFinishReasonStop, SnapshotID: "snap-1"}
+
+	t.Run("yields chunks in order, then the output", func(t *testing.T) {
+		tr := &streamingTransport{chunks: []string{tokenChunk("a"), tokenChunk("b"), `{"turnEnd":{}}`}, out: out}
+		turn := NewAgentHandle("a", nil, tr).StreamText(ctx, "hi", WithSessionID[json.RawMessage]("s1"))
+		var got []string
+		for chunk, err := range turn.Receive() {
+			if err != nil {
+				t.Fatal(err)
+			}
+			switch {
+			case chunk.ModelChunk != nil:
+				got = append(got, chunk.ModelChunk.Text())
+			case chunk.TurnEnd != nil:
+				got = append(got, "<end>")
+			}
+		}
+		if want := []string{"a", "b", "<end>"}; !slices.Equal(got, want) {
+			t.Errorf("chunks = %v, want %v", got, want)
+		}
+		res, err := turn.Output()
+		if err != nil || res != out {
+			t.Errorf("Output() = %+v, %v; want the transport's output", res, err)
+		}
+		if !tr.runHasCB || tr.runInit == nil || tr.runInit.SessionID != "s1" || tr.runInput.Message.Text() != "hi" {
+			t.Errorf("transport got cb=%v init=%+v input=%+v", tr.runHasCB, tr.runInit, tr.runInput)
+		}
+	})
+
+	t.Run("Output without Receive drops the chunks", func(t *testing.T) {
+		tr := &streamingTransport{chunks: []string{tokenChunk("a"), tokenChunk("b")}, out: out}
+		res, err := NewAgentHandle("a", nil, tr).StreamText(ctx, "hi").Output()
+		if err != nil || res != out {
+			t.Fatalf("Output() = %+v, %v", res, err)
+		}
+		for _, e := range tr.cbErrs {
+			if e != nil {
+				t.Errorf("a dropped chunk failed the callback: %v", e)
+			}
+		}
+	})
+
+	t.Run("breaking out of Receive lets the turn finish", func(t *testing.T) {
+		tr := &streamingTransport{chunks: []string{tokenChunk("a"), tokenChunk("b"), tokenChunk("c")}, out: out}
+		turn := NewAgentHandle("a", nil, tr).StreamText(ctx, "hi")
+		for range turn.Receive() {
+			break
+		}
+		select {
+		case <-turn.Done():
+		case <-time.After(5 * time.Second):
+			t.Fatal("turn did not finish after the reader left")
+		}
+		if res, err := turn.Output(); err != nil || res != out {
+			t.Errorf("Output() = %+v, %v", res, err)
+		}
+	})
+
+	t.Run("a failed call ends Receive with the error", func(t *testing.T) {
+		wantErr := status.Errorf(status.ErrUnavailable, "box gone")
+		tr := &streamingTransport{chunks: []string{tokenChunk("a")}, err: wantErr}
+		turn := NewAgentHandle("a", nil, tr).StreamText(ctx, "hi")
+		var chunks int
+		var last error
+		for chunk, err := range turn.Receive() {
+			if err != nil {
+				last = err
+				continue
+			}
+			if chunk != nil {
+				chunks++
+			}
+		}
+		if chunks != 1 || !errors.Is(last, wantErr) {
+			t.Errorf("got %d chunks and error %v, want 1 and %v", chunks, last, wantErr)
+		}
+		if _, err := turn.Output(); !errors.Is(err, wantErr) {
+			t.Errorf("Output() error = %v, want %v", err, wantErr)
+		}
+	})
+
+	t.Run("invalid arguments surface through the turn", func(t *testing.T) {
+		tr := &streamingTransport{out: out}
+		h := NewAgentHandle("a", nil, tr)
+		for name, turn := range map[string]*AgentTurn{
+			"nil input":   h.Stream(ctx, nil),
+			"nil handle":  (*AgentHandle)(nil).StreamText(ctx, "hi"),
+			"bad options": h.StreamText(ctx, "hi", WithSnapshotID[json.RawMessage]("s"), WithState(&SessionState[json.RawMessage]{})),
+		} {
+			var got error
+			for _, err := range turn.Receive() {
+				got = err
+			}
+			if got == nil {
+				t.Errorf("%s: Receive yielded no error", name)
+			}
+			if _, err := turn.Output(); err == nil {
+				t.Errorf("%s: Output() succeeded", name)
+			}
+		}
+		if tr.callCount != 0 {
+			t.Errorf("transport called %d times, want 0", tr.callCount)
+		}
+	})
+
+	t.Run("cancelling ctx aborts the turn", func(t *testing.T) {
+		tr := &streamingTransport{gate: make(chan struct{}), out: out}
+		cctx, cancel := context.WithCancel(ctx)
+		turn := NewAgentHandle("a", nil, tr).StreamText(cctx, "hi")
+		cancel()
+		if _, err := turn.Output(); !errors.Is(err, context.Canceled) {
+			t.Errorf("Output() error = %v, want context.Canceled", err)
+		}
+	})
+}
+
+// TestAgentHandle_StreamInProcess streams a real agent's model chunks through
+// the in-process transport.
+func TestAgentHandle_StreamInProcess(t *testing.T) {
+	reg := newTestRegistry(t)
+	DefineCustomAgent(reg, "talker",
+		func(ctx context.Context, resp Responder, sess *SessionRunner[any]) (*AgentResult, error) {
+			if err := sess.Run(ctx, func(ctx context.Context, input *AgentInput) (*TurnResult, error) {
+				for _, tok := range []string{"hel", "lo"} {
+					resp.SendModelChunk(&ai.ModelResponseChunk{Content: []*ai.Part{ai.NewTextPart(tok)}})
+				}
+				sess.AddMessages(ai.NewModelTextMessage("hello"))
+				return nil, nil
+			}); err != nil {
+				return nil, err
+			}
+			return sess.Result(), nil
+		})
+
+	turn := LookupAgent(reg, "talker").StreamText(context.Background(), "hi")
+	var text string
+	var turnEnds int
+	for chunk, err := range turn.Receive() {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if chunk.ModelChunk != nil {
+			text += chunk.ModelChunk.Text()
+		}
+		if chunk.TurnEnd != nil {
+			turnEnds++
+		}
+	}
+	out, err := turn.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if text != "hello" || turnEnds != 1 {
+		t.Errorf("streamed %q with %d turn ends, want hello and 1", text, turnEnds)
+	}
+	if out.Message == nil || out.Message.Text() != "hello" {
+		t.Errorf("output message = %v, want hello", out.Message)
 	}
 }

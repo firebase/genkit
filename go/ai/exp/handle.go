@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"iter"
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
@@ -42,10 +43,9 @@ import (
 // is [json.RawMessage]: unmarshal [SessionState.Custom] into the agent's own
 // state type when the caller knows it.
 //
-// Reaching the agent is an [agentTransport]'s job, so where the agent lives is
-// not part of this surface. Both constructors bind the in-process transport
-// today; the seam is what will let one bind an agent behind an HTTP endpoint
-// without moving a method.
+// Reaching the agent is an [AgentTransport]'s job, so where the agent lives is
+// not part of this surface. [LookupAgent] and [Agent.Handle] bind the
+// in-process transport; [NewAgentHandle] binds any other.
 type AgentHandle struct {
 	name string
 	// meta is the agent's capability metadata, or nil when it is unknown. It
@@ -57,18 +57,16 @@ type AgentHandle struct {
 	metaOnce  sync.Once
 	meta      *AgentMetadata
 	metaSrc   api.Action
-	transport agentTransport
+	transport AgentTransport
 }
 
-// agentTransport is how an [AgentHandle] reaches the agent it names. The
+// AgentTransport is how an [AgentHandle] reaches the agent it names. The
 // handle owns the ergonomic surface and the argument validation that holds
 // wherever the agent lives; a transport owns marshaling, dispatch, and the
-// refusal an agent that lacks a capability earns.
-//
-// It is unexported until a second implementation exists. The in-process
-// transport below is the only one today, and an HTTP one over the
-// /agents/{name}/... routes is what the seam is for; writing that is what will
-// settle the shape well enough to publish it.
+// refusal an agent that lacks a capability earns. [LookupAgent] and
+// [Agent.Handle] bind the in-process transport; implement this interface and
+// pass it to [NewAgentHandle] to reach an agent somewhere else (another
+// process, a container, an HTTP endpoint).
 //
 // Two rules every implementation owes its callers:
 //
@@ -82,12 +80,14 @@ type AgentHandle struct {
 // Capability metadata is not here. It is static, [AgentHandle] holds it
 // directly, and a transport that had to fetch it could report no failure
 // through a getter that returns one value. Whoever builds a transport supplies
-// what it knows about the agent, and nil means unknown.
+// what it knows about the agent to [NewAgentHandle], and nil means unknown.
 //
 // Connect-style sessions are deliberately out of scope. [AgentHandle] exposes
 // none, and a long-lived duplex stream is a different problem from four
 // request/response calls.
-type agentTransport interface {
+//
+// Experimental: the interface may gain methods while the agent API settles.
+type AgentTransport interface {
 	// Run delivers one turn and returns its final output. init carries the
 	// session source and may be nil; cb receives streamed chunks as raw JSON
 	// and may be nil.
@@ -149,6 +149,32 @@ func (a *Agent[State]) Handle() *AgentHandle {
 			abort:       a.abort,
 		},
 	}
+}
+
+// NewAgentHandle returns a handle for the agent named name, reached through
+// transport. meta is what the caller knows about the agent's capabilities
+// (who manages state, whether it can abort), or nil when unknown; the handle
+// reports it from [AgentHandle.Metadata] as is.
+//
+// Use it to put an agent that lives elsewhere behind the same surface as a
+// local one, so code written against [AgentHandle] (orchestrators,
+// middleware) runs it unchanged:
+//
+//	h := aix.NewAgentHandle("coder", &aix.AgentMetadata{
+//		StateManagement: aix.AgentStateManagementServer,
+//	}, remoteTransport)
+//	out, err := h.RunText(ctx, "fix the failing test")
+func NewAgentHandle(name string, meta *AgentMetadata, transport AgentTransport) *AgentHandle {
+	if transport == nil {
+		panic("aix.NewAgentHandle: nil transport")
+	}
+	h := &AgentHandle{name: name, transport: transport}
+	if meta != nil {
+		copied := *meta
+		copied.StateSchema = base.CloneSchema(copied.StateSchema)
+		h.meta = &copied
+	}
+	return h
 }
 
 // agentMetadataOf extracts the [AgentMetadata] an agent's action descriptor
@@ -235,9 +261,8 @@ func (h *AgentHandle) Run(ctx context.Context, input *AgentInput, opts ...Invoca
 	if err != nil {
 		return nil, err
 	}
-	// No stream callback: a handle reports a turn by its final output. The
-	// transport takes one because a turn is streamed at that level whatever
-	// carries it, so a streaming surface on the handle needs no new seam.
+	// No stream callback, so the transport skips decoding chunks; Stream is
+	// the streaming surface.
 	return h.transport.Run(ctx, input, init, nil)
 }
 
@@ -249,6 +274,130 @@ func (h *AgentHandle) RunText(ctx context.Context, text string, opts ...Invocati
 	}
 	return h.Run(ctx, &AgentInput{Message: ai.NewUserTextMessage(text)}, opts...)
 }
+
+// Stream runs one turn of the agent like [AgentHandle.Run], streaming what
+// the agent produces as it goes (model tokens, artifacts, custom-state
+// patches, the turn-end marker):
+//
+//	turn := agent.Stream(ctx, &aix.AgentInput{Message: ai.NewUserTextMessage(text)},
+//		aix.WithSessionID[json.RawMessage](sid))
+//	for chunk, err := range turn.Receive() {
+//		if err != nil {
+//			return err
+//		}
+//		if chunk.ModelChunk != nil {
+//			w.Write([]byte(chunk.ModelChunk.Text()))
+//		}
+//	}
+//	out, err := turn.Output()
+//
+// The turn starts right away. It reports an invalid argument (a nil input,
+// conflicting options) through Receive and Output rather than here, as streaming calls
+// across Genkit do. Cancel ctx to abort the turn.
+func (h *AgentHandle) Stream(ctx context.Context, input *AgentInput, opts ...InvocationOption[json.RawMessage]) *AgentTurn {
+	t := &AgentTurn{
+		chunks:  make(chan *AgentStreamChunk),
+		done:    make(chan struct{}),
+		dropped: make(chan struct{}),
+	}
+	if h == nil {
+		t.finish(nil, nilHandleError("Stream"))
+		return t
+	}
+	if input == nil {
+		t.finish(nil, status.Errorf(status.ErrInvalidArgument, "agent %q: input must not be nil", h.name))
+		return t
+	}
+	init, err := resolveInvocationInit(h.name, opts)
+	if err != nil {
+		t.finish(nil, err)
+		return t
+	}
+	go func() {
+		t.finish(h.transport.Run(ctx, input, init, func(ctx context.Context, raw json.RawMessage) error {
+			var chunk AgentStreamChunk
+			if err := json.Unmarshal(raw, &chunk); err != nil {
+				return fmt.Errorf("agent %q: unmarshal stream chunk: %w", h.name, err)
+			}
+			return t.send(ctx, &chunk)
+		}))
+	}()
+	return t
+}
+
+// StreamText is [AgentHandle.Stream] with a user text message as the input.
+func (h *AgentHandle) StreamText(ctx context.Context, text string, opts ...InvocationOption[json.RawMessage]) *AgentTurn {
+	return h.Stream(ctx, &AgentInput{Message: ai.NewUserTextMessage(text)}, opts...)
+}
+
+// AgentTurn is one streamed turn through an [AgentHandle], returned by
+// [AgentHandle.Stream]. Range over [AgentTurn.Receive] for the chunks, then
+// call [AgentTurn.Output] for the result. Output alone is fine too: chunks
+// nobody reads are dropped rather than buffered, so an unread stream never
+// stalls the agent.
+type AgentTurn struct {
+	chunks chan *AgentStreamChunk // closed when the turn finishes
+	done   chan struct{}          // closed after out and err are set
+
+	dropOnce sync.Once
+	dropped  chan struct{} // closed once nobody will read chunks
+
+	out *AgentOutput[json.RawMessage]
+	err error
+}
+
+// send hands a chunk to the reader, or drops it once nobody is reading.
+func (t *AgentTurn) send(ctx context.Context, chunk *AgentStreamChunk) error {
+	select {
+	case t.chunks <- chunk:
+		return nil
+	case <-t.dropped:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (t *AgentTurn) finish(out *AgentOutput[json.RawMessage], err error) {
+	t.out, t.err = out, err
+	close(t.chunks)
+	close(t.done)
+}
+
+func (t *AgentTurn) drop() { t.dropOnce.Do(func() { close(t.dropped) }) }
+
+// Receive yields the turn's chunks as they arrive. If the turn fails, the
+// last value yields the error, the same one [AgentTurn.Output] returns.
+// Breaking out early is fine: the rest of the chunks are dropped and the
+// turn runs to completion. Receive is single-use; do not call it
+// concurrently with Output.
+func (t *AgentTurn) Receive() iter.Seq2[*AgentStreamChunk, error] {
+	return func(yield func(*AgentStreamChunk, error) bool) {
+		for chunk := range t.chunks {
+			if !yield(chunk, nil) {
+				t.drop()
+				return
+			}
+		}
+		<-t.done
+		if t.err != nil {
+			yield(nil, t.err)
+		}
+	}
+}
+
+// Output blocks until the turn finishes and returns its result, as
+// [AgentHandle.Run] would: a failed turn resolves with
+// [AgentFinishReasonFailed] rather than an error. Chunks not yet received
+// are dropped. Output is idempotent.
+func (t *AgentTurn) Output() (*AgentOutput[json.RawMessage], error) {
+	t.drop()
+	<-t.done
+	return t.out, t.err
+}
+
+// Done returns a channel closed when the turn finishes.
+func (t *AgentTurn) Done() <-chan struct{} { return t.done }
 
 // RunDetached launches input as a detached (background) invocation and returns
 // the task tracking it. It is [Agent.RunDetached] for callers holding only the
@@ -374,7 +523,7 @@ func (h *AgentHandle) Abort(ctx context.Context, snapshotID string) (SnapshotSta
 
 // actionTransport reaches an agent through its registered actions, in this
 // process. It is what [LookupAgent] and [Agent.Handle] build, and the only
-// [agentTransport] today.
+// in-process [AgentTransport].
 //
 // A companion action is nil when the agent does not publish it, which an agent
 // does only when it has a session store supporting that capability. Turning
@@ -385,7 +534,7 @@ func (h *AgentHandle) Abort(ctx context.Context, snapshotID string) (SnapshotSta
 // Errors from here keep a live chain, so sentinel matching with errors.Is
 // works, subtypes included ([ErrSnapshotNotFound] is a [status.ErrNotFound]).
 // That is a property of running in-process, not of the seam. Callers written
-// against [AgentHandle] match on status name, per [agentTransport].
+// against [AgentHandle] match on status name, per [AgentTransport].
 type actionTransport struct {
 	name        string
 	run         api.BidiAction
