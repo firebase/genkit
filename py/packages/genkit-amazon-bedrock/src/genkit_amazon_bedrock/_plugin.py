@@ -34,7 +34,6 @@ from genkit.plugin_api import (
     ActionKind,
     ActionMetadata,
     Plugin,
-    to_json_schema,
 )
 from genkit_amazon_bedrock._config import (
     DEFAULT_TOTAL_TIMEOUT,
@@ -220,16 +219,11 @@ class Bedrock(Plugin):
             _action_name(model_id),
             _generate,
             config_schema=config_schema,
-            metadata={
-                'model': {
-                    'label': model_info.label,
-                    'stage': model_info.stage.value if model_info.stage else None,
-                    'supports': (
-                        model_info.supports.model_dump(by_alias=True, exclude_none=True) if model_info.supports else {}
-                    ),
-                    'customOptions': to_json_schema(config_schema),
-                },
-            },
+            metadata=model_action_metadata(
+                name=_action_name(model_id),
+                info=model_info.model_dump(by_alias=True, exclude_none=True),
+                config_schema=config_schema,
+            ).metadata,
         )
 
     def _create_embedder_action(self, model_id: str) -> Action:

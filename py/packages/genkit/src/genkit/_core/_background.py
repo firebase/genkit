@@ -26,11 +26,10 @@ from typing import Any
 from pydantic import BaseModel
 
 from genkit._core._action import Action, ActionKind, ActionRunContext, get_current_context
-from genkit._core._config_check import check_config_json_schema, check_request_config
 from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._model import ModelRequest, ModelResponse
 from genkit._core._registry import Registry
-from genkit._core._schema import to_json_schema
+from genkit._core._schema import custom_options_schema, to_json_schema
 from genkit._core._typing import (
     ModelInfo,
     Operation,
@@ -81,16 +80,10 @@ def _operation_action(
     # Action rejects a sync fn, but it only sees the async wrapper below.
     if not inspect.iscoroutinefunction(fn):
         raise TypeError(f"Action handlers must be async functions. Got sync function for '{model_name}{suffix}'.")
-    if isinstance(config_schema, dict):
-        check_config_json_schema(config_schema, model=model_name)
-
     # wraps keeps fn's annotations on the wrapper, e.g. ModelRequest[VeoConfig].
+
     @wraps(fn)
     async def run_and_stamp(input: object, ctx: ActionRunContext) -> Operation:  # noqa: A002
-        if config_schema:
-            # Same check as a regular model action: the whole config, after
-            # every middleware, before the provider starts an operation.
-            check_request_config(input, schema=config_schema, model=action.name.removesuffix(suffix))
         op = await action.params.call(fn, input, ctx)
         if isinstance(op, Operation):
             stamp_operation_action(operation=op, name=action.name.removesuffix(suffix))
@@ -338,7 +331,7 @@ def background_model(
     model_options['label'] = label
 
     if config_schema:
-        model_options['customOptions'] = to_json_schema(config_schema)
+        model_options['customOptions'] = custom_options_schema(config_schema)
 
     model_meta['model'] = model_options
 
@@ -356,7 +349,7 @@ def background_model(
     )
     # Annotation only: the Dev UI form comes from ModelRequest[Cfg].
     if 'customOptions' not in model_options and start_action.config_schema is not None:
-        model_options['customOptions'] = to_json_schema(start_action.config_schema)
+        model_options['customOptions'] = custom_options_schema(start_action.config_schema)
 
     check_action = _operation_action(
         kind=ActionKind.CHECK_OPERATION,

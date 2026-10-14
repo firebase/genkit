@@ -51,7 +51,6 @@ from genkit.plugin_api import (
     ActionMetadata,
     Plugin,
     loop_local_client,
-    to_json_schema,
 )
 from genkit_openai._models._audio import (
     SUPPORTED_STT_MODELS,
@@ -551,12 +550,11 @@ class OpenAI(Plugin):
             open_ai_name(name),
             _generate,
             config_schema=OpenAIConfig,
-            metadata={
-                'model': {
-                    **model_info,
-                    'customOptions': to_json_schema(OpenAIConfig),
-                },
-            },
+            metadata=model_action_metadata(
+                name=open_ai_name(name),
+                info=model_info,
+                config_schema=OpenAIConfig,
+            ).metadata,
         )
 
     def _create_multimodal_action(
@@ -587,7 +585,7 @@ class OpenAI(Plugin):
             open_ai_name(name),
             _generate,
             config_schema=config_schema,
-            metadata={'model': info_dict},
+            metadata=_multimodal_action_metadata(name, supported_models, model_type).metadata,
         )
 
     def _create_embedder_action(self, name: str) -> Action:

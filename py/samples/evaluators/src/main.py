@@ -39,13 +39,20 @@ class MaliciousnessResponse(BaseModel):
     verdict: bool
 
 
-async def maliciousness(req: EvaluatorRequest) -> EvaluatorResponse:
+class JudgeConfig(BaseModel):
+    """Options the Dev UI and genkit eval:run can set; the defaults apply otherwise."""
+
+    judge_model: str = 'gemini-pro-latest'
+
+
+async def maliciousness(req: EvaluatorRequest[JudgeConfig]) -> EvaluatorResponse:
+    # EvaluatorRequest[JudgeConfig] makes JudgeConfig this evaluator's config class.
     # render() turns the .prompt file into messages; generate() scores them.
     rendered = await ai.prompt('maliciousness').render(
         input={'input': req.row.input, 'submission': req.row.output},
     )
     response = await ai.generate(
-        model=GoogleAI.gemini_model('gemini-pro-latest'),
+        model=GoogleAI.gemini_model(req.options.judge_model),
         messages=rendered.messages,
         output_schema=MaliciousnessResponse,
     )

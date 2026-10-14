@@ -33,14 +33,16 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 import anyio
 import uvicorn
 from pydantic import BaseModel
+from typing_extensions import Never
 
-from genkit._ai._embedding import EmbedderFn, EmbedderInfo, EmbedderRef, define_embedder
+from genkit._ai._embedding import EmbedderFn, EmbedderInfo, EmbedderRef, EmbedderRefConfigT, define_embedder
 from genkit._ai._evaluator import (
     BatchEvaluator,
     BatchEvaluatorFn,
     Evaluator,
     EvaluatorFn,
     EvaluatorRef,
+    EvaluatorRefConfigT,
     define_batch_evaluator,
     define_evaluator,
 )
@@ -62,7 +64,8 @@ from genkit._ai._model import (
     background_model_name,
     check_call_config,
     define_model,
-    normalize_config,
+    python_config_schema,
+    resolve_call_config,
     resolve_for_generate,
 )
 from genkit._ai._prompt import (
@@ -127,6 +130,7 @@ from genkit._core._tool import Tool
 from genkit._core._typing import (
     BaseDataPoint,
     Embedding,
+    EmbedResponse,
     EvaluatorResponse,
     MiddlewareRef,
     ModelInfo,
@@ -1353,32 +1357,43 @@ class Genkit:
     # Genkit-specific methods (generation, embedding, retrieval, etc.)
     # -------------------------------------------------------------------------
 
-    def _resolve_embedder_name(self, embedder: str | EmbedderRef) -> str:
+    def _resolve_embedder_name(self, embedder: str | EmbedderRef | None) -> str:
         """Resolve embedder name from string or EmbedderRef."""
+        if embedder is None:
+            raise ValueError('Embedder must be specified as a string name or an EmbedderRef.')
         return embedder.name if isinstance(embedder, EmbedderRef) else embedder
 
-    def _embedder_options(
+    async def _embedder_and_options(
         self,
         *,
-        embedder: str | EmbedderRef,
-        config: dict[str, object] | None,
-    ) -> dict[str, object]:
-        """Copy ref config plus version, then overlay call-site config.
+        embedder: str | EmbedderRef[BaseModel] | None,
+        config: object,
+    ) -> tuple[Action[EmbedRequest, EmbedResponse, Never], dict[str, Any]]:
+        """Resolve the embedder, check the call config, and layer the options.
 
-        Returns an empty dict when neither the ref nor the call sets anything,
-        so the embedder always receives request.options as a dict. ``config``
-        goes through the same check as ``generate``: a dict, or a BaseModel
-        dumped to the fields it set; anything else raises INVALID_ARGUMENT. The
-        caller's EmbedderRef.config dict is left unchanged so they can reuse the
-        same ref on later calls.
+        Same merge as generate: ``ref.version < ref.config < call``, checked
+        against and folded to the embedder's definition-time class. The
+        embedder's own defaults go underneath at the action boundary.
         """
-        ref_config = embedder.config if isinstance(embedder, EmbedderRef) else None
-        version = embedder.version if isinstance(embedder, EmbedderRef) else None
-        merged: dict[str, object] = normalize_config(config=ref_config)
-        if version:
-            merged['version'] = version
-        merged.update(normalize_config(config=config))
-        return merged
+        name = self._resolve_embedder_name(embedder)
+        action = await self._registry.resolve_embedder(name)
+        if action is None:
+            raise GenkitError(
+                status='NOT_FOUND',
+                message=f"Embedder '{name}' not found.",
+                reason=RuntimeErrorReason.ACTION_NOT_FOUND,
+            )
+        ref = embedder if isinstance(embedder, EmbedderRef) else None
+        _, options = resolve_call_config(
+            name=name,
+            kind='embedder',
+            action_schema=python_config_schema(action.config_schema),
+            call=config,
+            ref_schema=ref.config_schema if ref else None,
+            version=ref.version if ref else None,
+            ref_config=ref.config if ref else None,
+        )
+        return action, options
 
     # Overload: config=ModelConfigDict, output_schema=type[T] -> ModelResponse[T]
     @overload
@@ -1831,16 +1846,18 @@ class Genkit:
     async def embed(
         self,
         *,
-        embedder: str | EmbedderRef,
+        embedder: str | EmbedderRef[EmbedderRefConfigT],
         content: str | Document,
         metadata: dict[str, object] | None = None,
-        config: dict[str, object] | None = None,
+        config: EmbedderRefConfigT | Mapping[str, Any] | None = None,
     ) -> list[Embedding]:
         """Generate vector embeddings for a single document or string.
 
-        ``config`` is merged over the ``EmbedderRef``'s config (the call wins
-        per key) and reaches the embedder as ``request.options``. An embedder
-        name that isn't registered raises ``GenkitError`` with ``NOT_FOUND``.
+        ``config`` is layered over the ``EmbedderRef``'s version and config
+        (the call wins per key) and reaches the embedder as
+        ``request.options``. A config object must be the embedder's options
+        class. An embedder name that isn't registered raises ``GenkitError``
+        with ``NOT_FOUND``.
 
         ``metadata`` is attached to a string ``content``. A ``Document``
         already carries its own metadata, so passing both raises ``TypeError``.
@@ -1857,16 +1874,7 @@ class Genkit:
         if metadata is not None and isinstance(content, Document):
             raise TypeError(_DOCUMENT_METADATA_CONFLICT)
 
-        embedder_name = self._resolve_embedder_name(embedder)
-        final_options = self._embedder_options(embedder=embedder, config=config)
-
-        embed_action = await self._registry.resolve_embedder(embedder_name)
-        if embed_action is None:
-            raise GenkitError(
-                status='NOT_FOUND',
-                message=f"Embedder '{embedder_name}' not found.",
-                reason=RuntimeErrorReason.ACTION_NOT_FOUND,
-            )
+        embed_action, final_options = await self._embedder_and_options(embedder=embedder, config=config)
 
         documents = [Document.from_text(content, metadata)] if isinstance(content, str) else [content]
 
@@ -1883,10 +1891,10 @@ class Genkit:
     async def embed_many(
         self,
         *,
-        embedder: str | EmbedderRef,
+        embedder: str | EmbedderRef[EmbedderRefConfigT],
         content: list[str] | list[Document],
         metadata: dict[str, object] | None = None,
-        config: dict[str, object] | None = None,
+        config: EmbedderRefConfigT | Mapping[str, Any] | None = None,
     ) -> list[Embedding]:
         """Generate vector embeddings for multiple documents in a single batch call.
 
@@ -1900,16 +1908,7 @@ class Genkit:
             Document.from_text(item, metadata) if isinstance(item, str) else item for item in content
         ]
 
-        embedder_name = self._resolve_embedder_name(embedder)
-        final_options = self._embedder_options(embedder=embedder, config=config)
-
-        embed_action = await self._registry.resolve_embedder(embedder_name)
-        if embed_action is None:
-            raise GenkitError(
-                status='NOT_FOUND',
-                message=f"Embedder '{embedder_name}' not found.",
-                reason=RuntimeErrorReason.ACTION_NOT_FOUND,
-            )
+        embed_action, final_options = await self._embedder_and_options(embedder=embedder, config=config)
 
         response = (
             await embed_action.run(EmbedRequest(input=documents, options=final_options))  # type: ignore[arg-type]
@@ -1919,9 +1918,9 @@ class Genkit:
     async def evaluate(
         self,
         *,
-        evaluator: str | EvaluatorRef,
+        evaluator: str | EvaluatorRef[EvaluatorRefConfigT],
         dataset: list[BaseDataPoint],
-        config: dict[str, object] | None = None,
+        config: EvaluatorRefConfigT | Mapping[str, Any] | None = None,
         eval_run_id: str | None = None,
     ) -> list[EvaluatorResponse]:
         """Evaluate a dataset using the specified evaluator.
@@ -1931,10 +1930,12 @@ class Genkit:
         function returned, as returned. Each row's ``evaluation`` is a list of
         scores.
 
-        ``config`` is merged over the ``EvaluatorRef``'s config (the call
-        wins per key) and handed to the evaluator as ``req.options``. When
-        neither sets anything, the evaluator gets ``{}``. An evaluator name
-        that isn't registered raises ``GenkitError`` with ``NOT_FOUND``.
+        ``config`` is layered over the ``EvaluatorRef``'s config (the call
+        wins per key) the same way generate layers a ModelRef, and handed to
+        the evaluator as ``req.options``: a dict, or its options class when the
+        evaluator declares one. When nothing is set, an untyped evaluator gets
+        ``{}``. An evaluator name that isn't registered raises
+        ``GenkitError`` with ``NOT_FOUND``.
 
         Example:
             from genkit.evaluator import BaseDataPoint
@@ -1948,13 +1949,13 @@ class Genkit:
                     print(row.test_case_id, score.score)
         """
         if isinstance(evaluator, EvaluatorRef):
+            ref: EvaluatorRef[BaseModel] | None = evaluator
             evaluator_name = evaluator.name
-            ref_config = evaluator.config
-        else:
+        elif isinstance(evaluator, str):
+            ref = None
             evaluator_name = evaluator
-            ref_config = None
-
-        final_options: dict[str, object] = {**normalize_config(config=ref_config), **normalize_config(config=config)}
+        else:
+            raise ValueError('Evaluator must be specified as a string name or an EvaluatorRef.')
 
         eval_action = await self._registry.resolve_evaluator(evaluator_name)
         if eval_action is None:
@@ -1963,6 +1964,14 @@ class Genkit:
                 message=f"Evaluator '{evaluator_name}' not found.",
                 reason=RuntimeErrorReason.ACTION_NOT_FOUND,
             )
+        _, final_options = resolve_call_config(
+            name=evaluator_name,
+            kind='evaluator',
+            action_schema=python_config_schema(eval_action.config_schema),
+            call=config,
+            ref_schema=ref.config_schema if ref else None,
+            ref_config=ref.config if ref else None,
+        )
 
         if not eval_run_id:
             eval_run_id = str(uuid.uuid4())

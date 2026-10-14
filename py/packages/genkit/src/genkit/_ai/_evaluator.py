@@ -19,12 +19,12 @@
 import inspect
 import traceback
 import uuid
-from collections.abc import Callable, Coroutine
-from typing import Any, ClassVar, cast, get_origin
+from collections.abc import Callable, Coroutine, Mapping
+from dataclasses import dataclass
+from typing import Any, Generic, cast, get_origin
 
-from pydantic import BaseModel, ConfigDict
-from pydantic.alias_generators import to_camel
-from typing_extensions import Never
+from pydantic import BaseModel
+from typing_extensions import Never, TypeVar
 
 from genkit._core._action import (
     Action,
@@ -36,9 +36,9 @@ from genkit._core._action import (
     with_request_annotation,
 )
 from genkit._core._logger import get_logger
-from genkit._core._model import BatchEvaluatorRequest, EvaluatorRequest, declared_config_type
+from genkit._core._model import BatchEvaluatorRequest, EvaluatorRequest, check_ref_config, declared_config_type
 from genkit._core._registry import Registry
-from genkit._core._schema import to_json_schema
+from genkit._core._schema import custom_options_schema
 from genkit._core._telemetry._attrs import metadata_key
 from genkit._core._telemetry._instrumentation import SpanContext, run_in_new_span
 from genkit._core._typing import (
@@ -62,13 +62,28 @@ EvaluatorFn = Callable[[EvaluatorRequest[Any]], Coroutine[Any, Any, EvaluatorRes
 BatchEvaluatorFn = Callable[[BatchEvaluatorRequest[Any]], Coroutine[Any, Any, list[EvaluatorResponse]]]
 
 
-class EvaluatorRef(BaseModel):
-    """Reference to an evaluator."""
+# Covariant so EvaluatorRef[JudgeConfig] is assignable to EvaluatorRef[BaseModel].
+EvaluatorRefConfigT = TypeVar('EvaluatorRefConfigT', bound=BaseModel, covariant=True, default=BaseModel)
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
+
+@dataclass(frozen=True, kw_only=True)
+class EvaluatorRef(Generic[EvaluatorRefConfigT]):
+    """Handle for an evaluator, shaped like ModelRef (no info, no version).
+
+    ``config_schema`` is optional. Without it, ``config`` is a plain mapping.
+    With it, ``config`` must be an instance, and ``ai.evaluate`` requires the
+    evaluator to declare the same class. config is copied at construction.
+    """
 
     name: str
-    config: dict[str, object] | None = None
+    config_schema: type[EvaluatorRefConfigT] | None = None
+    config: EvaluatorRefConfigT | Mapping[str, Any] | None = None
+
+    __hash__ = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        config = check_ref_config(name=self.name, schema=self.config_schema, config=self.config, schema_required=False)
+        object.__setattr__(self, 'config', config)
 
 
 def _is_subclass(annotation: object, cls: type) -> bool:
@@ -122,7 +137,7 @@ def _set_custom_options(evaluator_meta: dict[str, object], action: Action[Any, A
     """Annotation only: the Dev UI form comes from the options class."""
     info = evaluator_meta.get('evaluator')
     if isinstance(info, dict) and 'customOptions' not in info and action.config_schema is not None:
-        cast(dict[str, object], info)['customOptions'] = to_json_schema(action.config_schema)
+        cast(dict[str, object], info)['customOptions'] = custom_options_schema(action.config_schema)
 
 
 def _evaluator_metadata(
@@ -145,7 +160,7 @@ def _evaluator_metadata(
     if not isinstance(label, str) or not label:
         info['label'] = name
     if config_schema:
-        info['customOptions'] = to_json_schema(config_schema)
+        info['customOptions'] = custom_options_schema(config_schema)
     return evaluator_meta
 
 

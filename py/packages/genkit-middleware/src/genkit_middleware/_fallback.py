@@ -24,6 +24,7 @@ from typing import Any, cast
 from pydantic import BaseModel, Field, field_validator
 
 from genkit import GenkitError, ModelResponse, ModelResponseChunk
+from genkit._ai._model import layer_call_config
 from genkit.middleware import BaseMiddleware, GenerateMiddlewareContext, ModelHookParams
 from genkit.model import ModelRef, ModelRequest
 from genkit.plugin_api import Action
@@ -70,12 +71,13 @@ class FallbackConfig(BaseModel):
 
 
 def config_from_ref(model: ModelRef[Any]) -> dict[str, Any] | None:
-    """The config this backup runs with: the ref's version and config only."""
-    bag: dict[str, Any] = {}
-    if model.version is not None:
-        bag['version'] = model.version
-    if model.config is not None:
-        bag.update(model.config.model_dump(exclude_unset=True, exclude_none=True))
+    """The config this backup runs with: the ref's version and config only.
+
+    Layered the way generate layers a ref (ref.version < ref.config, folded
+    to the ref's class, an explicit None kept). The backup model's own
+    defaults and validation apply when it runs.
+    """
+    bag = layer_call_config(call=None, version=model.version, ref_config=model.config, schema=model.config_schema)
     return bag or None
 
 
