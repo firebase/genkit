@@ -63,7 +63,6 @@ BETA_APIS: tuple[str, ...] = (
     'structured-outputs-2025-11-13',
     'task-budgets-2026-03-13',
 )
-_THINKING_MODE_KEYS = frozenset({'adaptive', 'budget_tokens', 'enabled', 'type'})
 
 
 class _ModelDumpable(Protocol):
@@ -193,49 +192,62 @@ def _normalize_config(config: object | None) -> AnthropicConfig:
     return AnthropicConfig.model_validate({k: v for k, v in vars(config).items() if v is not None})
 
 
-def _to_anthropic_thinking_config(thinking: dict[str, Any] | None) -> dict[str, Any] | None:
-    """Translate the public thinking config to the Anthropic SDK shape."""
-    if not thinking:
+def _to_anthropic_thinking(config: AnthropicConfig) -> dict[str, Any] | None:
+    """Build Anthropic's thinking object from the flat fields; None sends nothing.
+
+    AnthropicConfig's validator already enforces the cross-field rules, so
+    'enabled' always has a budget here. 'adaptive' doesn't send one.
+    """
+    mode = config.thinking_mode()
+    if mode is None:
         return None
+    result: dict[str, Any] = {}
+    if config.thinking_display is not None:
+        result['display'] = config.thinking_display
+    result['type'] = mode
+    if mode == 'enabled':
+        result['budget_tokens'] = config.thinking_budget
+    return result
 
-    thinking_type = thinking.get('type')
-    budget_tokens = thinking.get('budget_tokens')
-    adaptive = thinking.get('adaptive') is True or thinking_type == 'adaptive'
-    enabled = thinking.get('enabled') is True or thinking_type == 'enabled'
-    disabled = thinking.get('enabled') is False or thinking_type == 'disabled'
 
-    # Keys that are not mode toggles (display) pass through unchanged.
-    result: dict[str, Any] = {key: value for key, value in thinking.items() if key not in _THINKING_MODE_KEYS}
-
-    if adaptive:
-        result['type'] = 'adaptive'
-        return result
-
-    if enabled or (budget_tokens is not None and not disabled):
-        if budget_tokens is None:
-            raise ValueError('budgetTokens is required when thinking is enabled')
-        if not float(budget_tokens).is_integer():
-            raise ValueError('budgetTokens must be an integer when thinking is enabled')
-        result['type'] = 'enabled'
-        result['budget_tokens'] = int(budget_tokens)
-        return result
-
-    if disabled:
-        result['type'] = 'disabled'
-        return result
-
-    # No mode set: there's no SDK type to send.
-    return None
+def _to_anthropic_output_config(config: AnthropicConfig) -> dict[str, Any] | None:
+    """Build Anthropic's output_config from effort and task_budget; None sends nothing."""
+    result: dict[str, Any] = {}
+    if config.effort is not None:
+        result['effort'] = config.effort
+    if config.task_budget is not None:
+        result['task_budget'] = {'type': 'tokens', 'total': config.task_budget}
+    return result or None
 
 
 # Body fields Genkit builds from the request. `extra` can't set them: the
 # schema can't see inside the passthrough, and overwriting them silently would
 # replace the model the action resolved (pin one with `version`), the
 # conversation, the streaming mode, or the structured-output format Genkit
-# merges into output_config (the declared field still works). `betas` is
+# merges into output_config (effort= and task_budget= still work). `betas` is
 # the header Genkit sends from the declared setting, not a body field.
-_MANAGED_BODY_FIELDS = ('model', 'messages', 'system', 'tools', 'tool_choice', 'stream', 'output_config', 'betas')
+# `tool_choice` is left out on purpose: extra={'tool_choice': {...}} is how a
+# caller sends a shape Genkit's option lacks, such as {'type': 'tool', ...}.
+_MANAGED_BODY_FIELDS = ('model', 'messages', 'system', 'tools', 'stream', 'output_config', 'betas')
 _CLIENT_SETTING_FIELDS = ('timeout', 'extra_headers', 'extra_query', 'extra_body')
+
+# Genkit's tool_choice values and the Anthropic tool_choice type each maps to.
+_TOOL_CHOICE_TYPES = {'auto': 'auto', 'required': 'any', 'none': 'none'}
+
+
+def _to_anthropic_tool_choice(tool_choice: str | None, disable_parallel_tool_use: bool) -> dict[str, Any] | None:
+    """Translate Genkit's tool_choice into Anthropic's object; None sends nothing.
+
+    Anthropic carries disable_parallel_tool_use only inside tool_choice, so
+    the flag alone sends {'type': 'auto', ...}, the API's default with tools.
+    The 'none' variant has no such field.
+    """
+    if tool_choice is None:
+        return {'type': 'auto', 'disable_parallel_tool_use': True} if disable_parallel_tool_use else None
+    choice: dict[str, Any] = {'type': _TOOL_CHOICE_TYPES[tool_choice]}
+    if disable_parallel_tool_use and tool_choice != 'none':
+        choice['disable_parallel_tool_use'] = True
+    return choice
 
 
 def _merge_config_extra(params: dict[str, Any], extra: dict[str, Any] | None) -> None:
@@ -270,7 +282,11 @@ def _merge_config_extra(params: dict[str, Any], extra: dict[str, Any] | None) ->
                     'and cannot be set from config'
                 )
             raise GenkitError(status='INVALID_ARGUMENT', message=message)
-    params['extra_body'] = dict(extra)
+    extra_body = dict(extra)
+    if 'tools' not in params:
+        extra_body.pop('tool_choice', None)
+    if extra_body:
+        params['extra_body'] = extra_body
 
 
 def pinned_credential_header(client: AsyncAnthropic) -> str | None:
@@ -479,10 +495,12 @@ class AnthropicModel:
         # Handle mapped parameters
         max_tokens = params.pop('max_output_tokens', DEFAULT_MAX_OUTPUT_TOKENS)
 
-        thinking = params.pop('thinking', None)
-        metadata = params.pop('metadata', None)
+        # Flat fields the plugin builds Anthropic's nested objects from.
+        for key in ('thinking', 'thinking_budget', 'thinking_display', 'effort', 'task_budget', 'user_id'):
+            params.pop(key, None)
         version = params.pop('version', None)
         betas = params.pop('betas', None)
+        disable_parallel_tool_use = bool(params.pop('disable_parallel_tool_use', False))
 
         params['model'] = version or self.model_name
         params['messages'] = self._to_anthropic_messages(request.messages)
@@ -501,13 +519,16 @@ class AnthropicModel:
             if beta_headers:
                 params['betas'] = beta_headers
 
-        if isinstance(thinking, dict):
-            anthropic_thinking = _to_anthropic_thinking_config(thinking)
-            if anthropic_thinking is not None:
-                params['thinking'] = anthropic_thinking
+        thinking = _to_anthropic_thinking(config)
+        if thinking is not None:
+            params['thinking'] = thinking
 
-        if metadata is not None:
-            params['metadata'] = metadata
+        output_config = _to_anthropic_output_config(config)
+        if output_config is not None:
+            params['output_config'] = output_config
+
+        if config.user_id is not None:
+            params['metadata'] = {'user_id': config.user_id}
 
         system = self._extract_system(request.messages)
 
@@ -541,6 +562,15 @@ class AnthropicModel:
             params['system'] = system
 
         if request.tools:
+            if (
+                request.tool_choice == 'required'
+                and config.thinking_mode() == 'enabled'
+                and 'thinking' not in (extra or {})
+                and 'tool_choice' not in (extra or {})
+            ):
+                raise ValueError(
+                    "anthropic: thinking='enabled' only supports tool_choice='auto' or 'none', not 'required'"
+                )
             params['tools'] = [
                 {
                     'name': t.name,
@@ -549,18 +579,9 @@ class AnthropicModel:
                 }
                 for t in request.tools
             ]
-
-            if request.tool_choice:
-                if request.tool_choice == 'required':
-                    params['tool_choice'] = {'type': 'any'}
-                elif request.tool_choice == 'auto':
-                    params['tool_choice'] = {'type': 'auto'}
-                elif isinstance(request.tool_choice, dict):
-                    params['tool_choice'] = request.tool_choice
-
-        # The API rejects tool_choice when the request carries no tools.
-        if not params.get('tools'):
-            params.pop('tool_choice', None)
+            tool_choice = _to_anthropic_tool_choice(request.tool_choice, disable_parallel_tool_use)
+            if tool_choice is not None:
+                params['tool_choice'] = tool_choice
 
         _merge_config_extra(params, extra)
         return params

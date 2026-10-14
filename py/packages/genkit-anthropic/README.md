@@ -48,23 +48,66 @@ Anthropic(
 
 ## Typed config
 
-`AnthropicConfig` and its nested settings take snake_case keyword arguments,
-so pyright, pyrefly and ty check every key. The request goes out with
-Anthropic's own snake_case names (`budget_tokens`, `task_budget`):
+`AnthropicConfig` is flat. Choices are exported Literals (`ThinkingMode`,
+`ThinkingDisplay`, `Effort`), so pyright, pyrefly and ty check every key and
+value. The plugin builds Anthropic's nested request objects from the flat
+fields:
+
+- `thinking`, `thinking_budget`, `thinking_display` → `thinking`
+- `effort`, `task_budget` → `output_config`
+- `user_id` → `metadata`
 
 ```python
-from genkit_anthropic import AnthropicConfig, OutputConfig, TaskBudget, ThinkingConfig
+from genkit_anthropic import AnthropicConfig
 
-# 1. Build the config from typed nested settings
+# 1. Build the config from flat fields
 config = AnthropicConfig(
     max_output_tokens=4096,
-    thinking=ThinkingConfig(type='enabled', budget_tokens=2048),
-    output_config=OutputConfig(task_budget=TaskBudget(total=20000)),
+    thinking='adaptive',
+    thinking_display='summarized',
+    effort='high',
+    task_budget=20000,
+    user_id='diner-42',
 )
 
 # 2. Generate with it
-res = await ai.generate(model='anthropic/claude-sonnet-4-6', prompt='Plan a tasting menu.', config=config)
+res = await ai.generate(model='anthropic/claude-opus-4-6', prompt='Plan a tasting menu.', config=config)
+# Sent as:
+#   thinking={'display': 'summarized', 'type': 'adaptive'}
+#   output_config={'effort': 'high', 'task_budget': {'type': 'tokens', 'total': 20000}}
+#   metadata={'user_id': 'diner-42'}
 ```
+
+- A `thinking_budget` alone means `thinking='enabled'`. `'enabled'` requires
+  a budget, `'disabled'` rejects one, and `'adaptive'` ignores it.
+- `task_budget` is a beta field, so it sends the call to the beta API.
+- To send a shape the flat fields don't cover, put Anthropic's object in
+  `extra`, e.g. `extra={'thinking': {...}}`. It replaces the built object.
+
+## Tool choice
+
+Tool choice is Genkit's `tool_choice` option, not a config field. The plugin
+sends it as Anthropic's `tool_choice` object: `'auto'` → `{'type': 'auto'}`,
+`'required'` → `{'type': 'any'}`, `'none'` → `{'type': 'none'}`. Anthropic
+carries `disable_parallel_tool_use` inside that object, so the config takes it
+as a flat flag:
+
+```python
+# 1. Require one tool call, and only one
+res = await ai.generate(
+    model='anthropic/claude-sonnet-4-6',
+    prompt='Is the pho in stock?',
+    tools=['lookup_menu'],
+    tool_choice='required',
+    config=AnthropicConfig(disable_parallel_tool_use=True),
+    return_tool_requests=True,
+)
+# Sent as: tool_choice={'type': 'any', 'disable_parallel_tool_use': True}
+```
+
+To pin one named tool, send Anthropic's object as
+`extra={'tool_choice': {'type': 'tool', 'name': 'lookup_menu'}}`; it replaces
+the translated value.
 
 ## Per-request API key
 
