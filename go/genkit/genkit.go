@@ -1285,7 +1285,8 @@ func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) ai.Prompt {
 // LookupPrompt retrieves a registered [ai.Prompt] by its name.
 // Prompts can be registered via [DefinePrompt] or loaded automatically from
 // `.prompt` files in the directory specified by [WithPromptDir] or [LoadPromptDir].
-// It returns the prompt instance if found, or `nil` otherwise.
+// It returns the prompt instance if found, or `nil` otherwise. See
+// [ai.LookupPrompt] for how prompts loaded from subdirectories are found.
 func LookupPrompt(g *Genkit, name string) ai.Prompt {
 	return ai.LookupPrompt(g.reg, name)
 }
@@ -1987,7 +1988,8 @@ func Evaluate(ctx context.Context, g *Genkit, opts ...ai.EvaluatorOption) (*ai.E
 // it logs a debug message (if using the default) or panics (if specified).
 // The `namespace` acts as a prefix to the prompt name (e.g., namespace "myApp" and
 // file "greeting.prompt" results in prompt name "myApp/greeting"). Use an empty
-// string for no namespace.
+// string for no namespace. A file in a subdirectory is named after its path:
+// "support/greeting.prompt" results in "myApp/support/greeting".
 //
 // This function is often called implicitly by [Init] using the directory specified
 // by [WithPromptDir], but can be called explicitly to load prompts from other
@@ -2034,7 +2036,8 @@ func loadPromptDirOS(r api.Registry, dir, namespace string) {
 // prompts are located (e.g., "prompts" if using `//go:embed prompts/*`).
 // The `namespace` acts as a prefix to the prompt name (e.g., namespace "myApp" and
 // file "greeting.prompt" results in prompt name "myApp/greeting"). Use an empty
-// string for no namespace.
+// string for no namespace. A file in a subdirectory is named after its path:
+// "support/greeting.prompt" results in "myApp/support/greeting".
 //
 // This function provides an alternative to [LoadPromptDir] for loading prompts
 // from embedded filesystems, enabling self-contained binaries without external
