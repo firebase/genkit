@@ -1470,8 +1470,8 @@ class GeminiModel:
                 else:
                     schema = None
 
-                if schema and input_schema.get('description'):
-                    schema.description = cast(str, input_schema['description'])
+                if schema:
+                    self._copy_schema_keywords(input_schema, schema, strict=strict)
 
                 return schema
 

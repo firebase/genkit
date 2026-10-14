@@ -1282,6 +1282,27 @@ def test_gemini_model__convert_schema_property_expands_repeated_ref(gemini_model
     assert schema.properties == {'start': point, 'end': point}
 
 
+@pytest.mark.parametrize('strict', [False, True])
+def test_gemini_model__convert_schema_property_keeps_ref_sibling_keywords(
+    strict: bool, gemini_model_instance: GeminiModel
+) -> None:
+    """Keywords next to a $ref apply to the schema it resolves to."""
+
+    class Color(StrEnum):
+        RED = 'red'
+        BLUE = 'blue'
+
+    class Paint(BaseModel):
+        color: Color = Field(Color.RED, description='Paint color')
+
+    schema = gemini_model_instance._convert_schema_property(to_json_schema(Paint), strict=strict)
+
+    assert schema is not None and schema.properties is not None
+    assert schema.properties['color'] == genai_types.Schema(
+        type=genai_types.Type.STRING, enum=['red', 'blue'], default='red', description='Paint color'
+    )
+
+
 def test_gemini_model__convert_schema_property_keeps_keywords(gemini_model_instance: GeminiModel) -> None:
     """anyOf, type lists, format, default, bounds and propertyOrdering survive conversion.
 
