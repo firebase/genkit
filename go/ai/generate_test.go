@@ -879,6 +879,46 @@ func TestGenerate(t *testing.T) {
 	})
 }
 
+// Tool definitions reach the model in declaration order. Building them from a
+// map shuffled the order per call, which defeats provider-side prompt caching.
+func TestGenerateKeepsToolOrder(t *testing.T) {
+	r := newTestRegistry(t)
+
+	var got []string
+	m := defineModel(r, "test/toolOrder", &metadata, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		got = got[:0]
+		for _, td := range req.Tools {
+			got = append(got, td.Name)
+		}
+		return &ModelResponse{Request: req, Message: NewModelTextMessage("done")}, nil
+	})
+
+	noop := func(tc *ToolContext, in struct{}) (string, error) { return "", nil }
+	names := []string{"kilo", "alpha", "juliet", "bravo", "india", "charlie", "hotel", "delta", "golf", "echo", "foxtrot"}
+	var tools []ToolRef
+	for _, n := range names {
+		tools = append(tools, NewTool(n, n, noop))
+	}
+	mw := MiddlewareFunc(func(ctx context.Context) (*Hooks, error) {
+		return &Hooks{Tools: []Tool{NewTool("mw", "mw", noop)}}, nil
+	})
+	want := append(slices.Clone(names), "mw")
+
+	for range 5 {
+		if _, err := Generate(context.Background(), r,
+			WithModel(m),
+			WithPrompt("go"),
+			WithTools(tools...),
+			WithUse(mw),
+		); err != nil {
+			t.Fatal(err)
+		}
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("request tool order mismatch (-want +got):\n%s", diff)
+		}
+	}
+}
+
 func TestGenerateWithOutputSchemaName(t *testing.T) {
 	r := registry.New()
 	ConfigureFormats(r)

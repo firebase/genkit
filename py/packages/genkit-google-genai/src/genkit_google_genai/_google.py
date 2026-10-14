@@ -58,6 +58,7 @@ from google.auth import default as google_auth_default
 from google.auth.credentials import Credentials
 from google.auth.exceptions import DefaultCredentialsError
 from google.genai.client import DebugConfig
+from google.genai.errors import APIError
 from google.genai.types import HttpOptions, HttpOptionsDict, Model as GenaiModel
 from pydantic import BaseModel
 
@@ -107,10 +108,11 @@ from genkit_google_genai._models._gemini import (
     GeminiModel,
     GeminiTtsConfig,
     GemmaConfig,
-    KnownGemini,
     KnownGeminiImage,
     KnownGeminiTts,
     KnownGemma,
+    KnownGoogleAIGemini,
+    KnownVertexAIGemini,
     get_model_config_schema,
     google_model_info,
     is_gemma_model,
@@ -144,12 +146,22 @@ from genkit_google_genai._models._routing import (
     strip_ref_prefixes,
 )
 from genkit_google_genai._models._veo import (
-    KnownVeo,
+    KnownGoogleAIVeo,
+    KnownVertexAIVeo,
     VeoConfig,
     VeoModel,
     is_veo_model,
     veo_model_info,
 )
+from genkit_google_genai._models._virtual_try_on import (
+    VERTEX_KNOWN_VIRTUAL_TRY_ON,
+    KnownVirtualTryOn,
+    VirtualTryOnConfig,
+    VirtualTryOnModel,
+    is_virtual_try_on_model,
+    virtual_try_on_model_info,
+)
+from genkit_google_genai._provider_errors import TRANSPORT_ERRORS, api_error, transport_error
 
 logger = logging.getLogger(__name__)
 
@@ -195,12 +207,12 @@ def _categorize_genai_model(m: GenaiModel, models: GenaiModels, is_vertex: bool)
         return
 
     # Vertex AI returns supported_actions=None for every publisher model, so
-    # categorize by name. Embedders are deliberately excluded: the catalog
-    # over-lists embedders that are not callable, so they are advertised from a curated list
-    # (VERTEX_KNOWN_EMBEDDERS) rather than discovered here.
+    # categorize by name. Embedders and Virtual Try-On are deliberately excluded:
+    # they are advertised from curated lists (VERTEX_KNOWN_EMBEDDERS,
+    # VERTEX_KNOWN_VIRTUAL_TRY_ON) rather than discovered here.
     if is_vertex:
         lower_name = name.lower()
-        if 'embedding' in lower_name:
+        if 'embedding' in lower_name or is_virtual_try_on_model(name):
             return
         elif is_unsupported_image_model_name(name):
             return
@@ -231,8 +243,15 @@ def _categorize_genai_model(m: GenaiModel, models: GenaiModels, is_vertex: bool)
 async def _list_genai_models(client: genai.Client, is_vertex: bool) -> GenaiModels:
     """Discover and categorize models through the SDK's asynchronous client."""
     models = GenaiModels()
-    async for listed_model in await client.aio.models.list():
-        _categorize_genai_model(listed_model, models, is_vertex)
+    try:
+        async for listed_model in await client.aio.models.list():
+            _categorize_genai_model(listed_model, models, is_vertex)
+    except APIError as e:
+        raise api_error(e) from e
+    except GOOGLE_AUTH_ERRORS as e:
+        raise_auth_error(e)
+    except TRANSPORT_ERRORS as e:
+        raise transport_error(e) from e
     return models
 
 
@@ -265,6 +284,7 @@ def _new_gemini(plugin: GoogleAI | VertexAI, clean_name: str) -> GeminiModel:
         plugin._runtime_client(),
         client_kwargs=plugin._client_kwargs,
         base_url_pinned=plugin._base_url_pinned,
+        legacy_response_schema=plugin._legacy_response_schema,
     )
 
 
@@ -395,23 +415,6 @@ class GoogleFamilyRefs:
     name: str  # plugin namespace ('googleai' or 'vertexai')
 
     @classmethod
-    def gemini(cls, name: KnownGemini | str, *, config: GeminiConfig | None = None) -> ModelRef[GeminiConfig]:
-        """Typed ref for a Gemini text model, e.g. ``GoogleAI.gemini('gemini-2.5-flash')``.
-
-        Unknown ids are allowed so a brand-new Gemini release works before
-        this plugin learns its name; ids from other families are refused.
-        """
-        return family_model_ref(
-            name,
-            namespace=cls.name,
-            plugin_class=cls.__name__,
-            family='gemini',
-            method='gemini',
-            config_schema=GeminiConfig,
-            config=config,
-        )
-
-    @classmethod
     def gemini_tts(
         cls, name: KnownGeminiTts | str, *, config: GeminiTtsConfig | None = None
     ) -> ModelRef[GeminiTtsConfig]:
@@ -442,19 +445,6 @@ class GoogleFamilyRefs:
         )
 
     @classmethod
-    def gemma(cls, name: KnownGemma | str, *, config: GemmaConfig | None = None) -> ModelRef[GemmaConfig]:
-        """Typed ref for a Gemma open model (``gemma-…``)."""
-        return family_model_ref(
-            name,
-            namespace=cls.name,
-            plugin_class=cls.__name__,
-            family='gemma',
-            method='gemma',
-            config_schema=GemmaConfig,
-            config=config,
-        )
-
-    @classmethod
     def imagen(cls, name: str, *, config: object | None = None) -> NoReturn:
         """Always raises: Imagen is no longer supported. Use ``gemini_image``."""
         raise GenkitError(
@@ -463,19 +453,6 @@ class GoogleFamilyRefs:
                 f'{cls.__name__}.imagen: Imagen is no longer supported; '
                 f'for image generation use {cls.__name__}.gemini_image().'
             ),
-        )
-
-    @classmethod
-    def veo(cls, name: KnownVeo | str, *, config: VeoConfig | None = None) -> ModelRef[VeoConfig]:
-        """Typed ref for a Veo video model (``veo-…``)."""
-        return family_model_ref(
-            name,
-            namespace=cls.name,
-            plugin_class=cls.__name__,
-            family='veo',
-            method='veo',
-            config_schema=VeoConfig,
-            config=config,
         )
 
     @classmethod
@@ -559,6 +536,49 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
     _vertexai = False
 
     @classmethod
+    def gemini(cls, name: KnownGoogleAIGemini | str, *, config: GeminiConfig | None = None) -> ModelRef[GeminiConfig]:
+        """Typed ref for a Gemini text model, e.g. ``GoogleAI.gemini('gemini-flash-latest')``.
+
+        Unknown ids are allowed so a brand-new Gemini release works before
+        this plugin learns its name; ids from other families are refused.
+        """
+        return family_model_ref(
+            name,
+            namespace=cls.name,
+            plugin_class=cls.__name__,
+            family='gemini',
+            method='gemini',
+            config_schema=GeminiConfig,
+            config=config,
+        )
+
+    @classmethod
+    def gemma(cls, name: KnownGemma | str, *, config: GemmaConfig | None = None) -> ModelRef[GemmaConfig]:
+        """Typed ref for a Gemma open model (``gemma-…``)."""
+        return family_model_ref(
+            name,
+            namespace=cls.name,
+            plugin_class=cls.__name__,
+            family='gemma',
+            method='gemma',
+            config_schema=GemmaConfig,
+            config=config,
+        )
+
+    @classmethod
+    def veo(cls, name: KnownGoogleAIVeo | str, *, config: VeoConfig | None = None) -> ModelRef[VeoConfig]:
+        """Typed ref for a Veo video model (``veo-…``)."""
+        return family_model_ref(
+            name,
+            namespace=cls.name,
+            plugin_class=cls.__name__,
+            family='veo',
+            method='veo',
+            config_schema=VeoConfig,
+            config=config,
+        )
+
+    @classmethod
     def deep_research(cls, name: str, *, config: DeepResearchConfig | None = None) -> ModelRef[DeepResearchConfig]:
         """Typed ref for a Deep Research agent. Pass to generate_operation()."""
         clean = strip_ref_prefixes(name) if isinstance(name, str) else ''
@@ -610,6 +630,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         http_options: HttpOptions | HttpOptionsDict | None = None,
         api_version: str | None = None,
         base_url: str | None = None,
+        legacy_response_schema: bool = False,
     ) -> None:
         """Initializes the GoogleAI plugin.
 
@@ -625,6 +646,10 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
                 Can be an instance of HttpOptions or a dictionary. Defaults to None.
             api_version: The API version to use (e.g., 'v1beta'). Defaults to None.
             base_url: The base URL for the API. Defaults to None.
+            legacy_response_schema: Send JSON output schemas as Gemini's
+                ``responseSchema`` field instead of ``responseJsonSchema``,
+                converted to its format; a schema that cannot be converted
+                raises ``INVALID_ARGUMENT``. Defaults to False.
 
         Raises:
             ValueError: If `api_key` is not provided and the 'GEMINI_API_KEY'
@@ -650,6 +675,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
             'http_options': _inject_attribution_headers(http_options, base_url, api_version),
         }
         self._base_url_pinned = bool(self._client_kwargs['http_options'].base_url)
+        self._legacy_response_schema = legacy_response_schema
         # Single loop-local client accessor used everywhere in plugin runtime paths.
         self._runtime_client = loop_local_client(lambda: _plugin_client(self._client_kwargs))
         self._list_actions_cache: list[ActionMetadata] | None = None
@@ -939,8 +965,9 @@ class VertexAI(GoogleFamilyRefs, Plugin):
     Model Types:
         | Type | Action Kind | Example |
         |---|---|---|
-        | Gemini / Gemma | MODEL | ``vertexai/gemini-flash-latest`` |
+        | Gemini | MODEL | ``vertexai/gemini-2.5-flash`` |
         | Veo (Video) | BACKGROUND_MODEL | ``vertexai/veo-3.1-generate-001`` |
+        | Virtual Try-On | MODEL | ``vertexai/virtual-try-on-001`` |
         | Embedders | EMBEDDER | ``vertexai/text-embedding-005`` |
 
     Example:
@@ -953,7 +980,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
 
         # 2. Generate text using Gemini on Vertex AI
         res = await ai.generate(
-            model=VertexAI.gemini('gemini-flash-latest'),
+            model=VertexAI.gemini('gemini-2.5-flash'),
             prompt='Explain quantum computing in one sentence.',
         )
 
@@ -974,6 +1001,64 @@ class VertexAI(GoogleFamilyRefs, Plugin):
 
     name = VERTEXAI_PLUGIN_NAME
 
+    @classmethod
+    def gemini(cls, name: KnownVertexAIGemini | str, *, config: GeminiConfig | None = None) -> ModelRef[GeminiConfig]:
+        """Typed ref for a Gemini text model, e.g. ``VertexAI.gemini('gemini-2.5-flash')``.
+
+        Unknown ids are allowed so a brand-new Gemini release works before
+        this plugin learns its name; ids from other families are refused.
+        """
+        return family_model_ref(
+            name,
+            namespace=cls.name,
+            plugin_class=cls.__name__,
+            family='gemini',
+            method='gemini',
+            config_schema=GeminiConfig,
+            config=config,
+        )
+
+    @classmethod
+    def gemma(cls, name: str, *, config: GemmaConfig | None = None) -> ModelRef[GemmaConfig]:
+        """Typed ref for a Gemma open model (``gemma-…``); Vertex AI serves none through generate_content."""
+        return family_model_ref(
+            name,
+            namespace=cls.name,
+            plugin_class=cls.__name__,
+            family='gemma',
+            method='gemma',
+            config_schema=GemmaConfig,
+            config=config,
+        )
+
+    @classmethod
+    def veo(cls, name: KnownVertexAIVeo | str, *, config: VeoConfig | None = None) -> ModelRef[VeoConfig]:
+        """Typed ref for a Veo video model (``veo-…``)."""
+        return family_model_ref(
+            name,
+            namespace=cls.name,
+            plugin_class=cls.__name__,
+            family='veo',
+            method='veo',
+            config_schema=VeoConfig,
+            config=config,
+        )
+
+    @classmethod
+    def virtual_try_on(
+        cls, name: KnownVirtualTryOn | str, *, config: VirtualTryOnConfig | None = None
+    ) -> ModelRef[VirtualTryOnConfig]:
+        """Typed ref for a Virtual Try-On model (``virtual-try-on-…``)."""
+        return family_model_ref(
+            name,
+            namespace=cls.name,
+            plugin_class=cls.__name__,
+            family='virtual-try-on',
+            method='virtual_try_on',
+            config_schema=VirtualTryOnConfig,
+            config=config,
+        )
+
     def __init__(
         self,
         *,
@@ -985,6 +1070,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
         api_key: str | None = None,
         api_version: str | None = None,
         base_url: str | None = None,
+        legacy_response_schema: bool = False,
     ) -> None:
         """Initializes the VertexAI plugin.
 
@@ -1005,6 +1091,10 @@ class VertexAI(GoogleFamilyRefs, Plugin):
                 environment variable.
             api_version: The API version to use. Defaults to None.
             base_url: The base URL for the API. Defaults to None.
+            legacy_response_schema: Send JSON output schemas as Gemini's
+                ``responseSchema`` field instead of ``responseJsonSchema``,
+                converted to its format; a schema that cannot be converted
+                raises ``INVALID_ARGUMENT``. Defaults to False.
         """
         # Store project and location on the plugin for evaluator registration
         # and multi-region routing. This avoids reaching into client internals.
@@ -1018,6 +1108,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
 
         opts = _inject_attribution_headers(http_options, base_url, api_version)
         self._base_url_pinned = bool(opts.base_url)
+        self._legacy_response_schema = legacy_response_schema
         multi_region = const.is_multi_regional_location(self._location)
         if multi_region and not self._base_url_pinned:
             # Multi-regions ('us', 'eu') are served from dedicated endpoints
@@ -1073,6 +1164,10 @@ class VertexAI(GoogleFamilyRefs, Plugin):
         # Veo Models (background models)
         for name in genai_models.veo:
             actions.extend(self._resolve_veo_model(name).actions)
+
+        for name in VERTEX_KNOWN_VIRTUAL_TRY_ON:
+            if action := self._resolve_model(name):
+                actions.append(action)
 
         for name in VERTEX_KNOWN_EMBEDDERS:
             actions.append(self._resolve_embedder(name))
@@ -1193,6 +1288,21 @@ class VertexAI(GoogleFamilyRefs, Plugin):
             EMBEDDER actions, and retired/unimplemented ids fail closed
             instead of defaulting to Gemini).
         """
+        # Virtual Try-On before the shared fail-closed table so Google AI can
+        # keep the family unroutable while Vertex actually serves it.
+        if is_virtual_try_on_model(name):
+
+            async def _run_try_on(request: ModelRequest[VirtualTryOnConfig], ctx: ActionRunContext) -> ModelResponse:
+                model = VirtualTryOnModel(
+                    name,
+                    self._runtime_client(),
+                    client_kwargs=self._client_kwargs,
+                    base_url_pinned=self._base_url_pinned,
+                )
+                return await model.generate(request, ctx)
+
+            return _model_action(vertexai_name(name), _run_try_on, virtual_try_on_model_info(name), VirtualTryOnConfig)
+
         if is_unroutable_model_id(name):
             return None
 
@@ -1274,6 +1384,15 @@ class VertexAI(GoogleFamilyRefs, Plugin):
 
         for name in genai_models.veo:
             actions_list.append(_veo_background_action_metadata(vertexai_name(name)))
+
+        for name in VERTEX_KNOWN_VIRTUAL_TRY_ON:
+            actions_list.append(
+                model_action_metadata(
+                    name=vertexai_name(name),
+                    info=virtual_try_on_model_info(name).model_dump(by_alias=True),
+                    config_schema=VirtualTryOnConfig,
+                )
+            )
 
         for name in VERTEX_KNOWN_EMBEDDERS:
             actions_list.append(
