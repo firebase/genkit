@@ -70,7 +70,10 @@ TRANSFORMATIONS = {
     # The Dev UI gets one inputSchema / outputSchema per action. A second
     # field would let a plugin set a schema that never reaches it.
     'ActionMetadata': {'omit': ['inputJsonSchema', 'outputJsonSchema']},
-    'EvalRequest': {'output_name': 'EvaluatorRequest'},
+    # Python's EvaluatorRequest is the per-row request a define_evaluator fn
+    # takes (hand-written in genkit._core._model). The wire type, the whole
+    # dataset, is BatchEvaluatorRequest. Only the Python name differs.
+    'EvalRequest': {'output_name': 'BatchEvaluatorRequest'},
     'EvalFnResponse': {'output_name': 'EvaluatorResponse'},
 }
 
