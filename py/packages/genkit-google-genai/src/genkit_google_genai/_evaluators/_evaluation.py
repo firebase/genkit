@@ -226,13 +226,13 @@ class EvaluatorFactory:
 
         async def evaluator_fn(
             datapoint: BaseDataPoint,
-            options: dict[str, Any] | None = None,
+            options: dict[str, Any],
         ) -> EvaluatorResponse:
             """Evaluate a single datapoint.
 
             Args:
                 datapoint: The evaluation data point.
-                options: Optional evaluation options.
+                options: Evaluation options; ``{}`` when none were set.
 
             Returns:
                 The evaluation response with score.
