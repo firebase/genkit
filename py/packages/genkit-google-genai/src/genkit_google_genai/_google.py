@@ -284,6 +284,7 @@ def _new_gemini(plugin: GoogleAI | VertexAI, clean_name: str) -> GeminiModel:
         plugin._runtime_client(),
         client_kwargs=plugin._client_kwargs,
         base_url_pinned=plugin._base_url_pinned,
+        legacy_response_schema=plugin._legacy_response_schema,
     )
 
 
@@ -633,6 +634,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         http_options: HttpOptions | HttpOptionsDict | None = None,
         api_version: str | None = None,
         base_url: str | None = None,
+        legacy_response_schema: bool = False,
     ) -> None:
         """Initializes the GoogleAI plugin.
 
@@ -648,6 +650,10 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
                 Can be an instance of HttpOptions or a dictionary. Defaults to None.
             api_version: The API version to use (e.g., 'v1beta'). Defaults to None.
             base_url: The base URL for the API. Defaults to None.
+            legacy_response_schema: Send JSON output schemas as Gemini's
+                ``responseSchema`` field instead of ``responseJsonSchema``,
+                converted to its format; a schema that cannot be converted
+                raises ``INVALID_ARGUMENT``. Defaults to False.
 
         Raises:
             ValueError: If `api_key` is not provided and the 'GEMINI_API_KEY'
@@ -673,6 +679,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
             'http_options': _inject_attribution_headers(http_options, base_url, api_version),
         }
         self._base_url_pinned = bool(self._client_kwargs['http_options'].base_url)
+        self._legacy_response_schema = legacy_response_schema
         # Single loop-local client accessor used everywhere in plugin runtime paths.
         self._runtime_client = loop_local_client(lambda: _plugin_client(self._client_kwargs))
         self._list_actions_cache: list[ActionMetadata] | None = None
@@ -1069,6 +1076,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
         api_key: str | None = None,
         api_version: str | None = None,
         base_url: str | None = None,
+        legacy_response_schema: bool = False,
     ) -> None:
         """Initializes the VertexAI plugin.
 
@@ -1089,6 +1097,10 @@ class VertexAI(GoogleFamilyRefs, Plugin):
                 environment variable.
             api_version: The API version to use. Defaults to None.
             base_url: The base URL for the API. Defaults to None.
+            legacy_response_schema: Send JSON output schemas as Gemini's
+                ``responseSchema`` field instead of ``responseJsonSchema``,
+                converted to its format; a schema that cannot be converted
+                raises ``INVALID_ARGUMENT``. Defaults to False.
         """
         # Store project and location on the plugin for evaluator registration
         # and multi-region routing. This avoids reaching into client internals.
@@ -1102,6 +1114,7 @@ class VertexAI(GoogleFamilyRefs, Plugin):
 
         opts = _inject_attribution_headers(http_options, base_url, api_version)
         self._base_url_pinned = bool(opts.base_url)
+        self._legacy_response_schema = legacy_response_schema
         multi_region = const.is_multi_regional_location(self._location)
         if multi_region and not self._base_url_pinned:
             # Multi-regions ('us', 'eu') are served from dedicated endpoints
