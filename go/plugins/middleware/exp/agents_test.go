@@ -23,6 +23,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/firebase/genkit/go/ai"
 	aix "github.com/firebase/genkit/go/ai/exp"
@@ -811,4 +812,18 @@ func artifactNames(arts []*aix.Artifact) []string {
 		}
 	}
 	return names
+}
+
+func TestDiscoverDescription_PromptFile(t *testing.T) {
+	// A prompt agent named "triage" finds support/triage.prompt by its file name,
+	// so the roster must find its description the same way.
+	g := genkit.Init(context.Background(), genkit.WithPromptFS(fstest.MapFS{
+		"prompts/support/triage.prompt": &fstest.MapFile{Data: []byte("---\ndescription: Routes support requests.\n---\nHi")},
+	}))
+
+	for _, name := range []string{"support/triage", "triage"} {
+		if got, want := discoverDescription(g, name), "Routes support requests."; got != want {
+			t.Errorf("discoverDescription(%q) = %q, want %q", name, got, want)
+		}
+	}
 }
