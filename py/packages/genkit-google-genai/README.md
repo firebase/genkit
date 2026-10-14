@@ -105,8 +105,9 @@ construct the plugin with `GoogleAI(legacy_response_schema=True)` or
 `VertexAI(legacy_response_schema=True)`. The schema is converted to that shape.
 Keywords the conversion does not map, such as `pattern`, `minLength`,
 `additionalProperties` and an `anyOf` or `oneOf` next to a `type`, are left
-out, as are a `$ref` back to a model that contains it and an array with no
-convertible `items`. It raises `INVALID_ARGUMENT` for a constraint with no
+out, as are a `$ref` back to a model that contains it, an array with no
+convertible `items` and a map (an object with `additionalProperties` and no
+`properties`, such as `dict[str, int]`). It raises `INVALID_ARGUMENT` for a constraint with no
 `type` (an `enum` of strings counts as a string), for a `type` list, `anyOf`
 or `oneOf` that would lose some but not all of its non-null branches, for a
 required property or whole schema that cannot be converted, and for an

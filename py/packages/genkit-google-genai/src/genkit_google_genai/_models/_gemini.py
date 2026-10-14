@@ -1435,7 +1435,8 @@ class GeminiModel:
                 None, for a ``type`` list, ``anyOf`` or ``oneOf`` that would
                 lose some but not all of its non-null branches and for a
                 keyword value that cannot be coerced, instead of leaving them
-                out.
+                out. An object with ``additionalProperties`` and no
+                ``properties`` also converts to None.
             refs: Names of the definitions being expanded on the current path.
 
         Returns:
@@ -1543,6 +1544,9 @@ class GeminiModel:
                 return None
 
         if schema_type == genai_types.Type.OBJECT:
+            additional = input_schema.get('additionalProperties')
+            if strict and not input_schema.get('properties') and (additional is True or isinstance(additional, dict)):
+                return None
             schema.properties = {}
             properties_value = input_schema.get('properties', {})
             if isinstance(properties_value, dict):

@@ -1741,6 +1741,44 @@ def test_gemini_model__convert_schema_property_strict_leaves_out_annotation_only
     )
 
 
+@pytest.mark.parametrize('additional', [True, {}, {'type': 'integer'}])
+def test_gemini_model__convert_schema_property_strict_map(
+    additional: object, gemini_model_instance: GeminiModel
+) -> None:
+    """In strict mode a map is left out when optional and raises naming it when required."""
+    schema: dict[str, object] = {
+        'type': 'object',
+        'properties': {
+            'scores': {'type': 'object', 'additionalProperties': additional},
+            'name': {'type': 'string'},
+        },
+    }
+
+    assert gemini_model_instance._convert_schema_property(schema, strict=True) == genai_types.Schema(
+        type=genai_types.Type.OBJECT, properties={'name': genai_types.Schema(type=genai_types.Type.STRING)}
+    )
+    with pytest.raises(GenkitError) as exc_info:
+        gemini_model_instance._convert_schema_property({**schema, 'required': ['scores']}, strict=True)
+    assert 'required property scores' in exc_info.value.original_message
+
+
+@pytest.mark.parametrize(
+    'input_schema, strict',
+    [
+        ({'type': 'object', 'additionalProperties': {'type': 'integer'}}, False),
+        ({'type': 'object', 'additionalProperties': False}, True),
+    ],
+    ids=['map-without-strict', 'closed-object-strict'],
+)
+def test_gemini_model__convert_schema_property_keeps_object_without_properties(
+    input_schema: dict[str, object], strict: bool, gemini_model_instance: GeminiModel
+) -> None:
+    """A map without strict, and an object closed by additionalProperties false, stay an empty OBJECT."""
+    assert gemini_model_instance._convert_schema_property(input_schema, strict=strict) == genai_types.Schema(
+        type=genai_types.Type.OBJECT, properties={}
+    )
+
+
 @pytest.mark.asyncio
 @patch(
     'genkit_google_genai._models._gemini.generate_cache_key',
@@ -2021,6 +2059,7 @@ async def test_gemini_model__legacy_response_schema_sends_converted_schema() -> 
         (to_json_schema(list[Any]), 'cannot be converted'),
         (to_json_schema(tuple[int, str]), 'cannot be converted'),
         (to_json_schema(_Mixed), 'anyOf branch'),
+        (to_json_schema(dict[str, int]), 'cannot be converted'),
     ],
 )
 async def test_gemini_model__legacy_unconvertible_output_schema_raises(
