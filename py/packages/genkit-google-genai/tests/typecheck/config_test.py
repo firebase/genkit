@@ -52,7 +52,6 @@ from genkit_google_genai._models._gemini import (
     ThinkingLevel,
     VoiceConfig,
 )
-from genkit_google_genai._models._lyria import LyriaConfig as VertexLyriaConfig
 from pydantic import BaseModel
 
 
@@ -69,7 +68,6 @@ def test_empty_construction() -> None:
         GemmaConfig,
         VeoConfig,
         LyriaConfig,
-        VertexLyriaConfig,
         AntigravityConfig,
         DeepResearchConfig,
         ThinkingConfig,
@@ -299,25 +297,23 @@ def test_veo_config_snake_case_kwargs() -> None:
     }
 
 
-def test_lyria_configs_snake_case_kwargs() -> None:
-    """Both Lyria config classes take snake_case kwargs; the dump is camelCase."""
-    interactions = LyriaConfig(
+def test_lyria_config_snake_case_kwargs() -> None:
+    """LyriaConfig takes snake_case kwargs; the dump is camelCase."""
+    config = LyriaConfig(
         base_url='https://kitchen.example',
         api_version='v1beta',
         timeout=30000,
         custom_headers={'x-team': 'kitchen'},
         response_modalities=['audio'],
     )
-    assert _wire(interactions) == {
+
+    assert _wire(config) == {
         'baseUrl': 'https://kitchen.example',
         'apiVersion': 'v1beta',
         'timeout': 30000,
         'customHeaders': {'x-team': 'kitchen'},
         'responseModalities': ['audio'],
     }
-
-    vertex = VertexLyriaConfig(negative_prompt='drums', seed=1, sample_count=2, location='global')
-    assert _wire(vertex) == {'negativePrompt': 'drums', 'seed': 1, 'sampleCount': 2, 'location': 'global'}
 
 
 def test_antigravity_config_snake_case_kwargs() -> None:

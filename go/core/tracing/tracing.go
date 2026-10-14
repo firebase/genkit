@@ -19,14 +19,16 @@ package tracing
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"os"
+	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/base"
 	"go.opentelemetry.io/otel"
@@ -36,38 +38,46 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// markedError wraps an error to track if it's already been marked as a failure source
-type markedError struct {
-	error
-	marked bool
-}
-
-func (e *markedError) Error() string {
-	return e.error.Error()
-}
-
-func (e *markedError) Unwrap() error {
-	return e.error
-}
-
-// markErrorAsHandled marks an error as already handled for failure source tracking
-func markErrorAsHandled(err error) error {
-	var me *markedError
-	if errors.As(err, &me) {
-		me.marked = true
-		return me
-	}
-
-	return &markedError{error: err, marked: true}
-}
-
-// isErrorAlreadyMarked checks if an error has already been marked as a failure source
-func isErrorAlreadyMarked(err error) bool {
-	var me *markedError
-	if errors.As(err, &me) {
-		return me.marked
+// isDerivedFrom reports whether err only propagates causes, the errors that
+// failing child spans returned. A wrapper chain is derived when some error in it
+// is one of the causes. A multi-error node (errors.Join) is derived only when
+// every branch is, so a span that joins its own failure with a child's is still
+// a failure source. A cause of a non-comparable type matches only through an Is
+// method, so it errs toward attributing the failure to more spans, never fewer.
+func isDerivedFrom(err error, causes []error) bool {
+	for err != nil {
+		for _, c := range causes {
+			if isComparable(c) && err == c {
+				return true
+			}
+			if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(c) {
+				return true
+			}
+		}
+		switch x := err.(type) {
+		case interface{ Unwrap() error }:
+			err = x.Unwrap()
+		case interface{ Unwrap() []error }:
+			errs := x.Unwrap()
+			if len(errs) == 0 {
+				return false
+			}
+			for _, e := range errs {
+				if !isDerivedFrom(e, causes) {
+					return false
+				}
+			}
+			return true
+		default:
+			return false
+		}
 	}
 	return false
+}
+
+// isComparable reports whether err can be compared with == without panicking.
+func isComparable(err error) bool {
+	return reflect.TypeOf(err).Comparable()
 }
 
 // captureStackTrace captures the current Go stack trace for error reporting
@@ -328,10 +338,16 @@ func RunInNewSpan[I, O any](
 	if err != nil {
 		sm.State = spanStateError
 		sm.Error = err.Error()
-		sm.IsFailureSource = true
-		if !isErrorAlreadyMarked(err) {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
+		span.SetStatus(codes.Error, err.Error())
+		span.RecordError(err)
+		// Only the span where an error originates is its failure source, not
+		// every span that returns it on the way up; otherwise one failure is
+		// counted once per enclosing span in monitoring. Attribution is kept on
+		// the spans rather than on the error, so callers get back exactly the
+		// error they returned.
+		sm.IsFailureSource = !isDerivedFrom(err, sm.childErrors())
+		if parentSM != nil {
+			parentSM.addChildError(err)
 		}
 		// A failure can still carry a result: the generate loop returns the
 		// conversation it completed alongside its error. Record it so the
@@ -417,6 +433,98 @@ type spanMetadata struct {
 	Type            string            // span type (action, flow, model, etc.)
 	Subtype         string            // span subtype (tool, model, flow, etc.)
 	Metadata        map[string]string // additional custom metadata
+
+	mu        sync.Mutex
+	childErrs []error // errors returned by failing child spans, guarded by mu
+}
+
+// addChildError records err as returned by a failing child span. Child spans
+// can run concurrently (parallel tool calls), hence the lock.
+func (sm *spanMetadata) addChildError(err error) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.childErrs = append(sm.childErrs, err)
+}
+
+// childErrors returns the errors recorded by addChildError.
+func (sm *spanMetadata) childErrors() []error {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	return slices.Clone(sm.childErrs)
+}
+
+// ioAttrJSON returns the JSON encoding of v for the genkit:input, genkit:init,
+// and genkit:output span attributes. Outside the dev environment it redacts the
+// payload of inline base64 media: a span holds its attributes until export, so
+// each media part would otherwise keep a second copy of its bytes in memory and
+// ship it to the trace backend. The Dev UI renders media from these attributes,
+// so dev keeps the bytes.
+func ioAttrJSON(v any) string {
+	s := base.JSONString(v)
+	if api.CurrentEnvironment() == api.EnvironmentDev {
+		return s
+	}
+	return redactInlineMedia(s)
+}
+
+// redactInlineMedia replaces the payload of each JSON string in s that is a
+// base64 data URL with "[redacted]". The data URL header stays, so the trace
+// still shows the media type. Remote URLs and data URLs inside longer text are
+// left alone. s must be valid JSON. If nothing is redacted, s is returned as is.
+func redactInlineMedia(s string) string {
+	var b strings.Builder
+	copied := 0 // s[copied:] is not yet written to b
+	for i := 0; i < len(s); i++ {
+		if s[i] != '"' {
+			continue
+		}
+		// Outside a string, a quote in valid JSON always opens one.
+		end := closingQuote(s, i+1)
+		if n := base64DataURLHeaderLen(s[i+1 : end]); n > 0 {
+			b.WriteString(s[copied : i+1+n])
+			b.WriteString("[redacted]")
+			copied = end
+		}
+		i = end
+	}
+	if copied == 0 {
+		return s
+	}
+	b.WriteString(s[copied:])
+	return b.String()
+}
+
+// closingQuote returns the index of the quote that ends the JSON string whose
+// contents start at s[start]. A quote preceded by an odd number of backslashes
+// is escaped and does not end the string.
+func closingQuote(s string, start int) int {
+	for i := start; ; i++ {
+		i += strings.IndexByte(s[i:], '"')
+		escapes := 0
+		for j := i - 1; j >= start && s[j] == '\\'; j-- {
+			escapes++
+		}
+		if escapes%2 == 0 {
+			return i
+		}
+	}
+}
+
+// base64DataURLHeaderLen returns the length of the "data:...;base64," header
+// if str is a base64 data URL, or 0 otherwise. Matching is case-insensitive
+// (RFC 2397), and a header with a space is treated as prose, not a URL.
+func base64DataURLHeaderLen(str string) int {
+	const scheme, encoding = "data:", ";base64"
+	if len(str) < len(scheme) || !strings.EqualFold(str[:len(scheme)], scheme) {
+		return 0
+	}
+	header, _, ok := strings.Cut(str, ",")
+	if !ok || len(header) < len(scheme)+len(encoding) ||
+		!strings.EqualFold(header[len(header)-len(encoding):], encoding) ||
+		strings.Contains(header, " ") {
+		return 0
+	}
+	return len(header) + 1
 }
 
 // attributes returns some information about the spanMetadata
@@ -425,16 +533,16 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 	kvs := []attribute.KeyValue{
 		attribute.String("genkit:name", sm.Name),
 		attribute.String("genkit:state", string(sm.State)),
-		attribute.String("genkit:input", base.JSONString(sm.Input)),
+		attribute.String("genkit:input", ioAttrJSON(sm.Input)),
 		attribute.String("genkit:path", sm.Path),
 	}
 
 	if sm.Init != nil {
-		kvs = append(kvs, attribute.String("genkit:init", base.JSONString(sm.Init)))
+		kvs = append(kvs, attribute.String("genkit:init", ioAttrJSON(sm.Init)))
 	}
 
 	if sm.Output != nil {
-		kvs = append(kvs, attribute.String("genkit:output", base.JSONString(sm.Output)))
+		kvs = append(kvs, attribute.String("genkit:output", ioAttrJSON(sm.Output)))
 	}
 
 	if sm.Type != "" {
@@ -502,10 +610,10 @@ func (sm *spanMetadata) startAttributes() []attribute.KeyValue {
 // match attributes() so the end write reasserts them.
 func (sm *spanMetadata) inputAttributes() []attribute.KeyValue {
 	kvs := []attribute.KeyValue{
-		attribute.String("genkit:input", base.JSONString(sm.Input)),
+		attribute.String("genkit:input", ioAttrJSON(sm.Input)),
 	}
 	if sm.Init != nil {
-		kvs = append(kvs, attribute.String("genkit:init", base.JSONString(sm.Init)))
+		kvs = append(kvs, attribute.String("genkit:init", ioAttrJSON(sm.Init)))
 	}
 	return kvs
 }
