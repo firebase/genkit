@@ -267,6 +267,31 @@ func TestApplyPatch_TestOp(t *testing.T) {
 	}
 }
 
+func TestApplyPatch_TestOpComparesNumbersByValue(t *testing.T) {
+	for _, tc := range []struct {
+		doc, value string
+		equal      bool
+	}{
+		{"1", "1.0", true},
+		{"1", "1e0", true},
+		{"100", "1E+2", true},
+		{"0.5", "50e-2", true},
+		{"0", "-0.0", true},
+		{"1e400", "10e399", true},
+		{"1", "1.01", false},
+		{"1", "10", false},
+		{"1", "-1", false},
+		{"9007199254740993", "9007199254740992", false},
+		{"1e400", "1e401", false},
+	} {
+		doc := map[string]any{"a": json.RawMessage(tc.doc)}
+		_, err := ApplyPatch(doc, JSONPatch{{Op: JSONPatchOpTest, Path: "/a", Value: json.RawMessage(tc.value)}})
+		if got := err == nil; got != tc.equal {
+			t.Errorf("test %s against %s: passed = %v, want %v (err: %v)", tc.value, tc.doc, got, tc.equal, err)
+		}
+	}
+}
+
 func TestApplyPatch_MoveCopy(t *testing.T) {
 	got, err := ApplyPatch(map[string]any{"a": 1}, JSONPatch{{Op: JSONPatchOpMove, From: "/a", Path: "/b"}})
 	if err != nil {

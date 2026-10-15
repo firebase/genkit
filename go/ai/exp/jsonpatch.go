@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -44,6 +45,8 @@ import (
 // on the way in, so any JSON-serializable Go value may be passed, and numbers
 // keep their exact text: an integer above 2^53 survives a diff and an apply.
 // Decode a stored patch with UseNumber too, or its values round on the way in.
+// The runtime's own custom-state values, such as the state prompt templates
+// read, keep float64 instead, so code that handles both sees both shapes.
 
 // Diff computes an RFC 6902 JSON Patch that transforms from into to.
 //
@@ -397,9 +400,83 @@ func unionKeys(a, b map[string]any) []string {
 	return keys
 }
 
-// jsonEqual reports deep equality of two normalized JSON values.
+// jsonEqual reports deep equality of two normalized JSON values. Numbers
+// compare by value, as RFC 6902 requires of the test operation, so
+// json.Number("1") equals json.Number("1.0").
 func jsonEqual(a, b any) bool {
+	switch a := a.(type) {
+	case json.Number:
+		b, ok := b.(json.Number)
+		return ok && numbersEqual(a, b)
+	case map[string]any:
+		b, ok := b.(map[string]any)
+		if !ok || len(a) != len(b) {
+			return false
+		}
+		for k, av := range a {
+			if bv, ok := b[k]; !ok || !jsonEqual(av, bv) {
+				return false
+			}
+		}
+		return true
+	case []any:
+		b, ok := b.([]any)
+		return ok && slices.EqualFunc(a, b, jsonEqual)
+	}
 	return reflect.DeepEqual(a, b)
+}
+
+// numbersEqual reports whether two JSON numbers have the same value. It
+// compares their decimal forms without converting them, so it is exact for any
+// size. A number that is not valid JSON equals only its own text.
+func numbersEqual(a, b json.Number) bool {
+	if a == b {
+		return true
+	}
+	x, okx := decimalOf(string(a))
+	y, oky := decimalOf(string(b))
+	return okx && oky && x == y
+}
+
+// decimal is a JSON number in canonical form: its value is
+// (-1 if neg) * digits * 10^exp, digits has no leading or trailing zeros, and
+// zero is the zero decimal.
+type decimal struct {
+	neg    bool
+	digits string
+	exp    int
+}
+
+// decimalOf parses a JSON number into its canonical decimal form.
+func decimalOf(s string) (decimal, bool) {
+	var d decimal
+	if rest, ok := strings.CutPrefix(s, "-"); ok {
+		d.neg, s = true, rest
+	}
+	mant, expText, hasExp := strings.Cut(strings.ToLower(s), "e")
+	intPart, frac, hasFrac := strings.Cut(mant, ".")
+	if intPart == "" || (hasFrac && frac == "") || (len(intPart) > 1 && intPart[0] == '0') {
+		return decimal{}, false
+	}
+	if hasExp {
+		e, err := strconv.Atoi(expText)
+		if err != nil {
+			return decimal{}, false
+		}
+		d.exp = e
+	}
+	digits := intPart + frac
+	if strings.Trim(digits, "0123456789") != "" {
+		return decimal{}, false
+	}
+	d.exp -= len(frac)
+	trimmed := strings.TrimRight(digits, "0")
+	d.exp += len(digits) - len(trimmed)
+	d.digits = strings.TrimLeft(trimmed, "0")
+	if d.digits == "" {
+		return decimal{}, true
+	}
+	return d, true
 }
 
 // normalizeJSON round-trips v through JSON so it becomes the canonical
