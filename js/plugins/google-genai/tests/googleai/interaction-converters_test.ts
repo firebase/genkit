@@ -115,6 +115,250 @@ describe('Interaction Converters', () => {
     });
   });
 
+  describe('computer use safety decisions', () => {
+    // The plugin doesn't run computer use actions; users run the loop
+    // themselves (returnToolRequests: true). The safety decision must reach
+    // them, and their acknowledgement must reach the server. Shapes from the
+    // computer use guide.
+    const safetyDecision = {
+      explanation: 'Must check check-box',
+      decision: 'require_confirmation',
+    };
+
+    it('passes safety_decision through to the toolRequest input', () => {
+      const result = fromInteractionSync({
+        status: 'requires_action',
+        steps: [
+          {
+            type: 'function_call',
+            id: 'call_123',
+            name: 'click',
+            arguments: { x: 60, y: 100, safety_decision: safetyDecision },
+          },
+        ],
+      });
+      const toolRequest = result.message?.content.find(
+        (p) => p.toolRequest
+      )?.toolRequest;
+      assert.deepStrictEqual(toolRequest, {
+        name: 'click',
+        ref: 'call_123',
+        input: { x: 60, y: 100, safety_decision: safetyDecision },
+      });
+    });
+
+    it('resends safety_decision and sends safety_acknowledgement back', () => {
+      const steps = toInteractionSteps([
+        {
+          role: 'model',
+          content: [
+            {
+              toolRequest: {
+                name: 'click',
+                ref: 'call_123',
+                input: { x: 60, y: 100, safety_decision: safetyDecision },
+              },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [
+            {
+              toolResponse: {
+                name: 'click',
+                ref: 'call_123',
+                output: {
+                  url: 'https://example.com',
+                  safety_acknowledgement: true,
+                },
+              },
+            },
+          ],
+        },
+      ]);
+      assert.deepStrictEqual(steps, [
+        {
+          type: 'function_call',
+          name: 'click',
+          arguments: { x: 60, y: 100, safety_decision: safetyDecision },
+          id: 'call_123',
+        },
+        {
+          type: 'function_result',
+          name: 'click',
+          result: { url: 'https://example.com', safety_acknowledgement: true },
+          call_id: 'call_123',
+        },
+      ]);
+    });
+  });
+
+  describe('agentic video understanding', () => {
+    // Shapes seen live on gemini-4-argon (Oct 2026).
+    const processingCallStep: Step = {
+      type: 'processing_call',
+      id: 'call_598332',
+      signature: 'sig_call',
+    };
+    const processingResultStep: Step = {
+      type: 'processing_result',
+      call_id: 'call_598332',
+      signature: 'sig_result',
+    };
+
+    it('sends metadata.processing on a YouTube video', () => {
+      assert.deepStrictEqual(
+        toInteractionContent({
+          media: { url: 'https://www.youtube.com/watch?v=abc123' },
+          metadata: { processing: 'agentic' },
+        }),
+        {
+          type: 'video',
+          uri: 'https://www.youtube.com/watch?v=abc123',
+          processing: 'agentic',
+        }
+      );
+    });
+
+    it('sends metadata.processing on inline and URI videos', () => {
+      assert.deepStrictEqual(
+        toInteractionContent({
+          media: { url: 'data:video/mp4;base64,AAAA', contentType: 'video/mp4' },
+          metadata: { processing: 'static' },
+        }),
+        {
+          type: 'video',
+          mime_type: 'video/mp4',
+          data: 'AAAA',
+          processing: 'static',
+        }
+      );
+      assert.deepStrictEqual(
+        toInteractionContent({
+          media: {
+            url: 'https://generativelanguage.googleapis.com/v1beta/files/abc123',
+            contentType: 'video/mp4',
+          },
+          metadata: { processing: 'agentic' },
+        }),
+        {
+          type: 'video',
+          mime_type: 'video/mp4',
+          uri: 'https://generativelanguage.googleapis.com/v1beta/files/abc123',
+          processing: 'agentic',
+        }
+      );
+    });
+
+    it('sends no processing field when it is not set', () => {
+      assert.deepStrictEqual(
+        toInteractionContent({
+          media: { url: 'https://www.youtube.com/watch?v=abc123' },
+        }),
+        { type: 'video', uri: 'https://www.youtube.com/watch?v=abc123' }
+      );
+    });
+
+    it('ignores metadata.processing on media that is not video', () => {
+      assert.deepStrictEqual(
+        toInteractionContent({
+          media: { url: 'data:image/png;base64,AAAA', contentType: 'image/png' },
+          metadata: { processing: 'agentic' },
+        }),
+        { type: 'image', mime_type: 'image/png', data: 'AAAA' }
+      );
+    });
+
+    it('returns processing steps as custom parts with their signatures', () => {
+      assert.deepStrictEqual(fromInteractionStep(processingCallStep), [
+        {
+          custom: { processingCall: { id: 'call_598332' } },
+          metadata: { thoughtSignature: 'sig_call' },
+        },
+      ]);
+      assert.deepStrictEqual(fromInteractionStep(processingResultStep), [
+        {
+          custom: { processingResult: { callId: 'call_598332' } },
+          metadata: { thoughtSignature: 'sig_result' },
+        },
+      ]);
+    });
+
+    it('resends processing steps unchanged in the history', () => {
+      // Turn 1's response, converted to Genkit parts and sent back as history.
+      const modelContent = [
+        ...fromInteractionStep(processingCallStep),
+        ...fromInteractionStep(processingResultStep),
+        { text: 'The main moments are...' },
+      ];
+      const steps = toInteractionSteps([
+        {
+          role: 'user',
+          content: [
+            {
+              media: { url: 'https://www.youtube.com/watch?v=abc123' },
+              metadata: { processing: 'agentic' },
+            },
+            { text: 'What happens in this video?' },
+          ],
+        },
+        { role: 'model', content: modelContent },
+        { role: 'user', content: [{ text: 'What happens at the end?' }] },
+      ]);
+      assert.deepStrictEqual(steps, [
+        {
+          type: 'user_input',
+          content: [
+            {
+              type: 'video',
+              uri: 'https://www.youtube.com/watch?v=abc123',
+              processing: 'agentic',
+            },
+            { type: 'text', text: 'What happens in this video?' },
+          ],
+        },
+        processingCallStep,
+        processingResultStep,
+        {
+          type: 'model_output',
+          content: [{ type: 'text', text: 'The main moments are...' }],
+        },
+        {
+          type: 'user_input',
+          content: [{ type: 'text', text: 'What happens at the end?' }],
+        },
+      ]);
+    });
+
+    it('reports tool use tokens in usage.custom', () => {
+      const result = fromInteractionSync({
+        status: 'completed',
+        steps: [
+          processingCallStep,
+          processingResultStep,
+          { type: 'model_output', content: [{ type: 'text', text: 'done' }] },
+        ],
+        usage: {
+          total_input_tokens: 416,
+          total_output_tokens: 393,
+          total_tool_use_tokens: 2054,
+          total_thought_tokens: 2117,
+          total_tokens: 4980,
+        },
+      });
+      assert.deepStrictEqual(result.usage?.custom, { toolUseTokens: 2054 });
+    });
+
+    it('leaves usage.custom unset without tool use tokens', () => {
+      const result = fromInteractionSync({
+        status: 'completed',
+        usage: { total_input_tokens: 4, total_tokens: 4 },
+      });
+      assert.strictEqual(result.usage?.custom, undefined);
+    });
+  });
+
   describe('removeId3FromAudio', () => {
     // An ID3 tag holding a C2PA manifest, at the start of a streamed
     // audio/l16 chunk, as seen live: 6,125-byte tag + 5,760 bytes of PCM.

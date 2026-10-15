@@ -315,7 +315,16 @@ export declare interface VideoContent {
   mime_type?: string;
   /** The resolution of the media. */
   resolution?: MediaResolution;
+  /**
+   * How the model reads the video: `static` (frames at 1 FPS, the default)
+   * or `agentic` (the model explores the timeline and loads only what it
+   * needs; supported by newer models).
+   */
+  processing?: VideoProcessing;
 }
+
+/** How the model reads a video input. */
+export type VideoProcessing = 'static' | 'agentic' | (string & {});
 
 /**
  * A thought content block.
@@ -432,6 +441,23 @@ export declare interface ThoughtStep {
   summary?: (TextContent | ImageContent)[];
 }
 
+/**
+ * Agentic video understanding: the model asked to load part of a video (a
+ * segment, frames or the transcript). Needs no reply.
+ */
+export declare interface ProcessingCallStep {
+  type: 'processing_call';
+  id: string;
+  signature?: string;
+}
+
+/** Agentic video understanding: the result of a `processing_call`. */
+export declare interface ProcessingResultStep {
+  type: 'processing_result';
+  call_id: string;
+  signature?: string;
+}
+
 export type Step =
   | ModelOutputStep
   | UserInputStep
@@ -442,7 +468,9 @@ export type Step =
   | CodeExecutionResultStep
   | FunctionCallStep
   | FunctionResultStep
-  | ThoughtStep;
+  | ThoughtStep
+  | ProcessingCallStep
+  | ProcessingResultStep;
 
 /**
  * A turn in a conversation.

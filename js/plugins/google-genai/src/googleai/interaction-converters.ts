@@ -598,6 +598,15 @@ function isYouTubeUrl(url: string): boolean {
   }
 }
 
+/**
+ * The `processing` mode (`static` or `agentic`) for a video part, from the
+ * part's `metadata.processing`.
+ */
+function videoProcessingOf(part: Part): Pick<VideoContent, 'processing'> {
+  const processing = part.metadata?.processing;
+  return typeof processing === 'string' ? { processing } : {};
+}
+
 function toInteractionMedia(part: Part): Content {
   if (!part.media) throw new Error('Media part missing media');
   const { url } = part.media;
@@ -612,7 +621,10 @@ function toInteractionMedia(part: Part): Content {
     // mime_type, as the generateContent path does. YouTube links are video;
     // anything else is sent as a document (verified live: the server still
     // treats a YouTube link sent as a document as video).
-    return { type: isYouTubeUrl(url) ? 'video' : 'document', uri: url };
+    if (isYouTubeUrl(url)) {
+      return { type: 'video', uri: url, ...videoProcessingOf(part) };
+    }
+    return { type: 'document', uri: url };
   }
 
   // Inline data URLs are sent as `data`, everything else as a `uri`.
@@ -628,7 +640,7 @@ function toInteractionMedia(part: Part): Content {
     return { type: 'audio', ...fields };
   }
   if (contentType.startsWith('video/')) {
-    return { type: 'video', ...fields };
+    return { type: 'video', ...fields, ...videoProcessingOf(part) };
   }
   // The Interactions API accepts PDF and CSV documents.
   if (contentType === 'application/pdf' || contentType === 'text/csv') {
@@ -720,6 +732,10 @@ const CodeExecutionResultSchema = z.object({
   output: z.string(),
   outcome: z.string().optional(),
 });
+
+const ProcessingCallSchema = z.object({ id: z.string() });
+
+const ProcessingResultSchema = z.object({ callId: z.string() });
 
 /**
  * Converts an array of Genkit MessageData objects into an array of Interaction Steps.
@@ -834,6 +850,30 @@ export function toInteractionSteps(messages: MessageData[]): Step[] {
           signature: OptionalStringSchema.parse(
             part.metadata?.thoughtSignature
           ),
+        });
+      } else if (part.custom?.processingCall) {
+        // Agentic video steps are resent as they came back, with their
+        // signatures, when the history is sent again.
+        const call = ProcessingCallSchema.parse(part.custom.processingCall);
+        const signature = OptionalStringSchema.parse(
+          part.metadata?.thoughtSignature
+        );
+        steps.push({
+          type: 'processing_call',
+          id: call.id,
+          ...(signature ? { signature } : {}),
+        });
+      } else if (part.custom?.processingResult) {
+        const result = ProcessingResultSchema.parse(
+          part.custom.processingResult
+        );
+        const signature = OptionalStringSchema.parse(
+          part.metadata?.thoughtSignature
+        );
+        steps.push({
+          type: 'processing_result',
+          call_id: result.callId,
+          ...(signature ? { signature } : {}),
         });
       } else if (
         part.reasoning !== undefined ||
@@ -1188,6 +1228,18 @@ export function fromInteractionStep(step: Step, isPending?: boolean): Part[] {
         : [fromServerFunctionCall(step)];
     case 'function_result':
       return [fromServerFunctionResult(step)];
+    case 'processing_call':
+      return [
+        maybeAddGeminiThoughtSignature(step, {
+          custom: { processingCall: { id: step.id } },
+        }),
+      ];
+    case 'processing_result':
+      return [
+        maybeAddGeminiThoughtSignature(step, {
+          custom: { processingResult: { callId: step.call_id } },
+        }),
+      ];
   }
 
   return [{ custom: { unknownStep: step } }];
@@ -1378,6 +1430,11 @@ function fromInteractionUsage(usage: Usage): GenerationUsage {
         result.outputVideos = modalityToken.tokens;
         break;
     }
+  }
+  // Tokens loaded by tools, e.g. video frames read during agentic video
+  // understanding. Genkit has no standard field for these.
+  if (usage.total_tool_use_tokens) {
+    result.custom = { toolUseTokens: usage.total_tool_use_tokens };
   }
   return result;
 }

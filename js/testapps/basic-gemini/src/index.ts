@@ -219,6 +219,28 @@ ai.defineFlow('multi-turn-previous-interaction', async () => {
   };
 });
 
+// Agentic video understanding: instead of reading frames at a fixed rate, the
+// model explores the video and loads only what it needs (better for long
+// videos). Set per video with `metadata.processing` ('agentic' or 'static',
+// the default). The model's loading steps come back as custom
+// processingCall / processingResult parts, which are resent as they are in
+// follow-up turns; usage.custom.toolUseTokens counts what was loaded.
+ai.defineFlow('agentic-video-understanding', async () => {
+  const { text, usage } = await ai.generate({
+    model: googleAI.model('gemini-4-argon'),
+    prompt: [
+      {
+        media: { url: 'https://www.youtube.com/watch?v=QO30-W3b_vw' },
+        metadata: { processing: 'agentic' },
+      },
+      {
+        text: 'What happens in this video? List the main moments with timestamps (MM:SS).',
+      },
+    ],
+  });
+  return { text, toolUseTokens: usage.custom?.toolUseTokens };
+});
+
 ai.defineFlow('maps-grounding', async () => {
   const { text, raw } = await ai.generate({
     model: googleAI.model('gemini-3.1-pro-preview'),
@@ -1359,16 +1381,16 @@ ai.defineFlow('external-url-gemini-3.0', async () => {
   return text;
 });
 
-// Gemini 3.1 thinkingLevel config
+// Gemini 4 thinkingLevel config
 ai.defineFlow(
   {
-    name: 'thinking-level-3.1-pro',
+    name: 'thinking-level',
     inputSchema: z.enum(['LOW', 'MEDIUM', 'HIGH']),
     outputSchema: z.any(),
   },
   async (level) => {
     const { text } = await ai.generate({
-      model: googleAI.model('gemini-3.1-pro-preview'),
+      model: googleAI.model('gemini-4-argon'),
       prompt: [
         'Alice, Bob, and Carol each live in a different house on the ',
         'same street: red, green, and blue. The person who lives in the red house ',

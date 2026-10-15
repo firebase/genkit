@@ -171,6 +171,30 @@ const embeddings = await ai.embed({
 });
 ```
 
+### Video Understanding (agentic processing)
+
+With `googleAI`, newer models (e.g. `gemini-4-argon`, `gemini-3.8-flash`) can
+explore a video and load only the parts they need, instead of reading frames
+at a fixed rate. This works better for long videos. Set it per video with
+`metadata.processing` (`'agentic'`, or `'static'`, the default):
+
+```typescript
+const response = await ai.generate({
+  model: googleAI.model('gemini-4-argon'),
+  prompt: [
+    {
+      media: { url: 'https://www.youtube.com/watch?v=QO30-W3b_vw' },
+      metadata: { processing: 'agentic' },
+    },
+    { text: 'What happens in this video? List the main moments with timestamps.' },
+  ],
+});
+```
+
+The model's loading steps come back as `custom.processingCall` and
+`custom.processingResult` parts. Keep them in the history for follow-up
+questions. `response.usage.custom.toolUseTokens` counts the tokens loaded.
+
 ### Image Generation
 
 **With `googleAI` (Gemini Image):**

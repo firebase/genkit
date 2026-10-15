@@ -710,6 +710,7 @@ const KNOWN_GEMINI_MODELS = {
   'gemini-pro-latest': commonRef('gemini-pro-latest'),
   'gemini-flash-latest': commonRef('gemini-flash-latest'),
   'gemini-flash-lite-latest': commonRef('gemini-flash-lite-latest'),
+  'gemini-4-argon': commonRef('gemini-4-argon'),
   'gemini-3.8-flash': commonRef('gemini-3.8-flash'),
   'gemini-3.6-flash': commonRef('gemini-3.6-flash'),
   'gemini-3.5-flash-lite': commonRef('gemini-3.5-flash-lite'),
@@ -1555,7 +1556,7 @@ export function defineModel(
           // Streamed audio arrives as many headerless chunks (raw PCM by
           // default); the final response joins them into one part of the
           // same format.
-          if (out.message) {
+          if (out.message?.content) {
             out.message.content = mergeStreamedAudio(
               out.message.content.map(removeId3FromAudio)
             );
