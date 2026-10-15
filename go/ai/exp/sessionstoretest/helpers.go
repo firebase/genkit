@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -452,11 +453,12 @@ func stateOrNil[State any](st *exp.SessionState[State]) string {
 	return "non-nil"
 }
 
+// truncate cuts s to at most n bytes, dropping a character the cut splits.
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
 	}
-	return s[:n] + "... (" + fmt.Sprint(len(s)-n) + " more bytes)"
+	return strings.ToValidUTF8(s[:n], "") + "... (" + fmt.Sprint(len(s)-n) + " more bytes)"
 }
 
 // cloneJSON deep-copies v through JSON, the way stores copy rows. It returns

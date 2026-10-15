@@ -98,7 +98,8 @@ type Options[State any] struct {
 // newStore must return a fresh, empty store on every call, with its default
 // behavior: retention that deletes old rows, for example, must be off, because
 // the suite reads back every row it writes. Stores from separate calls may
-// share storage as long as neither can see the other's rows.
+// share storage as long as neither can see the other's rows. Run calls newStore
+// once more than its subtests need, to probe the optional capabilities.
 //
 // The suite expects timestamps to round-trip to at least millisecond precision
 // (it compares instants, so the time zone may change) and the state to
