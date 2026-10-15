@@ -245,7 +245,9 @@ func (s *SessionRunner[State]) suspendSnapshots() (parentID string, parentAt tim
 // Stores keep only milliseconds, and GetLatestSnapshot breaks a tie by the
 // snapshot ID, which is random, so a row written within a millisecond of its
 // parent (a detach's pending row right after a turn's) would otherwise lose to
-// its parent half the time.
+// its parent half the time. A parent stamped ahead of this clock (by another
+// host) keeps every later row in its session ahead too, a millisecond apart,
+// on purpose: the order of the rows matters more than their wall-clock time.
 func snapshotTime(parentAt time.Time) time.Time {
 	now := time.Now()
 	if earliest := parentAt.Add(time.Millisecond); now.Before(earliest) {
