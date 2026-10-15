@@ -696,6 +696,7 @@ func (s *FirestoreSessionStore[State]) planWrite(tx *firestore.Transaction, pref
 		// Upsert: preserve the document's role and chain position; only the state
 		// and metadata change. Callers must only upsert the leaf - rewriting a
 		// non-leaf's state would invalidate its descendants' diffs.
+		// TODO(#6810): reject such a rewrite instead of corrupting them.
 		if existingDoc.Kind == kindCheckpoint {
 			return s.planCheckpoint(id, newState, existingDoc.CheckpointShardCount)
 		}
