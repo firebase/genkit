@@ -19,9 +19,14 @@ import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import { TextEncoder } from 'util';
+import {
+  CreateInteractionRequest,
+  GeminiInteraction,
+} from '../../src/common/interaction-types.js';
 import { getGenkitClientHeader } from '../../src/common/utils.js';
 import {
   TEST_ONLY,
+  createInteraction,
   embedContent,
   generateContent,
   generateContentStream,
@@ -826,6 +831,63 @@ describe('Vertex AI Client', () => {
             it('should throw with unsupported for Express', async () => {
               await assert.rejects(
                 lyriaPredict(model, request, currentOptions),
+                notSupportedInExpressErrorMessage
+              );
+            });
+          }
+        });
+
+        describe('createInteraction', () => {
+          const request: CreateInteractionRequest = {
+            model: 'lyria-3-clip-preview',
+            input: [
+              {
+                type: 'user_input',
+                content: [{ type: 'text', text: 'a song' }],
+              },
+            ],
+          };
+          if (!isExpress) {
+            it('should send the Api-Revision header', async () => {
+              const mockResponse: GeminiInteraction = {
+                status: 'completed',
+                steps: [],
+              };
+              mockFetchResponse(mockResponse);
+              const result = await createInteraction(request, currentOptions);
+
+              assert.deepStrictEqual(result, mockResponse);
+              sinon.assert.calledOnceWithExactly(
+                fetchSpy,
+                getBaseUrl(
+                  `projects/${projectId}/locations/${location}/interactions`
+                ),
+                {
+                  method: 'POST',
+                  headers: {
+                    ...getExpectedHeaders(),
+                    'Api-Revision': '2026-05-20',
+                  },
+                  redirect: 'manual',
+                  body: JSON.stringify(request),
+                }
+              );
+            });
+
+            it('should not let custom headers change the Api-Revision', async () => {
+              mockFetchResponse({ status: 'completed', steps: [] });
+              await createInteraction(request, {
+                ...currentOptions,
+                customHeaders: { 'Api-Revision': '2025-01-01' },
+              });
+
+              const headers = fetchSpy.lastCall.args[1].headers;
+              assert.strictEqual(headers['Api-Revision'], '2026-05-20');
+            });
+          } else {
+            it('should throw with unsupported for Express', async () => {
+              await assert.rejects(
+                createInteraction(request, currentOptions),
                 notSupportedInExpressErrorMessage
               );
             });

@@ -19,16 +19,17 @@ import { logger } from 'genkit/logging';
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
 import {
+  CreateInteractionRequest,
+  GeminiInteraction,
+} from '../common/interaction-types.js';
+import {
+  INTERACTIONS_API_REVISION,
   buildTraceMetadataInput,
   extractErrMsg,
   getGenkitClientHeader,
   parseRetryAfterMs,
   processStream,
 } from '../common/utils.js';
-import {
-  CreateInteractionRequest,
-  GeminiInteraction,
-} from './interaction-types.js';
 import {
   ClientOptions,
   EmbedContentRequest,
@@ -132,6 +133,7 @@ export async function createInteraction(
     method: 'POST',
     clientOptions,
     body: JSON.stringify(createInteractionRequest),
+    isInteraction: true,
   });
 
   return maybeTraceRequest<GeminiInteraction>(url, fetchOptions, {
@@ -378,10 +380,11 @@ async function getFetchOptions(params: {
   method: 'POST' | 'GET';
   body?: string;
   clientOptions: ClientOptions;
+  isInteraction?: boolean;
 }) {
   const fetchOptions: RequestInit = {
     method: params.method,
-    headers: await getHeaders(params.clientOptions),
+    headers: await getHeaders(params.clientOptions, params.isInteraction),
     redirect: 'manual',
   };
   if (params.body) {
@@ -411,7 +414,10 @@ function getAbortSignal(clientOptions: ClientOptions): AbortSignal | undefined {
   return undefined;
 }
 
-async function getHeaders(clientOptions: ClientOptions): Promise<HeadersInit> {
+async function getHeaders(
+  clientOptions: ClientOptions,
+  isInteraction?: boolean
+): Promise<HeadersInit> {
   const customHeaders = clientOptions.customHeaders || {};
   if (clientOptions.kind == 'express') {
     const headers: HeadersInit = {
@@ -421,6 +427,11 @@ async function getHeaders(clientOptions: ClientOptions): Promise<HeadersInit> {
       'User-Agent': getGenkitClientHeader(),
       ...customHeaders,
     };
+    if (isInteraction) {
+      // Set after the custom headers: the Interactions converters only
+      // understand this revision's schema.
+      headers['Api-Revision'] = INTERACTIONS_API_REVISION;
+    }
     return headers;
   } else {
     const token = await getToken(clientOptions.authClient);
@@ -434,6 +445,11 @@ async function getHeaders(clientOptions: ClientOptions): Promise<HeadersInit> {
     };
     if (clientOptions.apiKey) {
       headers['x-goog-api-key'] = clientOptions.apiKey;
+    }
+    if (isInteraction) {
+      // Set after the custom headers: the Interactions converters only
+      // understand this revision's schema.
+      headers['Api-Revision'] = INTERACTIONS_API_REVISION;
     }
     return headers;
   }

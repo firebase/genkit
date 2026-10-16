@@ -18,6 +18,8 @@ import * as assert from 'assert';
 import { GenkitError, embedderRef, modelRef } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
 import { describe, it } from 'node:test';
+import { fromInteractionSync } from '../../src/common/interaction-converters.js';
+import { InteractionSseEvent } from '../../src/common/interaction-types.js';
 import {
   FinishReason,
   GenerateContentResponse,
@@ -42,9 +44,8 @@ import {
   parseRetryAfterMs,
   parseStreamErrorText,
   processStream,
+  toSnakeCaseObj,
 } from '../../src/common/utils.js';
-import { fromInteractionSync } from '../../src/googleai/interaction-converters.js';
-import { InteractionSseEvent } from '../../src/googleai/interaction-types.js';
 
 const { aggregateResponses } = TEST_ONLY;
 
@@ -814,6 +815,20 @@ describe('Common Utils', () => {
         aggregated.candidates?.[0].content.parts[1].text,
         ' World'
       );
+    });
+  });
+
+  describe('toSnakeCaseObj', () => {
+    it('converts object keys to snake_case', () => {
+      assert.deepStrictEqual(toSnakeCaseObj({ fileSearchStoreNames: ['a'] }), {
+        file_search_store_names: ['a'],
+      });
+    });
+
+    it('returns an empty object for arrays and non-objects', () => {
+      assert.deepStrictEqual(toSnakeCaseObj([{ a: 1 }]), {});
+      assert.deepStrictEqual(toSnakeCaseObj('text'), {});
+      assert.deepStrictEqual(toSnakeCaseObj(null), {});
     });
   });
 

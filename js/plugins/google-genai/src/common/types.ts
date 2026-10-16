@@ -39,8 +39,12 @@ export enum FunctionCallingMode {
   NONE = 'NONE',
 }
 
+/**
+ * Reports whether a value is a non-null object that isn't an array, so its
+ * keys can be read as a record.
+ */
 export function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**

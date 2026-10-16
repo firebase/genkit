@@ -17,7 +17,9 @@
 import { GenkitError, StatusName, type ErrorResponseMetadata } from 'genkit';
 import { logger } from 'genkit/logging';
 import { runInNewSpan } from 'genkit/tracing';
+import { InteractionStreamResult } from '../common/interaction-types.js';
 import {
+  INTERACTIONS_API_REVISION,
   buildTraceMetadataInput,
   extractErrMsg,
   getGenkitClientHeader,
@@ -27,7 +29,6 @@ import {
   parseRetryAfterMs,
   processStream,
 } from '../common/utils.js';
-import { InteractionStreamResult } from './interaction-types.js';
 import { isObject } from './utils.js';
 
 import {
@@ -472,7 +473,7 @@ function getHeaders(
   };
 
   if (isInteraction) {
-    headers['Api-Revision'] = '2026-05-20';
+    headers['Api-Revision'] = INTERACTIONS_API_REVISION;
   }
 
   if (apiKey) {

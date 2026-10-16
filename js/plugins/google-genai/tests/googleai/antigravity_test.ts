@@ -18,11 +18,11 @@ import * as assert from 'assert';
 import { GenerateRequest } from 'genkit/model';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
+import { GeminiInteraction } from '../../src/common/interaction-types.js';
 import {
   AntigravityConfigSchema,
   defineModel,
 } from '../../src/googleai/antigravity.js';
-import { GeminiInteraction } from '../../src/googleai/interaction-types.js';
 import { GoogleAIPluginOptions } from '../../src/googleai/types.js';
 
 describe('Antigravity', () => {
