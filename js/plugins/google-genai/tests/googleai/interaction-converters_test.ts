@@ -224,7 +224,10 @@ describe('Interaction Converters', () => {
     it('sends metadata.processing on inline and URI videos', () => {
       assert.deepStrictEqual(
         toInteractionContent({
-          media: { url: 'data:video/mp4;base64,AAAA', contentType: 'video/mp4' },
+          media: {
+            url: 'data:video/mp4;base64,AAAA',
+            contentType: 'video/mp4',
+          },
           metadata: { processing: 'static' },
         }),
         {
@@ -263,7 +266,10 @@ describe('Interaction Converters', () => {
     it('ignores metadata.processing on media that is not video', () => {
       assert.deepStrictEqual(
         toInteractionContent({
-          media: { url: 'data:image/png;base64,AAAA', contentType: 'image/png' },
+          media: {
+            url: 'data:image/png;base64,AAAA',
+            contentType: 'image/png',
+          },
           metadata: { processing: 'agentic' },
         }),
         { type: 'image', mime_type: 'image/png', data: 'AAAA' }
