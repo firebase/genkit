@@ -22,6 +22,7 @@ import type { AddressInfo } from 'node:net';
 import { afterEach, before, beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
 import { action } from '../src/action.js';
+import { run } from '../src/flow.js';
 import { logger } from '../src/logging.js';
 import { initNodeFeatures } from '../src/node.js';
 import {
@@ -38,6 +39,7 @@ import {
   type InstrumentationSpanInfo,
   type LogRecordingInstrumentation,
 } from '../src/tracing.js';
+import { metadataToAttributes } from '../src/tracing/instrumentation-api.js';
 import { sleep, TestSpanExporter } from './utils.js';
 
 initNodeFeatures();
@@ -485,6 +487,8 @@ describe('span attribute credential redaction', () => {
         clientSecret: CREDENTIAL,
         password: CREDENTIAL,
         authorization: CREDENTIAL,
+        privateKey: CREDENTIAL,
+        private_key: CREDENTIAL,
         temperature: 0.5,
       },
     });
@@ -505,6 +509,8 @@ describe('span attribute credential redaction', () => {
         'clientSecret',
         'password',
         'authorization',
+        'privateKey',
+        'private_key',
       ]) {
         assert.strictEqual(
           parsed.config[key],
@@ -556,5 +562,76 @@ describe('span attribute credential redaction', () => {
       JSON.stringify(input),
       'unaffected inputs must serialize exactly as before'
     );
+  });
+  it('redacts genkit:output that a producer serializes itself', async () => {
+    await runInNewSpan(
+      { metadata: { name: 'selfSerializedOutput' } },
+      async (metadata) => {
+        metadata.output = JSON.stringify({
+          config: { apiKey: CREDENTIAL, temperature: 0.5 },
+        });
+      }
+    );
+
+    const span = spanExporter.exportedSpans.find(
+      (s) => s.displayName === 'selfSerializedOutput'
+    );
+    assert.ok(span, 'selfSerializedOutput span should be exported');
+    const raw = span.attributes['genkit:output'] as string;
+    assert.ok(!raw.includes(CREDENTIAL), raw);
+    assert.deepStrictEqual(JSON.parse(raw), {
+      config: { apiKey: '<redacted>', temperature: 0.5 },
+    });
+  });
+
+  it('redacts credential-shaped keys from flow run() step outputs', async () => {
+    await run('credentialStep', async () => ({
+      config: { apiKey: CREDENTIAL, temperature: 0.5 },
+    }));
+
+    const span = spanExporter.exportedSpans.find(
+      (s) => s.displayName === 'credentialStep'
+    );
+    assert.ok(span, 'credentialStep span should be exported');
+    const raw = span.attributes['genkit:output'] as string;
+    assert.ok(!raw.includes(CREDENTIAL), raw);
+    assert.strictEqual(JSON.parse(raw).config.apiKey, '<redacted>');
+    assert.strictEqual(JSON.parse(raw).config.temperature, 0.5);
+  });
+
+  it('exports a non-JSON genkit:output string unchanged', async () => {
+    await runInNewSpan(
+      { metadata: { name: 'plainTextOutput' } },
+      async (metadata) => {
+        metadata.output = 'apiKey rotation finished';
+      }
+    );
+
+    const span = spanExporter.exportedSpans.find(
+      (s) => s.displayName === 'plainTextOutput'
+    );
+    assert.ok(span, 'plainTextOutput span should be exported');
+    assert.strictEqual(
+      span.attributes['genkit:output'],
+      'apiKey rotation finished'
+    );
+  });
+
+  it('redacts in metadataToAttributes, which every provider uses', () => {
+    // The OTel and Dev UI (direct) providers both build span attributes here.
+    const attributes = metadataToAttributes({
+      name: 'shared',
+      input: { apiKey: CREDENTIAL },
+      init: { privateKey: CREDENTIAL },
+      output: JSON.stringify({ clientSecret: CREDENTIAL }),
+    });
+
+    for (const attr of ['genkit:input', 'genkit:init', 'genkit:output']) {
+      assert.ok(attributes[attr], `${attr} should be set`);
+      assert.ok(
+        !attributes[attr].includes(CREDENTIAL),
+        `${attr}: ${attributes[attr]}`
+      );
+    }
   });
 });

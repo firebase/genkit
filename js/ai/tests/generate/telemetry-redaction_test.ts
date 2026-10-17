@@ -21,6 +21,7 @@ import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { TestSpanExporter } from '../../../core/tests/utils.js';
+import { generate } from '../../src/generate.js';
 import { defineGenerateAction } from '../../src/generate/action.js';
 import { defineProgrammableModel, type ProgrammableModel } from '../helpers.js';
 
@@ -74,6 +75,41 @@ describe('generate telemetry redaction', () => {
       }
     }
 
+    assert.deepStrictEqual(
+      offenders,
+      [],
+      `apiKey leaked into span attributes: ${offenders.join(', ')}`
+    );
+  });
+
+  it('never exports config.apiKey via the generate() veneer', async () => {
+    pm.handleResponse = async () =>
+      ({
+        message: { role: 'model', content: [{ text: 'done' }] },
+        finishReason: 'stop',
+      }) as any;
+
+    // generate() opens its own `generate` util span whose output is the
+    // response, which carries the request (and so its config) back.
+    await generate(registry, {
+      model: 'programmableModel',
+      prompt: 'hello',
+      config: { apiKey: SECRET, temperature: 0.5 } as any,
+    });
+
+    const offenders: string[] = [];
+    for (const span of spanExporter.exportedSpans) {
+      for (const [attrKey, attrValue] of Object.entries(span.attributes)) {
+        if (typeof attrValue === 'string' && attrValue.includes(SECRET)) {
+          offenders.push(`${span.displayName} -> ${attrKey}`);
+        }
+      }
+    }
+
+    assert.ok(
+      spanExporter.exportedSpans.some((s) => s.displayName === 'generate'),
+      'generate span should be exported'
+    );
     assert.deepStrictEqual(
       offenders,
       [],

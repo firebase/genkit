@@ -148,7 +148,7 @@ export function firstNonEmpty(ids: (string | undefined)[]): string {
  * that trace consumers read.
  */
 const REDACTED_KEY_PATTERN =
-  /api[-_]*key|secret|pass[-_]*word|passwd|credential|authorization|(?:access|refresh|session|bearer|auth|id|api)[-_]*token/i;
+  /api[-_]*key|private[-_]*key|secret|pass[-_]*word|passwd|credential|authorization|(?:access|refresh|session|bearer|auth|id|api)[-_]*token/i;
 
 function isRedactedKey(key: string): boolean {
   return REDACTED_KEY_PATTERN.test(key);
@@ -169,24 +169,31 @@ function redactCredentials(value: unknown): unknown {
 }
 
 /**
- * Serializes a value for a span attribute without exporting credentials that
- * arbitrary (`passthrough`) config objects may carry. Redacted keys are kept
- * with a `'<redacted>'` value so the attribute stays valid JSON of the same
- * shape for existing trace consumers.
- *
- * @hidden
+ * Redacts credential-shaped keys from a serialized JSON value. Redacted keys
+ * are kept with a `'<redacted>'` value so the attribute stays valid JSON of the
+ * same shape for existing trace consumers. A string that mentions none of the
+ * redacted key names, or is not JSON, is returned unchanged.
  */
-export function telemetryJsonString(value: unknown): string | undefined {
-  const raw = JSON.stringify(value);
-  // Most span values carry no credentials. Avoid walking the value unless the
-  // serialized form mentions one of the redacted key names.
-  if (raw === undefined) {
-    return raw;
-  }
+function redactJsonString(raw: string): string {
+  // Most span values carry no credentials. Avoid parsing the value unless it
+  // mentions one of the redacted key names.
   if (!REDACTED_KEY_PATTERN.test(raw)) {
     return raw;
   }
-  return JSON.stringify(redactCredentials(JSON.parse(raw)));
+  try {
+    return JSON.stringify(redactCredentials(JSON.parse(raw)));
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * Serializes a value for a span attribute without exporting credentials that
+ * arbitrary (`passthrough`) config objects may carry.
+ */
+function telemetryJsonString(value: unknown): string | undefined {
+  const raw = JSON.stringify(value);
+  return raw === undefined ? raw : redactJsonString(raw);
 }
 
 /**
@@ -217,6 +224,10 @@ export function metadataToAttributes(
       if (json !== undefined) {
         out[ATTR_PREFIX + ':' + key] = json;
       }
+    } else if (key === 'output' && typeof metadata[key] === 'string') {
+      // Producers set `output` already serialized, so it is redacted here,
+      // once for every producer and provider, rather than at each call site.
+      out[ATTR_PREFIX + ':' + key] = redactJsonString(metadata[key]);
     } else {
       out[ATTR_PREFIX + ':' + key] = metadata[key];
     }

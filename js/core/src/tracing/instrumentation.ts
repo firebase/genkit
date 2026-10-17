@@ -51,7 +51,6 @@ export {
   SPAN_TYPE_ATTR,
   disableOTelRootSpanDetection,
   spanMetadataAlsKey,
-  telemetryJsonString,
   type GenkitLogRecord,
   type GenkitSpanContext,
   type Instrumentation,
