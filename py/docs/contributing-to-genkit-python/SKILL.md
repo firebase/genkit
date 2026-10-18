@@ -105,7 +105,19 @@ Keep state as plain data. History, `Operation`, anything a user might store: it 
 
 The call that causes a problem should be the one that reports it. If a bad argument is accepted at setup and only fails three calls later inside `generate`, the user is debugging the wrong line.
 
-Tell "broken" apart from "down right now". A typo, a protocol error or a name collision should fail loudly. A server that's unreachable or timed out can be skipped and logged so the rest keeps working. Either way, raise a `GenkitError` with a status the caller can branch on.
+Raise `GenkitError` when something downstream reads the status. That's anything raised while an action runs: model, embedder, tool, evaluator, or Genkit's own code inside `generate`. Retry and Fallback decide what to do from the status, and Retry retries any exception that isn't a `GenkitError`, so a plain `ValueError` for a bad request gets sent again. Pick the status by asking whether trying again could help:
+
+- **`INVALID_ARGUMENT`**: the caller passed something wrong. Not retried.
+- **`NOT_FOUND`**: the model, tool or other thing they named doesn't exist.
+- **`FAILED_PRECONDITION`**: the input is fine, but something isn't set up yet, like a missing session store.
+- **`INTERNAL`**: a bug in Genkit or the plugin. Retry treats this as transient, so don't use it for the caller's mistakes.
+- **Provider failures**: wrap them with `provider_error(...)`. It maps the HTTP status and reads `Retry-After`.
+
+Set `reason=` when callers will branch on the failure. Leave it off otherwise.
+
+Raise a plain Python exception when the user calls Python wrong at setup, before any action runs. Passing the wrong type to a plugin constructor is a `TypeError`, and passing two arguments that conflict is a `ValueError`. These show up on the user's own line, and nothing branches on their status. Validators on a Pydantic config raise `ValueError` too; Pydantic turns that into a `ValidationError`, and Genkit reports it as `INVALID_ARGUMENT`.
+
+`PublicError` is for code that wants the HTTP caller to see the message: app code, and web adapters rejecting a malformed request body. Model, tool and other provider plugins never raise it. Everything else reaches the HTTP caller as a generic message, usually a 500.
 
 An error should name the user's thing and say how to fix it: "server 'linear' isn't a stdio entry", not "2 validation errors" or an interpreter path. It should never echo the value back, because the value might be someone's key.
 
