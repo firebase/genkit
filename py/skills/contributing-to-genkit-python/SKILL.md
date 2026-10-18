@@ -112,6 +112,8 @@ Keep state as plain data. History, `Operation`, anything a user might store: it 
 
 The call that causes a problem should be the one that reports it. If a bad argument is accepted at setup and only fails three calls later inside `generate`, the user is debugging the wrong line.
 
+Check at the surface, trust inside. Python doesn't enforce annotations, so a user can pass anything, whatever the signature says. Validate and normalize input where it enters Genkit: `generate`, a plugin constructor, a `define_*` call, an action's input. Turn a dict into the typed config and a model name into a ref, and raise right there if it doesn't fit. Past that point, the data matches its types, and downstream code trusts them instead of checking again. If you find yourself adding `isinstance` checks deep inside, the boundary let something through; fix the boundary.
+
 Raise `GenkitError` when something downstream reads the status. That's anything raised while an action runs: model, embedder, tool, evaluator, or Genkit's own code inside `generate`. Retry and Fallback decide what to do from the status, and Retry retries any exception that isn't a `GenkitError`, so a plain `ValueError` for a bad request gets sent again. Pick the status by asking whether trying again could help:
 
 - **`INVALID_ARGUMENT`**: the caller passed something wrong. Not retried.
