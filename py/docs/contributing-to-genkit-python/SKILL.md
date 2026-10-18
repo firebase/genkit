@@ -101,8 +101,6 @@ One input shape per idea. If the constructor accepts a config entry, the method 
 
 Inputs are `Literal`s. Values you match on are enums. If the user passes the value in, type it as a `Literal`: `thinking_level='high'`, `api_type='chat'`. There's no extra type to import, the IDE still autocompletes it, and a typo fails the type check. Use a `StrEnum` only when callers write code that branches on specific values, which almost always means something Genkit hands back: `response.finish_reason == FinishReason.FAILED`, `err.reason == RuntimeErrorReason.TOOL_FAILED`. `StrEnum` keeps comparison against the plain string working. Don't export an enum just so users can pass one of its values in. If the set keeps growing, like model ids, type it as `KnownGeminiModel | str`: users get autocomplete, and a new id works the day it ships.
 
-Keep what the model sees separate from what the developer sees. Partial stream chunks don't go into history. A tool's return value isn't the same object as the tool-response wrapper the model reads.
-
 Keep state as plain data. History, `Operation`, anything a user might store: it should round-trip through JSON.
 
 The call that causes a problem should be the one that reports it. If a bad argument is accepted at setup and only fails three calls later inside `generate`, the user is debugging the wrong line.
