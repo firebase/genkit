@@ -39,8 +39,8 @@ If your PR changes any of these, add this section. Say what changed on the wire,
 
 If nothing on the wire changed, leave the section out. A Python-only rename doesn't belong here, as long as the JSON stays the same.
 
-## Open question and verification
+## Open question
 
-Put anything you haven't decided under `## Open question` with the options, so nobody approves a choice nobody made. Finish with what you actually ran to check it.
+Put anything you haven't decided under `## Open question` with the options, so nobody approves a choice nobody made.
 
 Leave out the story of how you got here, review-thread history, and "matches JS" as a reason. Describe the end state and why it's right for the user.
