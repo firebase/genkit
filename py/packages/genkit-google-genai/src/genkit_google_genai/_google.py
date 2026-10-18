@@ -50,16 +50,16 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any, NoReturn
 
+import httpx
 from google import genai
 from google.auth import default as google_auth_default
 from google.auth.credentials import Credentials
 from google.auth.exceptions import DefaultCredentialsError
-from google.genai.client import DebugConfig
 from google.genai.errors import APIError
-from google.genai.types import HttpOptions, HttpOptionsDict, Model as GenaiModel
+from google.genai.types import HttpOptions, Model as GenaiModel
 from pydantic import BaseModel
 
 import genkit_google_genai._constants as const
@@ -626,10 +626,11 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
         *,
         api_key: str | None = None,
         credentials: Credentials | None = None,
-        debug_config: DebugConfig | None = None,
-        http_options: HttpOptions | HttpOptionsDict | None = None,
         api_version: str | None = None,
         base_url: str | None = None,
+        headers: Mapping[str, str] | None = None,
+        timeout_seconds: float | None = None,
+        http_client: httpx.AsyncClient | None = None,
         legacy_response_schema: bool = False,
     ) -> None:
         """Initializes the GoogleAI plugin.
@@ -641,11 +642,16 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
             credentials: Google Cloud credentials for authentication.
                 Defaults to None, in which case the client uses default authentication
                 mechanisms (e.g., application default credentials or API key).
-            debug_config: Configuration for debugging the client. Defaults to None.
-            http_options: HTTP options for configuring the client's network requests.
-                Can be an instance of HttpOptions or a dictionary. Defaults to None.
             api_version: The API version to use (e.g., 'v1beta'). Defaults to None.
             base_url: The base URL for the API. Defaults to None.
+            headers: Extra HTTP headers sent on every request. Genkit appends
+                its client attribution to ``x-goog-api-client`` and ``user-agent``.
+            timeout_seconds: Per-request timeout in seconds. Defaults to no
+                timeout. The timeout set on ``http_client`` itself is not used.
+            http_client: An ``httpx.AsyncClient`` that model calls go through,
+                for proxies, mTLS, or a custom transport. Genkit never closes
+                it. Vertex evaluators and downloads of media URLs in prompts
+                don't use it.
             legacy_response_schema: Send JSON output schemas as Gemini's
                 ``responseSchema`` field instead of ``responseJsonSchema``,
                 converted to its format; a schema that cannot be converted
@@ -671,8 +677,13 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
             'vertexai': self._vertexai,
             'api_key': api_key,
             'credentials': credentials,
-            'debug_config': debug_config,
-            'http_options': _inject_attribution_headers(http_options, base_url, api_version),
+            'http_options': _plugin_http_options(
+                base_url=base_url,
+                api_version=api_version,
+                headers=headers,
+                timeout_seconds=timeout_seconds,
+                http_client=http_client,
+            ),
         }
         self._base_url_pinned = bool(self._client_kwargs['http_options'].base_url)
         self._legacy_response_schema = legacy_response_schema
@@ -694,6 +705,7 @@ class GoogleAI(GoogleFamilyRefs, Plugin):
             base_url=http_options.base_url,
             custom_headers=dict(http_options.headers) if http_options.headers else None,
             timeout=float(http_options.timeout) if http_options.timeout is not None else None,
+            http_client=http_options.httpx_async_client,
         )
 
     def _plugin_api_key(self) -> str | None:
@@ -1065,11 +1077,12 @@ class VertexAI(GoogleFamilyRefs, Plugin):
         credentials: Credentials | None = None,
         project: str | None = None,
         location: str | None = None,
-        debug_config: DebugConfig | None = None,
-        http_options: HttpOptions | HttpOptionsDict | None = None,
         api_key: str | None = None,
         api_version: str | None = None,
         base_url: str | None = None,
+        headers: Mapping[str, str] | None = None,
+        timeout_seconds: float | None = None,
+        http_client: httpx.AsyncClient | None = None,
         legacy_response_schema: bool = False,
     ) -> None:
         """Initializes the VertexAI plugin.
@@ -1083,14 +1096,19 @@ class VertexAI(GoogleFamilyRefs, Plugin):
                 (e.g. 'us-central1'), multi-regions ('us', 'eu'), or 'global'.
                 Falls back to the GOOGLE_CLOUD_LOCATION or GCLOUD_LOCATION
                 environment variable, then 'us-central1'.
-            debug_config: Configuration for debugging the client. Defaults to None.
-            http_options: HTTP options for configuring the client's network requests.
-                Can be an instance of HttpOptions or a dictionary. Defaults to None.
             api_key: The API key for authenticating with the Google AI service.
                 If not provided, it defaults to reading from the 'GEMINI_API_KEY'
                 environment variable.
             api_version: The API version to use. Defaults to None.
             base_url: The base URL for the API. Defaults to None.
+            headers: Extra HTTP headers sent on every request. Genkit appends
+                its client attribution to ``x-goog-api-client`` and ``user-agent``.
+            timeout_seconds: Per-request timeout in seconds. Defaults to no
+                timeout. The timeout set on ``http_client`` itself is not used.
+            http_client: An ``httpx.AsyncClient`` that model calls go through,
+                for proxies, mTLS, or a custom transport. Genkit never closes
+                it. Vertex evaluators and downloads of media URLs in prompts
+                don't use it.
             legacy_response_schema: Send JSON output schemas as Gemini's
                 ``responseSchema`` field instead of ``responseJsonSchema``,
                 converted to its format; a schema that cannot be converted
@@ -1106,7 +1124,13 @@ class VertexAI(GoogleFamilyRefs, Plugin):
             or const.DEFAULT_REGION
         )
 
-        opts = _inject_attribution_headers(http_options, base_url, api_version)
+        opts = _plugin_http_options(
+            base_url=base_url,
+            api_version=api_version,
+            headers=headers,
+            timeout_seconds=timeout_seconds,
+            http_client=http_client,
+        )
         self._base_url_pinned = bool(opts.base_url)
         self._legacy_response_schema = legacy_response_schema
         multi_region = const.is_multi_regional_location(self._location)
@@ -1141,7 +1165,6 @@ class VertexAI(GoogleFamilyRefs, Plugin):
             'credentials': credentials,
             'project': self._project,
             'location': self._location,
-            'debug_config': debug_config,
             'http_options': opts,
         }
         # Single loop-local client accessor used everywhere in plugin runtime paths.
@@ -1414,37 +1437,32 @@ class VertexAI(GoogleFamilyRefs, Plugin):
         return actions_list
 
 
-def _inject_attribution_headers(
-    http_options: HttpOptions | HttpOptionsDict | None = None,
+def _plugin_http_options(
+    *,
     base_url: str | None = None,
     api_version: str | None = None,
+    headers: Mapping[str, str] | None = None,
+    timeout_seconds: float | None = None,
+    http_client: httpx.AsyncClient | None = None,
 ) -> HttpOptions:
-    """Adds genkit client info to the appropriate http headers."""
-    if not http_options:
-        opts = HttpOptions()
-    elif isinstance(http_options, HttpOptions):
-        # Copy so plugin-derived settings never mutate the caller's object
-        # (which may be shared across plugin instances).
-        opts = http_options.model_copy(deep=True)
-    else:
-        opts = HttpOptions.model_validate(http_options)
+    """Build the SDK's HttpOptions from the plugin's network arguments."""
+    if http_client is not None and not isinstance(http_client, httpx.AsyncClient):
+        raise TypeError(
+            f'http_client must be an httpx.AsyncClient, got {type(http_client).__name__}. '
+            'Genkit calls models asynchronously.'
+        )
 
-    if base_url:
-        opts.base_url = base_url
-    if api_version:
-        opts.api_version = api_version
+    merged = dict(headers or {})
+    for name in ('x-goog-api-client', 'user-agent'):
+        # The SDK adds its own tag under the lowercase name, so a caller's
+        # User-Agent has to move there or the request carries two of them.
+        caller = [merged.pop(k) for k in list(merged) if k.lower() == name]
+        merged[name] = ' '.join([*caller, GENKIT_CLIENT_HEADER])
 
-    if not opts.headers:
-        opts.headers = {}
-
-    if 'x-goog-api-client' not in opts.headers:
-        opts.headers['x-goog-api-client'] = GENKIT_CLIENT_HEADER
-    else:
-        opts.headers['x-goog-api-client'] += f' {GENKIT_CLIENT_HEADER}'
-
-    if 'user-agent' not in opts.headers:
-        opts.headers['user-agent'] = GENKIT_CLIENT_HEADER
-    else:
-        opts.headers['user-agent'] += f' {GENKIT_CLIENT_HEADER}'
-
-    return opts
+    return HttpOptions(
+        base_url=base_url or None,
+        api_version=api_version or None,
+        headers=merged,
+        timeout=round(timeout_seconds * 1000) if timeout_seconds is not None else None,
+        httpx_async_client=http_client,
+    )

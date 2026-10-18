@@ -41,6 +41,7 @@ from genkit_google_genai._models._sdk_config import (
     VIRTUAL_TRY_ON_MANAGED_BODY_FIELDS,
     attach_config_extra,
     attach_leftovers,
+    copy_http_options,
     dump_family_config,
     keep_client_extra_body,
     sdk_config_error,
@@ -397,7 +398,7 @@ class VirtualTryOnModel:
         # The model is Vertex-only; a request-scoped client stays on that backend.
         kwargs.setdefault('vertexai', True)
         plugin_opts = kwargs.get('http_options')
-        opts = plugin_opts.model_copy(deep=True) if plugin_opts is not None else genai_types.HttpOptions()
+        opts = copy_http_options(plugin_opts) if plugin_opts is not None else genai_types.HttpOptions()
         if api_key is not None:
             # An express key goes to the global Vertex host: drop the plugin's
             # credentials, project and host and any location, keeping only a

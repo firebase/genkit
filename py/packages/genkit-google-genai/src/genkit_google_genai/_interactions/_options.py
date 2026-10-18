@@ -20,7 +20,8 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+import httpx
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 from typing_extensions import Self
 
@@ -34,7 +35,9 @@ class ClientOptions(BaseModel):
     them; check/cancel receive the options needed for their own request.
     """
 
-    model_config = ConfigDict(alias_generator=to_camel, extra='ignore', populate_by_name=True)
+    model_config = ConfigDict(
+        alias_generator=to_camel, extra='ignore', populate_by_name=True, arbitrary_types_allowed=True
+    )
 
     api_key: str | None = None
     api_version: str | None = None
@@ -42,6 +45,8 @@ class ClientOptions(BaseModel):
     custom_headers: dict[str, str] | None = None
     # Milliseconds — applied to the HTTP call, not the create body.
     timeout: float | None = None
+    # Only the plugin sets this; a request config can't swap the connection.
+    http_client: httpx.AsyncClient | None = Field(default=None, exclude=True)
 
     def merge(self, overrides: ClientOptions | dict[str, Any] | None) -> Self:
         """Return a copy with non-null override fields applied."""
