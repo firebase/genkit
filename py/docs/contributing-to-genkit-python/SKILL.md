@@ -40,7 +40,16 @@ If the snippet is awkward to write, the API is awkward. Change the API. Don't ex
 
 Everything goes through `ai`. The registry is private; if you need to look something up, it's `ai.lookup_model`, `ai.lookup_tool`, `ai.lookup_value`. Experimental features live on `genkit.exp.Genkit`, which subclasses the stable one. The stable class never picks up experimental methods, so changing the import is how you opt in.
 
-Modules are split by who's reading them. `genkit` is for people building an app. `genkit.model`, `genkit.embedder`, `genkit.evaluator` and `genkit.middleware` are for people writing one of those. `genkit.plugin_api` is for plugin packages. Every name has exactly one home. If you're tempted to re-export something "for convenience", it's probably in the wrong module.
+Modules are split by who's reading them:
+
+- `genkit` is for people building an app.
+- `genkit.model`, `genkit.embedder`, `genkit.evaluator` and `genkit.middleware` are for people writing one of those.
+- `genkit.plugin_api` is for plugin packages.
+- `genkit.testing` holds fake models (`define_echo_model`, `define_scripted_model`) for testing flows, agents and plugins without a provider.
+- `genkit.telemetry` is for people wiring traces into a recording backend, and for resetting instrumentation between tests.
+- `genkit.web` is for people writing their own server adapter instead of using `genkit_fastapi`, `genkit_flask` or `genkit_django`.
+
+There will be more. A new namespace needs a distinct reader that none of the existing ones serve, not just a group of related names. Every name has exactly one home. If you're tempted to re-export something "for convenience", it's probably in the wrong module.
 
 Everything is an action: one input, one output, maybe chunks. The function a user writes takes one request. If it needs context, it says so with an annotation (`ToolContext[ChunkT]`, `FlowContext[ChunkT]`, `ModelContext`), and typed config comes in through `Request[Cfg]`. Types flow from those annotations. Nobody should have to write `Operation[ModelResponse]` on something Genkit just handed them.
 
