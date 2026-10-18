@@ -34,7 +34,7 @@ def copy_http_options(opts: genai_types.HttpOptions) -> genai_types.HttpOptions:
     """
     update: dict[str, Any] = {}
     for field in ('headers', 'client_args', 'async_client_args'):
-        value = getattr(opts, field)
+        value = getattr(opts, field, None)
         if value is not None:
             update[field] = dict(value)
     if opts.extra_body is not None:

@@ -1451,6 +1451,8 @@ def _plugin_http_options(
             f'http_client must be an httpx.AsyncClient, got {type(http_client).__name__}. '
             'Genkit calls models asynchronously.'
         )
+    if timeout_seconds is not None and timeout_seconds < 0:
+        raise ValueError('timeout_seconds must be non-negative')
 
     merged = dict(headers or {})
     for name in ('x-goog-api-client', 'user-agent'):

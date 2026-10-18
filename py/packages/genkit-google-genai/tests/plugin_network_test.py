@@ -259,3 +259,10 @@ def test_sync_httpx_client_raises_type_error_naming_async_client(plugin_class: A
     sync_client: Any = httpx.Client()
     with pytest.raises(TypeError, match=r'http_client must be an httpx\.AsyncClient, got Client'):
         plugin_class(api_key='k', http_client=sync_client)
+
+
+@pytest.mark.parametrize('plugin_class', [GoogleAI, vertex_ai])
+def test_negative_timeout_seconds_raises_value_error(plugin_class: Any) -> None:  # noqa: ANN401
+    """timeout_seconds=-1 raises ValueError at construction."""
+    with pytest.raises(ValueError, match='timeout_seconds must be non-negative'):
+        plugin_class(api_key='k', timeout_seconds=-1)
