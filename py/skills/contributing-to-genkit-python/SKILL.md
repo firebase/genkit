@@ -153,3 +153,16 @@ If it's ever going to be JSON, it's Pydantic. The base class depends on who owns
 If it's only in-process data, like a handle or a context object passed around (`ModelRef`, `SpanMetadata`, `TurnContext`), use a frozen, keyword-only dataclass. Frozen means nothing downstream can quietly change it.
 
 If it does things or has a lifecycle (`Genkit`, `Tool`, `Prompt`, `StreamResponse`, `Plugin`, `Middleware`), it's a plain class with private state and methods. Don't make it a Pydantic model just to get a free constructor: every internal field becomes public.
+
+## Imports and module structure
+
+Put imports at the top of the file. Import inside a function only when you mean to:
+
+- **Lazy loading**: a heavy module that most callers never need shouldn't slow down `import genkit`.
+- **Optional dependencies**: an extra that isn't installed (`uvloop`, a provider SDK) must not crash code that doesn't use it. Import it where it's used and raise a clear error if it's missing.
+
+Leave a comment saying which one it is, so nobody "fixes" it later.
+
+Don't put imports under `if TYPE_CHECKING:`. If you need one to break an import cycle, the modules depend on each other in both directions. Dependencies should run one way: lower-level modules never import higher-level ones, and the folder layout should show that order. Fix the cycle by moving the shared piece down a level, not by hiding the import from the runtime.
+
+There's a runtime cost too. Genkit reads a flow's or tool's annotations when it's defined to build its schemas, so a type that's only imported under `TYPE_CHECKING` fails at definition time.
