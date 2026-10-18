@@ -89,11 +89,11 @@ Auth and secrets ride on `context=`. Nested calls inherit it, traces redact it, 
 
 ## Judgment calls
 
-Naming is a very important consideration. You want to choose intuitive names so that external contributors can understand the API without having to read the docs. Use the same name for the same idea everywhere. If two calls disagree, someone will guess wrong.
+Naming for any public symbols and methods is a very important consideration. Use the same name for the same idea everywhere. If two calls disagree, someone will guess wrong. You want to choose intuitive names so that external contributors can understand the API without having to read the docs.
 
-A decorated function should still work when you call it yourself. `await check_allergens(order)` runs the same action Genkit runs when the model calls the tool: the input is validated the same way and the call gets the same trace span. That's what makes a unit test that calls the tool directly worth having. Don't add a path that only runs inside `generate`, or the test checks something the model never hits.
+A decorated function should still work when you call it yourself. `await check_allergens(order)` runs the same action Genkit runs when the model calls the tool: the input is validated the same way and the call gets the same trace span. That's what makes a unit test that calls the tool directly worth having. Don't add a path that only runs inside `generate`, or the test checks something the model never hits. If the function does different things depending on whether it's called by a user or by a model, document that in a comment.
 
-Two ways to do one thing is fine only if they end up as the same thing: a dict or a typed config, a model name string or a ref, a `.prompt` file or `define_prompt`. Otherwise pick one. Be suspicious of your own convenience features: "accepts one or a list", a helper that just builds a string, the same type importable from two places. They rarely earn their keep.
+Be very conservative about union types on the veneer layer, and about multiple ways to do the same thing in general. Sometimes a second way is justified, but in most cases one way is more intuitive and easier to document. If you go against this, explain why in the PR description.
 
 What one call returns should go straight into the call that uses it. If `get_active_tools()` exists so people can pass the result to `generate(tools=...)`, it returns `list[Tool]`, not some internal type that fails validation.
 
