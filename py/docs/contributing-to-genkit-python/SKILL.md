@@ -95,7 +95,7 @@ A decorated function should still work when you call it yourself. `await check_a
 
 Be very conservative about union types on the veneer layer, and about multiple ways to do the same thing in general. Sometimes a second way is justified, but in most cases one way is more intuitive and easier to document. If you go against this, explain why in the PR description.
 
-What one call returns should go straight into the call that uses it. If `get_active_tools()` exists so people can pass the result to `generate(tools=...)`, it returns `list[Tool]`, not some internal type that fails validation.
+Return types should plug into the next call. If a user gets something back from Genkit and the obvious next step is to pass it to another Genkit call, that call should accept it as-is, with no converting or unwrapping. A tool you get back from `ai.lookup_tool()` goes straight into `generate(tools=[...])`.
 
 One input shape per idea. If the constructor accepts a config entry, the method that adds one later accepts the same entry.
 
