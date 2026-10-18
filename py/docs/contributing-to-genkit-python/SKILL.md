@@ -32,9 +32,35 @@ The same ideas in every language, written the way that language writes them. The
 
 ## Start with the snippet
 
-Before writing any code, write the thing a user would paste into their app. Use a real-ish domain (orders, a menu, a refund, not `foo`), number the steps, and put `# =>` under anything that comes back. Then write one line each for the ways it can go wrong: "unknown key raises `INVALID_ARGUMENT` naming the key", "the tool fails mid-turn, so you get `finish_reason == FAILED` and the history up to that point".
+Before writing any code, write the thing a user would paste into their app. Use a real-ish domain (orders, a menu, a refund, not `foo`) and number the steps. Use comments to explain what each call does, put `# =>` under anything that comes back, and write the ways it can go wrong as comments too:
 
-If the snippet is awkward to write, the API is awkward. Change the API. Don't explain it in the docs.
+```python
+# 1. Register a tool the model can call
+@ai.tool()
+async def check_allergens(order: Order) -> AllergenReport:
+    return await kitchen.allergens(order.items)
+
+# 2. Generate with the tool; Genkit runs the tool calls and loops until the model answers
+response = await ai.generate(
+    model=GoogleAI.gemini('gemini-flash-latest'),
+    prompt='Is the pad thai safe for a peanut allergy?',
+    tools=[check_allergens],
+)
+print(response.text)
+# => No. The pad thai is garnished with crushed peanuts.
+
+# 3. An unknown config key raises before anything is sent
+await ai.generate(prompt='...', config={'temprature': 0.2})
+# => GenkitError: INVALID_ARGUMENT, names 'temprature'
+
+# 4. If the tool fails mid-turn, generate doesn't raise; the turn comes back failed
+#    with the history so far, so the user can retry without paying for it twice
+response = await ai.generate(prompt='Is the curry safe?', tools=[check_allergens])
+response.finish_reason == FinishReason.FAILED
+# => True
+```
+
+If the snippet is awkward to write, or a comment has to explain something surprising, the API is awkward. Change the API. Don't explain it in the docs.
 
 ## How the pieces fit
 
