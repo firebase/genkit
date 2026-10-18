@@ -22,7 +22,7 @@ One way to call any model. `generate` looks the same whichever provider is behin
 
 Everything you define, you can see and run. Every action is traced, takes and returns JSON, and shows up in the Dev UI where you can run it by hand. If a new feature can't be run from the Dev UI, or shows up in a trace as an opaque blob, it isn't done.
 
-Extra behavior is opt-in. Retry, fallback, tool approval and similar features are middleware the user adds with `use=`. The core doesn't retry a failed call, switch models, or pause for approval unless someone asked it to.
+The core is as unopinionated as possible. It runs what you asked for and nothing more: it doesn't retry a failed call, switch models, or pause for approval on its own. Behavior like that comes from middleware the user adds with `use=` (retry, fallback, tool approval) or from plugins. If a feature takes a stance on how an app should behave, it belongs in one of those, not in the core.
 
 A few small pieces that compose. Actions, middleware and plugins should cover most new features. If something truly needs a new kind of thing, that's a big decision, so treat it like one.
 
