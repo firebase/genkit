@@ -46,7 +46,13 @@ from typing_extensions import TypeVar
 
 from genkit._core._channel import Channel, CloseableQueue
 from genkit._core._compat import StrEnum
-from genkit._core._error import GenkitError, Interrupt, RuntimeErrorReason, mark_request_error
+from genkit._core._error import (
+    GenkitError,
+    Interrupt,
+    RuntimeErrorReason,
+    mark_request_error,
+    served_stream_error_event,
+)
 from genkit._core._model import (
     EmbedRequest,
     ModelRequest,
@@ -199,6 +205,30 @@ class ActionResponse(BaseModel, Generic[ResponseT]):
 ChunkT_co = TypeVar('ChunkT_co', covariant=True)
 OutputT_co = TypeVar('OutputT_co', covariant=True)
 
+_SSE_JSON_SEPARATORS = (',', ':')
+
+
+def _to_sse_value(obj: Any) -> Any:  # noqa: ANN401
+    raw = getattr(obj, 'raw', None)
+    if isinstance(raw, BaseModel):
+        return raw.model_dump(by_alias=True, exclude_none=True)
+    if isinstance(obj, BaseModel):
+        return obj.model_dump(by_alias=True, exclude_none=True)
+    return obj
+
+
+async def _stream_to_sse(
+    stream: AsyncIterator[Any],
+    response: Awaitable[Any],
+) -> AsyncIterator[str]:
+    try:
+        async for chunk in stream:
+            yield f'data: {json.dumps({"message": _to_sse_value(chunk)}, separators=_SSE_JSON_SEPARATORS)}\n\n'
+        result = await response
+        yield f'data: {json.dumps({"result": _to_sse_value(result)}, separators=_SSE_JSON_SEPARATORS)}\n\n'
+    except Exception as e:
+        yield served_stream_error_event(error=e)
+
 
 class StreamResponse(Generic[ChunkT_co, OutputT_co]):
     """Chunks from a running flow, then its result.
@@ -245,6 +275,10 @@ class StreamResponse(Generic[ChunkT_co, OutputT_co]):
     def __aiter__(self) -> AsyncIterator[ChunkT_co]:
         # `async for chunk in result` reads `.stream`, so callers can skip the hop.
         return self._stream.__aiter__()
+
+    def to_sse(self) -> AsyncIterator[str]:
+        r"""Frame this stream as Genkit SSE lines (``data: {"message"|"result"|"error": ...}\n\n``)."""
+        return _stream_to_sse(self._stream, self._response)
 
 
 class ActionMetadataKey(StrEnum):
