@@ -102,6 +102,8 @@ A decorated function should still work when you call it yourself. `await check_a
 
 Be very conservative about union types on the veneer layer, and about multiple ways to do the same thing in general. Sometimes a second way is justified, but in most cases one way is more intuitive and easier to document. If you go against this, explain why in the PR description.
 
+Config is the example of a good reason. It accepts a dict or the typed config class, because the Dev UI talks to your app through the reflection server, and everything it sends, config included, arrives as JSON. Genkit has to accept the dict, and it validates it into the same class right away, so code past the boundary only ever sees one shape. Every exception to this rule should have a reason that concrete.
+
 Return types should plug into the next call. If a user gets something back from Genkit and the obvious next step is to pass it to another Genkit call, that call should accept it as-is, with no converting or unwrapping. A tool you get back from `ai.lookup_tool()` goes straight into `generate(tools=[...])`.
 
 One input shape per idea. If the constructor accepts a config entry, the method that adds one later accepts the same entry.
