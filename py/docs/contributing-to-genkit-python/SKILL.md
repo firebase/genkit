@@ -16,13 +16,13 @@ The public API surface is the product. Keep it as small and tight as you can. Ev
 
 If you can solve the problem without adding to the surface, do that. If you can't, add the smallest thing that leaves room to grow.
 
-Your code is the app. A flow or a tool is your own function with a decorator on it, typed by its own annotations. Genkit shouldn't need a second config language or a parallel class hierarchy to understand what you wrote. A `.prompt` file and `define_prompt` produce the same object.
+Your code stays plain Python. A flow or a tool is a function you wrote with a decorator on it, and Genkit gets its input and output types from the function's annotations. Users shouldn't have to describe the same thing twice, once in Python and again in a schema or wrapper class that Genkit requires.
 
 One way to call any model. `generate` looks the same whichever provider is behind it, and provider-specific features come in through that model's typed config, not a separate API. Switching models should mean changing the ref, not rewriting the call.
 
 Everything you define, you can see and run. Every action is traced, takes and returns JSON, and shows up in the Dev UI where you can run it by hand. If a new feature can't be run from the Dev UI, or shows up in a trace as an opaque blob, it isn't done.
 
-Genkit doesn't do things you didn't ask for. It sends what you wrote. Retry, fallback, approval and the like are middleware you opt into with `use=`, not behavior baked into the core.
+Extra behavior is opt-in. Retry, fallback, tool approval and similar features are middleware the user adds with `use=`. The core doesn't retry a failed call, switch models, or pause for approval unless someone asked it to.
 
 A few small pieces that compose. Actions, middleware and plugins should cover most new features. If something truly needs a new kind of thing, that's a big decision, so treat it like one.
 
@@ -58,7 +58,7 @@ Use the same name for the same idea everywhere. It's `config=` on every call. If
 
 Calling something directly should behave like Genkit calling it. `await my_tool(x)` returns and fails exactly the way it would inside `generate`, so tests mean something.
 
-Two ways to do one thing is fine only if they end up as the same thing: a dict or a typed config, a model name string or a ref. Otherwise pick one. Be suspicious of your own convenience features: "accepts one or a list", a helper that just builds a string, the same type importable from two places. They rarely earn their keep.
+Two ways to do one thing is fine only if they end up as the same thing: a dict or a typed config, a model name string or a ref, a `.prompt` file or `define_prompt`. Otherwise pick one. Be suspicious of your own convenience features: "accepts one or a list", a helper that just builds a string, the same type importable from two places. They rarely earn their keep.
 
 What one call returns should go straight into the call that uses it. If `get_active_tools()` exists so people can pass the result to `generate(tools=...)`, it returns `list[Tool]`, not some internal type that fails validation.
 
