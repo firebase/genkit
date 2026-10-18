@@ -10,6 +10,7 @@ Read the rest of this file for any change to the public surface. Read these too 
 - **Changing a plugin package**: [references/plugins.md](references/plugins.md). What a plugin exports and how its config is shaped.
 - **Changing a generated wire type** (anything in `genkit/_core/_typing.py`): [references/wire-types.md](references/wire-types.md).
 - **Opening a PR**: [references/pr-descriptions.md](references/pr-descriptions.md). How to write the title and description.
+- **Running `genkit start` or the Dev UI**: [references/dev-ui-alongside-other-agents.md](references/dev-ui-alongside-other-agents.md). How to test your own app when other agents share the machine.
 
 ## What makes something Genkit
 
