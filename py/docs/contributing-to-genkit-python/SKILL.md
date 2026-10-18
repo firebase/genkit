@@ -99,13 +99,13 @@ What one call returns should go straight into the call that uses it. If `get_act
 
 One input shape per idea. If the constructor accepts a config entry, the method that adds one later accepts the same entry.
 
-Inputs are `Literal`s. Values you match on are enums. If the user passes the value in, type it as a `Literal`: `thinking_level='high'`, `api_type='chat'`. There's no extra type to import, the IDE still autocompletes it, and a typo fails the type check. Use a `StrEnum` only when callers write code that branches on specific values, which almost always means something Genkit hands back: `response.finish_reason == FinishReason.FAILED`, `err.reason == RuntimeErrorReason.TOOL_FAILED`. `StrEnum` keeps comparison against the plain string working. Don't export an enum just so users can pass one of its values in: `api_type: Literal['chat', 'generate']`, not an `ApiTypes` enum. If the set keeps growing, like model ids, type it as `KnownGeminiModel | str`: users get autocomplete, and a new id works the day it ships.
+Inputs are `Literal`s. Values you match on are enums. If the user passes the value in, type it as a `Literal`: `thinking_level='high'`, `api_type='chat'`. There's no extra type to import, the IDE still autocompletes it, and a typo fails the type check. Use a `StrEnum` only when callers write code that branches on specific values, which almost always means something Genkit hands back: `response.finish_reason == FinishReason.FAILED`, `err.reason == RuntimeErrorReason.TOOL_FAILED`. `StrEnum` keeps comparison against the plain string working. Don't export an enum just so users can pass one of its values in. If the set keeps growing, like model ids, type it as `KnownGeminiModel | str`: users get autocomplete, and a new id works the day it ships.
 
 Keep what the model sees separate from what the developer sees. Partial stream chunks don't go into history. A tool's return value isn't the same object as the tool-response wrapper the model reads.
 
 Keep state as plain data. History, `Operation`, anything a user might store: it should round-trip through JSON.
 
-The call that causes a problem should be the one that reports it. If `connect('git', command='uvxx-typo')` succeeds and the failure only shows up three calls later inside `generate`, the user is debugging the wrong line.
+The call that causes a problem should be the one that reports it. If a bad argument is accepted at setup and only fails three calls later inside `generate`, the user is debugging the wrong line.
 
 Tell "broken" apart from "down right now". A typo, a protocol error or a name collision should fail loudly. A server that's unreachable or timed out can be skipped and logged so the rest keeps working. Either way, raise a `GenkitError` with a status the caller can branch on.
 
@@ -143,7 +143,7 @@ A plugin is the veneer between the user and a provider SDK. The user should see 
 
 ### One public module
 
-The package root `__init__.py` is the only file that exports anything, and its `__all__` is the whole API. If the plugin has experimental pieces, they go in `exp/__init__.py` under the same rule. Everything else lives in underscore modules (`_plugin.py`, `_models.py`, `_config.py`). Private subpackages get no `__init__.py`, because a re-exporting `__init__.py` makes an internal package look like an API; import from the defining module instead. Importing a submodule like `genkit_vertexai.model_garden` raises `ModuleNotFoundError`, and that's intended.
+The package root `__init__.py` is the only file that exports anything, and its `__all__` is the whole API. If the plugin has experimental pieces, they go in `exp/__init__.py` under the same rule. Everything else lives in underscore modules (`_plugin.py`, `_models.py`, `_config.py`). Private subpackages get no `__init__.py`, because a re-exporting `__init__.py` makes an internal package look like an API; import from the defining module instead.
 
 ```text
 genkit_mcp/
@@ -160,7 +160,7 @@ genkit_mcp/
 A name goes in `__all__` only if a user constructs it, calls it, or writes it in an annotation, and there's no simpler way to do that. Leave it out if:
 
 - it only names a shape a parameter already accepts. A `TypedDict` for a dict argument or an alias for a callback type adds an import and nothing else.
-- it belongs to a request or response the user never makes directly, like the options type for an internal call.
+- it belongs to a request or response the user never makes directly.
 - it declares no fields of its own. A config class that accepts anything does nothing a dict doesn't.
 - it's a nested config class the user would have to build by hand. See the next section.
 
@@ -176,13 +176,13 @@ Bedrock(models=['stability.sd3-5-large-v1:0'])
 # instead of
 Bedrock(models=[ModelDefinition(name='stability.sd3-5-large-v1:0', type='image')])
 
-# 2. MCP takes the server's launch fields as keywords
+# 2. MCP takes the server's launch fields as keywords and builds its config internally
 client = define_mcp_client(ai, 'git', command='uvx', args=['mcp-server-git'])
-# => McpClient; McpStdioServerConfig is built in _client.py
+# => McpClient
 ```
 
 - **Derive it**: if a value follows from something already passed (model ID to route, model family to config class), compute it. Don't ask for it.
-- **Drop it**: if only one value is valid, remove the argument. Bedrock's `cache_point_part()` takes no arguments because Bedrock has one cache-point type. A keyword can come back later without breaking anyone.
+- **Drop it**: if only one value is valid, remove the argument. A keyword can come back later without breaking anyone.
 - **Flatten it**: a group of related settings becomes keywords on the outer call, not a new class the user imports.
 - **Model config stays one class, kept flat**: each model family gets one `GenkitConfig` (`GeminiConfig`, `OllamaConfig`), since the Dev UI renders it as a form and a dict validates into it. Keep its fields flat and translate to the provider's nested request inside the model action.
 
