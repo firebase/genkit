@@ -5,6 +5,12 @@ description: How the Genkit Python API is put together, the judgment calls a lin
 
 # Contributing to Genkit Python
 
+Read the rest of this file for any change to the public surface. Read these too when they apply:
+
+- **Changing a plugin package**: [references/plugins.md](references/plugins.md). What a plugin exports and how its config is shaped.
+- **Changing a generated wire type** (anything in `genkit/_core/_typing.py`): [references/wire-types.md](references/wire-types.md).
+- **Opening a PR**: [references/pr-descriptions.md](references/pr-descriptions.md). How to write the title and description.
+
 ## What makes something Genkit
 
 The public API surface is the product. Keep it as small and tight as you can. Every name, argument and return type you add is something users learn, depend on, and can't easily lose. When someone reviews a change, they mostly ask four things:
@@ -146,126 +152,3 @@ If it's ever going to be JSON, it's Pydantic. The base class depends on who owns
 If it's only in-process data, like a handle or a context object passed around (`ModelRef`, `SpanMetadata`, `TurnContext`), use a frozen, keyword-only dataclass. Frozen means nothing downstream can quietly change it.
 
 If it does things or has a lifecycle (`Genkit`, `Tool`, `Prompt`, `StreamResponse`, `Plugin`, `Middleware`), it's a plain class with private state and methods. Don't make it a Pydantic model just to get a free constructor: every internal field becomes public.
-
-## Plugin packages
-
-A plugin is the veneer between the user and a provider SDK. The user should see a few names and flat arguments. The provider's nested request shapes stay inside.
-
-### One public module
-
-The package root `__init__.py` is the only file that exports anything, and its `__all__` is the whole API. If the plugin has experimental pieces, they go in `exp/__init__.py` under the same rule. Everything else lives in underscore modules (`_plugin.py`, `_models.py`, `_config.py`). Private subpackages get no `__init__.py`, because a re-exporting `__init__.py` makes an internal package look like an API; import from the defining module instead.
-
-```text
-genkit_mcp/
-  __init__.py   # McpClient, McpHost, define_mcp_client, define_mcp_host
-  _client.py
-  _config.py    # McpStdioServerConfig: not exported
-  _connection.py
-  _host.py
-  _tools.py
-```
-
-### Every exported name needs a reason
-
-A name goes in `__all__` only if a user constructs it, calls it, or writes it in an annotation, and there's no simpler way to do that. Leave it out if:
-
-- it only names a shape a parameter already accepts. A `TypedDict` for a dict argument or an alias for a callback type adds an import and nothing else.
-- it belongs to a request or response the user never makes directly.
-- it declares no fields of its own. A config class that accepts anything does nothing a dict doesn't.
-- it's a nested config class the user would have to build by hand. See the next section.
-
-If you can't say in one sentence what the user does with a name, it isn't public.
-
-### Flat at the surface, nested in the action
-
-The plugin constructor, `define_*` functions and model refs take flat keyword arguments. Infer every field you can from what the user already passed, then build the provider's nested config inside the plugin or model action. Don't export a nested config class and ask the user to assemble it.
-
-```python
-# 1. Bedrock infers the route from the model ID
-Bedrock(models=['stability.sd3-5-large-v1:0'])
-# instead of
-Bedrock(models=[ModelDefinition(name='stability.sd3-5-large-v1:0', type='image')])
-
-# 2. MCP takes the server's launch fields as keywords and builds its config internally
-client = define_mcp_client(ai, 'git', command='uvx', args=['mcp-server-git'])
-# => McpClient
-```
-
-- **Derive it**: if a value follows from something already passed (model ID to route, model family to config class), compute it. Don't ask for it.
-- **Drop it**: if only one value is valid, remove the argument. A keyword can come back later without breaking anyone.
-- **Flatten it**: a group of related settings becomes keywords on the outer call, not a new class the user imports.
-- **Model config stays one class, kept flat**: each model family gets one `GenkitConfig` (`GeminiConfig`, `OllamaConfig`), since the Dev UI renders it as a form and a dict validates into it. Keep its fields flat and translate to the provider's nested request inside the model action.
-
-## Generated wire types
-
-`genkit/_core/_typing.py` is generated from the schema shared by all the SDKs (`genkit-tools/genkit-schema.json`) by `py/scripts/schema_to_typing.py`. Don't edit it by hand; the next regeneration will undo your change.
-
-If a type needs to look different in Python, change the generator's tables:
-
-- `TRANSFORMATIONS` renames a type (`Error` becomes `OperationError` so it doesn't shadow the builtin), drops a field (`apiKey` from config, because config shows up in traces), or adds a suffix so a hand-written subclass can extend it.
-- `FIELD_TYPE_OVERRIDES` tightens the type of one field.
-- `EXCLUDED` is for types we write by hand.
-
-Give each entry a one-line comment explaining why, in terms a user would care about. Then regenerate the file and run `generate_schema_typing --ci` to check it's in sync.
-
-## Working alongside other agents
-
-Assume you're not alone on this machine. Other agents may be editing their own copies of the repo and running their own Dev UIs at the same time, and nothing stops you from quietly debugging one of theirs.
-
-Work in your own git worktree, created off the branch you were asked to change, and run everything from inside it. Use that worktree's environment (`uv run` from inside the worktree), not a shared one, or you'll be testing whatever another checkout installed.
-
-When you use `genkit start`, make sure the Dev UI you're looking at is talking to your app:
-
-- Start it from your worktree's project directory. The Dev UI only sees apps that registered under the directory it was started from (`.genkit/runtimes`), so separate worktrees get separate Dev UIs. Within one directory it can see several apps at once, each with its own runtime ID, and anything that doesn't name a runtime goes to the one started most recently. If a second app starts in your directory, your runs quietly go to it.
-- Let it pick free ports, and read them from its output. Don't assume 4000 for the UI or 3100 for reflection. If you pin a port with `-p` or `GENKIT_REFLECTION_PORT`, expect it might be taken; a busy reflection port makes `Genkit()` fail at startup.
-- Don't carry over `GENKIT_*` variables from another shell. A leftover `GENKIT_TELEMETRY_SERVER` sends your traces to another agent's Dev UI, and yours stays empty while things look like they're working.
-- Before trusting a result, check you're in the right place: the flow you just added is in the list, and the trace you just ran shows up. If either is missing, you're connected to the wrong app.
-
-Clean up only what you started. Stop your own process by its PID. Never run `pkill genkit`, kill whatever's on a port, or clear `.genkit/` in a directory you didn't create; that's someone else's session.
-
-## PR descriptions
-
-Reviewers mostly care about one thing: what this does to the public API. Write the description so they can judge that without reading the diff.
-
-The title says what the user sees, in present tense, subject first: `fix(py)!: a failed agent turn returns res.error`. Add `!` when it breaks someone. Leave out the implementation; "refactor X internals" says nothing to a reviewer.
-
-Open with one or two sentences: what a caller can do now, or what no longer breaks. Then a short snippet showing the call a user would write and what comes back, with `# before` / `# after` if the behavior changed. Include the exact error text if that's what changed.
-
-### Changes
-
-One bullet per change a user could notice, biggest first: a new or removed name, a new argument, a different return value, a new error, a different default. Say what it is now and why it belongs on the surface, in terms of what the user gets. Leave out internal moves and renames nobody imports. If a bullet needs more than two or three sentences, it's probably two changes.
-
-### Breaking changes
-
-List every change to the API surface that could break existing code: removed or renamed names, moved imports, arguments that became required or keyword-only, different return types, new errors where there used to be none. For each one, show what the old code does now and what to write instead:
-
-```python
-# before
-from genkit_vertexai.model_garden import ModelGarden
-# after
-from genkit_vertexai import ModelGarden
-```
-
-If nothing breaks, say "None." so reviewers know you checked.
-
-### Cross-SDK
-
-Some of what Python writes is read by the other SDKs and by the tooling, so a change there isn't Python-only. That includes:
-
-- the shared schema (`genkit-tools/genkit-schema.json`) and anything generated from it
-- trace and span attributes the Dev UI reads
-- the reflection API
-- the HTTP flow format (`{"data": ...}`, `{"result": ...}`, SSE frames)
-- `.prompt` frontmatter
-- config keys as they show up in traces and the Dev UI form
-- status names, finish reasons, and action kinds and metadata
-
-If your PR changes any of these, add this section. Say what changed on the wire, show one example of the JSON before and after, and say what the JS, Go and Dart owners need to do: nothing, update a schema, handle a new field, or stop sending an old one. If Python now writes something the others don't yet read, or reads something they don't write, say so plainly so it doesn't get found in a broken trace.
-
-If nothing on the wire changed, leave the section out. A Python-only rename doesn't belong here, as long as the JSON stays the same.
-
-### Open question and verification
-
-Put anything you haven't decided under `## Open question` with the options, so nobody approves a choice nobody made. Finish with what you actually ran to check it.
-
-Leave out the story of how you got here, review-thread history, and "matches JS" as a reason. Describe the end state and why it's right for the user.
