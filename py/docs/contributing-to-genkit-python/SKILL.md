@@ -24,7 +24,7 @@ Everything you define, you can see and run. Every action is traced, takes and re
 
 The core is as unopinionated as possible. It runs what you asked for and nothing more: it doesn't retry a failed call, switch models, or pause for approval on its own. Behavior like that comes from middleware the user adds with `use=` (retry, fallback, tool approval) or from plugins. If a feature takes a stance on how an app should behave, it belongs in one of those, not in the core.
 
-A few small pieces that compose. Actions, middleware and plugins should cover most new features. If something truly needs a new kind of thing, that's a big decision, so treat it like one.
+Everything you can run is an action. An action is a function with a name, a kind, input and output schemas, and a trace span around every call, which is what lets the Dev UI list it, run it and show what happened. Every runnable thing in Genkit is an `Action`, a subclass of one (`Evaluator`, `BidiAction`), or a class that wraps or composes actions (`Tool`, `Embedder`, `Prompt`). A new feature should fit one of those shapes. If it truly needs a new kind of runnable thing, that's a big decision, so treat it like one.
 
 Safe in production by default. Secrets are redacted, errors are redacted at the edge, and prompt and reply text stay off spans unless someone turns them on.
 
