@@ -47,25 +47,25 @@ Modules are split by who's reading them:
 - `genkit.plugin_api` is for plugin packages.
 - `genkit.testing` holds fake models (`define_echo_model`, `define_scripted_model`) for testing flows, agents and plugins without a provider.
 - `genkit.telemetry` is for people wiring traces into a recording backend, and for resetting instrumentation between tests.
-- `genkit.web` is for people writing their own server adapter instead of using `genkit_fastapi`, `genkit_flask` or `genkit_django`.
+- `genkit.web` is for people writing their own server adapter.
 
-There will be more. A new namespace needs a distinct reader that none of the existing ones serve, not just a group of related names. Every name has exactly one home. If you're tempted to re-export something "for convenience", it's probably in the wrong module.
+A new namespace needs a distinct reader that none of the existing ones serve, not just a group of related names. Every name has exactly one home. If you're tempted to re-export something "for convenience", it's probably in the wrong module.
 
-Everything is an action: one input, one output, maybe chunks. The function a user writes takes one request. If it needs context, it says so with an annotation (`ToolContext[ChunkT]`, `FlowContext[ChunkT]`, `ModelContext`), and typed config comes in through `Request[Cfg]`. Types flow from those annotations. Nobody should have to write `Operation[ModelResponse]` on something Genkit just handed them.
-
-Models are referenced through plugin classmethods: `GoogleAI.gemini('gemini-flash-latest')` gives you a `ModelRef[GeminiConfig]`. There's one flat config class per model family. Passing a dict also works, and it gets validated into that same class.
+Everything is an action: one input, one output, maybe chunks. The function a user writes takes one request. If it needs context, it says so with an annotation (`ToolContext[ChunkT]`, `FlowContext[ChunkT]`, `ModelContext`), and typed config comes in through `Request[Cfg]`. Types flow from those annotations.
 
 If something's wrong before the run starts (bad config, unknown model), raise `GenkitError`. Once the run has started, don't raise. Return the response with `finish_reason`, a `Failure` on `.error`, and `messages` the user can send back to pick up where it stopped. They paid for those tokens, so don't throw them away. Interrupts work the same way: they come back as a value.
 
 Streams always look like `.stream` plus `.response`, whether they come from generate, a flow, a tool or a prompt.
 
+Models are referenced through plugin classmethods: `GoogleAI.gemini('gemini-flash-latest')` gives you a `ModelRef[GeminiConfig]`. There's one flat config class per model family. Passing a dict also works, and it gets validated into that same class.
+
 Auth and secrets ride on `context=`. Nested calls inherit it, traces redact it, and it never gets saved anywhere. Over HTTP, the only error text that leaves the server is a `PublicError` the author raised on purpose.
 
 ## Judgment calls
 
-Use the same name for the same idea everywhere. It's `config=` on every call. If two calls disagree, someone will guess wrong.
+Naming is a very important consideration. You want to choose intuitive names so that external contributors can understand the API without having to read the docs. Use the same name for the same idea everywhere. If two calls disagree, someone will guess wrong.
 
-Calling something directly should behave like Genkit calling it. `await my_tool(x)` returns and fails exactly the way it would inside `generate`, so tests mean something.
+A decorated function should still work when you call it yourself. `await check_allergens(order)` runs the same action Genkit runs when the model calls the tool: the input is validated the same way and the call gets the same trace span. That's what makes a unit test that calls the tool directly worth having. Don't add a path that only runs inside `generate`, or the test checks something the model never hits.
 
 Two ways to do one thing is fine only if they end up as the same thing: a dict or a typed config, a model name string or a ref, a `.prompt` file or `define_prompt`. Otherwise pick one. Be suspicious of your own convenience features: "accepts one or a list", a helper that just builds a string, the same type importable from two places. They rarely earn their keep.
 
