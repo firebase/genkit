@@ -1,6 +1,6 @@
 # Generated wire types
 
-`genkit/_core/_typing.py` is generated from the schema shared by all the SDKs (`genkit-tools/genkit-schema.json`) by `py/scripts/schema_to_typing.py`. Don't edit it by hand; the next regeneration will undo your change.
+`py/packages/genkit/src/genkit/_core/_typing.py` is generated from the schema shared by all the SDKs (`genkit-tools/genkit-schema.json`) by `py/scripts/schema_to_typing.py`. Don't edit it by hand; the next regeneration will undo your change.
 
 If a type needs to look different in Python, change the generator's tables:
 
