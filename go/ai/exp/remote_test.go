@@ -123,6 +123,16 @@ func TestRemoteAgent_Errors(t *testing.T) {
 			switch req.SnapshotID {
 			case "missing":
 				writeWireError(w, status.NotFound, `snapshot "missing" not found`)
+			// The Next.js plugin wraps a JSON error, with HTTP codes that
+			// alone would read UNIMPLEMENTED (404) and INVALID_ARGUMENT (400).
+			case "next-missing", "next-refused":
+				n, code := status.NotFound, http.StatusNotFound
+				if req.SnapshotID == "next-refused" {
+					n, code = status.FailedPrecondition, http.StatusBadRequest
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(code)
+				json.NewEncoder(w).Encode(map[string]any{"error": wire.Error{Status: n, Message: "no"}})
 			case "down":
 				http.Error(w, "upstream down", http.StatusServiceUnavailable)
 			case "gone":
@@ -154,6 +164,13 @@ func TestRemoteAgent_Errors(t *testing.T) {
 		_, err := h.GetSnapshot(ctx, "missing")
 		if statusOf(err) != status.NotFound || !strings.Contains(err.Error(), `"missing" not found`) {
 			t.Errorf("error = %v, want NOT_FOUND with the server's message", err)
+		}
+	})
+	t.Run("a wrapped JSON error keeps its status", func(t *testing.T) {
+		for id, want := range map[string]status.Name{"next-missing": status.NotFound, "next-refused": status.FailedPrecondition} {
+			if _, err := h.GetSnapshot(ctx, id); statusOf(err) != want {
+				t.Errorf("%s: error = %v, want %s", id, err, want)
+			}
 		}
 	})
 	t.Run("a route the server does not publish is UNIMPLEMENTED", func(t *testing.T) {

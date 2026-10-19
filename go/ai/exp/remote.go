@@ -310,21 +310,30 @@ func (t *httpTransport) Run(ctx context.Context, input *AgentInput, init *AgentI
 // in place of a data event carrying the error.
 const errorFramePrefix = "error: "
 
-// errorFrame decodes an error frame: {"error": {status, message}} as the
-// Express plugin sends it, or a bare {status, message} as the Next.js plugin
-// does.
+// errorFrame decodes an error frame (see [decodeErrorBody]).
 func (t *httpTransport) errorFrame(frame []byte) error {
+	if e, ok := decodeErrorBody(frame); ok {
+		return e
+	}
+	return status.Errorf(status.ErrInternal, "agent %q: malformed error frame: %.200s", t.name, frame)
+}
+
+// decodeErrorBody decodes an error in either shape Genkit servers send it:
+// bare {status, message}, as Go servers and the Next.js plugin's stream frames
+// do, or wrapped as {"error": {status, message}}, as the Express plugin and
+// the Next.js plugin's JSON responses do.
+func decodeErrorBody(b []byte) (*status.Error, bool) {
 	var wrapped struct {
 		Error *status.Error `json:"error"`
 	}
-	var bare status.Error
-	switch {
-	case json.Unmarshal(frame, &wrapped) == nil && wrapped.Error != nil && wrapped.Error.Status != "":
-		return wrapped.Error
-	case json.Unmarshal(frame, &bare) == nil && bare.Status != "":
-		return &bare
+	if json.Unmarshal(b, &wrapped) == nil && wrapped.Error != nil && wrapped.Error.Status != "" {
+		return wrapped.Error, true
 	}
-	return status.Errorf(status.ErrInternal, "agent %q: malformed error frame: %.200s", t.name, frame)
+	var bare status.Error
+	if json.Unmarshal(b, &bare) == nil && bare.Status != "" {
+		return &bare, true
+	}
+	return nil, false
 }
 
 // checkOutput rejects an output the middleware and handles could not act on.
@@ -503,9 +512,8 @@ func (t *httpTransport) responseError(resp *http.Response, suffix string) error 
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 	mt, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 	if mt == "application/json" {
-		var e status.Error
-		if json.Unmarshal(raw, &e) == nil && e.Status != "" {
-			return &e
+		if e, ok := decodeErrorBody(raw); ok {
+			return e
 		}
 	}
 	// The Next.js plugin refuses a stream before it starts with an error
