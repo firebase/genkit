@@ -206,6 +206,11 @@ type Agents struct {
 	// abort_background_tasks (stops tasks whose results are no longer needed).
 	// Background delegation requires server-managed sub-agents whose stores
 	// implement [aix.SnapshotSubscriber].
+	//
+	// The tools that act on a task accept its ID only while the result that
+	// launched or continued it is still in the request's history, or this
+	// generate call launched it. History trimmed or compacted past that result
+	// takes the task out of the orchestrator's reach.
 	Async bool `json:"async,omitempty" jsonschema_description:"Enables background delegation: delegation tools accept a \"background\" flag, and the check_background_tasks / wait_for_background_tasks / abort_background_tasks tools are added. Background delegation requires server-managed sub-agents whose session stores support detach."`
 	// MaxWaitSeconds bounds how long one wait_for_background_tasks call
 	// blocks, whatever timeoutSeconds the model asks for, including 0 ("until
