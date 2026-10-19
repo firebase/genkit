@@ -115,6 +115,9 @@ func Run[State any](t *testing.T, newStore func(t *testing.T) exp.SessionStore[S
 	// Every store from newStore has the same type, so one probes the optional
 	// capabilities for all.
 	probe := newStore(t)
+	if probe == nil {
+		t.Fatal("sessionstoretest.Run: newStore returned nil")
+	}
 	_, s.metadata = probe.(exp.SnapshotMetadataReader[State])
 	_, s.subscriber = probe.(exp.SnapshotSubscriber)
 	t.Run("Save", s.testSave)
