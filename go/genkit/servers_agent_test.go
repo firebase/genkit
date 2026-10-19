@@ -321,6 +321,23 @@ func TestHandlerAgent(t *testing.T) {
 		}
 	})
 
+	t.Run("served refusals name the caller's input, not the agent's setup", func(t *testing.T) {
+		t.Setenv("GENKIT_ENV", "prod")
+		_, body := post(t, "agentServer", turnWithInit("hi", `{"state":{"messages":[]}}`), false)
+		if !strings.Contains(body, "FAILED_PRECONDITION") || strings.Contains(body, "session store") {
+			t.Errorf("state on server-managed: body = %s, want the status without the store setup", body)
+		}
+
+		snapAction := genkit.LookupAction(g, api.KeyFromName(api.ActionTypeAgentSnapshot, "agentServer"))
+		req := httptest.NewRequest("POST", "/", strings.NewReader(`{"data":{}}`))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		genkit.Handler(snapAction)(w, req)
+		if b, _ := io.ReadAll(w.Result().Body); !strings.Contains(string(b), "snapshotId or sessionId is required") {
+			t.Errorf("getSnapshot without an ID: body = %s, want the missing field named", b)
+		}
+	})
+
 	t.Run("streaming turn delivers chunks then result", func(t *testing.T) {
 		code, body := post(t, "agentClient", turn("stream"), true)
 		if code != http.StatusOK {

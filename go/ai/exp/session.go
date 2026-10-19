@@ -306,8 +306,8 @@ func readSnapshot[State any](
 			return nil, status.PublicErrorf(ErrSnapshotNotFound, "%s: snapshot %q not found", op, snapshotID)
 		}
 		if sessionID != "" && snap.SessionID != sessionID {
-			return nil, status.Errorf(status.ErrInvalidArgument,
-				"%s: snapshot %q does not belong to session %q (snapshot's session: %q)", op, snapshotID, sessionID, snap.SessionID)
+			return nil, status.PublicErrorf(status.ErrInvalidArgument,
+				"%s: snapshot %q does not belong to session %q", op, snapshotID, sessionID)
 		}
 	} else {
 		if metadataOnly {
@@ -659,7 +659,7 @@ func newSnapshotActions[State any](
 	getSnapshotAction := core.NewActionOf(api.ActionTypeAgentSnapshot, agentName, nil,
 		func(ctx context.Context, req *GetSnapshotRequest) (*SessionSnapshot[State], error) {
 			if req == nil || (req.SnapshotID == "" && req.SessionID == "") {
-				return nil, status.Errorf(status.ErrInvalidArgument, "getSnapshot: snapshotId or sessionId is required")
+				return nil, status.PublicErrorf(status.ErrInvalidArgument, "getSnapshot: snapshotId or sessionId is required")
 			}
 
 			snap, err := readSnapshot(ctx, store, transform, "getSnapshot", req.SnapshotID, req.SessionID, req.MetadataOnly)
@@ -677,7 +677,7 @@ func newSnapshotActions[State any](
 	waitAction := core.NewActionOf(api.ActionTypeAgentWait, agentName, nil,
 		func(ctx context.Context, req *GetSnapshotRequest) (*SessionSnapshot[State], error) {
 			if req == nil || req.SnapshotID == "" {
-				return nil, status.Errorf(status.ErrInvalidArgument, "waitForSnapshot: snapshotId is required")
+				return nil, status.PublicErrorf(status.ErrInvalidArgument, "waitForSnapshot: snapshotId is required")
 			}
 			snap, err := waitSnapshot(ctx, store, transform, "waitForSnapshot", req.SnapshotID, req.SessionID, maxWait)
 			return servedSnapshot(ctx, waitKey, snap), err
@@ -691,7 +691,7 @@ func newSnapshotActions[State any](
 	abortAction := core.NewActionOf(api.ActionTypeAgentAbort, agentName, nil,
 		func(ctx context.Context, req *AgentAbortRequest) (*AgentAbortResponse, error) {
 			if req == nil || req.SnapshotID == "" {
-				return nil, status.Errorf(status.ErrInvalidArgument, "abort: snapshotId is required")
+				return nil, status.PublicErrorf(status.ErrInvalidArgument, "abort: snapshotId is required")
 			}
 			// Aborting is an ordinary SaveSnapshot that flips a pending row to
 			// aborting; the store has no dedicated abort method.

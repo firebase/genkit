@@ -2243,7 +2243,7 @@ func loadSession[State any](
 	switch {
 	case init.State != nil:
 		if store != nil {
-			return nil, nil, status.PublicErrorf(status.ErrFailedPrecondition,
+			return nil, nil, status.Errorf(status.ErrFailedPrecondition,
 				"state provided but agent has a session store configured (server-managed state); use snapshot ID instead")
 		}
 		// Deep-copy at the entry boundary: an in-process caller retains
@@ -2256,7 +2256,7 @@ func loadSession[State any](
 
 	case init.SnapshotID != "":
 		if store == nil {
-			return nil, nil, status.PublicErrorf(status.ErrFailedPrecondition,
+			return nil, nil, status.Errorf(status.ErrFailedPrecondition,
 				"snapshot ID %q provided but agent has no session store configured (client-managed state); use state instead", init.SnapshotID)
 		}
 		snap, err := store.GetSnapshot(ctx, init.SnapshotID)
@@ -2270,8 +2270,8 @@ func loadSession[State any](
 		// conversation the snapshot belongs to; a mismatch means the
 		// caller would silently continue the wrong conversation.
 		if init.SessionID != "" && snap.SessionID != init.SessionID {
-			return nil, nil, status.Errorf(status.ErrInvalidArgument,
-				"snapshot %q does not belong to session %q (snapshot's session: %q)", init.SnapshotID, init.SessionID, snap.SessionID)
+			return nil, nil, status.PublicErrorf(status.ErrInvalidArgument,
+				"snapshot %q does not belong to session %q", init.SnapshotID, init.SessionID)
 		}
 		return resumeSessionFrom(s, snap)
 
