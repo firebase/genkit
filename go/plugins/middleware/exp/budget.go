@@ -60,19 +60,33 @@ const (
 // or a provider-reported cost such as Custom["cost"]. Usage counts as models
 // report it, under the convention [ai.GenerationUsage] documents, so
 // OutputTokens leaves out ThoughtsTokens: cap both to cap what a model
-// generates. A model that reports no usage spends nothing.
+// generates. A model that reports no usage spends nothing, and a background
+// model (such as a video model) is not counted.
 //
 // The limit is checked before each model call of the tool loop. Once a capped
 // field reaches its limit, the run stops with [ai.ErrBudgetExceeded], which
 // reports it as aborted rather than failed and keeps its partial response.
-// A turn already under way finishes, so a run can overshoot by one turn.
+// A turn already under way finishes, so a run can overshoot by one turn, and
+// with a Retry middleware in the chain, one turn can be several billed calls.
 // Because the check sits outside every WrapModel hook, a retry or fallback
 // middleware never sees the stop, whatever the order in [ai.WithUse].
 //
+// A budget stops only the run it wraps. A background delegation the run
+// started (see [Agents.Async]) counts while the run lasts, and keeps running,
+// and spending, after the run stops.
+//
+// Budgets in one chain count the same calls and claim the same holds, so
+// stacking them enforces all their limits together.
+//
 // With Interrupt set, a run-scoped budget pauses instead: the tool calls
 // that would lead to the next turn are held, for the caller to decide whether
-// to continue. [BudgetInterrupted] claims each held call, [BudgetExceeded] is
-// what it carries, and a restart with a [BudgetDecision] decides it:
+// to continue. The hold happens only when the run is over its limit by the
+// time its tool calls start: a run that goes over while its tools run (a
+// nested generate, a subagent) has nothing left to hold, and the check before
+// the next model call stops it. [BudgetInterrupted] claims each held call,
+// [BudgetExceeded] is what it carries, and a restart with a [BudgetDecision]
+// decides it. A response to a hold, which stands in for the tool's output,
+// refuses it:
 //
 //	for _, part := range resp.Interrupts() {
 //		if call, ok := middlewarex.BudgetInterrupted(part); ok {
@@ -135,7 +149,9 @@ func BudgetInterrupted(part *ai.Part) (*ai.InterruptedCall[any, any, BudgetDecis
 }
 
 // budgetRecord is what a run-scoped budget writes on the run's final message,
-// under its name, for a resume to continue from.
+// under its name, for a resume to continue from. It stays on the message, in
+// a stored session too, but matters only to a resume of that run: it is not
+// the run's usage, which TotalUsage and the session state report.
 type budgetRecord struct {
 	Spent *ai.GenerationUsage `json:"spent,omitempty"`
 }
@@ -183,7 +199,7 @@ func (b Budget) New(ctx context.Context) (*ai.Hooks, error) {
 	if len(limit) == 0 {
 		return nil, status.Errorf(status.ErrInvalidArgument, "budget: set at least one field of Limit")
 	}
-	s := &budgetState{limit: limit}
+	s := &budgetState{limit: limit, interrupt: b.Interrupt}
 	hooks := &ai.Hooks{WrapGenerate: s.wrapGenerate}
 	switch b.Scope {
 	case "", BudgetScopeRun:
@@ -212,6 +228,8 @@ type budgetState struct {
 	// session is the agent session's usage when the run started; nil for
 	// run scope.
 	session *ai.GenerationUsage
+	// interrupt is [Budget.Interrupt].
+	interrupt bool
 	// refusal is set when the resume refuses one of the budget's holds.
 	refusal *BudgetDecision
 
@@ -228,6 +246,7 @@ type budgetState struct {
 func (s *budgetState) wrapGenerate(ctx context.Context, params *ai.GenerateParams, next ai.GenerateNext) (*ai.ModelResponse, error) {
 	first := params.Iteration == 0
 	if first {
+		// TODO: count background models once their operations report usage.
 		ctx = tracing.WithInstrumentation(ctx, aix.Observer{ModelDone: s.count})
 		if s.session == nil {
 			s.resume(params)
@@ -246,6 +265,10 @@ func (s *budgetState) wrapGenerate(ctx context.Context, params *ai.GenerateParam
 	// WrapTool hook holds those calls if the run is over its limit.
 	resuming := first && params.Options != nil && params.Options.Resume != nil
 	if msg, over := s.exceeded(); over && !resuming {
+		if s.interrupt {
+			// Over with no hold means the run went over while its tools ran.
+			msg += "; the limit was reached while tools ran, so the run could not pause"
+		}
 		logger.Debug(ctx, "run stopped by budget", "reason", msg)
 		return nil, status.Errorf(ai.ErrBudgetExceeded, "budget: %s", msg)
 	}
@@ -269,8 +292,8 @@ func (s *budgetState) wrapGenerate(ctx context.Context, params *ai.GenerateParam
 // resume continues the count of the run params resumes, from the record on
 // its last message, unless the resume restarts one of the budget's holds,
 // which decides the run: approved, the limit is renewed; refused, the run
-// stops. A response directive for a hold decides nothing. A call that is not
-// a resume starts from zero.
+// stops. A response directive for a hold refuses it. A call that is not a
+// resume starts from zero.
 func (s *budgetState) resume(params *ai.GenerateParams) {
 	opts, msgs := params.Options, params.Request.Messages
 	if opts == nil || opts.Resume == nil || len(msgs) == 0 {
@@ -294,6 +317,9 @@ func (s *budgetState) resume(params *ai.GenerateParams) {
 			} else if s.refusal == nil {
 				s.refusal = &d
 			}
+		}
+		if s.refusal == nil && slices.ContainsFunc(opts.Resume.Respond, func(a *ai.Part) bool { return answersRequest(a, p.ToolRequest) }) {
+			s.refusal = &BudgetDecision{Reason: "the hold was answered with a response, which does not approve it"}
 		}
 	}
 	if approved || s.refusal != nil {

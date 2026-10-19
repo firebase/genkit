@@ -100,7 +100,9 @@ func main() {
 			ai.WithUse(&middlewarex.Budget{Limit: ai.GenerationUsage{TotalTokens: in.MaxTokens}}),
 		)
 		// The run stops before the turn that would go past the limit, and
-		// still returns its response, whose TotalUsage is what it spent.
+		// still returns its response, whose TotalUsage is what it spent. The
+		// budget also counts subagents, which TotalUsage leaves out; this
+		// flow has none.
 		if errors.Is(err, ai.ErrBudgetExceeded) {
 			return fmt.Sprintf("Out of budget after %d tokens.", resp.TotalUsage.TotalTokens), nil
 		}

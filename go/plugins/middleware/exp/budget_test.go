@@ -313,8 +313,8 @@ func TestBudgetInterruptPausesTheRun(t *testing.T) {
 		t.Errorf("refused resume = %+v after %d more model calls, want aborted after none", refused, calls.Load()-before)
 	}
 
-	// A response stands in for the held call and decides nothing, so the
-	// run stops before the model call it leads to.
+	// A response stands in for the held call's output and refuses the hold,
+	// saying so.
 	before = calls.Load()
 	_, err = genkit.Generate(ctx, g,
 		ai.WithModel(m),
@@ -323,8 +323,8 @@ func TestBudgetInterruptPausesTheRun(t *testing.T) {
 		ai.WithResume(call.Respond("stepped")),
 		ai.WithUse(budget),
 	)
-	if !errors.Is(err, ai.ErrBudgetExceeded) || calls.Load() != before {
-		t.Errorf("responded resume = %v after %d more model calls, want ErrBudgetExceeded after none", err, calls.Load()-before)
+	if !errors.Is(err, ai.ErrBudgetExceeded) || !strings.Contains(err.Error(), "answered with a response") || calls.Load() != before {
+		t.Errorf("responded resume = %v after %d more model calls, want a refusal after none", err, calls.Load()-before)
 	}
 
 	// Approving the budget's own hold renews the limit.
@@ -334,6 +334,43 @@ func TestBudgetInterruptPausesTheRun(t *testing.T) {
 	}
 	if resp.Text() != "done" {
 		t.Errorf("Text = %q, want %q", resp.Text(), "done")
+	}
+}
+
+// With Interrupt, a run that goes over while its tools run has no tool call
+// left to hold, so it stops at the next check, and says it could not pause.
+func TestBudgetInterruptCannotPauseSpendInATool(t *testing.T) {
+	g := newTestGenkit(t)
+	inner := toolModel(t, g, "test/inner", func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+		resp := textResp(req, "checked")
+		resp.Usage = &ai.GenerationUsage{InputTokens: 100}
+		return resp, nil
+	})
+	check := genkit.DefineTool(g, "check", "asks another model",
+		func(ctx *ai.ToolContext, _ struct{}) (string, error) {
+			resp, err := genkit.Generate(ctx, g, ai.WithModel(inner), ai.WithPrompt("check"))
+			if err != nil {
+				return "", err
+			}
+			return resp.Text(), nil
+		})
+	outer := toolModel(t, g, "test/outer", func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+		resp := toolReqResp(req, &ai.ToolRequest{Name: "check", Input: map[string]any{}})
+		resp.Usage = &ai.GenerationUsage{InputTokens: 10}
+		return resp, nil
+	})
+
+	resp, err := genkit.Generate(ctx, g,
+		ai.WithModel(outer),
+		ai.WithPrompt("go"),
+		ai.WithTools(check),
+		ai.WithUse(&Budget{Limit: ai.GenerationUsage{InputTokens: 50}, Interrupt: true}),
+	)
+	if !errors.Is(err, ai.ErrBudgetExceeded) || !strings.Contains(err.Error(), "could not pause") {
+		t.Fatalf("Generate error = %v, want ErrBudgetExceeded saying it could not pause", err)
+	}
+	if resp == nil || len(resp.Interrupts()) != 0 {
+		t.Errorf("response = %+v, want one with no holds", resp)
 	}
 }
 
