@@ -684,7 +684,7 @@ func (a *Agents) reportTask(ctx context.Context, g *genkit.Genkit, st *agentsSta
 		return backgroundTaskReport{TaskID: taskID, Status: taskStatusUnknown, Error: err.Error()}, err
 	}
 	if !launchedHere(st, taskID) {
-		err := notLaunchedHereError(taskID, "checked, awaited, or stopped")
+		err := notLaunchedHereError(taskID)
 		logger.Debug(ctx, "background task was not launched in this conversation", "taskId", taskID)
 		return backgroundTaskReport{TaskID: taskID, Status: taskStatusUnknown, Error: err.Error()}, err
 	}

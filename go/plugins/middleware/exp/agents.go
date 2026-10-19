@@ -466,10 +466,12 @@ func taskIDOf(output any) string {
 }
 
 // notLaunchedHereError reports a task handle this conversation did not
-// launch; see launchedHere. action says what the refused tools do.
-func notLaunchedHereError(taskID, action string) error {
+// launch; see launchedHere. The model reads the message, so it matches the JS
+// middleware's word for word. The status is for the wait tool, which counts a
+// refused handle as settled.
+func notLaunchedHereError(taskID string) error {
 	return status.Errorf(status.ErrPermissionDenied,
-		"task ID %q was not started in this conversation; only tasks a delegation here launched can be %s", taskID, action)
+		"Task ID '%s' was not issued in this conversation; only task IDs returned by this conversation's delegations and continuations can be used.", taskID)
 }
 
 // delegateInput is the input schema for a delegation tool.

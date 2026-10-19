@@ -827,12 +827,12 @@ func TestAgentsRefuseTasksFromAnotherConversation(t *testing.T) {
 		}
 		res := decodeToolOutput[backgroundTasksResult](t, outs[0])
 		if len(res.Tasks) != 1 || res.Tasks[0].Status != taskStatusUnknown ||
-			!strings.Contains(res.Tasks[0].Error, "was not started in this conversation") {
+			!strings.Contains(res.Tasks[0].Error, "was not issued in this conversation") {
 			t.Errorf("%s: want the task refused as unknown, got %+v", name, res.Tasks)
 		}
 	}
 	continues := delegationResponses(t, resp.History(), "continue_task")
-	if len(continues) != 1 || !strings.Contains(continues[0].Response, "was not started in this conversation") {
+	if len(continues) != 1 || !strings.Contains(continues[0].Response, "was not issued in this conversation") {
 		t.Errorf("continue_task: want the refusal, got %+v", continues)
 	}
 	snap, err := h.GetSnapshot(ctx, task.SnapshotID(), aix.WithMetadataOnly())
