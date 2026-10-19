@@ -121,11 +121,8 @@ func (s *suite[State]) testScopes(t *testing.T) {
 		checkRow(t, "first scope's row", mustGet(t, a, store, "shared"), inA)
 		inB.SnapshotID = "shared"
 		checkRow(t, "second scope's row", mustGet(t, b, store, "shared"), inB)
-		for name, scope := range map[string]context.Context{"first": a, "second": b} {
-			if got := getLatest(t, scope, store, "sess"); got == nil || got.SnapshotID != "shared" {
-				t.Errorf("latest in the %s scope = %s, want its own row", name, describe(got))
-			}
-		}
+		checkRow(t, "latest in the first scope", getLatest(t, a, store, "sess"), inA)
+		checkRow(t, "latest in the second scope", getLatest(t, b, store, "sess"), inB)
 	})
 
 	t.Run("IsolatesSubscriptions", func(t *testing.T) {
