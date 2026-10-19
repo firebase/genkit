@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-import { ActionMetadata, EmbedderReference, ModelReference, z } from 'genkit';
+import {
+  ActionMetadata,
+  EmbedderReference,
+  GenkitError,
+  ModelReference,
+  z,
+} from 'genkit';
 import { logger } from 'genkit/logging';
 import {
   genkitPluginV2,
@@ -42,6 +48,7 @@ export { type DeepResearchConfig } from './deep-research.js';
 export { type EmbeddingConfig } from './embedder.js';
 export {
   type GeminiConfig,
+  type GeminiImageConfig,
   type GeminiTtsConfig,
   type GeminiVideoConfig,
 } from './gemini.js';
@@ -77,6 +84,16 @@ async function resolver(
       ) {
         // These are background models. Do not define them here.
         return undefined;
+      } else if (actionName.startsWith('imagen-')) {
+        // Otherwise these would resolve as Gemini models and fail with a
+        // confusing "model not found".
+        throw new GenkitError({
+          status: 'NOT_FOUND',
+          message:
+            `Model '${actionName}' is not available: Imagen models on the ` +
+            'Gemini API have been shut down. Use gemini-nano-banana-2.1 ' +
+            'instead.',
+        });
       } else if (lyria.isLyriaModelName(actionName)) {
         return lyria.defineModel(actionName, options);
       } else if (antigravity.isAntigravityModelName(actionName)) {

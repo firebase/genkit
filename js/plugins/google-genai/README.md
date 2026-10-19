@@ -211,7 +211,7 @@ const response = await ai.generate({
   prompt: 'A beautiful watercolor painting of a castle in the mountains.',
 });
 
-const generatedImage = response.media();
+const generatedImage = response.media;
 ```
 
 **With `vertexAI` (Gemini Image):**
@@ -228,7 +228,7 @@ const response = await ai.generate({
   prompt: 'A beautiful watercolor painting of a castle in the mountains.',
 });
 
-const generatedImage = response.media();
+const generatedImage = response.media;
 ```
 
 ### Video Generation
@@ -314,7 +314,7 @@ const response = await ai.generate({
   prompt: 'A cheerful acoustic folk song with guitar and harmonica.',
 });
 
-const generatedAudio = response.media();
+const generatedAudio = response.media;
 ```
 
 **With `vertexAI`:**
@@ -331,7 +331,7 @@ const response = await ai.generate({
   prompt: 'A cheerful acoustic folk song with guitar and harmonica.',
 });
 
-const generatedAudio = response.media();
+const generatedAudio = response.media;
 ```
 
 ### Text-to-Speech
@@ -432,6 +432,8 @@ const ai = genkit({ plugins: [googleAI()] });
 const response = await ai.generate({
   model: googleAI.model('antigravity-preview-09-2026'),
   prompt: 'Read Hacker News, summarize the top 10 stories.',
+  // Required: the sandbox the agent works in.
+  config: { environment: 'remote' },
 });
 ```
 

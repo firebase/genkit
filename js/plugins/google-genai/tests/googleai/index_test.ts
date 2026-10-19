@@ -178,6 +178,17 @@ describe('GoogleAI Plugin', () => {
       assert.strictEqual(model?.__action.name, `googleai/${testVeoModelName}`);
     });
 
+    it('should throw a clear error for shut-down Imagen models', async () => {
+      const ai = genkit({ plugins: [googleAI()] });
+      await assert.rejects(
+        ai.generate({
+          model: 'googleai/imagen-4.0-generate-001',
+          prompt: 'a cat',
+        }),
+        /Imagen models on the Gemini API have been shut down\. Use gemini-nano-banana-2\.1/
+      );
+    });
+
     it('should register a new Embedder when looked up', async () => {
       const ai = genkit({ plugins: [googleAI()] });
       const embedder = await ai.registry.lookupAction(testEmbedderPath);

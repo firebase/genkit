@@ -254,6 +254,11 @@ export function defineModel(
       // the messages after it, in the same environment (a new 'remote' sandbox
       // wouldn't have the previous turn's files). The agent also rejects tool
       // calls in `input`, so this is how a tool result is sent.
+      // The message metadata doesn't record which model or agent created the
+      // interaction, so a history that mixes stored Gemini turns and
+      // Antigravity turns would continue the wrong interaction here (and the
+      // Gemini path has the same issue in reverse).
+      // TODO: record the creating model/agent in the metadata and check it.
       let previousId = previousInteractionId;
       let newMessages = messages;
       let environmentToUse = environment;

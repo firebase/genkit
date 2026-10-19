@@ -1857,6 +1857,41 @@ describe('Google AI Gemini', () => {
         );
       });
 
+      it('drops audioFormat and videoFormat on generateContent models', async () => {
+        // The older preview TTS models use the TTS schema (which has
+        // audioFormat) but are on generateContent, which rejects unknown
+        // generation_config fields with a 400.
+        const warnStub = sinon.stub(logger, 'warn');
+        const model = defineModel(
+          'gemini-2.5-flash-preview-tts',
+          defaultPluginOptions
+        );
+        mockFetchResponse(defaultApiResponse);
+        await model.run({
+          ...minimalRequest,
+          config: {
+            audioFormat: { mimeType: 'audio/wav' },
+            videoFormat: { resolution: '720p' },
+          },
+        });
+
+        const apiRequest: GenerateContentRequest = JSON.parse(
+          fetchStub.lastCall.args[1].body
+        );
+        assert.deepStrictEqual(apiRequest.generationConfig, {
+          responseModalities: ['AUDIO'],
+        });
+        const warnings = warnStub.getCalls().map((c) => String(c.args[0]));
+        assert.ok(
+          warnings.some((w) => w.startsWith('audioFormat is not supported')),
+          warnings.join('\n')
+        );
+        assert.ok(
+          warnings.some((w) => w.startsWith('videoFormat is not supported')),
+          warnings.join('\n')
+        );
+      });
+
       it('does not default responseModalities to AUDIO for non-TTS models', async () => {
         const model = defineModel('gemini-2.5-flash', defaultPluginOptions);
         mockFetchResponse(defaultApiResponse);

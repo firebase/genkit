@@ -804,7 +804,10 @@ ai.defineFlow(
   }
 );
 
-// Gemini reasoning example (legacy thinkingBudget)
+// Gemini reasoning example (legacy thinkingBudget). Kept on purpose:
+// thinkingBudget only works on generateContent models, which are all Gemini
+// 2.5 (legacy) now; newer models use thinkingLevel (see 'thinking-level').
+// Gemini 2.5 is only available to accounts that used it before.
 ai.defineFlow('reasoning - thinkingBudget', async (_, { sendChunk }) => {
   const { message } = await ai.generate({
     prompt: 'what is heavier, one kilo of steel or one kilo of feathers',
@@ -822,7 +825,7 @@ ai.defineFlow('reasoning - thinkingBudget', async (_, { sendChunk }) => {
 });
 
 // Media resolution
-ai.defineFlow('gemini-media-resolution', async (_) => {
+ai.defineFlow('media-resolution', async (_) => {
   const plant = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
   const { text } = await ai.generate({
     model: googleAI.model('gemini-3.1-pro-preview'),
@@ -846,8 +849,8 @@ ai.defineFlow('gemini-media-resolution', async (_) => {
   return text;
 });
 
-// Image editing with Gemini.
-ai.defineFlow('gemini-image-editing', async (_) => {
+// Image editing: combine two input images.
+ai.defineFlow('image-editing', async (_) => {
   const plant = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
   const room = fs.readFileSync('my_room.png', { encoding: 'base64' });
 
@@ -868,8 +871,8 @@ ai.defineFlow('gemini-image-editing', async (_) => {
   return media;
 });
 
-// Nano banana pro config
-ai.defineFlow('nano-banana-pro', async (_) => {
+// Image aspect ratio and size
+ai.defineFlow('image-config', async (_) => {
   const { media } = await ai.generate({
     model: googleAI.model('gemini-3-pro-image'),
     prompt: 'Generate a picture of a sunset in the mountains by a lake',
@@ -884,8 +887,12 @@ ai.defineFlow('nano-banana-pro', async (_) => {
   return media;
 });
 
-// webSearch and imageSearch with Nano Banana 2
-ai.defineFlow('nano-banana-2', async (_) => {
+// Image generation grounded with Google Search (web and image search).
+// Stays on gemini-3.1-flash-image (deprecated) for now: with Google Search,
+// gemini-nano-banana-2.1 currently asks the client to run the search
+// (a `google:search` function call) instead of running it on the server, even
+// for the docs example (checked Oct 2026; reported). Move to 2.1 once fixed.
+ai.defineFlow('image-search-grounding', async (_) => {
   const { media } = await ai.generate({
     model: googleAI.model('gemini-3.1-flash-image'),
     prompt:
@@ -909,7 +916,8 @@ ai.defineFlow('nano-banana-2', async (_) => {
   return media;
 });
 
-ai.defineFlow('nano-banana-2-lite', async (_) => {
+// Image generation with thought summaries.
+ai.defineFlow('image-thinking', async (_) => {
   const { media } = await ai.generate({
     model: googleAI.model('gemini-3.1-flash-lite-image'),
     prompt: 'Generate an image of the CN Tower. ',
@@ -929,8 +937,8 @@ ai.defineFlow('nano-banana-2-lite', async (_) => {
   return media;
 });
 
-// A simple example of image generation with Gemini (Nano Banana 2.1).
-ai.defineFlow('nano-banana-2.1', async (_) => {
+// A simple example of image generation.
+ai.defineFlow('image-generation', async (_) => {
   const { media } = await ai.generate({
     model: googleAI.model('gemini-nano-banana-2.1'),
     prompt: `generate an image of a banana riding a bicycle`,
@@ -1323,9 +1331,10 @@ function getApiKeyFromEnvVar(): string | undefined {
 
 async function downloadVideo(video: MediaPart, path: string) {
   const fetch = (await import('node-fetch')).default;
-  const videoDownloadResponse = await fetch(
-    `${video.media!.url}&key=${getApiKeyFromEnvVar()}`
-  );
+  // The key goes in a header, not the URL, so it stays out of logs.
+  const videoDownloadResponse = await fetch(video.media!.url, {
+    headers: { 'x-goog-api-key': getApiKeyFromEnvVar() ?? '' },
+  });
   if (
     !videoDownloadResponse ||
     videoDownloadResponse.status !== 200 ||
@@ -1343,7 +1352,7 @@ async function downloadVideo(video: MediaPart, path: string) {
 
 ai.defineFlow('video-to-image-generation', async () => {
   const response = await ai.generate({
-    model: googleAI.model('gemini-3.1-flash-image'),
+    model: googleAI.model('gemini-nano-banana-2.1'),
     prompt: [
       {
         media: {
@@ -1364,8 +1373,8 @@ ai.defineFlow('video-to-image-generation', async () => {
   return response;
 });
 
-// Test external URL with Gemini 3.0 (should pass as fileUri)
-ai.defineFlow('external-url-gemini-3.0', async () => {
+// An image passed by external URL (sent as a fileUri, not downloaded).
+ai.defineFlow('external-image-url', async () => {
   const { text } = await ai.generate({
     model: googleAI.model('gemini-3-flash-preview'),
     prompt: [
@@ -1420,29 +1429,6 @@ ai.defineFlow('embed-text', async () => {
       outputDimensionality: 256,
       taskType: 'RETRIEVAL_DOCUMENT',
       title: 'Albert Einstein', // Valid when taskType is RETRIEVAL_DOCUMENT
-    },
-  });
-
-  return embeddings;
-});
-
-// Embed multimodal content
-ai.defineFlow('embed-multimodal', async () => {
-  const photoBase64 = fs.readFileSync('photo.jpg', { encoding: 'base64' });
-
-  const embeddings = await ai.embed({
-    embedder: googleAI.embedder('gemini-embedding-2-preview'),
-    content: Document.fromParts([
-      { text: 'A picture of Albert Einstein.' },
-      {
-        media: {
-          contentType: 'image/jpeg',
-          url: `data:image/jpeg;base64,${photoBase64}`,
-        },
-      },
-    ]),
-    options: {
-      outputDimensionality: 256,
     },
   });
 
@@ -1515,7 +1501,8 @@ ai.defineFlow('antigravity-function-tools', async () => {
   return text;
 });
 
-ai.defineFlow('embed-multimodal-gemini-embedding-2', async () => {
+// Embed multimodal content
+ai.defineFlow('embed-multimodal', async () => {
   const photoBase64 = fs.readFileSync('photo.jpg', { encoding: 'base64' });
 
   const embeddings = await ai.embed({
@@ -1679,7 +1666,8 @@ ai.defineFlow('deep-research-multi-turn', async (_, { sendChunk }) => {
   return op2.output?.message?.content.find((p) => !!p.text)?.text;
 });
 
-ai.defineFlow('deep-research-preview', async (_, { sendChunk }) => {
+// Deep Research with several built-in tools at once.
+ai.defineFlow('deep-research-combined-tools', async (_, { sendChunk }) => {
   const storeName = await createFileSearchStore();
   await uploadBlobToFileSearchStore(storeName);
 
@@ -1915,8 +1903,8 @@ ai.defineFlow('lyria-foreign-language', async () => {
   return response;
 });
 
-// Gemma 4 with thinkingConfig
-ai.defineFlow('gemma-4', async (_, { sendChunk }) => {
+// Gemma with thinkingConfig
+ai.defineFlow('gemma-thinking', async (_, { sendChunk }) => {
   const { text, message } = await ai.generate({
     model: googleAI.model('gemma-4-31b-it'),
     system: 'You are a physics tutor who loves cats. Use cat analogies.',
@@ -1934,8 +1922,8 @@ ai.defineFlow('gemma-4', async (_, { sendChunk }) => {
   };
 });
 
-// Gemma 4 multi-turn
-ai.defineFlow('gemma-4-multi-turn', async (_, { sendChunk }) => {
+// Gemma multi-turn
+ai.defineFlow('gemma-multi-turn', async (_, { sendChunk }) => {
   // First turn
   sendChunk('--- Turn 1 ---');
   const response1 = await ai.generate({

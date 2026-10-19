@@ -1,9 +1,8 @@
 ---
-model: googleai/imagen-4.0-fast-generate-001
+model: googleai/gemini-nano-banana-2.1
 config:
-  numberOfImages: 2
-  personGeneration: "allow_adult"
-  aspectRatio: "16:9"
+  imageConfig:
+    aspectRatio: "16:9"
 input:
   schema:
     prompt: string

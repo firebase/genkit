@@ -144,8 +144,8 @@ const DROPPED_CONFIG_FIELD_HINTS: Record<string, string> = {
 const warnedDroppedConfigFields = new Set<string>();
 
 /**
- * Warns (once per model and field) that a config field isn't supported by an
- * Interactions model and was ignored.
+ * Warns (once per model and field) that a config field isn't supported by the
+ * model and was ignored.
  */
 function warnDroppedConfigField(model: string, field: string) {
   const key = `${model}:${field}`;
@@ -1127,8 +1127,23 @@ export function defineModel(
         previousInteractionId: previousInteractionIdFromConfig,
         store: storeFromConfig,
         responseModalities: responseModalitiesFromConfig,
+        // Interactions-only: sent as `response_format` below.
+        audioFormat: audioFormatFromConfig,
+        videoFormat: videoFormatFromConfig,
         ...restOfConfigOptions
       } = requestOptions;
+
+      if (!useInteractions) {
+        // generateContent rejects unknown generation_config fields with a
+        // 400, and has no equivalent for these (e.g. the older preview TTS
+        // models still use this schema).
+        if (audioFormatFromConfig !== undefined) {
+          warnDroppedConfigField(modelVersion, 'audioFormat');
+        }
+        if (videoFormatFromConfig !== undefined) {
+          warnDroppedConfigField(modelVersion, 'videoFormat');
+        }
+      }
 
       if (codeExecutionFromConfig) {
         tools.push({
@@ -1495,14 +1510,14 @@ export function defineModel(
         }
 
         const audioResponseFormat = toInteractionAudioResponseFormat(
-          request.config?.audioFormat
+          audioFormatFromConfig
         );
         if (audioResponseFormat) {
           req.response_format = audioResponseFormat;
         }
 
         const videoResponseFormat = toInteractionVideoResponseFormat(
-          request.config?.videoFormat
+          videoFormatFromConfig
         );
         if (videoResponseFormat) {
           req.response_format = videoResponseFormat;

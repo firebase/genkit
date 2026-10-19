@@ -1606,7 +1606,9 @@ function mediaPart(contentType: string, bytes: Buffer): Part {
  * speakers). The tag isn't audio: played or joined as raw audio it is noise,
  * and its odd size shifts every sample after it by one byte. This has been
  * reported to the Gemini API team; until it's fixed, the tag is removed so
- * the audio plays correctly. That manifest is dropped.
+ * the audio plays correctly. That manifest is dropped. The tag has only been
+ * seen whole at the start of a chunk; a tag that doesn't fit in the chunk is
+ * left in, since bytes that can't be checked as a tag might be audio.
  */
 export function removeId3FromAudio(part: Part): Part {
   if (!part.media || !isHeaderlessAudio(part)) {
