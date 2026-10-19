@@ -91,6 +91,13 @@ func WithStreamManager(manager streaming.StreamManager) HandlerOption {
 // The provided HandlerOptions are applied during construction. If any option
 // fails to apply, Handler panics.
 //
+// A failure is sent as a JSON {"status", "message"} body. Outside the dev
+// environment, an error not made with [status.PublicErrorf] goes out with the
+// generic message for its status, so internal text stays in the server log.
+// An agent served by Handler gets the same treatment for the errors in its
+// outputs and snapshots; an agent run any other way, such as from a handler of
+// your own that calls it, returns them unchanged.
+//
 // Example:
 //
 //	genkit.Handler(
