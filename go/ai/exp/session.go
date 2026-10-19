@@ -30,6 +30,7 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/status"
 	"github.com/firebase/genkit/go/internal/base"
+	"github.com/firebase/genkit/go/internal/wire"
 )
 
 // --- Snapshot ---
@@ -323,8 +324,8 @@ func readSnapshot[State any](
 			return nil, status.PublicErrorf(ErrSnapshotNotFound, "%s: snapshot %q not found", op, snapshotID)
 		}
 		if sessionID != "" && snap.SessionID != sessionID {
-			return nil, status.Errorf(status.ErrInvalidArgument,
-				"%s: snapshot %q does not belong to session %q (snapshot's session: %q)", op, snapshotID, sessionID, snap.SessionID)
+			return nil, status.PublicErrorf(status.ErrInvalidArgument,
+				"%s: snapshot %q does not belong to session %q", op, snapshotID, sessionID)
 		}
 	} else {
 		if metadataOnly {
@@ -671,13 +672,16 @@ func newSnapshotActions[State any](
 	if maxWait <= 0 {
 		maxWait = defaultMaxSnapshotWait
 	}
+	getSnapshotKey := api.KeyFromName(api.ActionTypeAgentSnapshot, agentName)
+	waitKey := api.KeyFromName(api.ActionTypeAgentWait, agentName)
 	getSnapshotAction := core.NewActionOf(api.ActionTypeAgentSnapshot, agentName, nil,
 		func(ctx context.Context, req *GetSnapshotRequest) (*SessionSnapshot[State], error) {
 			if req == nil || (req.SnapshotID == "" && req.SessionID == "") {
-				return nil, status.Errorf(status.ErrInvalidArgument, "getSnapshot: snapshotId or sessionId is required")
+				return nil, status.PublicErrorf(status.ErrInvalidArgument, "getSnapshot: snapshotId or sessionId is required")
 			}
 
-			return readSnapshot(ctx, store, transform, "getSnapshot", req.SnapshotID, req.SessionID, req.MetadataOnly)
+			snap, err := readSnapshot(ctx, store, transform, "getSnapshot", req.SnapshotID, req.SessionID, req.MetadataOnly)
+			return servedSnapshot(ctx, getSnapshotKey, snap), err
 		})
 
 	// waitForSnapshot takes getSnapshot's request, so a caller switching from
@@ -691,9 +695,10 @@ func newSnapshotActions[State any](
 	waitAction := core.NewActionOf(api.ActionTypeAgentWait, agentName, nil,
 		func(ctx context.Context, req *GetSnapshotRequest) (*SessionSnapshot[State], error) {
 			if req == nil || req.SnapshotID == "" {
-				return nil, status.Errorf(status.ErrInvalidArgument, "waitForSnapshot: snapshotId is required")
+				return nil, status.PublicErrorf(status.ErrInvalidArgument, "waitForSnapshot: snapshotId is required")
 			}
-			return waitSnapshot(ctx, store, transform, "waitForSnapshot", req.SnapshotID, req.SessionID, maxWait)
+			snap, err := waitSnapshot(ctx, store, transform, "waitForSnapshot", req.SnapshotID, req.SessionID, maxWait)
+			return servedSnapshot(ctx, waitKey, snap), err
 		})
 
 	if _, ok := store.(SnapshotSubscriber); !ok {
@@ -704,7 +709,7 @@ func newSnapshotActions[State any](
 	abortAction := core.NewActionOf(api.ActionTypeAgentAbort, agentName, nil,
 		func(ctx context.Context, req *AgentAbortRequest) (*AgentAbortResponse, error) {
 			if req == nil || req.SnapshotID == "" {
-				return nil, status.Errorf(status.ErrInvalidArgument, "abort: snapshotId is required")
+				return nil, status.PublicErrorf(status.ErrInvalidArgument, "abort: snapshotId is required")
 			}
 			// Aborting is an ordinary SaveSnapshot that flips a pending row to
 			// aborting; the store has no dedicated abort method.
@@ -718,6 +723,18 @@ func newSnapshotActions[State any](
 			return &AgentAbortResponse{SnapshotID: req.SnapshotID, Status: snapStatus}, nil
 		})
 	return getSnapshotAction, waitAction, abortAction
+}
+
+// servedSnapshot returns snap as the companion action keyed key returns it:
+// with its error redacted by [clientSafeError] when a transport serves the
+// action to a client, and unchanged otherwise. snap may be nil.
+func servedSnapshot[State any](ctx context.Context, key string, snap *SessionSnapshot[State]) *SessionSnapshot[State] {
+	if snap == nil || snap.Error == nil || !wire.ServesAction(ctx, key) {
+		return snap
+	}
+	shaped := *snap
+	shaped.Error = clientSafeError(snap.Error)
+	return &shaped
 }
 
 // --- Session ---
