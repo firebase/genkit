@@ -120,7 +120,7 @@ func (s *modelSpan) End(res *tracing.SpanResult) {
 			resp = &ai.ModelResponse{Request: s.req, FinishReason: ai.FinishReasonFailed, FinishMessage: res.Err().Error()}
 		}
 	case resp.Request == nil:
-		// A model action built without ai.NewModelAction does not fill it.
+		// A model action leaves it unset; Generate fills it after the span.
 		// A copy, so the caller's response is left as the model returned it.
 		r := *resp
 		r.Request = s.req

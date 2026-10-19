@@ -754,3 +754,22 @@ func TestModelActionFillsTheCallersRequest(t *testing.T) {
 		t.Errorf("History() = %v, want the system, user, and model messages", history)
 	}
 }
+
+// TestModelActionOutputOmitsRequest pins that a model action run directly, as
+// the Dev UI and the reflection API run it, does not echo the request in its
+// output: the trace would carry the input twice and the wire form would
+// diverge from JS.
+func TestModelActionOutputOmitsRequest(t *testing.T) {
+	r := childRegistry(t)
+	m := NewModel("test/plain", &ModelOptions{Supports: &ModelSupports{Multiturn: true}}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		return &ModelResponse{Message: NewModelTextMessage("hi")}, nil
+	})
+	m.Register(r)
+	resp, err := m.(*ModelAction).Generate(t.Context(), &ModelRequest{Messages: []*Message{NewUserTextMessage("hello")}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Request != nil {
+		t.Errorf("Request = %+v, want nil", resp.Request)
+	}
+}
