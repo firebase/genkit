@@ -56,7 +56,7 @@ func main() {
 
 	// 2. Route Genkit telemetry through the GenAI instrumentation. SPAN_ONLY
 	// captures message content on spans (development-friendly; may contain PII).
-	tracing.SetInstrumentation(otelgenai.New(otelgenai.Options{
+	tracing.SetInstrumentation(otelgenai.New(&otelgenai.Options{
 		ContentCapturingMode: otelgenai.SpanOnly,
 		EmitToolSpans:        true,
 	}))

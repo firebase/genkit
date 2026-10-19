@@ -58,9 +58,9 @@ func (l *recordingLogger) Enabled(context.Context, otellog.EnabledParameters) bo
 // TestEventOnlyStructuredContent checks the operation.details event carries
 // content as structured values, and that it goes to the configured provider.
 func TestEventOnlyStructuredContent(t *testing.T) {
-	setup(t, Options{})
+	setup(t, &Options{})
 	lp := &recordingLoggerProvider{}
-	tracing.SetInstrumentation(New(Options{ContentCapturingMode: EventOnly, LoggerProvider: lp}))
+	tracing.SetInstrumentation(New(&Options{ContentCapturingMode: EventOnly, LoggerProvider: lp}))
 
 	runModel(t)
 

@@ -39,7 +39,7 @@ otel.SetTracerProvider(sdktrace.NewTracerProvider(/* ... */))
 
 // 2. Route Genkit telemetry through the GenAI provider. It composes with the
 //    built-in dev instrumentation that feeds the Developer UI.
-tracing.SetInstrumentation(otelgenai.New(otelgenai.Options{
+tracing.SetInstrumentation(otelgenai.New(&otelgenai.Options{
 	ContentCapturingMode: otelgenai.SpanOnly, // default NoContent; may contain PII
 }))
 
@@ -51,7 +51,7 @@ To also keep Genkit's default `genkit:*` OpenTelemetry spans, list both
 providers:
 
 ```go
-tracing.SetInstrumentation(&tracing.OTelInstrumentation{}, otelgenai.New(otelgenai.Options{}))
+tracing.SetInstrumentation(&tracing.OTelInstrumentation{}, otelgenai.New(nil))
 ```
 
 The configuration is process-wide on purpose: Genkit actions can run without

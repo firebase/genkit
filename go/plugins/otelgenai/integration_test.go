@@ -62,7 +62,7 @@ func defineToolCallingModel(g *genkit.Genkit) *ai.ModelAction {
 // genkit.Generate, so span subtypes are the ones Genkit actually produces
 // (tools register as tool.v2).
 func TestGenkitToolAndModel(t *testing.T) {
-	sr := setup(t, Options{EmitToolSpans: true})
+	sr := setup(t, &Options{EmitToolSpans: true})
 	ctx := context.Background()
 	g := genkit.Init(ctx)
 
@@ -88,7 +88,7 @@ func TestGenkitToolAndModel(t *testing.T) {
 }
 
 func TestTelemetryLabels(t *testing.T) {
-	sr := setup(t, Options{EmitToolSpans: true})
+	sr := setup(t, &Options{EmitToolSpans: true})
 	labels := map[string]string{"tenant": "acme"}
 
 	for _, md := range []*tracing.SpanMetadata{
@@ -122,7 +122,7 @@ func TestWarnWhenNoSDK(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			ctx := logger.WithContext(context.Background(), slog.New(slog.NewTextHandler(&buf, nil)))
-			tracing.SetInstrumentation(New(Options{TracerProvider: tt.provider}))
+			tracing.SetInstrumentation(New(&Options{TracerProvider: tt.provider}))
 			t.Cleanup(func() { tracing.SetInstrumentation() })
 
 			for range 2 {
@@ -149,7 +149,7 @@ func TestRemoteParentWithoutSDK(t *testing.T) {
 	ctx = propagation.TraceContext{}.Extract(ctx, propagation.MapCarrier{
 		"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-" + parentSpanID + "-01",
 	})
-	tracing.SetInstrumentation(New(Options{TracerProvider: noop.NewTracerProvider()}))
+	tracing.SetInstrumentation(New(&Options{TracerProvider: noop.NewTracerProvider()}))
 	t.Cleanup(func() { tracing.SetInstrumentation() })
 
 	var spanIDs []string

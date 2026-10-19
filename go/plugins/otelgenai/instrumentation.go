@@ -24,7 +24,7 @@
 //
 // Wire it up with [tracing.SetInstrumentation]:
 //
-//	tracing.SetInstrumentation(otelgenai.New(otelgenai.Options{
+//	tracing.SetInstrumentation(otelgenai.New(&otelgenai.Options{
 //		ContentCapturingMode: otelgenai.SpanOnly,
 //		EmitToolSpans:        true,
 //	}))
@@ -155,14 +155,18 @@ type Instrumentation struct {
 	warnOnce sync.Once
 }
 
-// New builds an Instrumentation from options.
+// New builds an Instrumentation from opts. A nil opts uses the defaults. opts
+// is read once, here; changing it afterwards has no effect.
 //
 // The tracer, meter, and logger are resolved here, once. With the global
 // providers that still picks up an SDK installed later: the OTel globals hand
 // out delegating instruments that switch to the real provider when it is set.
 // Resolving per span instead would take the SDK provider's lock on every span
 // start.
-func New(opts Options) *Instrumentation {
+func New(opts *Options) *Instrumentation {
+	if opts == nil {
+		opts = &Options{}
+	}
 	mode := opts.ContentCapturingMode
 	if mode == "" {
 		mode = contentCapturingModeFromEnv()

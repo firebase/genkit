@@ -155,11 +155,15 @@ func TestParseContentCapturingMode(t *testing.T) {
 
 func TestContentCapturingModeFromEnv(t *testing.T) {
 	t.Setenv(CaptureContentEnvVar, "span_only")
-	if got := New(Options{}).contentMode; got != SpanOnly {
+	if got := New(&Options{}).contentMode; got != SpanOnly {
 		t.Errorf("mode from env = %q, want %q", got, SpanOnly)
 	}
+	// Nil options are the defaults, env var included.
+	if got := New(nil).contentMode; got != SpanOnly {
+		t.Errorf("mode from env with nil options = %q, want %q", got, SpanOnly)
+	}
 	// An explicit option wins over the env var.
-	if got := New(Options{ContentCapturingMode: NoContent}).contentMode; got != NoContent {
+	if got := New(&Options{ContentCapturingMode: NoContent}).contentMode; got != NoContent {
 		t.Errorf("explicit mode = %q, want %q", got, NoContent)
 	}
 }

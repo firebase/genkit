@@ -36,10 +36,10 @@ import (
 // reader, on top of the span recorder from setup.
 func setupMetrics(t *testing.T) *sdkmetric.ManualReader {
 	t.Helper()
-	setup(t, Options{})
+	setup(t, &Options{})
 	reader := sdkmetric.NewManualReader()
 	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
-	tracing.SetInstrumentation(New(Options{MeterProvider: mp}))
+	tracing.SetInstrumentation(New(&Options{MeterProvider: mp}))
 	return reader
 }
 
@@ -156,10 +156,10 @@ func TestModelMetricsError(t *testing.T) {
 }
 
 func TestMetricsDisabled(t *testing.T) {
-	setup(t, Options{})
+	setup(t, &Options{})
 	reader := sdkmetric.NewManualReader()
 	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
-	tracing.SetInstrumentation(New(Options{MeterProvider: mp, DisableMetrics: true}))
+	tracing.SetInstrumentation(New(&Options{MeterProvider: mp, DisableMetrics: true}))
 
 	runModelWith(t, modelResponse(), nil)
 	if got := collect(t, reader); len(got) != 0 {
@@ -174,7 +174,7 @@ var sortPoints = cmpopts.SortSlices(func(a, b point) bool {
 // TestEventOnlyKeepsContentOffSpan verifies EVENT_ONLY does not attach content
 // to span attributes (it emits a log event instead, which needs no SDK here).
 func TestEventOnlyKeepsContentOffSpan(t *testing.T) {
-	sr := setup(t, Options{ContentCapturingMode: EventOnly})
+	sr := setup(t, &Options{ContentCapturingMode: EventOnly})
 	runModel(t)
 	a := attrMap(findSpan(t, sr, "chat gemini-flash-latest"))
 	if _, ok := a[genai.AttrInputMessages]; ok {
