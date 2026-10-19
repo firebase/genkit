@@ -264,11 +264,9 @@ func NewModelAction[Config any](
 		return fn(ctx, req, cfg, cb)
 	}
 
-	// normalizeConfig runs outermost but for fillRequest, so that the
-	// built-in wrappers and the model function all see the typed, converted
-	// config on the request.
+	// normalizeConfig runs outermost so that the built-in wrappers and the
+	// model function all see the typed, converted config on the request.
 	rawFn := core.ChainMiddleware(
-		fillRequest(),
 		normalizeConfig[Config](name, o.Versions),
 		simulateSystemPrompt(&o, nil),
 		augmentWithContext(&o, nil),
@@ -623,7 +621,7 @@ func generateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		}
 		fn = backgroundModelToModelFn(bm.Start)
 	} else {
-		fn = m.Generate
+		fn = fillRequest()(m.Generate)
 	}
 
 	// The run's total counts every model action call made under it: model
@@ -818,9 +816,8 @@ func generateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 					// The response rides back with its original message and
 					// finish reason, not marked aborted: the model finished,
 					// post-processing did not, and the raw output is often
-					// exactly what the caller needs to see. A model action
-					// sets Request already; only a model registered as a raw
-					// action leaves it unset.
+					// exactly what the caller needs to see. A background
+					// model's response is the one that leaves Request unset.
 					if resp.Request == nil {
 						resp.Request = req
 					}

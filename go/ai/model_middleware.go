@@ -126,10 +126,12 @@ func reportUsage() ModelMiddleware {
 }
 
 // fillRequest sets the response's Request, when the model left it unset, to
-// the request the model action received. It runs before the wrappers that
-// rewrite the request (a simulated system prompt, injected context), so
-// [ModelResponse.History] gives back the caller's conversation, not the
-// rewritten one, and agrees with the request an observer reports.
+// the request the model action received. Generate wraps the model action with
+// it, outside the wrappers that rewrite the request (a simulated system
+// prompt, injected context), so [ModelResponse.History] gives back the
+// caller's conversation, not the rewritten one, and agrees with the request
+// an observer reports. The model action's own output does not carry the
+// request, so its trace and wire form do not repeat the input.
 func fillRequest() ModelMiddleware {
 	return func(fn ModelFunc) ModelFunc {
 		return func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
