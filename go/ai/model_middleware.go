@@ -125,6 +125,30 @@ func reportUsage() ModelMiddleware {
 	}
 }
 
+// fillRequest sets the response's Request, when the model left it unset, to
+// the request the model action received. It runs before the wrappers that
+// rewrite the request (a simulated system prompt, injected context), so
+// [ModelResponse.History] gives back the caller's conversation, not the
+// rewritten one, and agrees with the request an observer reports.
+func fillRequest() ModelMiddleware {
+	return func(fn ModelFunc) ModelFunc {
+		return func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			resp, err := fn(ctx, req, cb)
+			if resp != nil && resp.Request == nil {
+				resp.Request = req
+			}
+			return resp, err
+		}
+	}
+}
+
+func init() {
+	base.FailedModelResponse = func(ctx context.Context, req any, err error) any {
+		r, _ := req.(*ModelRequest)
+		return failurePartial(ctx, nil, r, err)
+	}
+}
+
 // countInputParts counts parts in the input request that match the given predicate.
 func countInputParts(req *ModelRequest, predicate func(*Part) bool) int {
 	if req == nil {

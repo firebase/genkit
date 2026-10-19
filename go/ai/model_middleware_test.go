@@ -731,3 +731,26 @@ func TestValidateVersion(t *testing.T) {
 		}
 	}
 }
+
+// TestModelActionFillsTheCallersRequest pins that a model that leaves
+// Response.Request unset gets the request the caller sent, not the one the
+// model saw: a model without system role support sees the system prompt as a
+// user and model pair, which must not leak into the caller's history.
+func TestModelActionFillsTheCallersRequest(t *testing.T) {
+	r := childRegistry(t)
+	m := NewModel("test/no-system-role", &ModelOptions{Supports: &ModelSupports{Multiturn: true}}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		if req.Messages[0].Role == RoleSystem {
+			t.Errorf("model saw a system message, want it simulated")
+		}
+		return &ModelResponse{Message: NewModelTextMessage("hi")}, nil
+	})
+	m.Register(r)
+	resp, err := Generate(t.Context(), r, WithModel(m), WithSystem("Be brief."), WithPrompt("hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	history := resp.History()
+	if len(history) != 3 || history[0].Role != RoleSystem || history[1].Role != RoleUser {
+		t.Errorf("History() = %v, want the system, user, and model messages", history)
+	}
+}

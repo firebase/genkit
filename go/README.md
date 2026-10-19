@@ -101,7 +101,7 @@ Each sample runs with `go run .`. Start with the `basic-*` set: together they co
 | [basic‑agents‑server](samples/basic-agents-server/main.go) | Store-backed and stateless agents over HTTP |
 | [basic‑agents‑remote](samples/basic-agents-remote/main.go) | An orchestrator that delegates to an agent in a second process, both started by one `go run .` |
 | [basic‑tool‑interrupts](samples/basic-tool-interrupts/main.go) | Human in the loop: a tool that pauses for approval |
-| [basic‑middleware](samples/basic-middleware) | [Retry and fallback](samples/basic-middleware/retry-fallback/main.go), [filesystem](samples/basic-middleware/filesystem), [skills](samples/basic-middleware/skills), and [context compression](samples/basic-middleware/context-compression/main.go) middleware |
+| [basic‑middleware](samples/basic-middleware) | [Retry and fallback](samples/basic-middleware/retry-fallback/main.go), [filesystem](samples/basic-middleware/filesystem), [skills](samples/basic-middleware/skills), and [context compression](samples/basic-middleware/context-compression/main.go) middleware, plus [per-tenant metering](samples/basic-middleware/metering/main.go) with an observer |
 | [basic‑errors](samples/basic-errors/main.go) | Error classification with sentinels and `errors.Is` |
 | [basic‑durable‑streaming‑exp](samples/basic-durable-streaming-exp/main.go) | Reconnectable streams with replay *(preview)* |
 
@@ -615,7 +615,7 @@ Also built in:
 
 Experimental, in `middleware/exp`: [`ContextCompression`](samples/basic-middleware/context-compression/main.go) keeps long conversations and tool loops inside a context budget.
 
-To build your own, implement [`ai.Middleware`](https://genkit.dev/docs/go/middleware/#building-your-own-custom-middleware) or wrap a function with `ai.MiddlewareFunc`.
+To build your own, implement [`ai.Middleware`](https://genkit.dev/docs/go/middleware/#building-your-own-custom-middleware) or wrap a function with `ai.MiddlewareFunc`. To watch every model call under a context, nested generates and subagents included, add the experimental `aix.Observer` with `tracing.WithInstrumentation` ([example](samples/basic-middleware/metering/main.go)).
 
 [Docs](https://genkit.dev/docs/go/middleware/) &middot; [Example](samples/basic-middleware/retry-fallback/main.go)
 
