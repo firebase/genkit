@@ -138,7 +138,9 @@ export function fastifyHandler<
     const abortController = new AbortController();
     // The client may have disconnected while the context provider was running,
     // before the 'close' listener below existed; 'close' fires only once.
-    if (reply.raw.destroyed) {
+    // 'destroyed' is also true once a response finished normally, so apply the
+    // same writableFinished check as the listener.
+    if (reply.raw.destroyed && !reply.raw.writableFinished) {
       abortController.abort();
     }
     // Listen on the response, not the request: since Node 16 the request
