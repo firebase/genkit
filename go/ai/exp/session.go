@@ -867,8 +867,13 @@ var sessionUsageKey = base.NewContextKey[func() *ai.GenerationUsage]()
 // when ctx runs under no agent session or under a client-managed one, whose
 // state, usage included, comes back from the caller. It does not require
 // knowing the session's State type, so middleware can enforce a limit on a
-// session's spend: read it once when a run starts, and add the calls the run
-// makes, which an [Observer] reports. The result is the caller's to keep.
+// session's spend. The result is the caller's to keep.
+//
+// The usage is live: each model call adds to it as it ends. To track a run
+// against a session limit, read it once, when the run starts, and add the
+// calls the run makes, which an [Observer] reports. Read again later, it
+// already holds those calls, and adding the observer's counts to it counts
+// them twice.
 func SessionUsageFromContext(ctx context.Context) (*ai.GenerationUsage, bool) {
 	get := sessionUsageKey.FromContext(ctx)
 	if get == nil {

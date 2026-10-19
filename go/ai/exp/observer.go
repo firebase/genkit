@@ -38,9 +38,11 @@ import (
 //
 // Hooks run synchronously on the goroutine that made the call, before the
 // caller continues, and may run concurrently with themselves, so state they
-// share must be guarded. They must not modify what they are given. A hook
-// that calls a model must not pass its ctx on, or it observes its own call.
-// Work an agent continues detached keeps reporting after the caller returns.
+// share must be guarded. They must not modify what they are given, and must
+// not panic: they run as the call's span ends, where a panic replaces the
+// call's own result. A hook that calls a model must not pass its ctx on, or it
+// observes its own call. Work that continues detached, such as a background
+// agent run or a subagent task, keeps reporting after the caller returns.
 //
 // Middleware that observes the calls of its Generate adds the observer in
 // WrapGenerate's first iteration, whose context every later iteration runs
@@ -62,7 +64,9 @@ type Observer struct {
 	// ModelDone is called after each model call ends, failed calls
 	// included, with the context the model was called with. A response that
 	// a WrapModel hook supplies without calling the model, such as a cache
-	// hit, is not a model call and is not reported.
+	// hit, is not a model call and is not reported, and neither is a
+	// background model (such as a video model), whose operation reports its
+	// usage only when it completes.
 	ModelDone func(ctx context.Context, call *ModelCall)
 }
 
@@ -110,6 +114,11 @@ func (s *modelSpan) End(res *tracing.SpanResult) {
 		resp = &ai.ModelResponse{Request: s.req}
 	case resp == nil:
 		resp, _ = base.FailedModelResponse(s.ctx, s.req, res.Err()).(*ai.ModelResponse)
+		if resp == nil {
+			// Package ai sets FailedModelResponse when it loads, so this
+			// holds only if that changes.
+			resp = &ai.ModelResponse{Request: s.req, FinishReason: ai.FinishReasonFailed, FinishMessage: res.Err().Error()}
+		}
 	case resp.Request == nil:
 		// A model action built without ai.NewModelAction does not fill it.
 		// A copy, so the caller's response is left as the model returned it.

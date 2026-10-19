@@ -337,7 +337,9 @@ func WithInstrumentation(ctx context.Context, providers ...Instrumentation) cont
 }
 
 // spanChain returns the chain for a span started under ctx: the process-wide
-// providers, then the providers ctx carries.
+// providers, then the providers ctx carries. With scoped providers present,
+// it allocates a chain per span. Caching the merged chain on ctx would go
+// stale when [SetInstrumentation] changes the process-wide providers later.
 func spanChain(ctx context.Context) []Instrumentation {
 	chain := activeInstrumentations()
 	scoped := scopedKey.FromContext(ctx)

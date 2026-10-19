@@ -21,6 +21,7 @@ import (
 	"errors"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
@@ -166,12 +167,12 @@ func TestObserverAddedInTheFirstIteration(t *testing.T) {
 				ai.NewToolRequestPart(&ai.ToolRequest{Name: "noop"}),
 			}}}, nil
 		})
-	var calls int
-	mw := &observing{done: func(context.Context, *ModelCall) { calls++ }}
+	var calls atomic.Int32
+	mw := &observing{done: func(context.Context, *ModelCall) { calls.Add(1) }}
 	if _, err := ai.Generate(t.Context(), reg, ai.WithModelName("test/looping"), ai.WithTools(noop), ai.WithPrompt("go"), ai.WithUse(mw)); err != nil {
 		t.Fatal(err)
 	}
-	if calls != 2 {
-		t.Errorf("observed %d model calls, want 2", calls)
+	if n := calls.Load(); n != 2 {
+		t.Errorf("observed %d model calls, want 2", n)
 	}
 }
