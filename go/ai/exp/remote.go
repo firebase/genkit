@@ -52,7 +52,7 @@ type remoteAgentOptions struct {
 	httpClient  *http.Client
 	headers     func(context.Context) (http.Header, error)
 	routes      *AgentRouteURLs
-	description string
+	description string // set by WithDescription (see descriptionOption)
 	metadata    *AgentMetadata
 }
 
@@ -371,15 +371,16 @@ func (t *httpTransport) WaitForSnapshot(ctx context.Context, req *GetSnapshotReq
 	return snap, err
 }
 
-// readSnapshotNow reads the snapshot's metadata and, once it is settled, the
-// full snapshot, so a pending snapshot costs no state payload. A JS server
+// readSnapshotNow reads the snapshot's metadata and, once it is settled and
+// req asks for more than metadata, the full snapshot, so a pending snapshot
+// costs no state payload. A JS server
 // drops the metadataOnly field it does not know and sends the full snapshot
 // each time, which costs payload but changes no result.
 func (t *httpTransport) readSnapshotNow(ctx context.Context, req *GetSnapshotRequest) (*SessionSnapshot[json.RawMessage], error) {
 	read := *req
 	read.MetadataOnly = true
 	snap, err := t.GetSnapshot(ctx, &read)
-	if err != nil || !snap.Status.Terminal() {
+	if err != nil || !snap.Status.Terminal() || req.MetadataOnly {
 		return snap, err
 	}
 	return t.GetSnapshot(ctx, req)

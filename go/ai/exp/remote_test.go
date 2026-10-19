@@ -498,6 +498,17 @@ func TestRemoteAgent_WaitForSnapshot(t *testing.T) {
 		if want := []bool{true, true, false}; fmt.Sprint(reads) != fmt.Sprint(want) {
 			t.Errorf("reads (metadataOnly) = %v, want %v", reads, want)
 		}
+
+		// A wait for metadata alone ends on the settled metadata read, with
+		// no full read after it.
+		reads = nil
+		mu.Unlock()
+		st := NewRemoteAgent("a", url).transport.(SnapshotTransport)
+		_, err = st.WaitForSnapshot(ctx, &GetSnapshotRequest{SnapshotID: "s", MetadataOnly: true})
+		mu.Lock()
+		if want := []bool{true, true}; err != nil || fmt.Sprint(reads) != fmt.Sprint(want) {
+			t.Errorf("metadata-only wait: reads (metadataOnly) = %v, %v; want %v", reads, err, want)
+		}
 	})
 
 	t.Run("a poll rides out a transient read failure and not a final one", func(t *testing.T) {
