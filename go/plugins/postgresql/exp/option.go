@@ -64,7 +64,8 @@ type sessionStoreOptions struct {
 	pollInterval       *time.Duration
 }
 
-// SessionStoreOption configures a [PostgresSessionStore].
+// SessionStoreOption configures a [PostgresSessionStore]. A later option of
+// the same kind replaces an earlier one.
 type SessionStoreOption interface {
 	applySessionStore(*sessionStoreOptions) error
 }
@@ -78,9 +79,6 @@ func (o tableNameOption) applySessionStore(opts *sessionStoreOptions) error {
 	}
 	if len(o.name) > maxTableNameLength {
 		return fmt.Errorf("table name %q is longer than %d bytes (WithTableName)", o.name, maxTableNameLength)
-	}
-	if opts.table != "" {
-		return errors.New("cannot set table name more than once (WithTableName)")
 	}
 	opts.table = o.name
 	return nil
@@ -104,9 +102,6 @@ func (o schemaNameOption) applySessionStore(opts *sessionStoreOptions) error {
 	if len(o.name) > maxIdentifierLength {
 		return fmt.Errorf("schema name %q is longer than %d bytes (WithSchemaName)", o.name, maxIdentifierLength)
 	}
-	if opts.schema != "" {
-		return errors.New("cannot set schema name more than once (WithSchemaName)")
-	}
 	opts.schema = o.name
 	return nil
 }
@@ -124,9 +119,6 @@ type checkpointIntervalOption struct{ turns int }
 func (o checkpointIntervalOption) applySessionStore(opts *sessionStoreOptions) error {
 	if o.turns < 1 || o.turns > maxCheckpointInterval {
 		return fmt.Errorf("checkpoint interval must be between 1 and %d (WithCheckpointInterval)", maxCheckpointInterval)
-	}
-	if opts.checkpointInterval != 0 {
-		return errors.New("cannot set checkpoint interval more than once (WithCheckpointInterval)")
 	}
 	opts.checkpointInterval = o.turns
 	return nil
@@ -152,9 +144,6 @@ func (o snapshotPathPrefixOption) applySessionStore(opts *sessionStoreOptions) e
 	if o.fn == nil {
 		return errors.New("snapshot path prefix function must not be nil (WithSnapshotPathPrefix)")
 	}
-	if opts.prefixFn != nil {
-		return errors.New("cannot set snapshot path prefix more than once (WithSnapshotPathPrefix)")
-	}
 	opts.prefixFn = o.fn
 	return nil
 }
@@ -178,9 +167,6 @@ func WithSnapshotPathPrefix(fn func(ctx context.Context) string) SessionStoreOpt
 type pollIntervalOption struct{ d time.Duration }
 
 func (o pollIntervalOption) applySessionStore(opts *sessionStoreOptions) error {
-	if opts.pollInterval != nil {
-		return errors.New("cannot set poll interval more than once (WithPollInterval)")
-	}
 	opts.pollInterval = &o.d
 	return nil
 }

@@ -214,24 +214,21 @@ func TestOptionValidation(t *testing.T) {
 		}
 	}
 
-	twice := []struct {
-		name        string
-		first, then SessionStoreOption
-	}{
-		{"table name", WithTableName("a"), WithTableName("b")},
-		{"schema name", WithSchemaName("a"), WithSchemaName("b")},
-		{"checkpoint interval", WithCheckpointInterval(5), WithCheckpointInterval(7)},
-		{"prefix", WithSnapshotPathPrefix(fixedPrefix("a")), WithSnapshotPathPrefix(fixedPrefix("b"))},
-		{"poll interval", WithPollInterval(time.Second), WithPollInterval(0)},
+	var cfg sessionStoreOptions
+	for _, opt := range []SessionStoreOption{
+		WithTableName("a"), WithTableName("b"),
+		WithSchemaName("a"), WithSchemaName("b"),
+		WithCheckpointInterval(5), WithCheckpointInterval(7),
+		WithSnapshotPathPrefix(fixedPrefix("a")), WithSnapshotPathPrefix(fixedPrefix("b")),
+		WithPollInterval(time.Second), WithPollInterval(0),
+	} {
+		if err := opt.applySessionStore(&cfg); err != nil {
+			t.Fatalf("applySessionStore: %v", err)
+		}
 	}
-	for _, tc := range twice {
-		var cfg sessionStoreOptions
-		if err := tc.first.applySessionStore(&cfg); err != nil {
-			t.Fatalf("%s: first set: %v", tc.name, err)
-		}
-		if err := tc.then.applySessionStore(&cfg); err == nil {
-			t.Errorf("%s: expected an error setting it twice", tc.name)
-		}
+	if cfg.table != "b" || cfg.schema != "b" || cfg.checkpointInterval != 7 ||
+		cfg.prefixFn(context.Background()) != "b" || cfg.pollInterval == nil || *cfg.pollInterval != 0 {
+		t.Errorf("options = %+v, want the later of each", cfg)
 	}
 }
 
