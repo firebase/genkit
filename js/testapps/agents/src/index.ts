@@ -52,6 +52,7 @@ import {
   readWorkspaceFile,
   testCodingAgent,
 } from './coding-agent.js';
+import { commanderAgent, testCommanderAgent } from './commander-agent.js';
 import {
   orchestratorAgent,
   testOrchestratorAgent,
@@ -91,6 +92,8 @@ void [
   orchestratorAgent,
   testOrchestratorAgent,
   testOrchestratorAgentSimple,
+  commanderAgent,
+  testCommanderAgent,
   tripPlannerAgent,
   testTripPlannerAgent,
   codingAgent,
@@ -166,6 +169,7 @@ exposeAgent('backgroundAgent', backgroundAgent, {
 exposeAgent('branchingAgent', branchingAgent, { snapshot: true });
 exposeAgent('taskAgent', taskAgent);
 exposeAgent('orchestratorAgent', orchestratorAgent);
+exposeAgent('commanderAgent', commanderAgent);
 exposeAgent('tripPlannerAgent', tripPlannerAgent, { snapshot: true });
 exposeAgent('codingAgent', codingAgent, { snapshot: true });
 
