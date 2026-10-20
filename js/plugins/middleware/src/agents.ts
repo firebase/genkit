@@ -222,7 +222,9 @@ function carriesResult(reason?: AgentFinishReason): boolean {
  * carries no answer, and a model told "completed" moves on without reading
  * the explanation; the explanation names the finish reason itself.
  */
-function settledStatus(reason?: AgentFinishReason): string {
+function settledStatus(
+  reason?: AgentFinishReason
+): 'completed' | 'failed' | 'aborted' {
   if (carriesResult(reason)) return 'completed';
   return reason === 'aborted' ? 'aborted' : 'failed';
 }
@@ -527,9 +529,11 @@ export const agents: GenerateMiddleware<typeof AgentsOptionsSchema> =
       // delegate_to prefix is a delegation verb, not an instance namespace.
       // Two instances in one generate call therefore need distinct, explicit
       // prefixes; left at the default they both emit the bare names, and the
-      // registry keeps only the last instance's tools (it logs the overwrite).
-      // An instance resolves only its own agents' handles, so the other
-      // instance's handles then read as unknown.
+      // generate call is rejected for duplicate tool names, as in Go. Unlike
+      // Go, the continue tool is registered even when no sub-agent can be
+      // continued (setup is synchronous; the model hook hides it instead), so
+      // two default-prefix instances collide on it whether or not `async` is
+      // set.
       const sharedPrefix = config.toolPrefix ?? '';
       const taskTools = {
         check: makeToolName(sharedPrefix, CHECK_BACKGROUND_TASKS_TOOL),

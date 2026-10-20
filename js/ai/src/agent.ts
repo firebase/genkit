@@ -2278,7 +2278,8 @@ export function defineCustomAgent<State = unknown>(
     if (lookup.metadataOnly) {
       // The shaping above needs only the metadata. The state is dropped here
       // whether or not the store honored the hint, and the client transform,
-      // which shapes state, has nothing to run on.
+      // which shapes state, has nothing to run on. A transform that redacts
+      // metadata (ex. `error.details`) would have to run here too.
       const { state: _state, ...metadata } = effective;
       return metadata;
     }
