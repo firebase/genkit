@@ -551,7 +551,8 @@ describe('Vertex AI Gemini', () => {
         }
       });
 
-      if (clientOptions.kind === 'regional') {
+      // Express has no project to fall back to.
+      if (clientOptions.kind !== 'express') {
         it('handles vertexRetrieval tool', async () => {
           mockFetchResponse(defaultApiResponse);
           const request: GenerateRequest<typeof GeminiConfigSchema> = {
@@ -575,8 +576,8 @@ describe('Vertex AI Gemini', () => {
             assert.deepStrictEqual(retrievalTool, {
               retrieval: {
                 vertexAiSearch: {
-                  datastore:
-                    'projects/test-project/locations/us-central1/collections/default_collection/dataStores/my-store',
+                  // The project and location come from the client options.
+                  datastore: `projects/test-project/locations/${clientOptions.location}/collections/default_collection/dataStores/my-store`,
                 },
                 disableAttribution: true,
               },

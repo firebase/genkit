@@ -696,9 +696,14 @@ function toVertexAISearchDatastore(
   const projectId =
     vertexRetrieval.datastore.projectId ||
     (clientOptions.kind != 'express' ? clientOptions.projectId : undefined);
+  // Data stores are in `global`, `us` or `eu`, so global and multi-regional
+  // client locations are valid fallbacks.
+  // TODO: Regional locations (e.g. us-central1) aren't data store locations;
+  // falling back to one probably fails on the server. Kept as before until
+  // checked live.
   const location =
     vertexRetrieval.datastore.location ||
-    (clientOptions.kind == 'regional' ? clientOptions.location : undefined);
+    (clientOptions.kind != 'express' ? clientOptions.location : undefined);
   const dataStoreId = vertexRetrieval.datastore.dataStoreId;
   if (!projectId || !location || !dataStoreId) {
     throw new GenkitError({
