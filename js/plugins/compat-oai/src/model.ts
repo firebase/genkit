@@ -41,6 +41,7 @@ import { model } from 'genkit/plugin';
 import OpenAI, { APIError } from 'openai';
 import type {
   ChatCompletion,
+  ChatCompletionAssistantMessageParam,
   ChatCompletionChunk,
   ChatCompletionContentPart,
   ChatCompletionCreateParams,
@@ -295,26 +296,28 @@ export function toOpenAIMessages(
               arguments: JSON.stringify(part.toolRequest.input),
             },
           }));
-        if (toolCalls.length > 0) {
-          const text = msg.text;
-          // Providers with thinking modes (e.g. DeepSeek, Qwen) require the
-          // reasoning of a tool-calling turn to be echoed back on later turns.
-          const reasoning = msg.content
-            .map((part) => part.reasoning)
-            .filter(Boolean)
-            .join('');
-          apiMessages.push({
-            role: role,
-            ...(text ? { content: text } : {}),
-            ...(reasoning ? { reasoning_content: reasoning } : {}),
-            tool_calls: toolCalls,
-          } as ChatCompletionMessageParam);
-        } else {
-          apiMessages.push({
-            role: role,
-            content: msg.text,
-          });
+        const text = msg.text;
+        // Providers with thinking modes (e.g. DeepSeek) expect reasoning from
+        // all previous assistant turns to be echoed back when the request
+        // carries tools, so it is sent on every assistant message, not only
+        // tool-calling ones. Providers that don't use it ignore the field.
+        const reasoning = msg.reasoning;
+        // `reasoning_content` is a provider extension, not part of the
+        // OpenAI SDK types.
+        const assistantMessage: ChatCompletionAssistantMessageParam & {
+          reasoning_content?: string;
+        } =
+          toolCalls.length > 0
+            ? {
+                role: role,
+                ...(text ? { content: text } : {}),
+                tool_calls: toolCalls,
+              }
+            : { role: role, content: text };
+        if (reasoning) {
+          assistantMessage.reasoning_content = reasoning;
         }
+        apiMessages.push(assistantMessage);
         break;
       }
       case 'tool': {
@@ -506,7 +509,8 @@ function fromOpenAIToolCallChunk(
  * Converts an OpenAI message stream event to a Genkit GenerateResponseData
  * object.
  * @param choice The OpenAI message stream event to convert.
- * @param jsonMode Whether the event is a JSON response.
+ * @param _jsonMode Unused; kept for signature compatibility. Streamed content
+ *   is always emitted as text, see the comment in the body.
  * @param toolCallAccumulators Optional per-message tool-call accumulators (keyed
  *   by tool call index) used to assemble streamed `arguments` fragments into
  *   partial tool requests. When omitted, tool-call deltas are converted
@@ -515,7 +519,7 @@ function fromOpenAIToolCallChunk(
  */
 export function fromOpenAIChunkChoice(
   choice: ChatCompletionChunk.Choice,
-  jsonMode = false,
+  _jsonMode = false,
   toolCallAccumulators?: ToolCallAccumulator[]
 ): GenerateResponseData {
   const toolRequestParts = toolCallAccumulators
@@ -537,23 +541,14 @@ export function fromOpenAIChunkChoice(
     content.push({ reasoning: choice.delta.reasoning_content as string });
   }
 
-  // Handle regular content if present. A streamed delta is usually only a
-  // fragment of the response, so it is emitted as `data` only when it happens
-  // to be a complete JSON object/array; anything else (partial JSON, or a
-  // preamble that accompanies tool calls) is emitted as text and the full
-  // response is parsed once streaming finishes.
+  // Deltas are always emitted as text, even in JSON mode. A delta is a fragment
+  // of the response; one that happens to parse on its own (OpenAI streams
+  // `{}` and `[]` as standalone tokens) is still part of a larger document.
+  // Emitting it as `data` would drop it from `accumulatedText`, which the
+  // JSON format parser uses to build partial output. The final message is
+  // parsed from the complete response.
   if (choice.delta.content) {
-    const text = choice.delta.content;
-    let data: unknown;
-    if (jsonMode && !hasToolRequests) {
-      try {
-        const parsed = JSON.parse(text);
-        if (parsed !== null && typeof parsed === 'object') data = parsed;
-      } catch {
-        // Not a complete JSON value on its own; fall through to text.
-      }
-    }
-    content.push(data !== undefined ? { data } : { text });
+    content.push({ text: choice.delta.content });
   }
 
   if (hasToolRequests) {
@@ -711,7 +706,6 @@ export function openAIModelRunner(
         // tool calls incrementally: the first delta carries `name`/`id` and
         // subsequent deltas carry only fragments of the `arguments` JSON string.
         const toolCallAccumulators = new Map<number, ToolCallAccumulator[]>();
-        const jsonMode = request.output?.format === 'json';
         for await (const chunk of stream) {
           chunk.choices?.forEach((chunk) => {
             let accumulators = toolCallAccumulators.get(chunk.index);
@@ -719,7 +713,7 @@ export function openAIModelRunner(
               accumulators = [];
               toolCallAccumulators.set(chunk.index, accumulators);
             }
-            const c = fromOpenAIChunkChoice(chunk, jsonMode, accumulators);
+            const c = fromOpenAIChunkChoice(chunk, undefined, accumulators);
             options?.sendChunk!({
               index: chunk.index,
               content: c.message?.content ?? [],

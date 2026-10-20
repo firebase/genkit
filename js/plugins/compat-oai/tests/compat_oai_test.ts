@@ -25,6 +25,7 @@ import {
 } from '@jest/globals';
 import type {
   GenerateRequest,
+  GenerateResponseChunkData,
   GenerateResponseData,
   MessageData,
   Part,
@@ -301,6 +302,22 @@ describe('toOpenAiMessages', () => {
               function: { name: 'lookup', arguments: '{}' },
             },
           ],
+        },
+      ],
+    },
+    {
+      should: 'echo reasoning on a text-only assistant message',
+      inputMessages: [
+        {
+          role: 'model',
+          content: [{ reasoning: 'Simple greeting.' }, { text: 'Hi there!' }],
+        },
+      ],
+      expectedOutput: [
+        {
+          role: 'assistant',
+          content: 'Hi there!',
+          reasoning_content: 'Simple greeting.',
         },
       ],
     },
@@ -728,7 +745,7 @@ describe('fromOpenAiChunkChoice', () => {
       },
     },
     {
-      should: 'work with json',
+      should: 'emit a complete json delta as text in json mode',
       chunkChoice: {
         index: 0,
         delta: {
@@ -743,8 +760,23 @@ describe('fromOpenAiChunkChoice', () => {
         finishReason: 'unknown',
         message: {
           role: 'model',
-          content: [{ data: { json: 'test' } }],
+          content: [{ text: '{"json":"test"}' }],
         },
+      },
+    },
+    {
+      // OpenAI streams `{}` and `[]` as standalone tokens inside larger
+      // documents, so a delta that parses on its own must stay text.
+      should: 'emit a standalone empty object delta as text in json mode',
+      chunkChoice: {
+        index: 0,
+        delta: { role: 'assistant', content: '{}' },
+        finish_reason: null,
+      },
+      jsonMode: true,
+      expectedOutput: {
+        finishReason: 'unknown',
+        message: { role: 'model', content: [{ text: '{}' }] },
       },
     },
     {
@@ -1995,6 +2027,92 @@ describe('openAIModelRunner', () => {
     // The last chunk should have the fully accumulated, parsed input.
     const lastPart = toolRequestChunks.at(-1)!.content[0];
     expect(lastPart.toolRequest.input).toStrictEqual({ city: 'Tokyo' });
+  });
+
+  it('should stream json deltas as text so accumulated text stays valid json', async () => {
+    // Real OpenAI tokenization of `{"query":"boots","filters":{},"limit":10}`:
+    // `{}` arrives as its own delta and must not be dropped from the text.
+    const deltas = [
+      '{"',
+      'query',
+      '":"',
+      'boots',
+      '","',
+      'filters',
+      '":',
+      '{}',
+      ',"',
+      'limit',
+      '":',
+      '10',
+      '}',
+    ];
+    const fullText = deltas.join('');
+    const openaiClient = {
+      beta: {
+        chat: {
+          completions: {
+            stream: jest.fn(
+              () =>
+                new (class {
+                  i = 0;
+                  [Symbol.asyncIterator]() {
+                    return {
+                      next: async () =>
+                        this.i < deltas.length
+                          ? {
+                              value: {
+                                choices: [
+                                  {
+                                    index: 0,
+                                    delta: { content: deltas[this.i++] },
+                                    finish_reason: null,
+                                  },
+                                ],
+                              },
+                              done: false,
+                            }
+                          : { done: true },
+                    };
+                  }
+                  async finalChatCompletion() {
+                    return {
+                      choices: [
+                        {
+                          message: { role: 'assistant', content: fullText },
+                          finish_reason: 'stop',
+                        },
+                      ],
+                    };
+                  }
+                })()
+            ),
+          },
+        },
+      },
+    };
+    const chunks: GenerateResponseChunkData[] = [];
+    const runner = openAIModelRunner(
+      'gpt-4o',
+      openaiClient as unknown as OpenAI
+    );
+    const response = await runner(
+      { messages: [], output: { format: 'json' } },
+      {
+        streamingRequested: true,
+        sendChunk: (chunk) => chunks.push(chunk),
+      }
+    );
+
+    expect(
+      chunks.every((c) => c.content.every((p) => p.data === undefined))
+    ).toBe(true);
+    expect(
+      chunks.flatMap((c) => c.content.map((p) => p.text ?? '')).join('')
+    ).toBe(fullText);
+    expect(response.message?.content).toStrictEqual([
+      { data: { query: 'boots', filters: {}, limit: 10 } },
+    ]);
   });
 
   it('should stream preamble text then tool calls in json mode and keep both in the final message', async () => {
