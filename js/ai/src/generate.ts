@@ -677,6 +677,9 @@ export async function generate<
     // caller that asked for failures on the response gets that response.
     const failure = loopFailureOf(record, e);
     if (failure && resolvedOptions.throwOnError === false) {
+      // Safe: a failed or aborted partial has no message, so its `output` is
+      // null, and a rejected completion's partial is the turn's own response,
+      // parsed with this request's output format.
       return failure.partial as GenerateResponse<z.infer<O>>;
     }
     throw e;
