@@ -6231,6 +6231,9 @@ Now respond to the latest message.`,
         const restored = await agent.loadChat({ snapshotId }, { context: bob });
         await agent.getSnapshot(snapshotId, { context: bob });
         assert.deepStrictEqual(uids(store.reads), ['bob', 'bob']);
+        store.reads = [];
+        await agent.waitForSnapshot(snapshotId, { context: bob });
+        assert.deepStrictEqual(new Set(uids(store.reads)), new Set(['bob']));
 
         // The loaded chat is bound to the context it was loaded with.
         assert.strictEqual((await restored.send('hi')).text, 'uid=bob');

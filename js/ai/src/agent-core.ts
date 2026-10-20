@@ -119,7 +119,7 @@ export interface AgentAPI<State = unknown, Opts extends object = never> {
    */
   waitForSnapshot(
     snapshotId: string,
-    opts?: WaitForSnapshotOptions
+    opts?: WaitForSnapshotOptions<Opts>
   ): Promise<SessionSnapshot<State> | undefined>;
 
   /** Aborts a running snapshot. Requires a server store. */
@@ -131,9 +131,10 @@ export interface AgentAPI<State = unknown, Opts extends object = never> {
 
 /**
  * Options for waiting on a snapshot ({@link AgentAPI.waitForSnapshot},
- * {@link DetachedTask.wait}).
+ * {@link DetachedTask.wait}), plus any transport-specific options `Opts`
+ * (ex. `context` for in-process agents), as with {@link AgentTurnOptions}.
  */
-export interface WaitForSnapshotOptions {
+export type WaitForSnapshotOptions<Opts extends object = never> = {
   /**
    * Ends the wait early. The promise rejects with the signal's reason (an
    * `AbortError`, or a `TimeoutError` from `AbortSignal.timeout`), and the
@@ -150,7 +151,7 @@ export interface WaitForSnapshotOptions {
    * the transport's own cadence.
    */
   intervalMs?: number;
-}
+} & ([Opts] extends [never] ? unknown : Opts);
 
 /**
  * A stateful conversation with an agent. Tracks state across turns so callers
@@ -320,9 +321,11 @@ export interface DetachedTask<State = unknown, Opts extends object = never> {
    * means the wait itself could not proceed: the snapshot is gone, or
    * `abortSignal` ended the wait. The wait runs server-side where the
    * transport supports it and falls back to polling
-   * {@link AgentTransport.getSnapshot} otherwise.
+   * {@link AgentTransport.getSnapshot} otherwise. Per-call transport options
+   * override the ones resolved at detach time key by key, as with
+   * {@link abort}.
    */
-  wait(opts?: WaitForSnapshotOptions): Promise<SessionSnapshot<State>>;
+  wait(opts?: WaitForSnapshotOptions<Opts>): Promise<SessionSnapshot<State>>;
 
   /**
    * Aborts the task. Per-call options override the ones resolved at detach
@@ -447,7 +450,7 @@ export interface AgentTransport<Opts extends object = never> {
    */
   waitForSnapshot?(
     snapshotId: string,
-    opts?: WaitForSnapshotOptions
+    opts?: WaitForSnapshotOptions<Opts>
   ): Promise<SessionSnapshot<any> | undefined>;
 
   /** Aborts a running snapshot. Requires a server store. */
@@ -496,12 +499,13 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
  * snapshot that has not settled, otherwise by polling
  * {@link AgentTransport.getSnapshot} every `intervalMs` (default 1s).
  * Resolves `undefined` when the snapshot does not exist, and rejects with the
- * signal's reason when `abortSignal` ends the wait first.
+ * signal's reason when `abortSignal` ends the wait first. The transport
+ * options in `opts` ride along on every request, the polling reads included.
  */
-async function waitForSnapshotViaTransport<State>(
-  transport: AgentTransport,
+async function waitForSnapshotViaTransport<State, Opts extends object>(
+  transport: AgentTransport<Opts>,
   snapshotId: string,
-  opts?: WaitForSnapshotOptions
+  opts?: WaitForSnapshotOptions<Opts>
 ): Promise<SessionSnapshot<State> | undefined> {
   if (transport.waitForSnapshot) {
     try {
@@ -522,16 +526,32 @@ async function waitForSnapshotViaTransport<State>(
     }
   }
   const intervalMs = opts?.intervalMs ?? 1000;
+  const transportOpts = transportOptsOf(opts);
   while (true) {
     opts?.abortSignal?.throwIfAborted();
-    const snap = (await transport.getSnapshot({ snapshotId })) as
-      | SessionSnapshot<State>
-      | undefined;
+    const snap = (await transport.getSnapshot(
+      { snapshotId },
+      transportOpts
+    )) as SessionSnapshot<State> | undefined;
     if (!snap || isSettled(snap)) {
       return snap;
     }
     await sleep(intervalMs, opts?.abortSignal);
   }
+}
+
+/**
+ * The transport options carried by wait options: everything but the wait's
+ * own fields. The cast is safe because what remains is exactly the `Opts`
+ * half of {@link WaitForSnapshotOptions}; TypeScript cannot narrow its
+ * deferred conditional for a generic `Opts`.
+ */
+function transportOptsOf<Opts extends object>(
+  opts: WaitForSnapshotOptions<Opts> | undefined
+): Opts | undefined {
+  if (!opts) return undefined;
+  const { abortSignal: _abortSignal, intervalMs: _intervalMs, ...rest } = opts;
+  return rest as unknown as Opts;
 }
 
 /**
@@ -877,11 +897,13 @@ class DetachedTaskImpl<State = unknown, Opts extends object = never>
     }
   }
 
-  async wait(opts?: WaitForSnapshotOptions): Promise<SessionSnapshot<State>> {
-    const snap = await waitForSnapshotViaTransport<State>(
+  async wait(
+    opts?: WaitForSnapshotOptions<Opts>
+  ): Promise<SessionSnapshot<State>> {
+    const snap = await waitForSnapshotViaTransport<State, Opts>(
       this.transport,
       this.snapshotId,
-      opts
+      mergeOpts(this.transportOpts, opts)
     );
     if (!snap) {
       throw new Error(`Snapshot ${this.snapshotId} not found.`);
@@ -1415,9 +1437,13 @@ export function createAgentAPI<State = unknown, Opts extends object = never>(
 
     waitForSnapshot(
       snapshotId: string,
-      opts?: WaitForSnapshotOptions
+      opts?: WaitForSnapshotOptions<Opts>
     ): Promise<SessionSnapshot<State> | undefined> {
-      return waitForSnapshotViaTransport<State>(transport, snapshotId, opts);
+      return waitForSnapshotViaTransport<State, Opts>(
+        transport,
+        snapshotId,
+        opts
+      );
     },
 
     abort(

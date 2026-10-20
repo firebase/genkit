@@ -209,7 +209,7 @@ export function remoteAgentTransport(
       if (!waitRouteMissing) {
         const headers = await resolveHeaders();
         try {
-          return await runFlow<SessionSnapshot<State> | undefined>({
+          return await runFlow<SessionSnapshot<unknown> | undefined>({
             url: waitForSnapshotUrl,
             input: { snapshotId },
             headers,

@@ -2446,11 +2446,15 @@ export function defineCustomAgent<State = unknown>(
       return composite.getSnapshotData({ ...lookup, context: opts?.context });
     },
 
-    waitForSnapshot(snapshotId: string, opts?: WaitForSnapshotOptions) {
+    waitForSnapshot(
+      snapshotId: string,
+      opts?: WaitForSnapshotOptions<LocalAgentOptions>
+    ) {
       return composite.waitForSnapshotData({
         snapshotId,
         abortSignal: opts?.abortSignal,
         pollIntervalMs: opts?.intervalMs,
+        context: opts?.context,
       });
     },
 
