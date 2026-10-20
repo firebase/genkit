@@ -494,9 +494,9 @@ locations are sent as configured, and the server returns an error if the
 model isn't available there: use `vertexAI({ location: 'global' })` or
 `config: { location: 'global' }` for these models. Interactions are stateless
 by default (`store: false`), as with `googleAI`; set `config: { store: true }`
-to store them and continue a conversation from the previous response's
-messages. Unlike `googleAI`, `safetySettings` and `labels` are supported on
-these models.
+(or `vertexAI({ store: true })` for every request) to store them and continue
+a conversation from the previous response's messages. Unlike `googleAI`,
+`safetySettings` and `labels` are supported on these models.
 
 ### Standard Genkit Output vs. `response.raw`
 

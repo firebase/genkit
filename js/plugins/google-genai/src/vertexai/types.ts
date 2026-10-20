@@ -101,6 +101,11 @@ export interface VertexPluginOptions {
   experimental_debugTraces?: boolean;
   /** Use `responseSchema` field instead of `responseJsonSchema`. */
   legacyResponseSchema?: boolean;
+  /**
+   * Whether to store conversations on the server when using the Interactions API.
+   * Defaults to false (stateless).
+   */
+  store?: boolean;
 }
 
 interface BaseClientOptions {

@@ -842,7 +842,7 @@ async function generateWithInteractions(params: {
     generationConfig.tool_choice = toolChoice;
   }
 
-  const store = storeFromConfig === true;
+  const store = storeFromConfig === true || pluginOptions?.store === true;
   const { messages, previousInteractionId } = selectInteractionInput(
     params.messages,
     store,

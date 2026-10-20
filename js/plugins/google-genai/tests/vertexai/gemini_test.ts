@@ -1022,6 +1022,34 @@ describe('Vertex AI Gemini', () => {
         ]);
       });
 
+      it('uses the plugin-level store option', async () => {
+        mockFetchResponse(interactionResponse);
+        const model = defineModel(interactionsModel, clientOptions, {
+          store: true,
+        });
+        await model.run({
+          messages: [
+            { role: 'user', content: [{ text: 'Hi' }] },
+            {
+              role: 'model',
+              content: [{ text: 'Hello' }],
+              // Interaction IDs on the platform look like this (seen live).
+              metadata: { interactionId: 'ChAabc123' },
+            },
+            { role: 'user', content: [{ text: 'Again' }] },
+          ],
+          config: { previousInteractionId: 'ChAdef456' },
+        });
+
+        const body = lastRequestBody();
+        assert.strictEqual(body.store, true);
+        // An explicit previousInteractionId wins over the message metadata.
+        assert.strictEqual(body.previous_interaction_id, 'ChAdef456');
+        assert.deepStrictEqual(body.input, [
+          { type: 'user_input', content: [{ type: 'text', text: 'Again' }] },
+        ]);
+      });
+
       it('rejects previousInteractionId without store', async () => {
         const model = defineModel(interactionsModel, clientOptions);
         await assert.rejects(
