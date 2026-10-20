@@ -30,9 +30,11 @@ from genkit._ai._agents._runtime import SessionRunner
 from genkit._ai._agents._session import Session
 from genkit._ai._agents._types import TurnContext, TurnResult
 from genkit._core._action import ActionRunContext
+from genkit._core._error import GenkitError
 from genkit._core._model import AgentInput, AgentResult, Message, SessionState
-from genkit._core._telemetry._attrs import Attr, metadata_key
+from genkit._core._telemetry._attrs import Attr, State, metadata_key
 from genkit._core._telemetry._http import ActiveSpan
+from genkit._core._typing import SnapshotStatus
 from genkit.exp.agent import AgentFinishReason, InMemorySessionStore
 
 UUID_RE = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.I)
@@ -60,6 +62,22 @@ def _counter_agent(
             await session_runner.update_custom(bump)
             await session_runner.add_messages([Message(role='model', content=[Part.from_text('done')])])
             return TurnResult(finish_reason=AgentFinishReason.STOP)
+
+        await session_runner.run(handle_turn)
+        return await session_runner.result()
+
+    return define_custom_agent(ai, name, fn, store=store)
+
+
+def _failing_agent(
+    *,
+    ai: Genkit,
+    name: str,
+    store: InMemorySessionStore | None,
+):
+    async def fn(session_runner: SessionRunner, _: ActionRunContext) -> AgentResult:
+        async def handle_turn(_: AgentInput, __: TurnContext) -> TurnResult | None:
+            raise GenkitError(status='INTERNAL', message='boom')
 
         await session_runner.run(handle_turn)
         return await session_runner.result()
@@ -183,3 +201,43 @@ async def test_client_managed_preserves_session_id_across_turns() -> None:
     out2 = await chat.send('two')
     assert out2.raw.state is not None
     assert out2.raw.state.session_id == sid
+
+
+@pytest.mark.asyncio
+async def test_failed_turn_span_carries_snapshot_id_with_store(exporter) -> None:
+    """A failed turn tags its own span with the FAILED snapshot it persisted, not the root span."""
+    ai = Genkit()
+    store = InMemorySessionStore()
+    agent = _failing_agent(ai=ai, name='failedTurnSpanStore', store=store)
+
+    out = await agent.chat().send('hi')
+    assert out.finish_reason == AgentFinishReason.FAILED
+
+    failed = [s for s in store.snapshots.values() if s.status == SnapshotStatus.FAILED]
+    assert len(failed) == 1
+
+    spans = exporter.get_finished_spans()
+    turn_span = _by_name(spans, 'runTurn-1')
+    assert turn_span.attributes is not None
+    assert turn_span.attributes[SNAPSHOT_ID_ATTR] == failed[0].snapshot_id
+    # The span still records the failure.
+    assert turn_span.attributes[Attr.STATE] == State.ERROR
+
+    root = _by_name(spans, 'failedTurnSpanStore')
+    assert root.attributes is not None
+    assert SNAPSHOT_ID_ATTR not in root.attributes
+
+
+@pytest.mark.asyncio
+async def test_failed_turn_span_has_no_snapshot_id_client_managed(exporter) -> None:
+    """No store: a failed turn writes no snapshot, so its span has no snapshot id."""
+    ai = Genkit()
+    agent = _failing_agent(ai=ai, name='failedTurnSpanClient', store=None)
+
+    out = await agent.chat().send('hi')
+    assert out.finish_reason == AgentFinishReason.FAILED
+
+    turn_span = _by_name(exporter.get_finished_spans(), 'runTurn-1')
+    assert turn_span.attributes is not None
+    assert SNAPSHOT_ID_ATTR not in turn_span.attributes
+    assert turn_span.attributes[Attr.STATE] == State.ERROR

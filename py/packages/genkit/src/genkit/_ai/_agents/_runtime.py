@@ -160,10 +160,28 @@ class SessionRunner(Generic[StateT]):
             if self.on_begin_turn is not None:
                 await self.on_begin_turn()
 
+            # The handler's exception, once it has been ended inside the turn
+            # span. Distinguishes it from a failure of on_end_turn itself.
+            turn_error: Exception | None = None
+
             try:
 
                 async def body(span: SpanContext, turn_input: AgentInput = inp, ctx: TurnContext = turn_ctx) -> object:
-                    turn_result = await fn(turn_input, ctx)
+                    nonlocal turn_error
+                    try:
+                        turn_result = await fn(turn_input, ctx)
+                    except Exception as exc:
+                        # End a failed turn inside its span, as a successful one
+                        # is, so the span links to the snapshot the failure
+                        # persisted. The span still records the error.
+                        turn_error = exc
+                        self.last_turn_finish_reason = AgentFinishReason.FAILED
+                        self.last_turn_error = to_error_details(exc)
+                        if self.on_end_turn is not None:
+                            failed_snapshot_id = await self.on_end_turn(AgentFinishReason.FAILED)
+                            if failed_snapshot_id:
+                                span.set_metadata({'agent:snapshotId': failed_snapshot_id})
+                        raise
                     finish_reason = turn_result.finish_reason if turn_result else None
                     self.last_turn_finish_reason = finish_reason
                     self.last_turn_error = None
@@ -192,11 +210,16 @@ class SessionRunner(Generic[StateT]):
                 self.last_good_finish_reason = self.last_turn_finish_reason
                 self.turn_index += 1
             except Exception as exc:
-                self.last_turn_finish_reason = AgentFinishReason.FAILED
-                self.last_turn_error = to_error_details(exc)
+                if turn_error is None:
+                    # Failed after the handler returned (e.g. in on_end_turn).
+                    self.last_turn_finish_reason = AgentFinishReason.FAILED
+                    self.last_turn_error = to_error_details(exc)
 
-                if self.on_end_turn is not None:
-                    await self.on_end_turn(AgentFinishReason.FAILED)
+                    if self.on_end_turn is not None:
+                        await self.on_end_turn(AgentFinishReason.FAILED)
+                elif exc is not turn_error:
+                    # on_end_turn failed while ending the failed turn.
+                    raise
 
                 break
             finally:
