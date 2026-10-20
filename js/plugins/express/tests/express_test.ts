@@ -62,9 +62,19 @@ describe('expressHandler', async () => {
   let server: http.Server;
   let port;
   let abortableFlowResult;
+  // Settle when abortableFlow starts and when it returns, so the hang-up test
+  // aborts a flow that is running and reads its result without guessing at
+  // timings (a fixed delay aborted before the request reached the flow on a
+  // loaded CI runner).
+  let abortableFlowStarted: Promise<void>;
+  let abortableFlowDone: Promise<void>;
 
   beforeEach(async () => {
     abortableFlowResult = undefined;
+    let markStarted!: () => void;
+    let markDone!: () => void;
+    abortableFlowStarted = new Promise((r) => (markStarted = r));
+    abortableFlowDone = new Promise((r) => (markDone = r));
     const ai = genkit({});
     const echoModel = defineEchoModel(ai);
 
@@ -121,6 +131,7 @@ describe('expressHandler', async () => {
         name: 'abortableFlow',
       },
       async (_, { abortSignal, sendChunk }) => {
+        markStarted();
         let itersLeft = 20;
         while (itersLeft > 0 && !abortSignal.aborted) {
           await new Promise((r) => {
@@ -133,6 +144,7 @@ describe('expressHandler', async () => {
           itersLeft > 0 ? 'success' : 'failure',
           abortSignal.aborted,
         ];
+        markDone();
         return itersLeft > 0 ? 'success' : 'failure';
       }
     );
@@ -371,14 +383,14 @@ describe('expressHandler', async () => {
         abortSignal: controller.signal,
       });
 
-      setTimeout(() => controller.abort(), 10);
+      await abortableFlowStarted;
+      controller.abort();
 
       await assert.rejects(response); // abort error
 
-      await new Promise((r) => {
-        setTimeout(r, 200);
-      });
-
+      // An abort that never reached the flow lets it run out its 20 ticks
+      // (~2s) and record ['failure', false].
+      await abortableFlowDone;
       assert.deepStrictEqual(abortableFlowResult, ['success', true]);
     });
   });
