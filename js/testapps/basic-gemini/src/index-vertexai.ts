@@ -37,6 +37,42 @@ ai.defineFlow('basic-hi', async () => {
   return text;
 });
 
+// Newer Gemini models (and any model not listed in the plugin) use the
+// Interactions API. It's available on the global location.
+ai.defineFlow('argon-basic', async () => {
+  const { text } = await ai.generate({
+    model: vertexAI.model('gemini-4-argon'),
+    prompt: 'You are a helpful AI assistant named Walt, say hello.',
+  });
+  return text;
+});
+
+// Server-side conversation state (Interactions API models only). With
+// `store: true`, each response's message carries `metadata.interactionId`;
+// passing the previous messages back continues that interaction, and only
+// the new message is sent.
+ai.defineFlow('interactions-multi-turn-store', async () => {
+  const first = await ai.generate({
+    model: vertexAI.model('gemini-3.8-flash'),
+    prompt:
+      'Remember this: my cat is called Biscuit and my favorite color is green. Say hi.',
+    config: { store: true },
+  });
+
+  const second = await ai.generate({
+    model: vertexAI.model('gemini-3.8-flash'),
+    messages: first.messages,
+    prompt: 'What is my cat called and what is my favorite color?',
+    config: { store: true },
+  });
+
+  return {
+    firstInteractionId: first.message?.metadata?.interactionId,
+    secondInteractionId: second.message?.metadata?.interactionId,
+    answer: second.text,
+  };
+});
+
 ai.defineFlow('basic-hi-lite', async () => {
   const { text } = await ai.generate({
     model: vertexAI.model('gemini-flash-lite-latest'),

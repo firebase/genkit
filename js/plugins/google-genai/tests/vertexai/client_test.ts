@@ -706,7 +706,7 @@ describe('Vertex AI Client', () => {
               generateContent(model, request, currentOptions),
               (err: any) => {
                 assert.strictEqual(err.name, 'GenkitError');
-                assert.strictEqual(err.status, 'UNKNOWN');
+                assert.strictEqual(err.status, 'PERMISSION_DENIED');
                 assert.match(
                   err.message,
                   /Error fetching from .* \[403 Forbidden\] Permission denied/
@@ -902,13 +902,42 @@ describe('Vertex AI Client', () => {
               assert.strictEqual(headers.get('x-custom'), 'a');
             });
           } else {
-            it('should throw with unsupported for Express', async () => {
-              await assert.rejects(
-                createInteraction(request, currentOptions),
-                notSupportedInExpressErrorMessage
+            it('should use the Express Interactions URL', async () => {
+              mockFetchResponse({ status: 'completed', steps: [] });
+              await createInteraction(request, currentOptions);
+
+              sinon.assert.calledOnceWithExactly(
+                fetchSpy,
+                getBaseUrl('locations/global/interactions'),
+                {
+                  method: 'POST',
+                  headers: {
+                    ...getExpectedHeaders(),
+                    'Api-Revision': '2026-05-20',
+                  },
+                  redirect: 'manual',
+                  body: JSON.stringify(request),
+                }
               );
             });
           }
+
+          it('should prefer the Interactions error code over the HTTP status', async () => {
+            mockFetchResponse(
+              { error: { code: 'model_not_found', message: 'No such model' } },
+              false,
+              400,
+              'Bad Request'
+            );
+            await assert.rejects(
+              createInteraction(request, currentOptions),
+              (err: any) => {
+                assert.strictEqual(err.name, 'GenkitError');
+                assert.strictEqual(err.status, 'NOT_FOUND');
+                return true;
+              }
+            );
+          });
         });
 
         describe('veoPredict', () => {
@@ -1095,7 +1124,7 @@ describe('Vertex AI Client', () => {
 
       await assert.rejects(listModels(regionalClientOptions), (err: any) => {
         assert.strictEqual(err.name, 'GenkitError');
-        assert.strictEqual(err.status, 'UNKNOWN');
+        assert.strictEqual(err.status, 'DEADLINE_EXCEEDED');
         assert.match(
           err.message,
           /Error fetching from .* \[504 Gateway Timeout\] <h1>Gateway Timeout<\/h1>/

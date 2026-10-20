@@ -643,6 +643,30 @@ export declare type ResponseModality =
   | (string & {});
 
 /**
+ * A safety setting: the threshold for blocking one harm category.
+ * vertexAI only (googleAI rejects `safety_settings` with a 400).
+ */
+export declare interface InteractionSafetySetting {
+  /** The harm category, e.g. `hate_speech`. */
+  type:
+    | 'hate_speech'
+    | 'dangerous_content'
+    | 'harassment'
+    | 'sexually_explicit'
+    | (string & {});
+  /** The blocking threshold, e.g. `block_low_and_above`. */
+  threshold:
+    | 'block_low_and_above'
+    | 'block_medium_and_above'
+    | 'block_only_high'
+    | 'block_none'
+    | 'off'
+    | (string & {});
+  /** Whether to block by probability (default) or by severity. */
+  method?: 'probability' | 'severity' | (string & {});
+}
+
+/**
  * Parameters for creating interactions.
  */
 export declare interface CreateInteractionRequest {
@@ -685,6 +709,13 @@ export declare interface CreateInteractionRequest {
   agent_config?: InteractionsAgentConfig;
   /** */
   service_tier?: ServiceTier;
+  /** Safety settings. vertexAI only (googleAI rejects it with a 400). */
+  safety_settings?: InteractionSafetySetting[];
+  /**
+   * Key-value labels for billing and cost tracking. vertexAI only (accepted
+   * there, though not in its published spec; checked live Oct 2026).
+   */
+  labels?: Record<string, string>;
 }
 
 export interface TextDelta {

@@ -21,12 +21,18 @@ import { GoogleAuth } from 'google-auth-library';
 import {
   CreateInteractionRequest,
   GeminiInteraction,
+  InteractionStreamResult,
 } from '../common/interaction-types.js';
+import { isObject } from '../common/types.js';
 import {
   INTERACTIONS_API_REVISION,
   buildTraceMetadataInput,
   extractErrMsg,
   getGenkitClientHeader,
+  httpStatusToGenkitStatus,
+  interactionErrorCodeToGenkitStatus,
+  interactionProcessStream,
+  isInteractionUrl,
   parseRetryAfterMs,
   processStream,
   withoutHeaders,
@@ -120,13 +126,23 @@ export async function listModels(
   return modelResponse.publisherModels;
 }
 
+/**
+ * Resource path of the Interactions API. Express mode has no project, but
+ * still needs the location: `v1beta1/locations/global/interactions`.
+ */
+function getInteractionsResourcePath(clientOptions: ClientOptions): string {
+  return clientOptions.kind == 'express'
+    ? 'locations/global/interactions'
+    : 'interactions';
+}
+
 export async function createInteraction(
   createInteractionRequest: CreateInteractionRequest,
   clientOptions: ClientOptions
 ): Promise<GeminiInteraction> {
   const url = getVertexAIUrl({
     includeProjectAndLocation: true,
-    resourcePath: `interactions`,
+    resourcePath: getInteractionsResourcePath(clientOptions),
     clientOptions,
   });
 
@@ -140,6 +156,33 @@ export async function createInteraction(
   return maybeTraceRequest<GeminiInteraction>(url, fetchOptions, {
     request: createInteractionRequest,
     clientOptions,
+  });
+}
+
+export async function createInteractionStream(
+  createInteractionRequest: CreateInteractionRequest,
+  clientOptions: ClientOptions
+): Promise<InteractionStreamResult> {
+  const url = getVertexAIUrl({
+    includeProjectAndLocation: true,
+    resourcePath: getInteractionsResourcePath(clientOptions),
+    clientOptions,
+  });
+
+  const fetchOptions = await getFetchOptions({
+    method: 'POST',
+    clientOptions,
+    body: JSON.stringify(createInteractionRequest),
+    isInteraction: true,
+  });
+
+  return maybeTraceRequest<InteractionStreamResult>(url, fetchOptions, {
+    request: createInteractionRequest,
+    streaming: true,
+    clientOptions,
+    processFn: async (response) => {
+      return interactionProcessStream(response);
+    },
   });
 }
 
@@ -511,20 +554,18 @@ async function makeRequest(
       } catch (e) {
         // Not JSON or expected format, use the raw text
       }
-      let status: StatusName = 'UNKNOWN';
-      switch (response.status) {
-        case 429:
-          status = 'RESOURCE_EXHAUSTED';
-          break;
-        case 400:
-          status = 'INVALID_ARGUMENT';
-          break;
-        case 500:
-          status = 'INTERNAL';
-          break;
-        case 503:
-          status = 'UNAVAILABLE';
-          break;
+      let status: StatusName = httpStatusToGenkitStatus(response.status);
+      // Interactions API errors carry a specific `error.code` (e.g. `safety`,
+      // `model_not_found`, `quota_exceeded`) that is more precise than the
+      // HTTP status, so prefer it when recognized.
+      if (isInteractionUrl(url)) {
+        const apiError = isObject(errorDetail) ? errorDetail.error : undefined;
+        const codeStatus = interactionErrorCodeToGenkitStatus(
+          isObject(apiError) ? apiError.code : undefined
+        );
+        if (codeStatus) {
+          status = codeStatus;
+        }
       }
       // Capture Retry-After header for retry middleware to use
       const retryAfterHeader = response.headers.get('retry-after');

@@ -890,6 +890,48 @@ export function httpStatusToGenkitStatus(code?: number): StatusName {
   }
 }
 
+/** Reports whether every element of an array is a string. */
+export function isStringArray(values: unknown[]): values is string[] {
+  return values.every((v) => typeof v === 'string');
+}
+
+/** Hints for config fields the Interactions API doesn't support. */
+const DROPPED_CONFIG_FIELD_HINTS: Record<string, string> = {
+  'thinkingConfig.thinkingBudget':
+    " Use thinkingConfig.thinkingLevel ('LOW' | 'MEDIUM' | 'HIGH') instead.",
+};
+
+/** `model:field` pairs that have already been warned about. */
+const warnedDroppedConfigFields = new Set<string>();
+
+/**
+ * Warns (once per model and field) that a config field isn't supported by the
+ * model and was ignored.
+ */
+export function warnDroppedConfigField(model: string, field: string) {
+  const key = `${model}:${field}`;
+  if (warnedDroppedConfigFields.has(key)) return;
+  warnedDroppedConfigFields.add(key);
+  logger.warn(
+    `${field} is not supported by '${model}' and was ignored.` +
+      (DROPPED_CONFIG_FIELD_HINTS[field] ?? '')
+  );
+}
+
+/**
+ * Reports whether a URL targets the Interactions API, i.e. its path contains
+ * an `interactions` segment.
+ */
+export function isInteractionUrl(url: string): boolean {
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    pathname = url.split('?')[0];
+  }
+  return pathname.split('/').includes('interactions');
+}
+
 /**
  * Builds an error for leftover, unparsed stream text. When the model API is
  * overloaded (or otherwise fails), it may return HTTP 200 with a plain JSON

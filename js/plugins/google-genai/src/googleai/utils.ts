@@ -27,6 +27,7 @@ export {
   convertObjectKeysToSnakeCase,
   extractText,
   extractVersion,
+  isStringArray,
   modelName,
   stripLeadingId3Tags,
   toSnakeCaseObj,
@@ -255,9 +256,4 @@ export function applyContextOverrides(
   // `context.config` (from checkOperation/cancelOperation's top-level
   // `config`).
   return calculateRequestOptions(newOptions, context.config);
-}
-
-/** Reports whether every element of an array is a string. */
-export function isStringArray(values: unknown[]): values is string[] {
-  return values.every((v) => typeof v === 'string');
 }

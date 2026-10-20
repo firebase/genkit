@@ -286,6 +286,9 @@ async function getRegionalDerivedOptions(
   projectId: string,
   options?: VertexPluginOptions
 ): Promise<RegionalClientOptions> {
+  // TODO(V2): Default to 'global': newer Gemini models use the Interactions
+  // API, which is only on the global location (and the us/eu multi-regions).
+  // Changing the default now would be a breaking change.
   const location =
     options?.location || process.env.GCLOUD_LOCATION || 'us-central1';
   if (!location) {
@@ -530,9 +533,16 @@ export function checkSupportedResourceMethod(params: {
     'streamGenerateContent',
   ];
 
+  // The Interactions API has no resource method (`.../interactions`) and is
+  // available in Express mode.
+  const isInteractions =
+    !params.resourceMethod &&
+    !!params.resourcePath?.split('/').includes('interactions');
+
   if (
     params.clientOptions.kind === 'express' &&
-    (!supportedExpressMethods.includes(params.resourceMethod ?? '') ||
+    ((!isInteractions &&
+      !supportedExpressMethods.includes(params.resourceMethod ?? '')) ||
       params.resourcePath?.includes('endpoints/'))
   ) {
     throw NOT_SUPPORTED_IN_EXPRESS_ERROR;

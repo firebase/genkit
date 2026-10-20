@@ -45,23 +45,26 @@ import {
   toGeminiTool,
 } from '../common/converters.js';
 import {
+  applyLatLngToGoogleMapsTools,
   fromInteractionDelta,
   fromInteractionSync,
   mergeStreamedAudio,
   removeId3FromAudio,
+  selectInteractionInput,
   toInteractionAudioResponseFormat,
   toInteractionConfigTool,
   toInteractionGenerationConfig,
   toInteractionResponseModalities,
   toInteractionSteps,
   toInteractionTool,
+  toInteractionToolChoice,
   toInteractionVideoResponseFormat,
 } from '../common/interaction-converters.js';
 import {
   InteractionTool,
   ModelGenerationConfig,
 } from '../common/interaction-types.js';
-import { isKnownKey } from '../common/utils.js';
+import { isKnownKey, warnDroppedConfigField } from '../common/utils.js';
 import {
   createInteraction,
   createInteractionStream,
@@ -135,57 +138,6 @@ function isDefaultSafetySetting(setting: {
     setting.category === 'HARM_CATEGORY_UNSPECIFIED' ||
     setting.threshold === 'BLOCK_NONE'
   );
-}
-
-/** Hints for config fields the Interactions API doesn't support. */
-const DROPPED_CONFIG_FIELD_HINTS: Record<string, string> = {
-  'thinkingConfig.thinkingBudget':
-    " Use thinkingConfig.thinkingLevel ('LOW' | 'MEDIUM' | 'HIGH') instead.",
-};
-
-/** `model:field` pairs that have already been warned about. */
-const warnedDroppedConfigFields = new Set<string>();
-
-/**
- * Warns (once per model and field) that a config field isn't supported by the
- * model and was ignored.
- */
-function warnDroppedConfigField(model: string, field: string) {
-  const key = `${model}:${field}`;
-  if (warnedDroppedConfigFields.has(key)) return;
-  warnedDroppedConfigFields.add(key);
-  logger.warn(
-    `${field} is not supported by '${model}' and was ignored.` +
-      (DROPPED_CONFIG_FIELD_HINTS[field] ?? '')
-  );
-}
-
-/**
- * Copies a `retrievalConfig.latLng` user location onto the Interactions
- * `google_maps` tools, which take `latitude`/`longitude` directly (there is no
- * retrieval config on the Interactions path). A location already set on a tool
- * is kept.
- *
- * @returns Whether there was a `google_maps` tool to apply the location to.
- */
-function applyLatLngToGoogleMapsTools(
-  tools: InteractionTool[],
-  latLng: { latitude?: number; longitude?: number }
-): boolean {
-  let found = false;
-  tools.forEach((tool, i) => {
-    if (tool.type !== 'google_maps') return;
-    found = true;
-    if ('latitude' in tool || 'longitude' in tool) return;
-    tools[i] = {
-      ...tool,
-      ...(latLng.latitude !== undefined ? { latitude: latLng.latitude } : {}),
-      ...(latLng.longitude !== undefined
-        ? { longitude: latLng.longitude }
-        : {}),
-    };
-  });
-  return found;
 }
 
 const VoiceConfigSchema = z
@@ -1330,32 +1282,12 @@ export function defineModel(
         );
 
       if (useInteractions) {
-        if (functionCallingConfig) {
-          const mode = functionCallingConfig.mode?.toLowerCase();
-          const validMode =
-            mode && mode !== 'mode_unspecified' ? mode : undefined;
-          if (validMode || functionCallingConfig.allowedFunctionNames?.length) {
-            interactionGenerationConfig.tool_choice = {
-              allowed_tools: {
-                ...(validMode ? { mode: validMode } : {}),
-                ...(functionCallingConfig.allowedFunctionNames
-                  ? { tools: functionCallingConfig.allowedFunctionNames }
-                  : {}),
-              },
-            };
-          }
-        } else if (request.toolChoice) {
-          const mode =
-            typeof request.toolChoice === 'string'
-              ? request.toolChoice === 'required'
-                ? 'any'
-                : request.toolChoice
-              : 'any';
-          interactionGenerationConfig.tool_choice = {
-            allowed_tools: {
-              mode,
-            },
-          };
+        const toolChoice = toInteractionToolChoice(
+          functionCallingConfig,
+          request.toolChoice
+        );
+        if (toolChoice) {
+          interactionGenerationConfig.tool_choice = toolChoice;
         }
       }
 
@@ -1392,47 +1324,13 @@ export function defineModel(
       );
 
       if (useInteractions) {
-        const storeOptedIn =
-          storeFromConfig === true || pluginOptions?.store === true;
-
-        if (previousInteractionIdFromConfig && !storeOptedIn) {
-          throw new GenkitError({
-            status: 'INVALID_ARGUMENT',
-            message: 'store must be true when previousInteractionId is set.',
-          });
-        }
-
-        let previousInteractionId = previousInteractionIdFromConfig;
-        let newMessages = messages;
-
-        // If previousInteractionId was not explicitly set in config,
-        // only extract previousInteractionId from the last model message's metadata
-        // if the caller explicitly opted in to store (store: true).
-        if (!previousInteractionId && storeOptedIn) {
-          for (let i = messages.length - 1; i >= 0; i--) {
-            const prevId = messages[i]?.metadata?.interactionId;
-            if (
-              messages[i].role === 'model' &&
-              prevId &&
-              typeof prevId === 'string'
-            ) {
-              previousInteractionId = prevId;
-              newMessages = messages.slice(i + 1);
-              break;
-            }
-          }
-        } else if (previousInteractionId) {
-          // Config overrides messages if both are present.
-          // Still slice messages if messages contains prior history up to that turn.
-          for (let i = messages.length - 1; i >= 0; i--) {
-            if (messages[i].role === 'model') {
-              newMessages = messages.slice(i + 1);
-              break;
-            }
-          }
-        }
-
-        const store = storeOptedIn;
+        const store = storeFromConfig === true || pluginOptions?.store === true;
+        const { messages: newMessages, previousInteractionId } =
+          selectInteractionInput(
+            messages,
+            store,
+            previousInteractionIdFromConfig
+          );
 
         // Turn-level speech metadata (speaker/style) is only accepted together
         // with a speech_config; without one the server returns a generic 400

@@ -33,6 +33,7 @@ import {
   toInteractionGenerationConfig,
   toInteractionGoogleSearch,
   toInteractionRole,
+  toInteractionSafetySettings,
   toInteractionSpeechConfig,
   toInteractionSteps,
   toInteractionTool,
@@ -46,6 +47,42 @@ import {
 } from '../../src/common/interaction-types.js';
 
 describe('Interaction Converters', () => {
+  describe('toInteractionSafetySettings', () => {
+    it('converts to lower-case types and thresholds', () => {
+      // The server rejects upper-case values with a 400 listing the
+      // lower-case ones (seen live on vertexAI, Oct 2026).
+      assert.deepStrictEqual(
+        toInteractionSafetySettings([
+          {
+            category: 'HARM_CATEGORY_HATE_SPEECH',
+            threshold: 'BLOCK_LOW_AND_ABOVE',
+          },
+          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+        ]),
+        [
+          { type: 'hate_speech', threshold: 'block_low_and_above' },
+          { type: 'harassment', threshold: 'block_none' },
+        ]
+      );
+    });
+
+    it('leaves out HARM_CATEGORY_UNSPECIFIED', () => {
+      assert.strictEqual(
+        toInteractionSafetySettings([
+          {
+            category: 'HARM_CATEGORY_UNSPECIFIED',
+            threshold: 'BLOCK_ONLY_HIGH',
+          },
+        ]),
+        undefined
+      );
+    });
+
+    it('returns undefined when not set', () => {
+      assert.strictEqual(toInteractionSafetySettings(undefined), undefined);
+    });
+  });
+
   describe('toInteractionAudioResponseFormat', () => {
     it('maps mimeType and sampleRate', () => {
       assert.deepStrictEqual(

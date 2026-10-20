@@ -630,6 +630,15 @@ describe('Vertex AI Utils', () => {
       });
     });
 
+    it('should allow the Interactions API in Express', () => {
+      assert.doesNotThrow(() => {
+        checkSupportedResourceMethod({
+          clientOptions: expressOptions,
+          resourcePath: 'locations/global/interactions',
+        });
+      });
+    });
+
     it('should allow any method for non-Express options', () => {
       const methods = [
         'countTokens',
