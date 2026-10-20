@@ -1270,6 +1270,36 @@ export function getGenkitClientHeader() {
   return defaultGetClientHeader();
 }
 
+/**
+ * Copies headers into a plain object, leaving out the named headers in any
+ * letter case. Header names are case-insensitive, but object keys aren't:
+ * without this, a custom `api-revision` would sit next to the plugin's
+ * `Api-Revision` and fetch would send both values.
+ *
+ * @param headers The headers to copy (e.g. user-provided custom headers).
+ * @param names The header names to leave out.
+ */
+export function withoutHeaders(
+  headers: Record<string, string> | Headers | undefined,
+  names: string[]
+): Record<string, string> {
+  const excluded = new Set(names.map((n) => n.toLowerCase()));
+  const result: Record<string, string> = {};
+  const add = (value: string, key: string) => {
+    if (!excluded.has(key.toLowerCase())) {
+      result[key] = value;
+    }
+  };
+  if (headers instanceof Headers) {
+    headers.forEach(add);
+  } else if (headers) {
+    for (const [key, value] of Object.entries(headers)) {
+      add(value, key);
+    }
+  }
+  return result;
+}
+
 export function isKnownKey<T extends object>(
   key: string | number | symbol,
   obj: T

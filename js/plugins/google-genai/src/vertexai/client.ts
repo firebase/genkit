@@ -29,6 +29,7 @@ import {
   getGenkitClientHeader,
   parseRetryAfterMs,
   processStream,
+  withoutHeaders,
 } from '../common/utils.js';
 import {
   ClientOptions,
@@ -418,7 +419,12 @@ async function getHeaders(
   clientOptions: ClientOptions,
   isInteraction?: boolean
 ): Promise<HeadersInit> {
-  const customHeaders = clientOptions.customHeaders || {};
+  // The Interactions converters only understand INTERACTIONS_API_REVISION's
+  // schema, so custom headers can't change it (in any letter case).
+  const customHeaders = withoutHeaders(
+    clientOptions.customHeaders,
+    isInteraction ? ['Api-Revision'] : []
+  );
   if (clientOptions.kind == 'express') {
     const headers: HeadersInit = {
       'x-goog-api-key': calculateApiKey(clientOptions.apiKey, undefined),
@@ -428,8 +434,6 @@ async function getHeaders(
       ...customHeaders,
     };
     if (isInteraction) {
-      // Set after the custom headers: the Interactions converters only
-      // understand this revision's schema.
       headers['Api-Revision'] = INTERACTIONS_API_REVISION;
     }
     return headers;
@@ -447,8 +451,6 @@ async function getHeaders(
       headers['x-goog-api-key'] = clientOptions.apiKey;
     }
     if (isInteraction) {
-      // Set after the custom headers: the Interactions converters only
-      // understand this revision's schema.
       headers['Api-Revision'] = INTERACTIONS_API_REVISION;
     }
     return headers;

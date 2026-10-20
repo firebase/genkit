@@ -37,6 +37,7 @@ import {
 } from '../../src/googleai/client.js';
 import {
   ClientOptions,
+  CreateInteractionRequest,
   EmbedContentRequest,
   EmbedContentResponse,
   GenerateContentRequest,
@@ -297,6 +298,37 @@ describe('Google AI Client', () => {
       const headers = fetchSpy.firstCall.args[1].headers;
       assert.strictEqual(headers['X-Custom-Header'], 'test');
       assert.strictEqual(headers['x-goog-api-key'], apiKey);
+    });
+  });
+
+  describe('createInteraction headers', () => {
+    const request: CreateInteractionRequest = {
+      model: 'gemini-flash-latest',
+      input: 'hi',
+    };
+
+    it('sends the Api-Revision header', async () => {
+      mockFetchResponse({ status: 'completed', steps: [] });
+      await createInteraction(apiKey, request);
+      const headers = fetchSpy.lastCall.args[1].headers;
+      assert.strictEqual(headers['Api-Revision'], '2026-05-20');
+    });
+
+    it('does not let custom headers in any case change protected headers', async () => {
+      mockFetchResponse({ status: 'completed', steps: [] });
+      await createInteraction(apiKey, request, {
+        customHeaders: {
+          'api-revision': '2025-01-01',
+          'X-Goog-Api-Key': 'other-key',
+          'x-custom': 'a',
+        },
+      });
+
+      // fetch merges case variants of a header, so check the merged value.
+      const headers = new Headers(fetchSpy.lastCall.args[1].headers);
+      assert.strictEqual(headers.get('api-revision'), '2026-05-20');
+      assert.strictEqual(headers.get('x-goog-api-key'), apiKey);
+      assert.strictEqual(headers.get('x-custom'), 'a');
     });
   });
 

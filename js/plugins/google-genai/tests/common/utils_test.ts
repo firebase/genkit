@@ -45,6 +45,7 @@ import {
   parseStreamErrorText,
   processStream,
   toSnakeCaseObj,
+  withoutHeaders,
 } from '../../src/common/utils.js';
 
 const { aggregateResponses } = TEST_ONLY;
@@ -829,6 +830,32 @@ describe('Common Utils', () => {
       assert.deepStrictEqual(toSnakeCaseObj([{ a: 1 }]), {});
       assert.deepStrictEqual(toSnakeCaseObj('text'), {});
       assert.deepStrictEqual(toSnakeCaseObj(null), {});
+    });
+  });
+
+  describe('withoutHeaders', () => {
+    it('leaves out the named headers in any case', () => {
+      assert.deepStrictEqual(
+        withoutHeaders(
+          { 'api-revision': 'x', 'API-REVISION': 'y', 'X-Custom': 'a' },
+          ['Api-Revision']
+        ),
+        { 'X-Custom': 'a' }
+      );
+    });
+
+    it('accepts a Headers object', () => {
+      assert.deepStrictEqual(
+        withoutHeaders(new Headers({ 'Api-Revision': 'x', 'X-Custom': 'a' }), [
+          'api-revision',
+        ]),
+        // Headers lower-cases its names.
+        { 'x-custom': 'a' }
+      );
+    });
+
+    it('returns an empty object when there are no headers', () => {
+      assert.deepStrictEqual(withoutHeaders(undefined, ['Api-Revision']), {});
     });
   });
 

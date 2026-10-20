@@ -884,6 +884,23 @@ describe('Vertex AI Client', () => {
               const headers = fetchSpy.lastCall.args[1].headers;
               assert.strictEqual(headers['Api-Revision'], '2026-05-20');
             });
+
+            it('should not let custom headers in another case change the Api-Revision', async () => {
+              mockFetchResponse({ status: 'completed', steps: [] });
+              await createInteraction(request, {
+                ...currentOptions,
+                customHeaders: {
+                  'api-revision': '2025-01-01',
+                  'x-custom': 'a',
+                },
+              });
+
+              // fetch merges case variants of a header, so check the merged
+              // value.
+              const headers = new Headers(fetchSpy.lastCall.args[1].headers);
+              assert.strictEqual(headers.get('api-revision'), '2026-05-20');
+              assert.strictEqual(headers.get('x-custom'), 'a');
+            });
           } else {
             it('should throw with unsupported for Express', async () => {
               await assert.rejects(
