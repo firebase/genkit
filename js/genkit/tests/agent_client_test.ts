@@ -621,10 +621,20 @@ describe('remoteAgent', () => {
       throw new Error('unreachable');
     });
     const agent = remoteAgent({ url: '/api/a' });
-    await assert.rejects(
-      agent.waitForSnapshot('snap-1', { abortSignal: AbortSignal.timeout(10) }),
-      (e: any) => e?.name === 'TimeoutError'
-    );
+    // AbortSignal.timeout's timer does not hold the event loop open, and the
+    // mocked fetch has no socket that would, so Node 20's test runner can see
+    // an empty loop and cancel the test before the signal fires. Hold it open.
+    const keepAlive = setTimeout(() => {}, 1_000);
+    try {
+      await assert.rejects(
+        agent.waitForSnapshot('snap-1', {
+          abortSignal: AbortSignal.timeout(10),
+        }),
+        (e: any) => e?.name === 'TimeoutError'
+      );
+    } finally {
+      clearTimeout(keepAlive);
+    }
   });
 
   it('applies static and async headers', async () => {
