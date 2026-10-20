@@ -17,16 +17,19 @@
 import { ActionMetadata, modelActionMetadata, z } from 'genkit';
 import { ModelAction, ModelInfo, ModelReference, modelRef } from 'genkit/model';
 import { model as pluginModel } from 'genkit/plugin';
-import { isKnownKey } from '../common/utils.js';
-import { createInteraction } from './client.js';
 import {
   ensureToolIds,
   fromInteractionSync,
   toInteractionConfigTool,
   toInteractionSteps,
   toInteractionTool,
-} from './interaction-converters.js';
-import { InteractionTool, ResponseModality } from './interaction-types.js';
+} from '../common/interaction-converters.js';
+import {
+  InteractionTool,
+  ResponseModality,
+} from '../common/interaction-types.js';
+import { isKnownKey } from '../common/utils.js';
+import { createInteraction } from './client.js';
 import {
   ClientOptions,
   CreateInteractionRequest,

@@ -22,23 +22,23 @@ import {
   modelRef,
 } from 'genkit/model';
 import { backgroundModel as pluginBackgroundModel } from 'genkit/plugin';
+import {
+  ensureToolIds,
+  fromInteraction,
+  toInteractionSteps,
+  toInteractionTool,
+} from '../common/interaction-converters.js';
+import {
+  InteractionAllowedTools,
+  InteractionTool,
+  ResponseModality,
+} from '../common/interaction-types.js';
 import { cleanSchema, isKnownKey } from '../common/utils.js';
 import {
   cancelInteraction,
   createInteraction,
   getInteraction,
 } from './client.js';
-import {
-  ensureToolIds,
-  fromInteraction,
-  toInteractionSteps,
-  toInteractionTool,
-} from './interaction-converters.js';
-import {
-  InteractionAllowedTools,
-  InteractionTool,
-  ResponseModality,
-} from './interaction-types.js';
 import {
   ClientOptions,
   CreateInteractionRequest,

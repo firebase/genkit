@@ -28,13 +28,13 @@ import {
 } from 'genkit';
 import { logger } from 'genkit/logging';
 import { GenerateRequest } from 'genkit/model';
+import { applyGeminiPartialArgs } from './converters.js';
 import {
   GeminiInteraction,
   InteractionSseEvent,
   InteractionStreamResult,
   TextContent,
-} from '../googleai/interaction-types.js';
-import { applyGeminiPartialArgs } from './converters.js';
+} from './interaction-types.js';
 import {
   GenerateContentCandidate,
   GenerateContentResponse,
@@ -43,6 +43,14 @@ import {
   Part,
   isObject,
 } from './types.js';
+
+/**
+ * `Api-Revision` header value for Interactions API requests. It selects the
+ * steps-based schema (`steps` in responses, step list input) that the
+ * Interactions converters read and write; without it the server uses the
+ * older `outputs` / turn list schema.
+ */
+export const INTERACTIONS_API_REVISION = '2026-05-20';
 
 export function buildTraceMetadataInput(
   url: string,
@@ -1262,6 +1270,36 @@ export function getGenkitClientHeader() {
   return defaultGetClientHeader();
 }
 
+/**
+ * Copies headers into a plain object, leaving out the named headers in any
+ * letter case. Header names are case-insensitive, but object keys aren't:
+ * without this, a custom `api-revision` would sit next to the plugin's
+ * `Api-Revision` and fetch would send both values.
+ *
+ * @param headers The headers to copy (e.g. user-provided custom headers).
+ * @param names The header names to leave out.
+ */
+export function withoutHeaders(
+  headers: Record<string, string> | Headers | undefined,
+  names: string[]
+): Record<string, string> {
+  const excluded = new Set(names.map((n) => n.toLowerCase()));
+  const result: Record<string, string> = {};
+  const add = (value: string, key: string) => {
+    if (!excluded.has(key.toLowerCase())) {
+      result[key] = value;
+    }
+  };
+  if (headers instanceof Headers) {
+    headers.forEach(add);
+  } else if (headers) {
+    for (const [key, value] of Object.entries(headers)) {
+      add(value, key);
+    }
+  }
+  return result;
+}
+
 export function isKnownKey<T extends object>(
   key: string | number | symbol,
   obj: T
@@ -1292,6 +1330,114 @@ export function parseRetryAfterMs(value: string): number | undefined {
     return Math.max(0, date.getTime() - Date.now());
   }
   return undefined;
+}
+
+/**
+ * Converts a string in camelCase to lowercase snake_case.
+ */
+export function camelToSnakeCase(str: string): string {
+  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+export function convertObjectKeysToSnakeCase(obj: Array<unknown>): unknown[];
+export function convertObjectKeysToSnakeCase(
+  obj: Record<string, unknown>
+): Record<string, unknown>;
+export function convertObjectKeysToSnakeCase(obj: unknown): unknown;
+
+export function convertObjectKeysToSnakeCase(obj: unknown): unknown {
+  if (typeof obj !== 'object' || obj === null) {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => convertObjectKeysToSnakeCase(item));
+  }
+
+  const newObj: Record<string, unknown> = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const snakeCaseKey = camelToSnakeCase(key);
+      newObj[snakeCaseKey] = convertObjectKeysToSnakeCase(obj[key]);
+    }
+  }
+  return newObj;
+}
+
+export function toSnakeCaseObj(val: unknown): Record<string, unknown> {
+  const snakeVal = convertObjectKeysToSnakeCase(val);
+  return isObject(snakeVal) ? snakeVal : {};
+}
+
+/**
+ * Inserts raw audio bytes at the end of a WAV file's `data` chunk and updates
+ * the RIFF and `data` sizes. Chunks after `data` (the server sends one) stay
+ * after the audio. Returns `undefined` if `wav` isn't a WAV file with a
+ * `data` chunk.
+ */
+export function appendToWavData(
+  wav: Buffer,
+  audio: Buffer
+): Buffer | undefined {
+  if (
+    wav.length < 12 ||
+    wav.toString('ascii', 0, 4) !== 'RIFF' ||
+    wav.toString('ascii', 8, 12) !== 'WAVE'
+  ) {
+    return undefined;
+  }
+  // Walk the chunks: each is a 4-byte id, a 4-byte little-endian size, then
+  // the data, padded to an even length.
+  let offset = 12;
+  while (offset + 8 <= wav.length) {
+    const id = wav.toString('ascii', offset, offset + 4);
+    const size = wav.readUInt32LE(offset + 4);
+    const dataStart = offset + 8;
+    if (id === 'data') {
+      const dataEnd = Math.min(dataStart + size, wav.length);
+      const result = Buffer.concat([
+        wav.subarray(0, dataEnd),
+        audio,
+        wav.subarray(dataEnd),
+      ]);
+      result.writeUInt32LE(size + audio.length, offset + 4);
+      result.writeUInt32LE(result.length - 8, 4);
+      return result;
+    }
+    offset = dataStart + size + (size % 2);
+  }
+  return undefined;
+}
+
+/**
+ * Returns `bytes` without any ID3v2 tags at the start. A tag is only removed
+ * if its header is valid ("ID3", version 2-4, size bytes below 0x80) and the
+ * whole tag fits in `bytes`; otherwise `bytes` is returned unchanged.
+ */
+export function stripLeadingId3Tags(bytes: Buffer): Buffer {
+  let start = 0;
+  while (start + 10 <= bytes.length) {
+    const b = bytes.subarray(start);
+    const isTag =
+      b[0] === 0x49 && // I
+      b[1] === 0x44 && // D
+      b[2] === 0x33 && // 3
+      b[3] >= 2 &&
+      b[3] <= 4 &&
+      b[4] !== 0xff &&
+      b[6] < 0x80 &&
+      b[7] < 0x80 &&
+      b[8] < 0x80 &&
+      b[9] < 0x80;
+    if (!isTag) break;
+    // The size is "syncsafe" (7 bits per byte) and excludes the 10-byte
+    // header and the optional 10-byte footer (flag 0x10).
+    const size = (b[6] << 21) | (b[7] << 14) | (b[8] << 7) | b[9];
+    const tagLength = 10 + size + (b[5] & 0x10 ? 10 : 0);
+    if (tagLength > b.length) break;
+    start += tagLength;
+  }
+  return start === 0 ? bytes : bytes.subarray(start);
 }
 
 export const TEST_ONLY = { aggregateResponses };

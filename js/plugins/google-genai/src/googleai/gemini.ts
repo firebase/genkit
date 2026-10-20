@@ -44,13 +44,6 @@ import {
   toGeminiSystemInstruction,
   toGeminiTool,
 } from '../common/converters.js';
-import { isKnownKey } from '../common/utils.js';
-import {
-  createInteraction,
-  createInteractionStream,
-  generateContent,
-  generateContentStream,
-} from './client.js';
 import {
   fromInteractionDelta,
   fromInteractionSync,
@@ -63,8 +56,18 @@ import {
   toInteractionSteps,
   toInteractionTool,
   toInteractionVideoResponseFormat,
-} from './interaction-converters.js';
-import { InteractionTool, ModelGenerationConfig } from './interaction-types.js';
+} from '../common/interaction-converters.js';
+import {
+  InteractionTool,
+  ModelGenerationConfig,
+} from '../common/interaction-types.js';
+import { isKnownKey } from '../common/utils.js';
+import {
+  createInteraction,
+  createInteractionStream,
+  generateContent,
+  generateContentStream,
+} from './client.js';
 import {
   ClientOptions,
   CreateInteractionRequest,

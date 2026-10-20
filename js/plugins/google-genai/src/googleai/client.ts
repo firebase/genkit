@@ -17,7 +17,9 @@
 import { GenkitError, StatusName, type ErrorResponseMetadata } from 'genkit';
 import { logger } from 'genkit/logging';
 import { runInNewSpan } from 'genkit/tracing';
+import { InteractionStreamResult } from '../common/interaction-types.js';
 import {
+  INTERACTIONS_API_REVISION,
   buildTraceMetadataInput,
   extractErrMsg,
   getGenkitClientHeader,
@@ -26,8 +28,8 @@ import {
   interactionProcessStream,
   parseRetryAfterMs,
   processStream,
+  withoutHeaders,
 } from '../common/utils.js';
-import { InteractionStreamResult } from './interaction-types.js';
 import { isObject } from './utils.js';
 
 import {
@@ -459,12 +461,14 @@ function getHeaders(
   clientOptions?: ClientOptions,
   isInteraction?: boolean
 ): HeadersInit {
-  let customHeaders = {};
-  if (clientOptions?.customHeaders) {
-    customHeaders = structuredClone(clientOptions.customHeaders);
-    delete customHeaders['x-goog-api-key']; // Not allowed in user settings
-    delete customHeaders['x-goog-api-client']; // Not allowed in user settings
-  }
+  // Not allowed in user settings (in any letter case). The Interactions
+  // converters only understand INTERACTIONS_API_REVISION's schema, so custom
+  // headers can't change it either.
+  const customHeaders = withoutHeaders(clientOptions?.customHeaders, [
+    'x-goog-api-key',
+    'x-goog-api-client',
+    ...(isInteraction ? ['Api-Revision'] : []),
+  ]);
   const headers: HeadersInit = {
     ...customHeaders,
     'Content-Type': 'application/json',
@@ -472,7 +476,7 @@ function getHeaders(
   };
 
   if (isInteraction) {
-    headers['Api-Revision'] = '2026-05-20';
+    headers['Api-Revision'] = INTERACTIONS_API_REVISION;
   }
 
   if (apiKey) {

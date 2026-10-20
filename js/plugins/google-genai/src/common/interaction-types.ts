@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { z } from 'genkit';
-import { FunctionDeclaration } from '../common/types.js';
+import { FunctionDeclaration } from './types.js';
 
 /**
  * A tool that can be used by the model.

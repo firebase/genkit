@@ -25,11 +25,6 @@ import {
 } from 'genkit';
 import { ToolDefinition } from 'genkit/model';
 import {
-  extractMimeType,
-  interactionErrorCodeToGenkitStatus,
-  isInteractionContentBlockCode,
-} from '../common/utils.js';
-import {
   AudioContent,
   CodeExecutionCallStep,
   CodeExecutionResultStep,
@@ -60,12 +55,15 @@ import {
   Usage,
   VideoContent,
 } from './interaction-types.js';
+import { isObject } from './types.js';
 import {
   appendToWavData,
   camelToSnakeCase,
   cleanSchema,
   convertObjectKeysToSnakeCase,
-  isObject,
+  extractMimeType,
+  interactionErrorCodeToGenkitStatus,
+  isInteractionContentBlockCode,
   stripLeadingId3Tags,
   toSnakeCaseObj,
 } from './utils.js';

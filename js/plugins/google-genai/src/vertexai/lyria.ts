@@ -24,18 +24,18 @@ import {
 } from 'genkit';
 import { ModelAction, ModelInfo } from 'genkit/model';
 import { model as pluginModel } from 'genkit/plugin';
-import { isKnownKey } from '../common/utils.js';
-import { createInteraction, lyriaPredict } from './client.js';
-import { fromLyriaResponse, toLyriaPredictRequest } from './converters.js';
 import {
   ensureToolIds,
   fromInteractionSync,
-  toInteractionTurn,
-} from './interaction-converters.js';
+  toInteractionSteps,
+} from '../common/interaction-converters.js';
 import {
   CreateInteractionRequest,
   ResponseModality,
-} from './interaction-types.js';
+} from '../common/interaction-types.js';
+import { isKnownKey } from '../common/utils.js';
+import { createInteraction, lyriaPredict } from './client.js';
+import { fromLyriaResponse, toLyriaPredictRequest } from './converters.js';
 import { ClientOptions, Model, VertexPluginOptions } from './types.js';
 import {
   calculateRequestOptions,
@@ -261,7 +261,7 @@ export function defineModel(
 
         const req: CreateInteractionRequest = {
           model: extractVersion(ref),
-          input: ensureToolIds(messages).map(toInteractionTurn),
+          input: toInteractionSteps(ensureToolIds(messages)),
           response_modalities: responseModalitiesConverted,
         };
 

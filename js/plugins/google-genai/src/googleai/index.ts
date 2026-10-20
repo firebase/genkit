@@ -43,6 +43,11 @@ import * as gemini from './gemini.js';
 import * as lyria from './lyria.js';
 import * as veo from './veo.js';
 
+export {
+  type GeminiInteraction,
+  type TextAnnotation,
+  type UrlCitation,
+} from '../common/interaction-types.js';
 export { type AntigravityConfig } from './antigravity.js';
 export { type DeepResearchConfig } from './deep-research.js';
 export { type EmbeddingConfig } from './embedder.js';
@@ -52,11 +57,6 @@ export {
   type GeminiTtsConfig,
   type GeminiVideoConfig,
 } from './gemini.js';
-export {
-  type GeminiInteraction,
-  type TextAnnotation,
-  type UrlCitation,
-} from './interaction-types.js';
 export { type LyriaConfig } from './lyria.js';
 export { type GoogleAIPluginOptions };
 

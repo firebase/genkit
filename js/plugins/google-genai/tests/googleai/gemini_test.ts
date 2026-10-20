@@ -19,6 +19,7 @@ import { logger } from 'genkit/logging';
 import { GenerateRequest } from 'genkit/model';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
+import { CreateInteractionRequest } from '../../src/common/interaction-types.js';
 import {
   GeminiConfigSchema,
   GeminiImageConfigSchema,
@@ -31,7 +32,6 @@ import {
   isVideoModelName,
   model,
 } from '../../src/googleai/gemini.js';
-import { CreateInteractionRequest } from '../../src/googleai/interaction-types.js';
 import {
   FinishReason,
   GenerateContentRequest,

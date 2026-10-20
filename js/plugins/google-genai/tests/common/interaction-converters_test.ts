@@ -37,13 +37,13 @@ import {
   toInteractionSteps,
   toInteractionTool,
   toInteractionVideoResponseFormat,
-} from '../../src/googleai/interaction-converters.js';
+} from '../../src/common/interaction-converters.js';
 import {
   Content,
   GeminiInteraction,
   Step,
   StepDeltaData,
-} from '../../src/googleai/interaction-types.js';
+} from '../../src/common/interaction-types.js';
 
 describe('Interaction Converters', () => {
   describe('toInteractionAudioResponseFormat', () => {
