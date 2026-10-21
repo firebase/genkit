@@ -120,8 +120,11 @@ describe('FirestoreSessionStore', () => {
     const defaultDb = (defaultStore as any).db as Firestore;
     try {
       const settings = (defaultDb as any)._settings;
-      assert.strictEqual(settings?.libName, 'genkit-node');
-      assert.strictEqual(settings?.libVersion, GENKIT_VERSION);
+      assert.strictEqual(settings?.libName, 'gccl');
+      assert.ok(
+        settings?.libVersion?.endsWith(` genkit-node/${GENKIT_VERSION}`),
+        `expected libVersion to end with " genkit-node/${GENKIT_VERSION}", got "${settings?.libVersion}"`
+      );
     } finally {
       await defaultDb.terminate();
     }
