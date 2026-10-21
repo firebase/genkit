@@ -23,10 +23,15 @@ import {
   modelActionMetadata,
   z,
 } from 'genkit';
+import { logger } from 'genkit/logging';
 import {
   CandidateData,
+  GenerateRequest,
+  GenerateResponseChunkData,
+  GenerateResponseData,
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
+  MessageData,
   ModelAction,
   ModelInfo,
   ModelMiddleware,
@@ -43,8 +48,35 @@ import {
   toGeminiSystemInstruction,
   toGeminiTool,
 } from '../common/converters.js';
-import { isKnownKey } from '../common/utils.js';
-import { generateContent, generateContentStream } from './client.js';
+import {
+  applyLatLngToGoogleMapsTools,
+  fromInteractionDelta,
+  fromInteractionSync,
+  selectInteractionInput,
+  toInteractionConfigTool,
+  toInteractionGenerationConfig,
+  toInteractionGoogleSearch,
+  toInteractionResponseModalities,
+  toInteractionSafetySettings,
+  toInteractionSteps,
+  toInteractionTool,
+  toInteractionToolChoice,
+} from '../common/interaction-converters.js';
+import {
+  CreateInteractionRequest,
+  InteractionTool,
+} from '../common/interaction-types.js';
+import {
+  isKnownKey,
+  isStringArray,
+  warnDroppedConfigField,
+} from '../common/utils.js';
+import {
+  createInteraction,
+  createInteractionStream,
+  generateContent,
+  generateContentStream,
+} from './client.js';
 import { toGeminiLabels, toGeminiSafetySettings } from './converters.js';
 import {
   ClientOptions,
@@ -63,6 +95,7 @@ import {
   cleanSchema,
   extractVersion,
   modelName,
+  toInteractionsClientOptions,
 } from './utils.js';
 
 export const SafetySettingsSchema = z
@@ -169,6 +202,20 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   location: z
     .string()
     .describe('Google Cloud region e.g. us-central1.')
+    .optional(),
+  store: z
+    .boolean()
+    .describe(
+      'Whether to store the interaction for later retrieval. Defaults to ' +
+        'false. Only used by models on the Interactions API.'
+    )
+    .optional(),
+  previousInteractionId: z
+    .string()
+    .describe(
+      'The ID of the previous interaction to continue. Requires store. ' +
+        'Only used by models on the Interactions API.'
+    )
     .optional(),
 
   /**
@@ -413,11 +460,17 @@ export type GeminiImageConfig = z.infer<GeminiImageConfigSchemaType>;
 type ConfigSchemaType = GeminiConfigSchemaType | GeminiImageConfigSchemaType;
 type ConfigSchema = z.infer<ConfigSchemaType>;
 
+/** Whether each known model uses the Interactions API (see `usesInteractions`). */
+const modelInteractionsMap = new Map<string, boolean>();
+
 function commonRef(
   name: string,
   info?: ModelInfo,
-  configSchema: ConfigSchemaType = GeminiConfigSchema
+  configSchema: ConfigSchemaType = GeminiConfigSchema,
+  useInteractions: boolean = true
 ): ModelReference<ConfigSchemaType> {
+  modelInteractionsMap.set(name, useInteractions);
+
   return modelRef({
     name: `vertexai/${name}`,
     configSchema,
@@ -441,17 +494,69 @@ const GENERIC_IMAGE_MODEL = commonRef(
   GeminiImageConfigSchema
 );
 
+// These all stay on generateContent, like in the googleAI plugin. The
+// `-latest` aliases aren't listed for the Interactions API.
 export const KNOWN_GEMINI_MODELS = {
-  'gemini-flash-latest': commonRef('gemini-flash-latest'),
-  'gemini-flash-lite-latest': commonRef('gemini-flash-lite-latest'),
-  'gemini-3.5-flash': commonRef('gemini-3.5-flash'),
-  'gemini-3.1-flash-lite': commonRef('gemini-3.1-flash-lite'),
-  'gemini-3.1-flash-lite-preview': commonRef('gemini-3.1-flash-lite-preview'),
-  'gemini-3.1-pro-preview': commonRef('gemini-3.1-pro-preview'),
-  'gemini-3-flash-preview': commonRef('gemini-3-flash-preview'),
-  'gemini-2.5-flash-lite': commonRef('gemini-2.5-flash-lite'),
-  'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
-  'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
+  'gemini-flash-latest': commonRef(
+    'gemini-flash-latest',
+    undefined,
+    GeminiConfigSchema,
+    false
+  ),
+  'gemini-flash-lite-latest': commonRef(
+    'gemini-flash-lite-latest',
+    undefined,
+    GeminiConfigSchema,
+    false
+  ),
+  'gemini-3.5-flash': commonRef(
+    'gemini-3.5-flash',
+    undefined,
+    GeminiConfigSchema,
+    false
+  ),
+  'gemini-3.1-flash-lite': commonRef(
+    'gemini-3.1-flash-lite',
+    undefined,
+    GeminiConfigSchema,
+    false
+  ),
+  'gemini-3.1-flash-lite-preview': commonRef(
+    'gemini-3.1-flash-lite-preview',
+    undefined,
+    GeminiConfigSchema,
+    false
+  ),
+  'gemini-3.1-pro-preview': commonRef(
+    'gemini-3.1-pro-preview',
+    undefined,
+    GeminiConfigSchema,
+    false
+  ),
+  'gemini-3-flash-preview': commonRef(
+    'gemini-3-flash-preview',
+    undefined,
+    GeminiConfigSchema,
+    false
+  ),
+  'gemini-2.5-flash-lite': commonRef(
+    'gemini-2.5-flash-lite',
+    undefined,
+    GeminiConfigSchema,
+    false
+  ),
+  'gemini-2.5-pro': commonRef(
+    'gemini-2.5-pro',
+    undefined,
+    GeminiConfigSchema,
+    false
+  ),
+  'gemini-2.5-flash': commonRef(
+    'gemini-2.5-flash',
+    undefined,
+    GeminiConfigSchema,
+    false
+  ),
 } as const;
 export type KnownGeminiModels = keyof typeof KNOWN_GEMINI_MODELS;
 export type GeminiModelName = `gemini-${string}`;
@@ -459,7 +564,7 @@ export function isGeminiModelName(value?: string): value is GeminiModelName {
   return !!(
     value?.startsWith('gemini-') &&
     !value.includes('embedding') &&
-    !value.includes('-image')
+    !isImageModelName(value)
   );
 }
 
@@ -467,23 +572,31 @@ export const KNOWN_IMAGE_MODELS = {
   'gemini-3.1-flash-image': commonRef(
     'gemini-3.1-flash-image',
     { ...GENERIC_IMAGE_MODEL.info },
-    GeminiImageConfigSchema
+    GeminiImageConfigSchema,
+    false
   ),
   'gemini-3-pro-image': commonRef(
     'gemini-3-pro-image',
     { ...GENERIC_IMAGE_MODEL.info },
-    GeminiImageConfigSchema
+    GeminiImageConfigSchema,
+    false
   ),
   'gemini-2.5-flash-image': commonRef(
     'gemini-2.5-flash-image',
     undefined,
-    GeminiImageConfigSchema
+    GeminiImageConfigSchema,
+    false
   ),
 } as const;
 export type KnownImageModels = keyof typeof KNOWN_IMAGE_MODELS;
-export type ImageModelName = `gemini-${string}-image${string}`;
+export type ImageModelName =
+  | `gemini-${string}-image${string}`
+  | `gemini-nano-banana-${string}`;
 export function isImageModelName(value?: string): value is ImageModelName {
-  return !!(value?.startsWith('gemini-') && value.includes('-image'));
+  return !!(
+    value?.startsWith('gemini-') &&
+    (value.includes('-image') || value.startsWith('gemini-nano-banana-'))
+  );
 }
 
 const KNOWN_MODELS = {
@@ -491,6 +604,24 @@ const KNOWN_MODELS = {
   ...KNOWN_IMAGE_MODELS,
 };
 export type KnownModels = keyof typeof KNOWN_MODELS;
+
+/**
+ * Whether a model is called through the Interactions API. Known older models
+ * stay on generateContent (`false` in their `commonRef`); newer and unlisted
+ * models use the Interactions API. Tuned model endpoints stay on
+ * generateContent.
+ */
+function usesInteractions(modelVersion: string): boolean {
+  if (modelVersion.includes('endpoints/')) {
+    return false;
+  }
+  // The platform's Interactions API doesn't support image models (it returns
+  // 400 "Model 'gemini-nano-banana-2.1' is not supported by the Interactions
+  // API", Oct 2026), so they stay on generateContent.
+  return (
+    modelInteractionsMap.get(modelVersion) ?? !isImageModelName(modelVersion)
+  );
+}
 
 export function model(
   version: string,
@@ -553,6 +684,230 @@ export function listKnownModels(
   return Object.keys(KNOWN_MODELS).map((name) =>
     defineModel(name, clientOptions, pluginOptions)
   );
+}
+
+/**
+ * Builds the Agent Search data store path for `vertexRetrieval`, filling in
+ * the project and location from the plugin options when not set.
+ */
+function toVertexAISearchDatastore(
+  vertexRetrieval: NonNullable<ConfigSchema['vertexRetrieval']>,
+  clientOptions: ClientOptions
+): string {
+  const projectId =
+    vertexRetrieval.datastore.projectId ||
+    (clientOptions.kind != 'express' ? clientOptions.projectId : undefined);
+  // Data stores are in `global`, `us` or `eu`, so global and multi-regional
+  // client locations are valid fallbacks.
+  // TODO: Regional locations (e.g. us-central1) aren't data store locations;
+  // falling back to one probably fails on the server. Kept as before until
+  // checked live.
+  const location =
+    vertexRetrieval.datastore.location ||
+    (clientOptions.kind != 'express' ? clientOptions.location : undefined);
+  const dataStoreId = vertexRetrieval.datastore.dataStoreId;
+  if (!projectId || !location || !dataStoreId) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message:
+        'projectId, location and datastoreId are required for vertexRetrieval and could not be determined from configuration',
+    });
+  }
+  return `projects/${projectId}/locations/${location}/collections/default_collection/dataStores/${dataStoreId}`;
+}
+
+/**
+ * Converts the request's tools and tool config fields to Interactions tools.
+ */
+function toVertexInteractionTools(
+  request: GenerateRequest,
+  config: ConfigSchema,
+  clientOptions: ClientOptions,
+  warnDropped: (field: string) => void
+): InteractionTool[] {
+  const tools: InteractionTool[] = [];
+  if (request.tools?.length) {
+    tools.push(...request.tools.map(toInteractionTool));
+  }
+  if (Array.isArray(config.tools)) {
+    tools.push(...config.tools.map(toInteractionConfigTool));
+  }
+  if (config.googleSearchRetrieval) {
+    const { disableAttribution, ...searchConfig } =
+      config.googleSearchRetrieval;
+    if (disableAttribution !== undefined) {
+      warnDropped('googleSearchRetrieval.disableAttribution');
+    }
+    tools.push(toInteractionGoogleSearch(searchConfig));
+  }
+  const vertexRetrieval = config.vertexRetrieval;
+  if (vertexRetrieval) {
+    if (vertexRetrieval.disableAttribution !== undefined) {
+      warnDropped('vertexRetrieval.disableAttribution');
+    }
+    tools.push({
+      type: 'retrieval',
+      retrieval_types: ['vertex_ai_search'],
+      vertex_ai_search_config: {
+        datastores: [toVertexAISearchDatastore(vertexRetrieval, clientOptions)],
+      },
+    });
+  }
+  if (config.retrievalConfig) {
+    // There is no retrieval config on the Interactions path; the user
+    // location is set on the google_maps tool instead.
+    const { latLng, ...unsupportedRetrievalConfig } = config.retrievalConfig;
+    if (latLng && !applyLatLngToGoogleMapsTools(tools, latLng)) {
+      logger.warn(
+        'retrievalConfig.latLng is only used with the googleMaps tool for this model and will be ignored.'
+      );
+    }
+    for (const key of Object.keys(unsupportedRetrievalConfig)) {
+      warnDropped(`retrievalConfig.${key}`);
+    }
+  }
+  return tools;
+}
+
+/**
+ * Generates a response with the Interactions API (see `usesInteractions`).
+ */
+async function generateWithInteractions(params: {
+  request: GenerateRequest;
+  /** The request messages, without the system message. */
+  messages: MessageData[];
+  systemMessage?: MessageData;
+  modelVersion: string;
+  config: ConfigSchema;
+  /** The plugin's client options (used for the vertexRetrieval fallback). */
+  pluginClientOptions: ClientOptions;
+  /** The client options for this request (location, API key, headers). */
+  requestClientOptions: ClientOptions;
+  pluginOptions?: VertexPluginOptions;
+  streamingRequested: boolean;
+  sendChunk: (chunk: GenerateResponseChunkData) => void;
+}): Promise<GenerateResponseData> {
+  const { request, modelVersion, pluginOptions, config } = params;
+  const {
+    // Applied to the client options and headers by the caller.
+    apiKey: _apiKey,
+    apiVersion: _apiVersion,
+    location: _location,
+    payGo: _payGo,
+    version: _version,
+    // Converted to tools (toVertexInteractionTools).
+    tools: _tools,
+    googleSearchRetrieval: _googleSearchRetrieval,
+    vertexRetrieval: _vertexRetrieval,
+    retrievalConfig: _retrievalConfig,
+    functionCallingConfig,
+    safetySettings,
+    labels,
+    store: storeFromConfig,
+    previousInteractionId: previousInteractionIdFromConfig,
+    responseModalities,
+    ...generationFields
+  } = config;
+  const warnDropped = (field: string) =>
+    warnDroppedConfigField(modelVersion, field);
+
+  const systemMessage = params.systemMessage;
+  if (systemMessage?.content.some((c) => c.text === undefined)) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message:
+        'System message contains non-text content which is not supported for this model.',
+    });
+  }
+
+  if (request.candidates && request.candidates > 1) {
+    logger.warn(
+      'Multiple candidates are not supported for this model with the Interactions API; only one candidate will be returned.'
+    );
+  }
+
+  // The vertexRetrieval data store fallback uses the plugin's project and
+  // location, not `config.location` (same as on generateContent).
+  const tools = toVertexInteractionTools(
+    request,
+    config,
+    params.pluginClientOptions,
+    warnDropped
+  );
+
+  if (functionCallingConfig?.streamFunctionCallArguments !== undefined) {
+    warnDropped('functionCallingConfig.streamFunctionCallArguments');
+  }
+  const generationConfig = toInteractionGenerationConfig(
+    generationFields,
+    warnDropped
+  );
+  const toolChoice = toInteractionToolChoice(
+    functionCallingConfig,
+    request.toolChoice
+  );
+  if (toolChoice) {
+    generationConfig.tool_choice = toolChoice;
+  }
+
+  const store = storeFromConfig === true || pluginOptions?.store === true;
+  const { messages, previousInteractionId } = selectInteractionInput(
+    params.messages,
+    store,
+    previousInteractionIdFromConfig
+  );
+
+  const req: CreateInteractionRequest = {
+    system_instruction: systemMessage?.content.map((c) => c.text).join('\n'),
+    model: modelVersion,
+    tools: tools.length ? tools : undefined,
+    generation_config: generationConfig,
+    stream: params.streamingRequested,
+    input: toInteractionSteps(messages),
+    store,
+    safety_settings: toInteractionSafetySettings(safetySettings),
+    labels: toGeminiLabels(labels),
+  };
+  if (previousInteractionId) {
+    req.previous_interaction_id = previousInteractionId;
+  }
+
+  const jsonMode =
+    request.output?.format === 'json' || !!request.output?.schema;
+  if (jsonMode) {
+    req.response_format = { type: 'text', mime_type: 'application/json' };
+    if (request.output?.constrained) {
+      req.response_format.schema = pluginOptions?.legacyResponseSchema
+        ? cleanSchema(request.output.schema)
+        : request.output.schema;
+    }
+  }
+
+  if (Array.isArray(responseModalities) && isStringArray(responseModalities)) {
+    req.response_modalities =
+      toInteractionResponseModalities(responseModalities);
+  } else if (isImageModelName(modelVersion)) {
+    req.response_modalities = ['text', 'image'];
+  }
+
+  if (!params.streamingRequested) {
+    return fromInteractionSync(
+      await createInteraction(req, params.requestClientOptions)
+    );
+  }
+  const result = await createInteractionStream(
+    req,
+    params.requestClientOptions
+  );
+  for await (const event of result.stream) {
+    if (event.event_type === 'step.delta') {
+      const content = fromInteractionDelta(event.delta);
+      if (content.length > 0) {
+        params.sendChunk({ index: 0, content });
+      }
+    }
+  }
+  return fromInteractionSync(await result.response);
 }
 
 /**
@@ -624,6 +979,8 @@ export function defineModel(
         safetySettings,
         labels: labelsFromConfig,
         payGo,
+        store: storeFromConfig,
+        previousInteractionId: previousInteractionIdFromConfig,
         ...restOfConfig
       } = requestConfig;
 
@@ -650,6 +1007,31 @@ export function defineModel(
           ...clientOpt.customHeaders,
           ...payGoHeaders,
         };
+      }
+
+      const modelVersion = versionFromConfig || extractVersion(ref);
+      if (usesInteractions(modelVersion)) {
+        return generateWithInteractions({
+          request,
+          messages,
+          systemMessage,
+          modelVersion,
+          config: requestConfig,
+          pluginClientOptions: clientOptions,
+          // A defaulted location (us-central1) becomes global here.
+          requestClientOptions: toInteractionsClientOptions(clientOpt),
+          pluginOptions,
+          streamingRequested,
+          sendChunk,
+        });
+      }
+
+      // `store: false` is already how this model behaves, so only warn when
+      // something would actually be ignored.
+      if (storeFromConfig === true || previousInteractionIdFromConfig) {
+        logger.warn(
+          'store and previousInteractionId are not supported for this model and will be ignored.'
+        );
       }
 
       const labels = toGeminiLabels(labelsFromConfig);
@@ -699,29 +1081,13 @@ export function defineModel(
       }
 
       if (vertexRetrieval) {
-        const _projectId =
-          vertexRetrieval.datastore.projectId ||
-          (clientOptions.kind != 'express'
-            ? clientOptions.projectId
-            : undefined);
-        const _location =
-          vertexRetrieval.datastore.location ||
-          (clientOptions.kind == 'regional'
-            ? clientOptions.location
-            : undefined);
-        const _dataStoreId = vertexRetrieval.datastore.dataStoreId;
-        if (!_projectId || !_location || !_dataStoreId) {
-          throw new GenkitError({
-            status: 'INVALID_ARGUMENT',
-            message:
-              'projectId, location and datastoreId are required for vertexRetrieval and could not be determined from configuration',
-          });
-        }
-        const datastore = `projects/${_projectId}/locations/${_location}/collections/default_collection/dataStores/${_dataStoreId}`;
         tools.push({
           retrieval: {
             vertexAiSearch: {
-              datastore,
+              datastore: toVertexAISearchDatastore(
+                vertexRetrieval,
+                clientOptions
+              ),
             },
             disableAttribution: vertexRetrieval.disableAttribution,
           },
@@ -741,8 +1107,6 @@ export function defineModel(
         contents: messages.map((message) => toGeminiMessage(message, ref)),
         labels,
       };
-
-      const modelVersion = versionFromConfig || extractVersion(ref);
 
       if (isImageModelName(modelVersion)) {
         if (!generateContentRequest.generationConfig!.responseModalities) {

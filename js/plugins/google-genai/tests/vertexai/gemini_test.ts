@@ -165,6 +165,11 @@ describe('Vertex AI Gemini', () => {
       assert.strictEqual(modelRef.configSchema, GeminiImageConfigSchema);
     });
 
+    it('treats nano-banana models as image models', () => {
+      const modelRef = model('gemini-nano-banana-2.1');
+      assert.strictEqual(modelRef.configSchema, GeminiImageConfigSchema);
+    });
+
     it('applies options to the ModelReference', () => {
       const options = { temperature: 0.9, topK: 20 };
       const modelRef: ModelReference<typeof GeminiConfigSchema> = model(
@@ -546,7 +551,8 @@ describe('Vertex AI Gemini', () => {
         }
       });
 
-      if (clientOptions.kind === 'regional') {
+      // Express has no project to fall back to.
+      if (clientOptions.kind !== 'express') {
         it('handles vertexRetrieval tool', async () => {
           mockFetchResponse(defaultApiResponse);
           const request: GenerateRequest<typeof GeminiConfigSchema> = {
@@ -570,8 +576,8 @@ describe('Vertex AI Gemini', () => {
             assert.deepStrictEqual(retrievalTool, {
               retrieval: {
                 vertexAiSearch: {
-                  datastore:
-                    'projects/test-project/locations/us-central1/collections/default_collection/dataStores/my-store',
+                  // The project and location come from the client options.
+                  datastore: `projects/test-project/locations/${clientOptions.location}/collections/default_collection/dataStores/my-store`,
                 },
                 disableAttribution: true,
               },
@@ -815,6 +821,315 @@ describe('Vertex AI Gemini', () => {
     });
   }
 
+  function runInteractionsTests(clientOptions: ClientOptions) {
+    describe(`Interactions API ${clientOptions.kind}`, () => {
+      // An unlisted model, so it uses the Interactions API.
+      const interactionsModel = 'gemini-3.8-flash';
+
+      // Shape seen live (Lyria 3 on the platform, and Gemini on the Gemini
+      // API): no `id` or `usage` without `store`.
+      const interactionResponse = {
+        status: 'completed',
+        role: 'model',
+        object: 'interaction',
+        model: interactionsModel,
+        steps: [
+          {
+            type: 'model_output',
+            content: [{ type: 'text', text: 'Hi there' }],
+          },
+        ],
+      };
+
+      function getExpectedInteractionsUrl(): string {
+        if (clientOptions.kind === 'express') {
+          return 'https://aiplatform.googleapis.com/v1beta1/locations/global/interactions';
+        }
+        const parent = `projects/${clientOptions.projectId}/locations/${clientOptions.location}`;
+        if (clientOptions.kind === 'regional') {
+          return `https://${clientOptions.location}-aiplatform.googleapis.com/v1beta1/${parent}/interactions`;
+        }
+        if (clientOptions.kind === 'multi-regional') {
+          return `https://aiplatform.${clientOptions.location}.rep.googleapis.com/v1beta1/${parent}/interactions`;
+        }
+        return `https://aiplatform.googleapis.com/v1beta1/${parent}/interactions`;
+      }
+
+      function lastRequestBody() {
+        return JSON.parse(fetchStub.lastCall.args[1].body);
+      }
+
+      it('sends unlisted models to the Interactions API', async () => {
+        mockFetchResponse(interactionResponse);
+        const model = defineModel(interactionsModel, clientOptions);
+        const result = await model.run(minimalRequest);
+
+        sinon.assert.calledOnce(fetchStub);
+        const [url, options] = fetchStub.lastCall.args;
+        assert.strictEqual(url, getExpectedInteractionsUrl());
+        assert.strictEqual(options.headers['Api-Revision'], '2026-05-20');
+        assert.deepStrictEqual(lastRequestBody(), {
+          model: interactionsModel,
+          generation_config: {},
+          stream: false,
+          input: [
+            { type: 'user_input', content: [{ type: 'text', text: 'Hello' }] },
+          ],
+          store: false,
+        });
+        assert.strictEqual(result.result.message?.content[0].text, 'Hi there');
+      });
+
+      it('keeps known models on generateContent', async () => {
+        mockFetchResponse(defaultApiResponse);
+        const model = defineModel('gemini-3.1-pro-preview', clientOptions);
+        await model.run(minimalRequest);
+        assert.match(fetchStub.lastCall.args[0], /:generateContent$/);
+      });
+
+      for (const imageModel of [
+        'gemini-new-image-model',
+        'gemini-nano-banana-2.1',
+      ]) {
+        it(`keeps unlisted image model ${imageModel} on generateContent`, async () => {
+          mockFetchResponse(defaultApiResponse);
+          const model = defineModel(imageModel, clientOptions);
+          await model.run(minimalRequest);
+          assert.match(fetchStub.lastCall.args[0], /:generateContent$/);
+          assert.deepStrictEqual(
+            JSON.parse(fetchStub.lastCall.args[1].body).generationConfig
+              .responseModalities,
+            ['TEXT', 'IMAGE']
+          );
+        });
+      }
+
+      it('maps tools, tool choice and generation config', async () => {
+        mockFetchResponse(interactionResponse);
+        const model = defineModel(interactionsModel, clientOptions);
+        await model.run({
+          ...minimalRequest,
+          messages: [
+            { role: 'system', content: [{ text: 'Be brief.' }] },
+            ...minimalRequest.messages,
+          ],
+          tools: [
+            {
+              name: 'getWeather',
+              description: 'Gets the weather',
+              inputSchema: { type: 'object', properties: {} },
+            },
+          ],
+          toolChoice: 'required',
+          config: {
+            temperature: 0.5,
+            maxOutputTokens: 100,
+            thinkingConfig: { thinkingLevel: 'LOW', includeThoughts: true },
+            googleSearchRetrieval: {},
+          },
+        });
+
+        const body = lastRequestBody();
+        assert.strictEqual(body.system_instruction, 'Be brief.');
+        assert.deepStrictEqual(body.tools, [
+          {
+            type: 'function',
+            name: 'getWeather',
+            description: 'Gets the weather',
+            parameters: { type: 'object', properties: {} },
+          },
+          { type: 'google_search' },
+        ]);
+        assert.deepStrictEqual(body.generation_config, {
+          temperature: 0.5,
+          max_output_tokens: 100,
+          thinking_level: 'low',
+          thinking_summaries: 'auto',
+          tool_choice: { allowed_tools: { mode: 'any' } },
+        });
+      });
+
+      it('sends safety settings and labels', async () => {
+        mockFetchResponse(interactionResponse);
+        const model = defineModel(interactionsModel, clientOptions);
+        await model.run({
+          ...minimalRequest,
+          config: {
+            safetySettings: [
+              {
+                category: 'HARM_CATEGORY_HATE_SPEECH',
+                threshold: 'BLOCK_LOW_AND_ABOVE',
+              },
+            ],
+            labels: { team: 'genkit' },
+          },
+        });
+        const body = lastRequestBody();
+        assert.deepStrictEqual(body.safety_settings, [
+          { type: 'hate_speech', threshold: 'block_low_and_above' },
+        ]);
+        assert.deepStrictEqual(body.labels, { team: 'genkit' });
+      });
+
+      it('maps vertexRetrieval to a retrieval tool', async () => {
+        mockFetchResponse(interactionResponse);
+        const model = defineModel(interactionsModel, clientOptions);
+        await model.run({
+          ...minimalRequest,
+          config: {
+            vertexRetrieval: {
+              datastore: {
+                projectId: 'p',
+                location: 'us-central1',
+                dataStoreId: 'ds',
+              },
+            },
+          },
+        });
+        assert.deepStrictEqual(lastRequestBody().tools, [
+          {
+            type: 'retrieval',
+            retrieval_types: ['vertex_ai_search'],
+            vertex_ai_search_config: {
+              datastores: [
+                'projects/p/locations/us-central1/collections/default_collection/dataStores/ds',
+              ],
+            },
+          },
+        ]);
+      });
+
+      it('continues a stored interaction', async () => {
+        mockFetchResponse({ ...interactionResponse, id: 'v1_def456' });
+        const model = defineModel(interactionsModel, clientOptions);
+        await model.run({
+          messages: [
+            { role: 'user', content: [{ text: 'Hi' }] },
+            {
+              role: 'model',
+              content: [{ text: 'Hello' }],
+              metadata: { interactionId: 'v1_abc123' },
+            },
+            { role: 'user', content: [{ text: 'Again' }] },
+          ],
+          config: { store: true },
+        });
+
+        const body = lastRequestBody();
+        assert.strictEqual(body.store, true);
+        assert.strictEqual(body.previous_interaction_id, 'v1_abc123');
+        assert.deepStrictEqual(body.input, [
+          { type: 'user_input', content: [{ type: 'text', text: 'Again' }] },
+        ]);
+      });
+
+      it('uses the plugin-level store option', async () => {
+        mockFetchResponse(interactionResponse);
+        const model = defineModel(interactionsModel, clientOptions, {
+          store: true,
+        });
+        await model.run({
+          messages: [
+            { role: 'user', content: [{ text: 'Hi' }] },
+            {
+              role: 'model',
+              content: [{ text: 'Hello' }],
+              // Interaction IDs on the platform look like this (seen live).
+              metadata: { interactionId: 'ChAabc123' },
+            },
+            { role: 'user', content: [{ text: 'Again' }] },
+          ],
+          config: { previousInteractionId: 'ChAdef456' },
+        });
+
+        const body = lastRequestBody();
+        assert.strictEqual(body.store, true);
+        // An explicit previousInteractionId wins over the message metadata.
+        assert.strictEqual(body.previous_interaction_id, 'ChAdef456');
+        assert.deepStrictEqual(body.input, [
+          { type: 'user_input', content: [{ type: 'text', text: 'Again' }] },
+        ]);
+      });
+
+      it('rejects previousInteractionId without store', async () => {
+        const model = defineModel(interactionsModel, clientOptions);
+        await assert.rejects(
+          model.run({
+            ...minimalRequest,
+            config: { previousInteractionId: 'v1_abc123' },
+          }),
+          /store must be true when previousInteractionId is set/
+        );
+        sinon.assert.notCalled(fetchStub);
+      });
+
+      it('streams text deltas', async () => {
+        const events = [
+          {
+            event_type: 'interaction.created',
+            interaction: { status: 'in_progress' },
+          },
+          {
+            event_type: 'step.start',
+            index: 0,
+            step: { type: 'model_output' },
+          },
+          {
+            event_type: 'step.delta',
+            index: 0,
+            delta: { type: 'text', text: 'Hi ' },
+          },
+          {
+            event_type: 'step.delta',
+            index: 0,
+            delta: { type: 'text', text: 'there' },
+          },
+          { event_type: 'step.stop', index: 0 },
+          {
+            event_type: 'interaction.completed',
+            interaction: { status: 'completed' },
+          },
+        ];
+        const encoder = new TextEncoder();
+        fetchStub.resolves(
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                for (const event of events) {
+                  controller.enqueue(
+                    encoder.encode(
+                      `event: ${event.event_type}\ndata: ${JSON.stringify(event)}\n\n`
+                    )
+                  );
+                }
+                controller.close();
+              },
+            }),
+            { status: 200, headers: { 'Content-Type': 'text/event-stream' } }
+          )
+        );
+
+        const chunks: string[] = [];
+        const model = defineModel(interactionsModel, clientOptions);
+        const result = await model.run(minimalRequest, {
+          onChunk: (chunk) =>
+            chunks.push(...chunk.content.map((p) => p.text ?? '')),
+        });
+
+        assert.strictEqual(
+          fetchStub.lastCall.args[0],
+          getExpectedInteractionsUrl()
+        );
+        assert.strictEqual(lastRequestBody().stream, true);
+        assert.deepStrictEqual(chunks, ['Hi ', 'there']);
+        assert.strictEqual(
+          result.result.message?.content.map((p) => p.text).join(''),
+          'Hi there'
+        );
+      });
+    });
+  }
+
   describe('defineModel - Regional Client', () => {
     runCommonTests(defaultRegionalClientOptions);
   });
@@ -829,5 +1144,54 @@ describe('Vertex AI Gemini', () => {
 
   describe('defineModel - Multi-Regional Client', () => {
     runCommonTests(defaultMultiRegionalClientOptions);
+  });
+
+  describe('defineModel - Interactions API', () => {
+    runInteractionsTests(defaultRegionalClientOptions);
+    runInteractionsTests(defaultGlobalClientOptions);
+    runInteractionsTests(defaultExpressClientOptions);
+    runInteractionsTests(defaultMultiRegionalClientOptions);
+
+    it('handles every config schema field explicitly (Interactions API)', () => {
+      // The Interactions API rejects unknown `generation_config` fields with
+      // a 400, so every field in the plugin's config schemas must be either
+      // handled in gemini.ts / toInteractionGenerationConfig, or known to be
+      // accepted as a snake_case `generation_config` field. If this fails
+      // after adding a schema field, map it explicitly (translate it, or
+      // drop it with a warning) and add it to the right list below.
+      const handledInGemini = [
+        'apiKey',
+        'apiVersion',
+        'location',
+        'payGo',
+        'version',
+        'labels',
+        'safetySettings',
+        'store',
+        'previousInteractionId',
+        'functionCallingConfig',
+        'retrievalConfig',
+        'googleSearchRetrieval',
+        'vertexRetrieval',
+        'responseModalities',
+        'thinkingConfig',
+        'tools',
+      ];
+      // Accepted in `generation_config` (checked live on the Gemini API).
+      const acceptedByApi = [
+        'temperature',
+        'topP',
+        'topK',
+        'maxOutputTokens',
+        'stopSequences',
+        'imageConfig',
+      ];
+      const known = new Set([...handledInGemini, ...acceptedByApi]);
+      for (const schema of [GeminiConfigSchema, GeminiImageConfigSchema]) {
+        for (const field of Object.keys(schema.shape)) {
+          assert.ok(known.has(field), `unhandled config field: ${field}`);
+        }
+      }
+    });
   });
 });

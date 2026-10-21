@@ -41,7 +41,9 @@ import {
   InteractionFileSearchTool,
   InteractionFunctionTool,
   InteractionGoogleSearchTool,
+  InteractionSafetySetting,
   InteractionTool,
+  InteractionToolChoiceConfig,
   ModelGenerationConfig,
   ResponseModality,
   SpeechAnnotation,
@@ -290,6 +292,121 @@ export function toInteractionConfigTool(toolRaw: unknown): InteractionTool {
   return { type, ...rest };
 }
 
+/**
+ * Copies a `retrievalConfig.latLng` user location onto the Interactions
+ * `google_maps` tools, which take `latitude`/`longitude` directly (there is no
+ * retrieval config on the Interactions path). A location already set on a tool
+ * is kept.
+ *
+ * @returns Whether there was a `google_maps` tool to apply the location to.
+ */
+export function applyLatLngToGoogleMapsTools(
+  tools: InteractionTool[],
+  latLng: { latitude?: number; longitude?: number }
+): boolean {
+  let found = false;
+  tools.forEach((tool, i) => {
+    if (tool.type !== 'google_maps') return;
+    found = true;
+    if ('latitude' in tool || 'longitude' in tool) return;
+    tools[i] = {
+      ...tool,
+      ...(latLng.latitude !== undefined ? { latitude: latLng.latitude } : {}),
+      ...(latLng.longitude !== undefined
+        ? { longitude: latLng.longitude }
+        : {}),
+    };
+  });
+  return found;
+}
+
+/**
+ * Picks the messages to send to the Interactions API and the interaction to
+ * continue, if any.
+ *
+ * Without `store`, the server keeps no history, so every message is sent.
+ * With `store`, the last model message's `metadata.interactionId` is
+ * continued and only the newer messages are sent. An explicit
+ * `previousInteractionId` (which requires `store`) overrides the metadata;
+ * messages up to the last model message are still left out.
+ *
+ * @throws GenkitError (INVALID_ARGUMENT) if `previousInteractionId` is set
+ *  without `store`.
+ */
+export function selectInteractionInput(
+  messages: MessageData[],
+  store: boolean,
+  previousInteractionIdFromConfig?: string
+): { messages: MessageData[]; previousInteractionId?: string } {
+  if (previousInteractionIdFromConfig && !store) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'store must be true when previousInteractionId is set.',
+    });
+  }
+
+  if (previousInteractionIdFromConfig) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'model') {
+        return {
+          messages: messages.slice(i + 1),
+          previousInteractionId: previousInteractionIdFromConfig,
+        };
+      }
+    }
+    return { messages, previousInteractionId: previousInteractionIdFromConfig };
+  }
+
+  if (store) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const prevId = messages[i]?.metadata?.interactionId;
+      if (
+        messages[i].role === 'model' &&
+        prevId &&
+        typeof prevId === 'string'
+      ) {
+        return {
+          messages: messages.slice(i + 1),
+          previousInteractionId: prevId,
+        };
+      }
+    }
+  }
+  return { messages };
+}
+
+/**
+ * Converts `functionCallingConfig` (or, without it, the request's
+ * `toolChoice`) to the Interactions `generation_config.tool_choice`.
+ * Returns `undefined` when neither sets anything.
+ */
+export function toInteractionToolChoice(
+  functionCallingConfig?: { mode?: string; allowedFunctionNames?: string[] },
+  toolChoice?: string
+): InteractionToolChoiceConfig | undefined {
+  if (functionCallingConfig) {
+    const mode = functionCallingConfig.mode?.toLowerCase();
+    const validMode = mode && mode !== 'mode_unspecified' ? mode : undefined;
+    if (!validMode && !functionCallingConfig.allowedFunctionNames?.length) {
+      return undefined;
+    }
+    return {
+      allowed_tools: {
+        ...(validMode ? { mode: validMode } : {}),
+        ...(functionCallingConfig.allowedFunctionNames
+          ? { tools: functionCallingConfig.allowedFunctionNames }
+          : {}),
+      },
+    };
+  }
+  if (toolChoice) {
+    return {
+      allowed_tools: { mode: toolChoice === 'required' ? 'any' : toolChoice },
+    };
+  }
+  return undefined;
+}
+
 export function toInteractionGoogleSearch(
   gs: boolean | unknown
 ): InteractionGoogleSearchTool {
@@ -368,6 +485,30 @@ export function toInteractionGoogleSearch(
   Object.assign(result, toSnakeCaseObj(restConfig));
 
   return result;
+}
+
+/**
+ * Converts generateContent-style safety settings to the Interactions API
+ * shape: `type` without the `HARM_CATEGORY_` prefix, and lower-case values
+ * (`HARM_CATEGORY_HATE_SPEECH` / `BLOCK_LOW_AND_ABOVE` -> `hate_speech` /
+ * `block_low_and_above`). The server rejects the upper-case values with a
+ * 400. `method` (`SEVERITY` / `PROBABILITY`) is lower-cased too.
+ * `HARM_CATEGORY_UNSPECIFIED` has no equivalent and is left out. Other
+ * fields are passed through.
+ */
+export function toInteractionSafetySettings(
+  settings?: { category: string; threshold: string; method?: unknown }[]
+): InteractionSafetySetting[] | undefined {
+  if (!settings) return undefined;
+  const result = settings
+    .filter((s) => s.category !== 'HARM_CATEGORY_UNSPECIFIED')
+    .map(({ category, threshold, method, ...rest }) => ({
+      ...toSnakeCaseObj(rest),
+      type: category.replace(/^HARM_CATEGORY_/, '').toLowerCase(),
+      threshold: threshold.toLowerCase(),
+      ...(typeof method === 'string' ? { method: method.toLowerCase() } : {}),
+    }));
+  return result.length ? result : undefined;
 }
 
 export function toInteractionResponseModalities(

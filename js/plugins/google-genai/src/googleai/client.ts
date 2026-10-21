@@ -26,6 +26,7 @@ import {
   httpStatusToGenkitStatus,
   interactionErrorCodeToGenkitStatus,
   interactionProcessStream,
+  isInteractionUrl,
   parseRetryAfterMs,
   processStream,
   withoutHeaders,
@@ -635,20 +636,6 @@ async function makeRequest(
     }
     throw new Error(`Failed to fetch from ${url}: ${extractErrMsg(e)}`);
   }
-}
-
-/**
- * Reports whether a URL targets the Interactions API, i.e. its resource path
- * (see `getGoogleAIUrl`) contains an `interactions` path segment.
- */
-function isInteractionUrl(url: string): boolean {
-  let pathname: string;
-  try {
-    pathname = new URL(url).pathname;
-  } catch {
-    pathname = url.split('?')[0];
-  }
-  return pathname.split('/').includes('interactions');
 }
 
 export const TEST_ONLY = {
