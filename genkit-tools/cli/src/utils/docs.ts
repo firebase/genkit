@@ -139,7 +139,7 @@ export function searchDocs(
   const results = Object.keys(documents)
     .filter((file) => file.startsWith(lang))
     .map((file) => {
-      const doc = normalizeDoc(documents[file], lang);
+      const doc = documents[file];
       let score = 0;
       const title = doc.title.toLowerCase();
       const desc = (doc.description || '').toLowerCase();

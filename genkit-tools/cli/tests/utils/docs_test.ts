@@ -102,15 +102,21 @@ describe('docs utils', () => {
       );
     });
 
-    it('searches across docs with object descriptions without throwing', () => {
-      const jsResults = searchDocs(sampleDocs, 'SSR', 'js');
+    it('searches across normalized docs with object descriptions without throwing', () => {
+      const normalizedDocs = Object.fromEntries(
+        Object.entries(sampleDocs).map(([file, doc]) => [
+          file,
+          normalizeDoc(doc, file.split('/')[0]),
+        ])
+      );
+      const jsResults = searchDocs(normalizedDocs, 'SSR', 'js');
       expect(jsResults).toHaveLength(1);
       expect(jsResults[0].file).toBe('js/app-frameworks/angular.md');
       expect(jsResults[0].doc.description).toBe(
         'Add Genkit to an Angular app with SSR server routes.'
       );
 
-      const goResults = searchDocs(sampleDocs, 'backend', 'go');
+      const goResults = searchDocs(normalizedDocs, 'backend', 'go');
       expect(goResults).toHaveLength(1);
       expect(goResults[0].file).toBe('go/app-frameworks/angular.md');
       expect(goResults[0].doc.description).toBe(
