@@ -144,6 +144,13 @@ describe('defineEmbedder', () => {
           });
         });
 
+        it('sends unlisted newer Gemini embedders to embedContent', async () => {
+          const embedder = defineEmbedder('gemini-embedding-3', clientOptions);
+          mockFetchResponse({ embedding: { values: [0.1] } });
+          await embedder.run({ input: [testDoc1] });
+          assert.match(fetchStub.lastCall.args[0], /:embedContent$/);
+        });
+
         it('keeps the hidden text-embedding-004 on predict', async () => {
           const embedder = defineEmbedder('text-embedding-004', clientOptions);
           const mockResponse: EmbedPredictResponse = {

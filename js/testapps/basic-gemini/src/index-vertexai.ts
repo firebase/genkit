@@ -107,6 +107,30 @@ ai.defineFlow(
   }
 );
 
+// TTS with the googleAI voice shape (prebuiltVoiceConfig.voiceName), which
+// the platform also accepts, so TTS code can move between the two plugins.
+ai.defineFlow(
+  {
+    name: 'tts-googleai-voice-shape',
+    outputSchema: z.object({ media: z.string() }),
+  },
+  async () => {
+    const { media } = await ai.generate({
+      model: vertexAI.model('gemini-3.8-flash-lite-tts'),
+      prompt: 'This voice was chosen with the googleAI config shape.',
+      config: {
+        speechConfig: {
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } },
+        },
+      },
+    });
+    if (!media) {
+      throw new Error('no media returned');
+    }
+    return { media: media.url };
+  }
+);
+
 // Multi-speaker TTS: exactly two speakers, each turn a separate text part
 // naming its speaker.
 ai.defineFlow(

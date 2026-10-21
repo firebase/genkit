@@ -504,8 +504,19 @@ const VoiceConfigSchema = z
           'custom voice ID.'
       )
       .optional(),
+    // The googleAI shape, also accepted by the platform, so TTS code can move
+    // between the two plugins.
+    prebuiltVoiceConfig: z
+      .object({
+        voiceName: z.string().describe('Name of the preset voice to use'),
+      })
+      .passthrough()
+      .optional(),
   })
-  .describe('Configuration for the voice to use')
+  .describe(
+    'Configuration for the voice to use: `voice`, or `prebuiltVoiceConfig` ' +
+      '(the googleAI shape)'
+  )
   .passthrough();
 
 export const GeminiTtsConfigSchema = GeminiConfigSchema.extend({

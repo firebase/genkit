@@ -109,7 +109,7 @@ export const KNOWN_MODELS = {
     dimensions: 3072,
     supports: { input: ['text'] },
   }),
-  // Uses the `:embedContent` method (see EMBED_CONTENT_MODELS).
+  // Uses the `:embedContent` method (see usesEmbedContent).
   'gemini-embedding-2': commonRef('gemini-embedding-2', {
     dimensions: 3072,
     supports: { input: ['text', 'image', 'video'] },
@@ -138,10 +138,17 @@ const ALL_MODELS = {
 };
 
 /**
- * Models that use the `:embedContent` method (one content with interleaved
- * text and media parts per request) instead of `:predict`.
+ * Whether a model uses the `:embedContent` method (one content with
+ * interleaved text and media parts per request) instead of `:predict`.
+ * Newer Gemini embedders (gemini-embedding-2 and later, including unlisted
+ * ones) use it; gemini-embedding-001, text-embedding-* and
+ * multimodalembedding@001 use `:predict`.
  */
-const EMBED_CONTENT_MODELS = new Set(['gemini-embedding-2']);
+function usesEmbedContent(name: string): boolean {
+  return (
+    name.startsWith('gemini-embedding-') && name !== 'gemini-embedding-001'
+  );
+}
 
 export type EmbedderModelName = `${string}embedding${string}`;
 export function isEmbedderName(value: string): value is EmbedderModelName {
@@ -242,7 +249,7 @@ export function defineEmbedder(
     },
     async (request) => {
       const modelVersion = extractVersion(ref);
-      if (EMBED_CONTENT_MODELS.has(modelVersion)) {
+      if (usesEmbedContent(modelVersion)) {
         return {
           embeddings: await embedWithEmbedContent(
             modelVersion,
