@@ -28,6 +28,7 @@ import {
   TEST_ONLY,
   createInteraction,
   embedContent,
+  embedPredict,
   generateContent,
   generateContentStream,
   getVertexAIUrl,
@@ -42,6 +43,8 @@ import {
   Content,
   EmbedContentRequest,
   EmbedContentResponse,
+  EmbedPredictRequest,
+  EmbedPredictResponse,
   GenerateContentRequest,
   GenerateContentResponse,
   GenerateContentStreamResult,
@@ -717,19 +720,19 @@ describe('Vertex AI Client', () => {
           });
         });
 
-        describe('embedContent', () => {
-          const request: EmbedContentRequest = {
+        describe('embedPredict', () => {
+          const request: EmbedPredictRequest = {
             instances: [{ content: 'test content' }],
             parameters: {},
           };
           const model = 'text-embedding-005';
 
           if (!isExpress) {
-            it('should return EmbedContentResponse', async () => {
-              const mockResponse: EmbedContentResponse = { predictions: [] };
+            it('should return EmbedPredictResponse', async () => {
+              const mockResponse: EmbedPredictResponse = { predictions: [] };
               mockFetchResponse(mockResponse);
 
-              await embedContent(model, request, currentOptions);
+              await embedPredict(model, request, currentOptions);
               const expectedUrl = getResourceUrl(model, 'predict');
               sinon.assert.calledOnceWithExactly(fetchSpy, expectedUrl, {
                 method: 'POST',
@@ -740,8 +743,8 @@ describe('Vertex AI Client', () => {
               sinon.assert.notCalled(runInNewSpanSpy);
             });
 
-            it('should trace embedContent if experimental_debugTraces is true', async () => {
-              const mockResponse: EmbedContentResponse = { predictions: [] };
+            it('should trace embedPredict if experimental_debugTraces is true', async () => {
+              const mockResponse: EmbedPredictResponse = { predictions: [] };
               mockFetchResponse(mockResponse);
 
               const optionsWithTrace: ClientOptions = {
@@ -749,7 +752,7 @@ describe('Vertex AI Client', () => {
                 experimental_debugTraces: true,
               };
 
-              await embedContent(model, request, optionsWithTrace);
+              await embedPredict(model, request, optionsWithTrace);
 
               sinon.assert.calledOnce(runInNewSpanSpy);
 
@@ -762,10 +765,47 @@ describe('Vertex AI Client', () => {
                 model: model,
                 headers: {
                   ...getExpectedHeaders(),
-                  Authorization: '<REDACTED> (17 characters)', // embedContent only runs in Regional/Global mode in tests
+                  Authorization: '<REDACTED> (17 characters)', // embedPredict only runs in Regional/Global mode in tests
                 },
               });
               assert.deepStrictEqual(traceMetadata.output, mockResponse);
+            });
+          } else {
+            it('should throw with unsupported for Express', async () => {
+              await assert.rejects(
+                embedPredict(model, request, currentOptions),
+                notSupportedInExpressErrorMessage
+              );
+            });
+          }
+        });
+
+        describe('embedContent', () => {
+          const request: EmbedContentRequest = {
+            content: { role: 'user', parts: [{ text: 'test content' }] },
+            outputDimensionality: 128,
+          };
+          const model = 'gemini-embedding-2';
+
+          if (!isExpress) {
+            it('should call the embedContent method', async () => {
+              const mockResponse: EmbedContentResponse = {
+                embedding: { values: [0.1, 0.2] },
+              };
+              mockFetchResponse(mockResponse);
+
+              const result = await embedContent(model, request, currentOptions);
+              assert.deepStrictEqual(result, mockResponse);
+              sinon.assert.calledOnceWithExactly(
+                fetchSpy,
+                getResourceUrl(model, 'embedContent'),
+                {
+                  method: 'POST',
+                  headers: getExpectedHeaders(),
+                  redirect: 'manual',
+                  body: JSON.stringify(request),
+                }
+              );
             });
           } else {
             it('should throw with unsupported for Express', async () => {

@@ -467,25 +467,19 @@ Only these older models still use `generateContent`, until they are retired:
 ### Model Routing (`vertexAI`)
 
 On Gemini Enterprise Agent Platform, newer Gemini models (for example
-`gemini-4-argon`, `gemini-3.8-flash`) and any Gemini model not listed below use
-the Interactions API (`.../interactions`). These models still use
-`generateContent`:
+`gemini-4-argon`, `gemini-3.8-flash`), Gemini Omni video models and any Gemini
+model not listed below use the Interactions API (`.../interactions`). These
+models still use `generateContent`:
 
-- `gemini-flash-latest`
-- `gemini-flash-lite-latest`
+- `gemini-3.8-flash-cyber`
 - `gemini-3.5-flash`
 - `gemini-3.1-flash-lite`
-- `gemini-3.1-flash-lite-preview`
-- `gemini-3.1-pro-preview`
+- `gemini-3.1-pro-preview`, `gemini-3.1-pro-preview-customtools`
 - `gemini-3-flash-preview`
-- `gemini-2.5-pro`
-- `gemini-2.5-flash`
-- `gemini-2.5-flash-lite`
-- `gemini-3.1-flash-image`
-- `gemini-3-pro-image`
-- `gemini-2.5-flash-image`
-- other image models (`gemini-*-image*`, `gemini-nano-banana-*`): the
-  platform's Interactions API doesn't support image models
+- `gemini-2.5-pro`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`
+- image models (`gemini-*-image*`, `gemini-nano-banana-*`) and text-to-speech
+  models (`gemini-*-tts*`): the platform's Interactions API doesn't support
+  them
 - tuned model endpoints
 
 The Interactions API is available on the `global` location (and on the `us`

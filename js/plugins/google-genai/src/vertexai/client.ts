@@ -41,6 +41,8 @@ import {
   ClientOptions,
   EmbedContentRequest,
   EmbedContentResponse,
+  EmbedPredictRequest,
+  EmbedPredictResponse,
   GenerateContentRequest,
   GenerateContentResponse,
   GenerateContentStreamResult,
@@ -285,16 +287,48 @@ async function internalPredict<T>(
   });
 }
 
+/**
+ * Calls the `:predict` embeddings method (gemini-embedding-001,
+ * text-embedding-*, multimodalembedding@001).
+ */
+export async function embedPredict(
+  model: string,
+  embedPredictRequest: EmbedPredictRequest,
+  clientOptions: ClientOptions
+): Promise<EmbedPredictResponse> {
+  return internalPredict<EmbedPredictResponse>(
+    model,
+    embedPredictRequest,
+    clientOptions
+  );
+}
+
+/**
+ * Calls the `:embedContent` method (gemini-embedding-2).
+ */
 export async function embedContent(
   model: string,
   embedContentRequest: EmbedContentRequest,
   clientOptions: ClientOptions
 ): Promise<EmbedContentResponse> {
-  return internalPredict<EmbedContentResponse>(
+  const url = getVertexAIUrl({
+    includeProjectAndLocation: true,
+    resourcePath: `publishers/google/models/${model}`,
+    resourceMethod: 'embedContent',
+    clientOptions,
+  });
+
+  const fetchOptions = await getFetchOptions({
+    method: 'POST',
+    clientOptions,
+    body: JSON.stringify(embedContentRequest),
+  });
+
+  return maybeTraceRequest<EmbedContentResponse>(url, fetchOptions, {
     model,
-    embedContentRequest,
-    clientOptions
-  );
+    request: embedContentRequest,
+    clientOptions,
+  });
 }
 
 export async function imagenPredict(
