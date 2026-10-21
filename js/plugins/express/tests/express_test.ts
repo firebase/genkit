@@ -449,6 +449,25 @@ describe('expressHandler', async () => {
       await new Promise((r) => setTimeout(r, 50));
       assert.strictEqual(signal.aborted, false);
     });
+
+    it('should abort a flow when the client hangs up', async () => {
+      const controller = new AbortController();
+      // A JSON body matters: the request stream closes once body parsing has
+      // read it, so only the response can report the client going away.
+      const response = runFlow({
+        url: `http://localhost:${port}/abortableFlow`,
+        input: 'wait',
+        abortSignal: controller.signal,
+      });
+
+      await flowStarted;
+      controller.abort();
+
+      await assert.rejects(response); // abort error
+
+      const { aborted } = await flowFinished;
+      assert.strictEqual(aborted, true);
+    });
   });
 
   describe('streamFlow', () => {

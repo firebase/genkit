@@ -42,17 +42,18 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 from genkit import ActionRunContext, FinishReason, GenkitError, Message, ModelResponse, Operation, Part, Role
 from genkit.model import ModelInfo, ModelRequest, OperationError, Supports
 
-# Quote autocomplete needs a Literal, so this alias is the Veo catalog.
-# ``veo_model`` takes ``KnownVeo | str`` so unlisted ids still work.
-KnownVeo: TypeAlias = Literal[
-    'veo-2.0-generate-001',
-    'veo-2.0-generate-exp',
-    'veo-3.0-generate-001',
-    'veo-3.0-fast-generate-001',
+# Quote autocomplete needs a Literal, so these aliases list the Veo ids each
+# backend autocompletes. ``veo_model`` takes ``Known*Veo | str`` so unlisted
+# ids still work.
+KnownGoogleAIVeo: TypeAlias = Literal[
     'veo-3.1-generate-preview',
     'veo-3.1-fast-generate-preview',
+    'veo-3.1-lite-generate-preview',
+]
+KnownVertexAIVeo: TypeAlias = Literal[
     'veo-3.1-generate-001',
     'veo-3.1-fast-generate-001',
+    'veo-3.1-lite-generate-001',
 ]
 
 
