@@ -45,7 +45,7 @@ export async function startMcpServer(params: {
     },
     {
       instructions:
-        'Use this server to look up Genkit documentation and API guides (`get_usage_guide`, `search_genkit_docs`, `list_genkit_docs`, `read_genkit_docs`), manage the local Genkit runtime (`start_runtime`, `restart_runtime`, `kill_runtime`), discover and run Genkit flows (`list_flows`, `run_flow`), and inspect execution traces (`get_trace`). Always check `get_usage_guide` or search Genkit docs before implementing Genkit features, and call `list_flows` before calling `run_flow`.',
+        'Use this server to look up Genkit documentation and API guides (`get_usage_guide`, `search_genkit_docs`, `list_genkit_docs`, `read_genkit_docs`), manage the local Genkit runtime (`start_runtime`, `restart_runtime`, `kill_runtime`), discover and run Genkit flows (`list_flows`, `run_flow`), and inspect execution traces (`get_trace`). Always check `get_usage_guide` or search Genkit docs before implementing Genkit features.',
     }
   );
 

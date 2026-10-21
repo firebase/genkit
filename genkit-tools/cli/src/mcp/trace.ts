@@ -31,7 +31,7 @@ export function defineTraceTools(server: McpServer, options: McpToolOptions) {
     {
       title: 'Get Genkit Trace',
       description:
-        'Use this to retrieve the detailed Genkit execution trace (spans, inputs, outputs, and errors) for a flow or action run by its `traceId`.',
+        'Retrieves the detailed Genkit execution trace (spans, inputs, outputs, and errors) for a flow or action run by its `traceId`.',
       inputSchema: getCommonSchema(options.explicitProjectRoot, {
         traceId: z
           .string()
