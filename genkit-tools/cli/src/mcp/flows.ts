@@ -68,7 +68,8 @@ export function defineFlowTools(server: McpServer, options: McpToolOptions) {
     'run_flow',
     {
       title: 'Run Flow',
-      description: 'Runs the flow with the provided input',
+      description:
+        'Use this to execute a Genkit flow with the provided JSON input. Call `list_flows` first to discover available flow names and their expected input schemas.',
       inputSchema: getCommonSchema(options.explicitProjectRoot, {
         flowName: z.string().describe('name of the flow; type: string'),
         input: z
