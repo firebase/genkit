@@ -61,6 +61,12 @@ describe('multipart middleware tools', () => {
           : defineTool(registry, config, implementation);
         const middleware = generateMiddleware({ name: 'multipart' }, () => ({
           tools: [injectedTool],
+          // The action entry point starts the loop without call options.
+          // Exercise its resolver with a signal supplied at the loop boundary.
+          generate: actionRoute
+            ? async (envelope, ctx, next) =>
+                next(envelope, { ...ctx, abortSignal })
+            : undefined,
         }));
         const expectedPart: ToolResponsePart = {
           toolResponse: {
@@ -102,14 +108,11 @@ describe('multipart middleware tools', () => {
 
         if (actionRoute) {
           const action = defineGenerateAction(registry);
-          const response = await action(
-            {
-              model: model.__action.name,
-              messages: [{ role: 'user', content: [{ text: 'hello' }] }],
-              use: [middleware()],
-            },
-            { abortSignal }
-          );
+          const response = await action({
+            model: model.__action.name,
+            messages: [{ role: 'user', content: [{ text: 'hello' }] }],
+            use: [middleware()],
+          });
           assert.strictEqual(response.message?.content[0].text, 'done');
         } else {
           const response = await generate(registry, {
