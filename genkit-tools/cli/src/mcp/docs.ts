@@ -56,9 +56,6 @@ export async function defineDocsTool(server: McpServer) {
             if (doc.description) {
               summary += `   Description: ${doc.description}\n`;
             }
-            if (doc.headers) {
-              summary += `   Headers:\n     ${doc.headers.split('\n').join('\n     ')}\n`;
-            }
             return summary;
           })
           .join('\n') +

@@ -70,11 +70,52 @@ export interface Doc {
   headers: string;
 }
 
+export function resolveDocField(value: unknown, lang?: string): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    if (lang && typeof record[lang] === 'string') {
+      return record[lang] as string;
+    }
+    if (typeof record.default === 'string') {
+      return record.default;
+    }
+    const firstString = Object.values(record).find(
+      (v): v is string => typeof v === 'string'
+    );
+    if (firstString !== undefined) {
+      return firstString;
+    }
+  }
+  return '';
+}
+
+export function normalizeDoc(doc: Doc, fallbackLang?: string): Doc {
+  const lang = resolveDocField(doc.lang) || fallbackLang || 'js';
+  const description = resolveDocField(doc.description, lang);
+  return {
+    ...doc,
+    lang,
+    title: resolveDocField(doc.title, lang),
+    description: description || undefined,
+    text: resolveDocField(doc.text, lang),
+    headers: resolveDocField(doc.headers, lang),
+  };
+}
+
 export async function loadDocs(): Promise<Record<string, Doc>> {
   await maybeDownloadDocsBundle();
-  return JSON.parse(
+  const rawDocs = JSON.parse(
     readFileSync(DOCS_BUNDLE_FILE_PATH, { encoding: 'utf8' })
   ) as Record<string, Doc>;
+  const normalized: Record<string, Doc> = {};
+  for (const [file, doc] of Object.entries(rawDocs)) {
+    const fallbackLang = file.split('/')[0];
+    normalized[file] = normalizeDoc(doc, fallbackLang);
+  }
+  return normalized;
 }
 
 const STOP_WORDS = new Set(['and', 'the', 'for']);
@@ -98,7 +139,7 @@ export function searchDocs(
   const results = Object.keys(documents)
     .filter((file) => file.startsWith(lang))
     .map((file) => {
-      const doc = documents[file];
+      const doc = normalizeDoc(documents[file], lang);
       let score = 0;
       const title = doc.title.toLowerCase();
       const desc = (doc.description || '').toLowerCase();
