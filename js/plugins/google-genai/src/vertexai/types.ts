@@ -300,13 +300,33 @@ export declare type EmbeddingPrediction =
   | TextEmbeddingPrediction
   | MultimodalEmbeddingPrediction;
 
-export declare interface EmbedContentRequest {
+/**
+ * Request for the `:predict` embeddings method (gemini-embedding-001,
+ * text-embedding-*, multimodalembedding@001).
+ */
+export declare interface EmbedPredictRequest {
   instances: EmbeddingInstance[];
   parameters: EmbedContentConfig;
 }
 
-export declare interface EmbedContentResponse {
+/** Response from the `:predict` embeddings method. */
+export declare interface EmbedPredictResponse {
   predictions: EmbeddingPrediction[];
+}
+
+/**
+ * Request for the `:embedContent` method (gemini-embedding-2): one content
+ * per request, with interleaved text and media parts.
+ */
+export declare interface EmbedContentRequest {
+  content: Content;
+  outputDimensionality?: number;
+  autoTruncate?: boolean;
+}
+
+/** Response from the `:embedContent` method. */
+export declare interface EmbedContentResponse {
+  embedding: { values: number[] };
 }
 
 /** Optional parameters for the embed content method. */

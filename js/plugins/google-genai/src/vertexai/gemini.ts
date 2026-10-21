@@ -52,6 +52,7 @@ import {
   applyLatLngToGoogleMapsTools,
   fromInteractionDelta,
   fromInteractionSync,
+  mergeStreamedAudio,
   selectInteractionInput,
   toInteractionConfigTool,
   toInteractionGenerationConfig,
@@ -61,11 +62,13 @@ import {
   toInteractionSteps,
   toInteractionTool,
   toInteractionToolChoice,
+  toInteractionVideoResponseFormat,
 } from '../common/interaction-converters.js';
 import {
   CreateInteractionRequest,
   InteractionTool,
 } from '../common/interaction-types.js';
+import { isObject } from '../common/types.js';
 import {
   isKnownKey,
   isStringArray,
@@ -456,8 +459,182 @@ export const GeminiImageConfigSchema = GeminiConfigSchema.extend({
 export type GeminiImageConfigSchemaType = typeof GeminiImageConfigSchema;
 export type GeminiImageConfig = z.infer<GeminiImageConfigSchemaType>;
 
+const VoiceConfigSchema = z
+  .object({
+    voice: z
+      .union([
+        z.enum([
+          'Zephyr',
+          'Puck',
+          'Charon',
+          'Kore',
+          'Fenrir',
+          'Leda',
+          'Orus',
+          'Aoede',
+          'Callirrhoe',
+          'Autonoe',
+          'Enceladus',
+          'Iapetus',
+          'Umbriel',
+          'Algieba',
+          'Despina',
+          'Erinome',
+          'Algenib',
+          'Rasalgethi',
+          'Laomedeia',
+          'Achernar',
+          'Alnilam',
+          'Schedar',
+          'Gacrux',
+          'Pulcherrima',
+          'Achird',
+          'Zubenelgenubi',
+          'Vindemiatrix',
+          'Sadachbia',
+          'Sadaltager',
+          'Sulafat',
+        ]),
+        // Voice Library and custom voice IDs (e.g. `voice_...`). `string & {}`
+        // keeps the prebuilt names in TypeScript autocomplete.
+        z.custom<string & {}>((val) => typeof val === 'string'),
+      ])
+      .describe(
+        'A prebuilt voice name, an Extended Voice Library voice ID, or a ' +
+          'custom voice ID.'
+      )
+      .optional(),
+  })
+  .describe('Configuration for the voice to use')
+  .passthrough();
+
+export const GeminiTtsConfigSchema = GeminiConfigSchema.extend({
+  speechConfig: z
+    .object({
+      voiceConfig: VoiceConfigSchema.optional(),
+      multiSpeakerVoiceConfig: z
+        .object({
+          speakerVoiceConfigs: z
+            .array(
+              z
+                .object({
+                  speaker: z.string().describe('Name of the speaker to use'),
+                  voiceConfig: VoiceConfigSchema,
+                })
+                .describe(
+                  'Configuration for a single speaker in a multi speaker setup'
+                )
+                .passthrough()
+            )
+            .describe(
+              'Configuration for the two speaker voices. Each text part must ' +
+                'name its speaker in `metadata.speechMetadata.speaker`.'
+            ),
+        })
+        .describe('Configuration for multi-speaker setup')
+        .passthrough()
+        .optional(),
+    })
+    .describe('Speech generation config')
+    .passthrough()
+    .optional(),
+  audioFormat: z
+    .object({
+      mimeType: z
+        .union([
+          z.enum(['audio/wav', 'audio/l16', 'audio/mulaw', 'audio/alaw']),
+          z.custom<string & {}>((val) => typeof val === 'string'),
+        ])
+        .describe(
+          'Audio encoding. Defaults to audio/wav (with a header) for ' +
+            'non-streamed requests and audio/l16 (raw PCM, no header) for ' +
+            'streamed requests.'
+        )
+        .optional(),
+    })
+    .describe('Format of the generated audio.')
+    .passthrough()
+    .optional(),
+}).passthrough();
+export type GeminiTtsConfigSchemaType = typeof GeminiTtsConfigSchema;
+export type GeminiTtsConfig = z.infer<GeminiTtsConfigSchemaType>;
+
+// Gemini Omni (video generation). The fields follow the platform's
+// Interactions `VideoResponseFormat` and the Omni guide's `video_config`.
+export const GeminiVideoConfigSchema = GeminiConfigSchema.extend({
+  videoFormat: z
+    .object({
+      aspectRatio: z
+        .union([
+          z.enum(['16:9', '9:16']),
+          // Allows other values. `string & {}` (rather than z.string()) keeps
+          // the listed ones in TypeScript autocomplete.
+          z.custom<string & {}>((val) => typeof val === 'string'),
+        ])
+        .describe(
+          'Aspect ratio of the generated video. Defaults to 16:9 (landscape).'
+        )
+        .optional(),
+      resolution: z
+        .union([
+          z.enum(['360p', '720p', '1080p', '4k']),
+          z.custom<string & {}>((val) => typeof val === 'string'),
+        ])
+        .describe('Resolution of the generated video. Defaults to 720p.')
+        .optional(),
+      delivery: z
+        .union([
+          z.enum(['inline', 'uri']),
+          z.custom<string & {}>((val) => typeof val === 'string'),
+        ])
+        .describe(
+          'How the video is returned. By default it is returned inline. ' +
+            '"uri" stores it in Cloud Storage instead (set gcsUri).'
+        )
+        .optional(),
+      gcsUri: z
+        .string()
+        .describe(
+          'The Cloud Storage URI to store the video in. Required when ' +
+            'delivery is "uri".'
+        )
+        .optional(),
+    })
+    .describe('Format of the generated video.')
+    .passthrough()
+    .optional(),
+  videoConfig: z
+    .object({
+      task: z
+        .union([
+          z.enum([
+            'text_to_video',
+            'image_to_video',
+            'reference_to_video',
+            'edit',
+            'extend',
+          ]),
+          z.custom<string & {}>((val) => typeof val === 'string'),
+        ])
+        .describe(
+          'The kind of generation to perform. If not set, the model infers ' +
+            'it from the prompt and inputs.'
+        )
+        .optional(),
+    })
+    .describe('Video generation settings.')
+    .passthrough()
+    .optional(),
+}).passthrough();
+export type GeminiVideoConfigSchemaType = typeof GeminiVideoConfigSchema;
+export type GeminiVideoConfig = z.infer<GeminiVideoConfigSchemaType>;
+
 // This contains all the Gemini config schema types
-type ConfigSchemaType = GeminiConfigSchemaType | GeminiImageConfigSchemaType;
+type ConfigSchemaType =
+  | GeminiConfigSchemaType
+  | GeminiImageConfigSchemaType
+  | GeminiTtsConfigSchemaType
+  | GeminiVideoConfigSchemaType;
 type ConfigSchema = z.infer<ConfigSchemaType>;
 
 /** Whether each known model uses the Interactions API (see `usesInteractions`). */
@@ -493,22 +670,60 @@ const GENERIC_IMAGE_MODEL = commonRef(
   undefined,
   GeminiImageConfigSchema
 );
+const GENERIC_TTS_MODEL = commonRef(
+  'gemini-tts',
+  {
+    supports: {
+      multiturn: false,
+      media: false,
+      tools: false,
+      toolChoice: false,
+      systemRole: false,
+      constrained: 'none',
+      output: ['media'],
+    },
+  },
+  GeminiTtsConfigSchema,
+  false
+);
+// Per the Omni guide: text, image and video in, video (with audio) out; edits
+// continue a stored interaction. Tools and structured output aren't
+// documented for video generation.
+const GENERIC_VIDEO_MODEL = commonRef(
+  'gemini-video',
+  {
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: false,
+      toolChoice: false,
+      systemRole: true,
+      constrained: 'none',
+      output: ['media'],
+    },
+  },
+  GeminiVideoConfigSchema
+);
 
-// These all stay on generateContent, like in the googleAI plugin. The
-// `-latest` aliases aren't listed for the Interactions API.
+// Models with `false` stay on generateContent: older models (like in the
+// googleAI plugin) and models whose docs page says the Interactions API isn't
+// supported.
 export const KNOWN_GEMINI_MODELS = {
-  'gemini-flash-latest': commonRef(
-    'gemini-flash-latest',
+  'gemini-4-argon': commonRef('gemini-4-argon'),
+  // Allowlist only.
+  'gemini-4-argon-cyber-permissive': commonRef(
+    'gemini-4-argon-cyber-permissive'
+  ),
+  'gemini-3.8-flash': commonRef('gemini-3.8-flash'),
+  // Allowlist only.
+  'gemini-3.8-flash-cyber': commonRef(
+    'gemini-3.8-flash-cyber',
     undefined,
     GeminiConfigSchema,
     false
   ),
-  'gemini-flash-lite-latest': commonRef(
-    'gemini-flash-lite-latest',
-    undefined,
-    GeminiConfigSchema,
-    false
-  ),
+  'gemini-3.7-flash': commonRef('gemini-3.7-flash'),
+  'gemini-3.5-flash-lite': commonRef('gemini-3.5-flash-lite'),
   'gemini-3.5-flash': commonRef(
     'gemini-3.5-flash',
     undefined,
@@ -521,38 +736,21 @@ export const KNOWN_GEMINI_MODELS = {
     GeminiConfigSchema,
     false
   ),
-  'gemini-3.1-flash-lite-preview': commonRef(
-    'gemini-3.1-flash-lite-preview',
-    undefined,
-    GeminiConfigSchema,
-    false
-  ),
   'gemini-3.1-pro-preview': commonRef(
     'gemini-3.1-pro-preview',
     undefined,
     GeminiConfigSchema,
     false
   ),
+  // Optimized for custom tools (an extra endpoint of 3.1 Pro).
+  'gemini-3.1-pro-preview-customtools': commonRef(
+    'gemini-3.1-pro-preview-customtools',
+    undefined,
+    GeminiConfigSchema,
+    false
+  ),
   'gemini-3-flash-preview': commonRef(
     'gemini-3-flash-preview',
-    undefined,
-    GeminiConfigSchema,
-    false
-  ),
-  'gemini-2.5-flash-lite': commonRef(
-    'gemini-2.5-flash-lite',
-    undefined,
-    GeminiConfigSchema,
-    false
-  ),
-  'gemini-2.5-pro': commonRef(
-    'gemini-2.5-pro',
-    undefined,
-    GeminiConfigSchema,
-    false
-  ),
-  'gemini-2.5-flash': commonRef(
-    'gemini-2.5-flash',
     undefined,
     GeminiConfigSchema,
     false
@@ -564,11 +762,27 @@ export function isGeminiModelName(value?: string): value is GeminiModelName {
   return !!(
     value?.startsWith('gemini-') &&
     !value.includes('embedding') &&
-    !isImageModelName(value)
+    !isImageModelName(value) &&
+    !isTTSModelName(value) &&
+    !isVideoModelName(value)
   );
 }
 
 export const KNOWN_IMAGE_MODELS = {
+  // seed, topK, logprobs, temperature and topP aren't supported (the server
+  // returns an error).
+  'gemini-nano-banana-2.1': commonRef(
+    'gemini-nano-banana-2.1',
+    { ...GENERIC_IMAGE_MODEL.info },
+    GeminiImageConfigSchema,
+    false
+  ),
+  'gemini-3.1-flash-lite-image': commonRef(
+    'gemini-3.1-flash-lite-image',
+    { ...GENERIC_IMAGE_MODEL.info },
+    GeminiImageConfigSchema,
+    false
+  ),
   'gemini-3.1-flash-image': commonRef(
     'gemini-3.1-flash-image',
     { ...GENERIC_IMAGE_MODEL.info },
@@ -599,11 +813,90 @@ export function isImageModelName(value?: string): value is ImageModelName {
   );
 }
 
+// TTS models only work on generateContent (the Interactions API rejects them,
+// checked live Oct 2026).
+export const KNOWN_TTS_MODELS = {
+  'gemini-3.8-flash-tts': commonRef(
+    'gemini-3.8-flash-tts',
+    { ...GENERIC_TTS_MODEL.info },
+    GeminiTtsConfigSchema,
+    false
+  ),
+  'gemini-3.8-flash-lite-tts': commonRef(
+    'gemini-3.8-flash-lite-tts',
+    { ...GENERIC_TTS_MODEL.info },
+    GeminiTtsConfigSchema,
+    false
+  ),
+} as const;
+export type KnownTtsModels = keyof typeof KNOWN_TTS_MODELS;
+export type TTSModelName = `gemini-${string}-tts${string}`;
+export function isTTSModelName(value?: string): value is TTSModelName {
+  return !!(value?.startsWith('gemini-') && value.includes('-tts'));
+}
+
+// Omni video models use the Interactions API.
+export const KNOWN_VIDEO_MODELS = {
+  'gemini-omni-1.1-flash-preview': commonRef(
+    'gemini-omni-1.1-flash-preview',
+    { ...GENERIC_VIDEO_MODEL.info },
+    GeminiVideoConfigSchema
+  ),
+  'gemini-omni-flash-preview': commonRef(
+    'gemini-omni-flash-preview',
+    { ...GENERIC_VIDEO_MODEL.info },
+    GeminiVideoConfigSchema
+  ),
+} as const;
+export type KnownVideoModels = keyof typeof KNOWN_VIDEO_MODELS;
+export type VideoModelName = `gemini-omni-${string}`;
+export function isVideoModelName(value?: string): value is VideoModelName {
+  return !!value?.startsWith('gemini-omni-');
+}
+
 const KNOWN_MODELS = {
   ...KNOWN_GEMINI_MODELS,
   ...KNOWN_IMAGE_MODELS,
+  ...KNOWN_TTS_MODELS,
+  ...KNOWN_VIDEO_MODELS,
 };
 export type KnownModels = keyof typeof KNOWN_MODELS;
+
+// Models we no longer suggest, but that still work: they still resolve and
+// are still registered as actions, but aren't in the Known*Models types, so
+// they don't show up in autocomplete. Set `stage` on each one (keeping the
+// default `supports`):
+// - 'deprecated': deprecated by Google, or < 1 month from shutdown.
+// - 'legacy': not deprecated, but no longer offered to new projects.
+// Remove a model once the server returns 404 for it.
+const HIDDEN_MODELS = {
+  // Retirement date Oct 20 2026; kept until the server stops serving them.
+  // They aren't on the Interactions API, so they must stay listed (`false`):
+  // unlisted names would be sent to the Interactions API.
+  'gemini-2.5-pro': commonRef(
+    'gemini-2.5-pro',
+    { ...GENERIC_MODEL.info, stage: 'deprecated' },
+    GeminiConfigSchema,
+    false
+  ),
+  'gemini-2.5-flash': commonRef(
+    'gemini-2.5-flash',
+    { ...GENERIC_MODEL.info, stage: 'deprecated' },
+    GeminiConfigSchema,
+    false
+  ),
+  'gemini-2.5-flash-lite': commonRef(
+    'gemini-2.5-flash-lite',
+    { ...GENERIC_MODEL.info, stage: 'deprecated' },
+    GeminiConfigSchema,
+    false
+  ),
+} as const;
+
+const ALL_MODELS = {
+  ...HIDDEN_MODELS,
+  ...KNOWN_MODELS,
+};
 
 /**
  * Whether a model is called through the Interactions API. Known older models
@@ -615,11 +908,13 @@ function usesInteractions(modelVersion: string): boolean {
   if (modelVersion.includes('endpoints/')) {
     return false;
   }
-  // The platform's Interactions API doesn't support image models (it returns
-  // 400 "Model 'gemini-nano-banana-2.1' is not supported by the Interactions
-  // API", Oct 2026), so they stay on generateContent.
+  // The platform's Interactions API doesn't support image or TTS models (it
+  // returns 400 "Model 'gemini-nano-banana-2.1' is not supported by the
+  // Interactions API"; the 3.8 TTS models fail too; Oct 2026), so they stay
+  // on generateContent.
   return (
-    modelInteractionsMap.get(modelVersion) ?? !isImageModelName(modelVersion)
+    modelInteractionsMap.get(modelVersion) ??
+    !(isImageModelName(modelVersion) || isTTSModelName(modelVersion))
   );
 }
 
@@ -629,8 +924,8 @@ export function model(
 ): ModelReference<ConfigSchemaType> {
   const name = checkModelName(version);
 
-  if (isKnownKey(name, KNOWN_MODELS)) {
-    return KNOWN_MODELS[name].withConfig(config);
+  if (isKnownKey(name, ALL_MODELS)) {
+    return ALL_MODELS[name].withConfig(config);
   }
 
   if (isImageModelName(name)) {
@@ -639,6 +934,24 @@ export function model(
       config,
       configSchema: GeminiImageConfigSchema,
       info: { ...GENERIC_IMAGE_MODEL.info },
+    });
+  }
+
+  if (isVideoModelName(name)) {
+    return modelRef({
+      name: `vertexai/${name}`,
+      config,
+      configSchema: GeminiVideoConfigSchema,
+      info: { ...GENERIC_VIDEO_MODEL.info },
+    });
+  }
+
+  if (isTTSModelName(name)) {
+    return modelRef({
+      name: `vertexai/${name}`,
+      config,
+      configSchema: GeminiTtsConfigSchema,
+      info: { ...GENERIC_TTS_MODEL.info },
     });
   }
 
@@ -664,7 +977,9 @@ export function listActions(models: Model[]): ActionMetadata[] {
     .filter(
       (m) =>
         (isGeminiModelName(modelName(m.name)) ||
-          isImageModelName(modelName(m.name))) &&
+          isImageModelName(modelName(m.name)) ||
+          isTTSModelName(modelName(m.name)) ||
+          isVideoModelName(modelName(m.name))) &&
         !KNOWN_DECOMISSIONED_MODELS.includes(modelName(m.name) || '')
     )
     .map((m) => {
@@ -681,9 +996,33 @@ export function listKnownModels(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ) {
-  return Object.keys(KNOWN_MODELS).map((name) =>
+  return Object.keys(ALL_MODELS).map((name) =>
     defineModel(name, clientOptions, pluginOptions)
   );
+}
+
+/**
+ * Converts the TTS `audioFormat` config (`{ mimeType: 'audio/mulaw' }`) to
+ * the generateContent `responseFormat` (`[{ audio: { mimeType:
+ * 'AUDIO_MULAW' } }]`). Returns `undefined` if it isn't set, so the server
+ * defaults apply (audio/wav, or audio/l16 when streaming).
+ */
+function toGeminiAudioResponseFormat(
+  audioFormat: unknown
+): Record<string, unknown>[] | undefined {
+  if (!isObject(audioFormat) || typeof audioFormat.mimeType !== 'string') {
+    return undefined;
+  }
+  const { mimeType, ...rest } = audioFormat;
+  return [
+    {
+      audio: {
+        ...rest,
+        // 'audio/mulaw' -> 'AUDIO_MULAW'; enum values pass through.
+        mimeType: mimeType.toUpperCase().replace('/', '_'),
+      },
+    },
+  ];
 }
 
 /**
@@ -806,10 +1145,17 @@ async function generateWithInteractions(params: {
     store: storeFromConfig,
     previousInteractionId: previousInteractionIdFromConfig,
     responseModalities,
+    // Sent as `response_format` below.
+    videoFormat,
+    // TTS models don't use the Interactions API.
+    audioFormat,
     ...generationFields
   } = config;
   const warnDropped = (field: string) =>
     warnDroppedConfigField(modelVersion, field);
+  if (audioFormat !== undefined) {
+    warnDropped('audioFormat');
+  }
 
   const systemMessage = params.systemMessage;
   if (systemMessage?.content.some((c) => c.text === undefined)) {
@@ -881,6 +1227,11 @@ async function generateWithInteractions(params: {
         ? cleanSchema(request.output.schema)
         : request.output.schema;
     }
+  }
+
+  const videoResponseFormat = toInteractionVideoResponseFormat(videoFormat);
+  if (videoResponseFormat) {
+    req.response_format = videoResponseFormat;
   }
 
   if (Array.isArray(responseModalities) && isStringArray(responseModalities)) {
@@ -981,6 +1332,10 @@ export function defineModel(
         payGo,
         store: storeFromConfig,
         previousInteractionId: previousInteractionIdFromConfig,
+        // TTS models: sent as `responseFormat` below.
+        audioFormat: audioFormatFromConfig,
+        // Video (Omni) models use the Interactions API.
+        videoFormat: videoFormatFromConfig,
         ...restOfConfig
       } = requestConfig;
 
@@ -1032,6 +1387,9 @@ export function defineModel(
         logger.warn(
           'store and previousInteractionId are not supported for this model and will be ignored.'
         );
+      }
+      if (videoFormatFromConfig !== undefined) {
+        warnDroppedConfigField(modelVersion, 'videoFormat');
       }
 
       const labels = toGeminiLabels(labelsFromConfig);
@@ -1115,6 +1473,18 @@ export function defineModel(
             'IMAGE',
           ];
         }
+      } else if (isTTSModelName(modelVersion)) {
+        if (!generateContentRequest.generationConfig!.responseModalities) {
+          generateContentRequest.generationConfig!.responseModalities = [
+            'AUDIO',
+          ];
+        }
+      }
+
+      const responseFormat = toGeminiAudioResponseFormat(audioFormatFromConfig);
+      if (responseFormat) {
+        generateContentRequest.generationConfig!.responseFormat =
+          responseFormat;
       }
 
       if (jsonMode && request.output?.constrained) {
@@ -1168,6 +1538,15 @@ export function defineModel(
       const candidateData = response.candidates.map((c) =>
         fromGeminiCandidate(c)
       );
+      if (streamingRequested && isTTSModelName(modelVersion)) {
+        // Streamed audio arrives as many headerless chunks (audio/l16 by
+        // default); join them into one part, like a non-streamed response.
+        for (const candidate of candidateData) {
+          candidate.message.content = mergeStreamedAudio(
+            candidate.message.content
+          );
+        }
+      }
 
       return {
         candidates: candidateData,
@@ -1188,5 +1567,9 @@ export function defineModel(
 export const TEST_ONLY = {
   KNOWN_GEMINI_MODELS,
   KNOWN_IMAGE_MODELS,
+  KNOWN_TTS_MODELS,
+  KNOWN_VIDEO_MODELS,
+  HIDDEN_MODELS,
+  ALL_MODELS,
   KNOWN_MODELS,
 };

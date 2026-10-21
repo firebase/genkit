@@ -809,6 +809,17 @@ export declare interface Part {
   videoMetadata?: VideoMetadata;
   mediaResolution?: MediaResolution;
   partMetadata?: Record<string, unknown>;
+  /**
+   * TTS models: the speaker of this turn (must match a configured speaker
+   * for multi-speaker speech) and its delivery style.
+   */
+  speechMetadata?: SpeechMetadata;
+}
+
+/** Turn-level speech settings for a text part (TTS models). */
+export declare interface SpeechMetadata {
+  speaker?: string;
+  style?: string;
 }
 
 // A utility type that ensures an array contains all keys of T
@@ -832,6 +843,7 @@ export const PART_KEYS: KeysOf<Required<Part>> = [
   'videoMetadata',
   'mediaResolution',
   'partMetadata',
+  'speechMetadata',
 ] as const;
 /**
  * The base structured datatype containing multi-part content of a message.
@@ -1109,6 +1121,11 @@ export declare interface GenerationConfig {
   seed?: number;
   /** Optional. Speech generation config. */
   speechConfig?: Record<string, unknown>;
+  /**
+   * Optional. Output formats, e.g. `[{ audio: { mimeType: 'AUDIO_MULAW' } }]`
+   * for TTS models (vertexAI).
+   */
+  responseFormat?: Record<string, unknown>[];
   /** Optional. Thinking config. */
   thinkingConfig?: Record<string, unknown>;
   /** Optional. Image generation config. */

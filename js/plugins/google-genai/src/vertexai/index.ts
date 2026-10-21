@@ -39,7 +39,12 @@ import { VertexPluginOptions } from './types.js';
 import { getDerivedOptions } from './utils.js';
 
 export { type EmbeddingConfig } from './embedder.js';
-export { type GeminiConfig } from './gemini.js';
+export {
+  type GeminiConfig,
+  type GeminiImageConfig,
+  type GeminiTtsConfig,
+  type GeminiVideoConfig,
+} from './gemini.js';
 export { type ImagenConfig } from './imagen.js';
 export { type LyriaConfig } from './lyria.js';
 export { type VertexPluginOptions } from './types.js';
@@ -124,9 +129,17 @@ function vertexAIPlugin(options?: VertexPluginOptions): GenkitPluginV2 {
 export type VertexAIPlugin = {
   (pluginOptions?: VertexPluginOptions): GenkitPluginV2;
   model(
+    name: gemini.KnownTtsModels | (gemini.TTSModelName & {}),
+    config?: gemini.GeminiTtsConfig
+  ): ModelReference<gemini.GeminiTtsConfigSchemaType>;
+  model(
     name: gemini.KnownImageModels | (gemini.ImageModelName & {}),
     config?: gemini.GeminiImageConfig
   ): ModelReference<gemini.GeminiImageConfigSchemaType>;
+  model(
+    name: gemini.KnownVideoModels | (gemini.VideoModelName & {}),
+    config?: gemini.GeminiVideoConfig
+  ): ModelReference<gemini.GeminiVideoConfigSchemaType>;
   model(
     name: gemini.KnownGeminiModels | (gemini.GeminiModelName & {}),
     config?: gemini.GeminiConfig
@@ -170,7 +183,7 @@ export const vertexAI = vertexAIPlugin as VertexAIPlugin;
   if (veo.isVeoModelName(name)) {
     return veo.model(name, config);
   }
-  // gemini, image and unknown model families
+  // gemini, image, TTS and unknown model families
   return gemini.model(name, config);
 };
 vertexAI.embedder = (

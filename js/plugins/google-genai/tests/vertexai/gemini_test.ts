@@ -26,6 +26,9 @@ import { getVertexAIUrl } from '../../src/vertexai/client.js';
 import {
   GeminiConfigSchema,
   GeminiImageConfigSchema,
+  GeminiTtsConfigSchema,
+  GeminiVideoConfigSchema,
+  TEST_ONLY,
   defineModel,
   model,
 } from '../../src/vertexai/gemini.js';
@@ -168,6 +171,39 @@ describe('Vertex AI Gemini', () => {
     it('treats nano-banana models as image models', () => {
       const modelRef = model('gemini-nano-banana-2.1');
       assert.strictEqual(modelRef.configSchema, GeminiImageConfigSchema);
+    });
+
+    it('keeps hidden models resolvable but out of the known lists', () => {
+      const { HIDDEN_MODELS, ALL_MODELS, KNOWN_GEMINI_MODELS } = TEST_ONLY;
+      for (const name of [
+        'gemini-2.5-pro',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+      ]) {
+        assert.ok(name in HIDDEN_MODELS, `${name} should be hidden`);
+        assert.ok(name in ALL_MODELS);
+        assert.ok(!(name in KNOWN_GEMINI_MODELS));
+        assert.strictEqual(model(name).info?.stage, 'deprecated');
+      }
+    });
+
+    it('returns a video ModelReference for Omni models', () => {
+      for (const name of [
+        'gemini-omni-1.1-flash-preview',
+        'gemini-omni-9-flash',
+      ]) {
+        const modelRef = model(name);
+        assert.strictEqual(modelRef.configSchema, GeminiVideoConfigSchema);
+        assert.deepStrictEqual(modelRef.info?.supports?.output, ['media']);
+      }
+    });
+
+    it('returns a TTS ModelReference for known and unknown TTS models', () => {
+      for (const name of ['gemini-3.8-flash-tts', 'gemini-9-flash-tts']) {
+        const modelRef = model(name);
+        assert.strictEqual(modelRef.configSchema, GeminiTtsConfigSchema);
+        assert.deepStrictEqual(modelRef.info?.supports?.output, ['media']);
+      }
     });
 
     it('applies options to the ModelReference', () => {
@@ -880,11 +916,47 @@ describe('Vertex AI Gemini', () => {
         assert.strictEqual(result.result.message?.content[0].text, 'Hi there');
       });
 
-      it('keeps known models on generateContent', async () => {
-        mockFetchResponse(defaultApiResponse);
-        const model = defineModel('gemini-3.1-pro-preview', clientOptions);
-        await model.run(minimalRequest);
-        assert.match(fetchStub.lastCall.args[0], /:generateContent$/);
+      for (const knownModel of [
+        'gemini-3.1-pro-preview',
+        'gemini-3.1-pro-preview-customtools',
+        'gemini-3.8-flash-cyber',
+        // Hidden models keep their routing.
+        'gemini-2.5-flash',
+      ]) {
+        it(`keeps ${knownModel} on generateContent`, async () => {
+          mockFetchResponse(defaultApiResponse);
+          const model = defineModel(knownModel, clientOptions);
+          await model.run(minimalRequest);
+          assert.match(fetchStub.lastCall.args[0], /:generateContent$/);
+        });
+      }
+
+      it('sends Omni video format and config to the Interactions API', async () => {
+        mockFetchResponse(interactionResponse);
+        const model = defineModel(
+          'gemini-omni-1.1-flash-preview',
+          clientOptions
+        );
+        await model.run({
+          ...minimalRequest,
+          config: {
+            videoFormat: { aspectRatio: '9:16', resolution: '1080p' },
+            videoConfig: { task: 'text_to_video' },
+          },
+        });
+        assert.strictEqual(
+          fetchStub.lastCall.args[0],
+          getExpectedInteractionsUrl()
+        );
+        const body = lastRequestBody();
+        assert.deepStrictEqual(body.response_format, {
+          type: 'video',
+          aspect_ratio: '9:16',
+          resolution: '1080p',
+        });
+        assert.deepStrictEqual(body.generation_config, {
+          video_config: { task: 'text_to_video' },
+        });
       });
 
       for (const imageModel of [
@@ -901,6 +973,54 @@ describe('Vertex AI Gemini', () => {
               .responseModalities,
             ['TEXT', 'IMAGE']
           );
+        });
+      }
+
+      for (const ttsModel of ['gemini-3.8-flash-tts', 'gemini-9-flash-tts']) {
+        it(`keeps TTS model ${ttsModel} on generateContent`, async () => {
+          mockFetchResponse(defaultApiResponse);
+          const model = defineModel(ttsModel, clientOptions);
+          await model.run({
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    text: 'Hi Jane!',
+                    metadata: { speechMetadata: { speaker: 'Joe' } },
+                  },
+                ],
+              },
+            ],
+            config: {
+              speechConfig: {
+                multiSpeakerVoiceConfig: {
+                  speakerVoiceConfigs: [
+                    { speaker: 'Joe', voiceConfig: { voice: 'Puck' } },
+                    { speaker: 'Jane', voiceConfig: { voice: 'Kore' } },
+                  ],
+                },
+              },
+              audioFormat: { mimeType: 'audio/mulaw' },
+            },
+          });
+          assert.match(fetchStub.lastCall.args[0], /:generateContent$/);
+          const body = JSON.parse(fetchStub.lastCall.args[1].body);
+          assert.deepStrictEqual(body.contents[0].parts, [
+            { text: 'Hi Jane!', speechMetadata: { speaker: 'Joe' } },
+          ]);
+          assert.deepStrictEqual(body.generationConfig, {
+            speechConfig: {
+              multiSpeakerVoiceConfig: {
+                speakerVoiceConfigs: [
+                  { speaker: 'Joe', voiceConfig: { voice: 'Puck' } },
+                  { speaker: 'Jane', voiceConfig: { voice: 'Kore' } },
+                ],
+              },
+            },
+            responseModalities: ['AUDIO'],
+            responseFormat: [{ audio: { mimeType: 'AUDIO_MULAW' } }],
+          });
         });
       }
 
@@ -1176,6 +1296,12 @@ describe('Vertex AI Gemini', () => {
         'responseModalities',
         'thinkingConfig',
         'tools',
+        // TTS models stay on generateContent; listed so the TTS schema can
+        // be checked too. Dropped with a warning on the Interactions path.
+        'audioFormat',
+        'speechConfig',
+        // Sent as `response_format` (video models).
+        'videoFormat',
       ];
       // Accepted in `generation_config` (checked live on the Gemini API).
       const acceptedByApi = [
@@ -1186,8 +1312,20 @@ describe('Vertex AI Gemini', () => {
         'stopSequences',
         'imageConfig',
       ];
-      const known = new Set([...handledInGemini, ...acceptedByApi]);
-      for (const schema of [GeminiConfigSchema, GeminiImageConfigSchema]) {
+      // A `generation_config` field in the Omni guide (video models); not
+      // yet verified live on the platform.
+      const documentedForApi = ['videoConfig'];
+      const known = new Set([
+        ...handledInGemini,
+        ...acceptedByApi,
+        ...documentedForApi,
+      ]);
+      for (const schema of [
+        GeminiConfigSchema,
+        GeminiImageConfigSchema,
+        GeminiTtsConfigSchema,
+        GeminiVideoConfigSchema,
+      ]) {
         for (const field of Object.keys(schema.shape)) {
           assert.ok(known.has(field), `unhandled config field: ${field}`);
         }
