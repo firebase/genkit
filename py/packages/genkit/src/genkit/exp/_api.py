@@ -30,15 +30,21 @@ from genkit._ai._agents._base import (
     define_prompt_agent,
 )
 from genkit._ai._agents._runtime import AgentFn
-from genkit._ai._agents._session import SessionStore, StateT
+from genkit._ai._agents._session import SessionStore, StateT, get_current_session
 from genkit._ai._agents._types import ChunkTransform, StateTransform
 from genkit._ai._aio import Genkit as StableGenkit
-from genkit._ai._tools import Tool
-from genkit._core._action import ActionKind
+from genkit._core._action import Action, ActionKind
 from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._middleware import BaseMiddleware
 from genkit._core._model import ModelConfigDict, ModelRef, ModelRefConfigT, Part
+from genkit._core._protocols import SessionLike
+from genkit._core._tool import Tool
 from genkit._core._typing import MiddlewareRef
+
+
+def current_session() -> SessionLike | None:
+    """Return the active agent session, or None if not inside a session."""
+    return get_current_session()
 
 
 class Genkit(StableGenkit):
@@ -50,7 +56,7 @@ class Genkit(StableGenkit):
 
     async def agent(self, name: str) -> Agent:
         """Look up a registered agent by name."""
-        resolved = await self.registry.resolve_action(ActionKind.AGENT, name)
+        resolved = await self._registry.resolve_action(ActionKind.AGENT, name)
         if resolved is None:
             raise GenkitError(
                 status='NOT_FOUND',
@@ -86,7 +92,7 @@ class Genkit(StableGenkit):
         back as that model instead of a dict.
         """
         return define_custom_agent(
-            registry=self.registry,
+            self,
             name=name,
             fn=fn,
             store=store,
@@ -102,7 +108,7 @@ class Genkit(StableGenkit):
         self,
         name: str,
         *,
-        model: ModelRef[ModelRefConfigT] | str | None = None,
+        model: ModelRef[ModelRefConfigT] | Action | str | None = None,
         system: str | list[Part] | None = None,
         tools: Sequence[str | Tool] | None = None,
         use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
@@ -121,7 +127,7 @@ class Genkit(StableGenkit):
         self,
         name: str,
         *,
-        model: ModelRef[ModelRefConfigT] | str | None = None,
+        model: ModelRef[ModelRefConfigT] | Action | str | None = None,
         system: str | list[Part] | None = None,
         tools: Sequence[str | Tool] | None = None,
         use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
@@ -139,7 +145,7 @@ class Genkit(StableGenkit):
         self,
         name: str,
         *,
-        model: ModelRef[ModelRefConfigT] | str | None = None,
+        model: ModelRef[ModelRefConfigT] | Action | str | None = None,
         system: str | list[Part] | None = None,
         tools: Sequence[str | Tool] | None = None,
         use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
@@ -178,7 +184,7 @@ class Genkit(StableGenkit):
             res = await chat.send('Weather in Paris?')
         """
         return define_agent(
-            registry=self.registry,
+            self,
             name=name,
             model=model,
             system=system,
@@ -211,7 +217,7 @@ class Genkit(StableGenkit):
         is defined via ai.define_prompt() or loaded from a .prompt file.
         """
         return define_prompt_agent(
-            registry=self.registry,
+            self,
             name=name,
             store=store,
             state_transform=state_transform,

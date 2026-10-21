@@ -28,7 +28,7 @@ import {
   toToolMap,
 } from '../../src/generate/resolve-tool-requests.js';
 import { defineModel, type ToolResponsePart } from '../../src/model.js';
-import { defineTool, tool } from '../../src/tool.js';
+import { defineTool, tool, type ToolRunOptions } from '../../src/tool.js';
 
 initNodeFeatures();
 
@@ -37,6 +37,7 @@ describe('multipart middleware tools', () => {
     for (const actionRoute of [true, false]) {
       it(`preserves output, content and metadata (${dynamic ? 'dynamic' : 'registered'}, ${actionRoute ? 'action' : 'generate'})`, async () => {
         const registry = new Registry();
+        const abortSignal = new AbortController().signal;
         const config = {
           name: 'multipartTool',
           description: 'Returns a result with additional context',
@@ -44,11 +45,17 @@ describe('multipart middleware tools', () => {
           inputSchema: z.object({ value: z.string() }),
           outputSchema: z.string(),
         };
-        const implementation = async (input: { value: string }) => ({
-          output: input.value,
-          content: [{ text: 'Additional context' }],
-          metadata: { source: 'middleware' },
-        });
+        const implementation = async (
+          input: { value: string },
+          ctx: ToolRunOptions
+        ) => {
+          assert.strictEqual(ctx.abortSignal, abortSignal);
+          return {
+            output: input.value,
+            content: [{ text: 'Additional context' }],
+            metadata: { source: 'middleware' },
+          };
+        };
         const injectedTool = dynamic
           ? tool(config, implementation)
           : defineTool(registry, config, implementation);
@@ -95,17 +102,21 @@ describe('multipart middleware tools', () => {
 
         if (actionRoute) {
           const action = defineGenerateAction(registry);
-          const response = await action({
-            model: model.__action.name,
-            messages: [{ role: 'user', content: [{ text: 'hello' }] }],
-            use: [middleware()],
-          });
+          const response = await action(
+            {
+              model: model.__action.name,
+              messages: [{ role: 'user', content: [{ text: 'hello' }] }],
+              use: [middleware()],
+            },
+            { abortSignal }
+          );
           assert.strictEqual(response.message?.content[0].text, 'done');
         } else {
           const response = await generate(registry, {
             model,
             prompt: 'hello',
             use: [middleware()],
+            abortSignal,
           });
           assert.strictEqual(response.text, 'done');
           assert.deepStrictEqual(
@@ -121,6 +132,7 @@ describe('multipart middleware tools', () => {
 
   it('preserves multipart responses when restarting an interrupted middleware tool', async () => {
     const registry = new Registry();
+    const abortSignal = new AbortController().signal;
     registry.apiStability = 'beta';
     const injectedTool = tool(
       {
@@ -130,6 +142,7 @@ describe('multipart middleware tools', () => {
         outputSchema: z.string(),
       },
       async (_, ctx) => {
+        assert.strictEqual(ctx.abortSignal, abortSignal);
         if (!ctx.resumed) ctx.interrupt({ needsApproval: true });
         return {
           output: 'approved',
@@ -171,12 +184,14 @@ describe('multipart middleware tools', () => {
       model,
       prompt: 'hello',
       use: [middleware()],
+      abortSignal,
     });
     assert.strictEqual(interrupted.finishReason, 'interrupted');
     const response = await generate(registry, {
       model,
       messages: interrupted.messages,
       use: [middleware()],
+      abortSignal,
       resume: {
         restart: [injectedTool.restart(interrupted.interrupts[0], true)],
       },
@@ -187,6 +202,7 @@ describe('multipart middleware tools', () => {
 
   it('resolves multipart middleware tools during resumed request lookup', async () => {
     const registry = new Registry();
+    const abortSignal = new AbortController().signal;
     const injectedTool = tool(
       {
         name: 'resumedTool',
@@ -194,7 +210,10 @@ describe('multipart middleware tools', () => {
         multipart: true,
         outputSchema: z.string(),
       },
-      async () => ({ output: 'resumed output' })
+      async (_, ctx) => {
+        assert.strictEqual(ctx.abortSignal, abortSignal);
+        return { output: 'resumed output' };
+      }
     );
     const restarted = await resolveRestartedTools(
       registry,
@@ -211,7 +230,8 @@ describe('multipart middleware tools', () => {
           },
         ],
       },
-      [{ tools: [injectedTool] }]
+      [{ tools: [injectedTool] }],
+      { abortSignal }
     );
     assert.strictEqual(restarted[0].metadata?.pendingOutput, 'resumed output');
   });
