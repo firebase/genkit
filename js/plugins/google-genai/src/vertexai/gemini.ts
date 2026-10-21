@@ -95,6 +95,7 @@ import {
   cleanSchema,
   extractVersion,
   modelName,
+  toInteractionsClientOptions,
 } from './utils.js';
 
 export const SafetySettingsSchema = z
@@ -778,10 +779,10 @@ async function generateWithInteractions(params: {
   systemMessage?: MessageData;
   modelVersion: string;
   config: ConfigSchema;
-  /** The plugin's client options. */
-  clientOptions: ClientOptions;
-  /** The client options for this request. */
-  clientOpt: ClientOptions;
+  /** The plugin's client options (used for the vertexRetrieval fallback). */
+  pluginClientOptions: ClientOptions;
+  /** The client options for this request (location, API key, headers). */
+  requestClientOptions: ClientOptions;
   pluginOptions?: VertexPluginOptions;
   streamingRequested: boolean;
   sendChunk: (chunk: GenerateResponseChunkData) => void;
@@ -825,10 +826,12 @@ async function generateWithInteractions(params: {
     );
   }
 
+  // The vertexRetrieval data store fallback uses the plugin's project and
+  // location, not `config.location` (same as on generateContent).
   const tools = toVertexInteractionTools(
     request,
     config,
-    params.clientOptions,
+    params.pluginClientOptions,
     warnDropped
   );
 
@@ -888,9 +891,14 @@ async function generateWithInteractions(params: {
   }
 
   if (!params.streamingRequested) {
-    return fromInteractionSync(await createInteraction(req, params.clientOpt));
+    return fromInteractionSync(
+      await createInteraction(req, params.requestClientOptions)
+    );
   }
-  const result = await createInteractionStream(req, params.clientOpt);
+  const result = await createInteractionStream(
+    req,
+    params.requestClientOptions
+  );
   for await (const event of result.stream) {
     if (event.event_type === 'step.delta') {
       const content = fromInteractionDelta(event.delta);
@@ -1009,8 +1017,9 @@ export function defineModel(
           systemMessage,
           modelVersion,
           config: requestConfig,
-          clientOptions,
-          clientOpt,
+          pluginClientOptions: clientOptions,
+          // A defaulted location (us-central1) becomes global here.
+          requestClientOptions: toInteractionsClientOptions(clientOpt),
           pluginOptions,
           streamingRequested,
           sendChunk,

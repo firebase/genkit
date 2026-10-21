@@ -492,19 +492,21 @@ export function toInteractionGoogleSearch(
  * shape: `type` without the `HARM_CATEGORY_` prefix, and lower-case values
  * (`HARM_CATEGORY_HATE_SPEECH` / `BLOCK_LOW_AND_ABOVE` -> `hate_speech` /
  * `block_low_and_above`). The server rejects the upper-case values with a
- * 400. `HARM_CATEGORY_UNSPECIFIED` has no equivalent and is left out.
- * Other fields (e.g. `method`) are passed through.
+ * 400. `method` (`SEVERITY` / `PROBABILITY`) is lower-cased too.
+ * `HARM_CATEGORY_UNSPECIFIED` has no equivalent and is left out. Other
+ * fields are passed through.
  */
 export function toInteractionSafetySettings(
-  settings?: { category: string; threshold: string }[]
+  settings?: { category: string; threshold: string; method?: unknown }[]
 ): InteractionSafetySetting[] | undefined {
   if (!settings) return undefined;
   const result = settings
     .filter((s) => s.category !== 'HARM_CATEGORY_UNSPECIFIED')
-    .map(({ category, threshold, ...rest }) => ({
+    .map(({ category, threshold, method, ...rest }) => ({
       ...toSnakeCaseObj(rest),
       type: category.replace(/^HARM_CATEGORY_/, '').toLowerCase(),
       threshold: threshold.toLowerCase(),
+      ...(typeof method === 'string' ? { method: method.toLowerCase() } : {}),
     }));
   return result.length ? result : undefined;
 }

@@ -489,10 +489,10 @@ the Interactions API (`.../interactions`). These models still use
 - tuned model endpoints
 
 The Interactions API is available on the `global` location (and on the `us`
-and `eu` multi-regions with CMEK), and in Express mode. Requests on other
-locations are sent as configured, and the server returns an error if the
-model isn't available there: use `vertexAI({ location: 'global' })` or
-`config: { location: 'global' }` for these models. Interactions are stateless
+and `eu` multi-regions with CMEK), and in Express mode. If you don't set a
+location (no `vertexAI({ location })`, no `GCLOUD_LOCATION`, no
+`config.location`), these models use `global`. A location you set is used as
+is, and the server returns an error if the model isn't available there. Interactions are stateless
 by default (`store: false`), as with `googleAI`; set `config: { store: true }`
 (or `vertexAI({ store: true })` for every request) to store them and continue
 a conversation from the previous response's messages. Unlike `googleAI`,

@@ -42,6 +42,7 @@ import {
   checkModelName,
   extractVersion,
   shouldUseLegacyEndpoint,
+  toInteractionsClientOptions,
 } from './utils.js';
 
 export const LyriaConfigSchema = z
@@ -265,7 +266,11 @@ export function defineModel(
           response_modalities: responseModalitiesConverted,
         };
 
-        const response = await createInteraction(req, clientOpt);
+        // Lyria 3 is only on global: a defaulted location becomes global.
+        const response = await createInteraction(
+          req,
+          toInteractionsClientOptions(clientOpt)
+        );
 
         return fromInteractionSync(response);
       } else {

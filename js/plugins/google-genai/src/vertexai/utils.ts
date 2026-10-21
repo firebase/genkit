@@ -286,11 +286,11 @@ async function getRegionalDerivedOptions(
   projectId: string,
   options?: VertexPluginOptions
 ): Promise<RegionalClientOptions> {
-  // TODO(V2): Default to 'global': newer Gemini models use the Interactions
-  // API, which is only on the global location (and the us/eu multi-regions).
-  // Changing the default now would be a breaking change.
-  const location =
-    options?.location || process.env.GCLOUD_LOCATION || 'us-central1';
+  // TODO(V2): Default to 'global' for every model. For now only models on
+  // the Interactions API (only on global and the us/eu multi-regions) use
+  // global when the location is defaulted (see `locationDefaulted`).
+  const chosenLocation = options?.location || process.env.GCLOUD_LOCATION;
+  const location = chosenLocation || 'us-central1';
   if (!location) {
     throw new Error(
       `VertexAI Plugin is missing the 'location' configuration. Please set the 'GCLOUD_LOCATION' environment variable or explicitly pass 'location' into genkit config.`
@@ -304,6 +304,9 @@ async function getRegionalDerivedOptions(
     authClient,
     experimental_debugTraces: options?.experimental_debugTraces,
   };
+  if (!chosenLocation) {
+    clientOpt.locationDefaulted = true;
+  }
   if (options?.apiKey) {
     clientOpt.apiKey = options.apiKey;
   }
@@ -311,6 +314,32 @@ async function getRegionalDerivedOptions(
     clientOpt.apiVersion = options.apiVersion;
   }
   return clientOpt;
+}
+
+/**
+ * Client options for an Interactions API request. The Interactions API is
+ * only on the global location (and the us/eu multi-regions), so when the
+ * location is the built-in default (`us-central1`, nothing chosen) the
+ * request goes to `global`. A chosen location is used as is.
+ */
+export function toInteractionsClientOptions(
+  clientOptions: ClientOptions
+): ClientOptions {
+  if (clientOptions.kind === 'regional' && clientOptions.locationDefaulted) {
+    const {
+      locationDefaulted: _,
+      kind: _kind,
+      location: _location,
+      ...rest
+    } = clientOptions;
+    const globalOptions: GlobalClientOptions = {
+      ...rest,
+      kind: 'global',
+      location: 'global',
+    };
+    return globalOptions;
+  }
+  return clientOptions;
 }
 
 export type RequestClientOptions = ClientOptions & {
@@ -339,6 +368,14 @@ export function calculateRequestOptions<T extends z.ZodObject<any, any, any>>(
   let newOptions = { ...clientOptions };
   if (reqConfig?.apiVersion) {
     newOptions.apiVersion = reqConfig.apiVersion;
+  }
+  // A location set in the request is chosen, even if it equals the default.
+  if (
+    reqConfig?.location &&
+    typeof reqConfig.location == 'string' &&
+    newOptions.kind == 'regional'
+  ) {
+    delete newOptions.locationDefaulted;
   }
   if (
     reqConfig?.location &&

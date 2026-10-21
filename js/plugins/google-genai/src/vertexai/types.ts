@@ -124,6 +124,12 @@ export interface RegionalClientOptions extends BaseClientOptions {
   projectId: string;
   authClient: GoogleAuth;
   apiKey?: string; // In addition to regular auth
+  /**
+   * True when `location` is the built-in default (`us-central1`), i.e. no
+   * location was set in the plugin options or `GCLOUD_LOCATION`. Models on
+   * the Interactions API then use `global` instead.
+   */
+  locationDefaulted?: boolean;
 }
 
 export const MULTI_REGIONAL_LOCATIONS = ['eu', 'us'] as const;

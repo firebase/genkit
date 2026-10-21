@@ -66,6 +66,26 @@ describe('Interaction Converters', () => {
       );
     });
 
+    it('lower-cases method', () => {
+      // The server rejects 'SEVERITY' with a 400 (reported in review).
+      assert.deepStrictEqual(
+        toInteractionSafetySettings([
+          {
+            category: 'HARM_CATEGORY_HATE_SPEECH',
+            threshold: 'BLOCK_ONLY_HIGH',
+            method: 'SEVERITY',
+          },
+        ]),
+        [
+          {
+            type: 'hate_speech',
+            threshold: 'block_only_high',
+            method: 'severity',
+          },
+        ]
+      );
+    });
+
     it('leaves out HARM_CATEGORY_UNSPECIFIED', () => {
       assert.strictEqual(
         toInteractionSafetySettings([
