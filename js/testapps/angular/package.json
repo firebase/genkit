@@ -18,7 +18,7 @@
     "@angular/forms": "^20.3.0",
     "@angular/platform-browser": "^20.3.0",
     "@angular/platform-server": "^20.3.0",
-    "@angular/router": "^20.3.0",
+    "@angular/router": "^20.3.33",
     "@angular/ssr": "^20.3.1",
     "@genkit-ai/express": "workspace:*",
     "@genkit-ai/google-genai": "workspace:*",
