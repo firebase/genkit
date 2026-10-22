@@ -399,7 +399,7 @@ for await (const chunk of stream) {
 const audio = (await response).media;
 ```
 
-### Autonomous Agents (Deep Research & Antigravity - Gemini API Only)
+### Autonomous Agents (Deep Research & Antigravity)
 
 **Deep Research:**
 ```typescript
@@ -436,6 +436,13 @@ const response = await ai.generate({
   config: { environment: 'remote' },
 });
 ```
+
+**On Gemini Enterprise Agent Platform (`vertexAI`):** Deep Research is
+available as `vertexAI.model('deep-research-preview-04-2026')` and is used the
+same way. It runs on the `global` location (used when you don't set one). It
+uses the server's default for `store` unless you set it (in the request config
+or `vertexAI({ store })`); `store: false` is sent as is, and the agent rejects
+it.
 
 ## Interactions API Architecture & `response.raw`
 
@@ -481,6 +488,8 @@ models still use `generateContent`:
   models (`gemini-*-tts*`): the platform's Interactions API doesn't support
   them
 - tuned model endpoints
+
+Deep Research also uses the Interactions API.
 
 The Interactions API is available on the `global` location (and on the `us`
 and `eu` multi-regions with CMEK), and in Express mode. If you don't set a
