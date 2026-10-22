@@ -31,7 +31,7 @@ import structlog
 from mcp.types import CallToolResult
 
 from genkit import DynamicActionProvider, Genkit, Tool
-from genkit.plugin_api import Action
+from genkit.plugin_api import Action, ActionKind
 from genkit_mcp._config import McpStdioServerConfig
 from genkit_mcp._connection import DEFAULT_REQUEST_TIMEOUT_MILLIS, McpConnection
 from genkit_mcp._errors import _ConnectionClosedError, _ConnectionFailedError
@@ -51,6 +51,9 @@ logger = structlog.get_logger(__name__)
 _CROSS_LOOP_CLOSE_TIMEOUT_SECONDS = 30.0
 
 _LOOP_POLL_SECONDS = 0.1
+
+_registered_clients: weakref.WeakKeyDictionary[Action[Any, Any], McpClient] = weakref.WeakKeyDictionary()
+"""The client behind each provider :func:`define_mcp_client` registered."""
 
 
 class McpClient:
@@ -318,6 +321,12 @@ def define_mcp_client(
     plugin's action names to ``<plugin>/<action>``, and a provider name cannot
     contain a slash.
 
+    A name can be reused once the client holding it is closed. Tool names are not
+    checked across clients, because they are unknown until each server lists
+    them: a client ``fake`` serving ``await_stall`` and a client ``fake_await``
+    serving ``stall`` both offer ``fake_await_stall``, and ``generate`` refuses
+    to bind both.
+
     Args:
         ai: The Genkit instance to register with.
         name: Provider name, used in tool selectors and as the namespace of
@@ -338,7 +347,8 @@ def define_mcp_client(
 
     Raises:
         ValueError: If ``name`` cannot appear in a tool selector or a
-            model-facing tool name.
+            model-facing tool name, or a dynamic action provider other than a
+            closed MCP client's is already registered under it.
     """
     client = McpClient(
         name,
@@ -353,10 +363,20 @@ def define_mcp_client(
         """Provide this client's tools to the dynamic action provider."""
         return {'tool': await client._list_actions()}
 
+    existing = ai._registry.registered_action(ActionKind.DYNAMIC_ACTION_PROVIDER, name)
+    if existing is not None:
+        owner = _registered_clients.get(existing)
+        if owner is None or not owner._closed:
+            raise ValueError(
+                f'A dynamic action provider named {name!r} is already registered. '
+                'Close the MCP client registered under it first, or choose another name.'
+            )
+
     client._provider = ai.define_dynamic_action_provider(
         name,
         list_tools,
         description=f'Tools of the MCP server {name}.',
         cache_ttl_millis=cache_ttl_millis,
     )
+    _registered_clients[client._provider.action] = client
     return client
