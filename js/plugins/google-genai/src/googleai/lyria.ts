@@ -17,14 +17,14 @@
 import { ActionMetadata, modelActionMetadata, z } from 'genkit';
 import { ModelAction, ModelInfo, ModelReference, modelRef } from 'genkit/model';
 import { model as pluginModel } from 'genkit/plugin';
-import { isKnownKey } from '../common/utils.js';
-import { createInteraction } from './client.js';
 import {
   ensureToolIds,
   fromInteractionSync,
   toInteractionSteps,
-} from './interaction-converters.js';
-import { ResponseModality } from './interaction-types.js';
+} from '../common/interaction-converters.js';
+import { ResponseModality } from '../common/interaction-types.js';
+import { isKnownKey } from '../common/utils.js';
+import { createInteraction } from './client.js';
 import {
   ClientOptions,
   CreateInteractionRequest,
@@ -97,6 +97,7 @@ function commonRef(
 const GENERIC_MODEL = commonRef('lyria-3');
 
 const KNOWN_MODELS = {
+  'lyria-3.5': commonRef('lyria-3.5'),
   'lyria-3-clip-preview': commonRef('lyria-3-clip-preview'),
   'lyria-3-pro-preview': commonRef('lyria-3-pro-preview'),
 } as const;
