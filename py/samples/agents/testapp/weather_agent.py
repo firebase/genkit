@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import random
 
-from _ai import ai
+from _ai import ai, reply_text
 from pydantic import BaseModel
 
 from genkit import ActionRunContext
@@ -74,7 +74,7 @@ async def test_weather_agent(text: str, ctx: ActionRunContext) -> str:
         if chunk.text:
             ctx.send_chunk(chunk.text)
     res = await turn
-    return res.text
+    return reply_text(res)
 
 
 @ai.flow()
@@ -93,7 +93,7 @@ async def test_weather_agent_stream(text: str, ctx: ActionRunContext) -> str:
         if chunk.text:
             ctx.send_chunk(chunk.text)
     res = await followup
-    return res.text
+    return reply_text(res)
 
 
 if __name__ == '__main__':
