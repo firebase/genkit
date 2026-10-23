@@ -162,7 +162,7 @@ async function generateWithMcpToken(accessToken: string, prompt: string) {
     if (!client.isEnabled()) throw new Error('MCP connection failed');
 
     return await ai.generate({
-      model: googleAI.model('gemini-2.0-flash'),
+      model: googleAI.model('gemini-flash-latest'),
       prompt,
       tools: await client.getActiveTools(ai),
     });
