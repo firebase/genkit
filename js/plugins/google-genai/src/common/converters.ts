@@ -71,7 +71,8 @@ function toGeminiSchemaProperty(
   root: ToolDefinition['inputSchema'] = property,
   resolvingRefs = new Set<string>(),
   budget = { remaining: MAX_GEMINI_TOOL_SCHEMA_NODES },
-  depth = 0
+  depth = 0,
+  isReferenceTarget = false
 ) {
   if (depth > MAX_GEMINI_TOOL_SCHEMA_DEPTH) {
     throw new GenkitError({
@@ -186,11 +187,12 @@ function toGeminiSchemaProperty(
       root,
       new Set([...resolvingRefs, ref]),
       budget,
-      depth + 1
+      depth + 1,
+      true
     );
   }
   if (!property || !property.type) {
-    if (property && resolvingRefs.size > 0) {
+    if (property && isReferenceTarget) {
       throw new GenkitError({
         status: 'INVALID_ARGUMENT',
         message: 'Referenced tool schema has no type supported by Gemini',

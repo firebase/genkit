@@ -1645,6 +1645,79 @@ describe('toGeminiTool', () => {
     });
   });
 
+  it('should preserve untyped descendants inside referenced schemas', () => {
+    const item = {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        note: { anyOf: [{ type: 'string' }, { type: 'null' }], default: null },
+        values: {
+          type: 'array',
+          items: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+        },
+      },
+    };
+    const inline = toGeminiTool({
+      name: 'nullable_note',
+      description: 'Tool with an optional note',
+      inputSchema: { type: 'object', properties: { item } },
+    });
+    const referenced = toGeminiTool({
+      name: 'nullable_note',
+      description: 'Tool with an optional note',
+      inputSchema: {
+        type: 'object',
+        properties: { item: { $ref: '#/$defs/Item' } },
+        $defs: { Item: item },
+      },
+    });
+    assert.deepStrictEqual(referenced, inline);
+    assert.deepStrictEqual(referenced.parameters?.properties?.item, {
+      type: SchemaType.OBJECT,
+      properties: {
+        name: { type: SchemaType.STRING },
+        note: undefined,
+        values: { type: SchemaType.ARRAY, items: undefined },
+      },
+      required: undefined,
+    });
+  });
+
+  it('should reject directly referenced schemas without a supported type', () => {
+    assert.throws(
+      () =>
+        toGeminiTool({
+          name: 'untyped_ref',
+          description: 'Tool with an untyped reference target',
+          inputSchema: {
+            $ref: '#/$defs/Value',
+            $defs: { Value: { anyOf: [{ type: 'string' }, { type: 'null' }] } },
+          },
+        }),
+      /Referenced tool schema has no type supported by Gemini/
+    );
+  });
+
+  it('should reject recursive references through typed descendants', () => {
+    assert.throws(
+      () =>
+        toGeminiTool({
+          name: 'recursive_ref',
+          description: 'Tool with a recursive reference',
+          inputSchema: {
+            $ref: '#/$defs/Node',
+            $defs: {
+              Node: {
+                type: 'object',
+                properties: { next: { $ref: '#/$defs/Node' } },
+              },
+            },
+          },
+        }),
+      /Recursive tool schema reference/
+    );
+  });
+
   it('should reject unresolved tool schema references before sending them to Gemini', () => {
     assert.throws(
       () =>
