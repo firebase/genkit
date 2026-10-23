@@ -25,135 +25,85 @@ Example:
 
     ai = Genkit(plugins=[GoogleAI()], model=GoogleAI.gemini_model('gemini-flash-latest'))
 
-    @ai.tool()
-    async def current_weather(city: str) -> str:
-        return f'Sunny in {city}'
-
     @ai.flow()
     async def my_flow(prompt: str) -> str:
-        res = await ai.generate(prompt=prompt, tools=['current_weather'])
+        res = await ai.generate(prompt=prompt)
         return res.text
 
     if __name__ == '__main__':
         ai.run_main(my_flow('Weather in Paris?'))
 """
 
-from genkit._ai._aio import ActionKind, Genkit
+from genkit._ai._aio import Genkit
+from genkit._ai._formats._types import FormatDef, FormatterConfig
 from genkit._ai._prompt import (
-    ExecutablePrompt,
     ModelStreamResponse,
-    PromptGenerateOptions,
+    Prompt,
 )
 from genkit._ai._tools import (
-    Interrupt,
     MultipartToolResponse,
-    Tool,
     ToolRunContext,
-    respond_to_interrupt,
-    response,
-    restart_tool,
     tool,
 )
-from genkit._core._action import Action, ActionRunContext, StreamResponse
-from genkit._core._error import ErrorResponseMetadata, GenkitError, PublicError, RuntimeErrorReason
-from genkit._core._model import Document, Part
-from genkit._core._plugin import Plugin
-from genkit._core._typing import (
-    Media,
-    Metadata,
-    MiddlewareRef,
-    Role,
-    ToolChoice,
-    ToolRequest,
-    ToolResponse,
-)
-
-# Import embedder-related types from the embedder namespace
-from genkit.embedder import (
-    EmbedderInfo,
-    EmbedderRef,
-    Embedding,
-    EmbedRequest,
-    EmbedResponse,
-)
-
-# Import model-related types from the model namespace.
-from genkit.model import (
-    Constrained,
-    FinishReason,
+from genkit._core._action import ActionRunContext, StreamResponse
+from genkit._core._context import ContextProvider, RequestData
+from genkit._core._dap import DynamicActionProvider
+from genkit._core._error import GenkitError, GenkitRuntimeError, Interrupt, PublicError, RuntimeErrorReason
+from genkit._core._logger import get_logger
+from genkit._core._model import (
+    Document,
     Message,
-    ModelConfigDict,
-    ModelInfo,
-    ModelRequest,
     ModelResponse,
     ModelResponseChunk,
-    ModelUsage,
-    Stage,
-    Supports,
-    ToolDefinition,
-    background_model,
+    Part,
+    ToolChoice,
+)
+from genkit._core._tool import Tool
+from genkit._core._typing import (
+    Embedding,
+    FinishReason,
+    Media,
+    Operation,
+    Role,
 )
 
-# Flow is an alias for Action (used in samples for flow type hints)
-Flow = Action
-
 __all__ = [
-    # Main class
     'Genkit',
-    'Flow',
-    # Response types
-    'Action',
-    'StreamResponse',
-    'EmbedRequest',
-    'EmbedResponse',
-    'EmbedderInfo',
-    'EmbedderRef',
-    'ModelConfigDict',
-    'ModelInfo',
+    # Construct a turn
+    'Message',
+    'Role',
+    'Part',
+    'Media',
+    'Document',
+    'ToolChoice',
+    # What came back
+    'ModelResponse',
+    'ModelResponseChunk',
+    'GenkitRuntimeError',
     'ModelStreamResponse',
-    # Errors
-    'ErrorResponseMetadata',
+    'StreamResponse',
+    'FinishReason',
+    # Embed, evaluate, and background jobs
+    'Embedding',
+    'Operation',
+    # Tools and HITL
+    'tool',
+    'Tool',
+    'ToolRunContext',
+    'Interrupt',
+    'MultipartToolResponse',
+    # Flows, prompts, errors
+    'ActionRunContext',
+    'Prompt',
     'GenkitError',
     'PublicError',
     'RuntimeErrorReason',
-    # Tools
-    'Interrupt',
-    'Tool',
-    'respond_to_interrupt',
-    'response',
-    'restart_tool',
-    'tool',
-    'background_model',
-    # Content types
-    'Constrained',
-    'Embedding',
-    'Metadata',
-    'FinishReason',
-    'ModelUsage',
-    'Media',
-    'Message',
-    'MultipartToolResponse',
-    'Part',
-    'Role',
-    'Stage',
-    'Supports',
-    'ToolChoice',
-    'ToolDefinition',
-    'ToolRequest',
-    'ToolResponse',
-    # Domain types
-    'Document',
-    # Plugin interface
-    'Plugin',
-    # Middleware references (wire form for use= parameter)
-    'MiddlewareRef',
-    # AI runtime
-    'ActionKind',
-    'ActionRunContext',
-    'ExecutablePrompt',
-    'PromptGenerateOptions',
-    'ToolRunContext',
-    'ModelRequest',
-    'ModelResponse',
-    'ModelResponseChunk',
+    'get_logger',
+    # HTTP request context for flow handlers
+    'ContextProvider',
+    'RequestData',
+    # Custom output formats and dynamic providers
+    'FormatDef',
+    'FormatterConfig',
+    'DynamicActionProvider',
 ]

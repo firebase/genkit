@@ -36,7 +36,8 @@ from collections.abc import Callable
 from typing import Any, Protocol, runtime_checkable
 
 from genkit._core._action import Action, ActionKind
-from genkit._core._model import Artifact, Message
+from genkit._core._model import Artifact, Message, ModelRequest, ModelResponse, ModelResponseChunk
+from genkit._core._tool import Tool
 
 
 @runtime_checkable
@@ -72,11 +73,10 @@ class RegistryLike(Protocol):
 
 
 class SessionLike(Protocol):
-    """Structural interface for agent session state peekable from generate middleware.
+    """Structural interface for the agent session returned by ``genkit.exp.current_session()``.
 
     The concrete ``Session`` in ``_ai._agents._session`` satisfies this protocol.
-    Middleware should treat ``GenerateMiddlewareContext.session`` as optional and only
-    call methods when a bind is present.
+    Outside an agent there's no session, so callers check for ``None`` first.
     """
 
     async def get_artifacts(self) -> list[Artifact]:
@@ -105,13 +105,20 @@ class SessionLike(Protocol):
 
 
 class GenkitLike(Protocol):
-    """Structural interface for the Genkit instance exposed on middleware context."""
+    """The ``Genkit`` instance as middleware sees it on ``ctx.ai``.
 
-    @property
-    def registry(self) -> RegistryLike:
-        """The call-scoped registry for this generate invocation."""
+    At runtime ``ctx.ai`` is the app's ``Genkit``. This protocol lists the
+    methods middleware is meant to call; ``_core`` can't import ``Genkit``.
+    """
+
+    async def lookup_model(self, name: str) -> Action[ModelRequest, ModelResponse, ModelResponseChunk] | None:
+        """Return the model action registered under ``name``, or None."""
         ...
 
-    def current_session(self) -> SessionLike | None:
-        """Return the bound agent session, if running inside one."""
+    async def lookup_tool(self, name: str) -> Tool | None:
+        """Return the tool registered under ``name``, or None."""
+        ...
+
+    def lookup_value(self, *, kind: str, name: str) -> object | None:
+        """Return the value defined under ``kind`` and ``name``, or None."""
         ...
