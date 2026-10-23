@@ -1,8 +1,8 @@
 node_modules
-*.tgz
-.genkit
-src
-tests
+/*.tgz
+/.genkit
+/src
+/tests
 tsconfig.cjs.json
 tsconfig.esm.json
 tsconfig.types.json
