@@ -18,7 +18,7 @@ import * as assert from 'assert';
 import { GenerateRequest } from 'genkit/model';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
-import { GeminiInteraction } from '../../src/googleai/interaction-types.js';
+import { GeminiInteraction } from '../../src/common/interaction-types.js';
 import { LyriaConfigSchema, defineModel } from '../../src/googleai/lyria.js';
 import { GoogleAIPluginOptions } from '../../src/googleai/types.js';
 
@@ -90,6 +90,20 @@ describe('Lyria 3', () => {
 
       assert.deepStrictEqual(body.response_modalities, ['audio', 'text']);
       assert.strictEqual(body.model, 'lyria-3-clip-preview');
+    });
+
+    it('sends lyria-3.5 to the Interactions API', async () => {
+      const model = defineModel('lyria-3.5', defaultPluginOptions);
+      mockFetchResponse(mockInteractionResponse);
+
+      await model(minimalRequest, {} as any);
+
+      sinon.assert.calledOnce(fetchStub);
+      const [url, options] = fetchStub.lastCall.args;
+      assert.ok(String(url).endsWith('/interactions'), String(url));
+      const body = JSON.parse(options.body);
+      assert.strictEqual(body.model, 'lyria-3.5');
+      assert.deepStrictEqual(body.response_modalities, ['audio', 'text']);
     });
 
     it('passes explicit responseModalities to the API', async () => {
