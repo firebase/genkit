@@ -87,12 +87,21 @@ async function removeKnownFile(
   hashes: Set<string>
 ): Promise<boolean> {
   try {
+    const stats = await lstat(filePath).catch((error: unknown) => {
+      if (getErrorCode(error) === 'ENOENT') {
+        return undefined;
+      }
+      throw error;
+    });
+    if (!stats || !stats.isFile() || stats.nlink > 1) {
+      return false;
+    }
     if (await hasSymlinkedParent(projectRoot, filePath)) {
       return false;
     }
 
-    const content = await readRegularFile(filePath);
-    if (content === undefined || !hashes.has(calculateHash(content))) {
+    const content = await readFile(filePath, 'utf8');
+    if (!hashes.has(calculateHash(content))) {
       return false;
     }
 
@@ -113,11 +122,19 @@ async function cleanupGeminiContextCopy(
 ): Promise<void> {
   const copyPath = path.join(projectRoot, '.gemini', 'GENKIT.md');
   try {
+    const stats = await lstat(copyPath).catch((error: unknown) => {
+      if (getErrorCode(error) === 'ENOENT') {
+        return undefined;
+      }
+      throw error;
+    });
+    if (!stats) {
+      return;
+    }
     if (await hasSymlinkedParent(projectRoot, copyPath)) {
       return;
     }
 
-    const stats = await lstat(copyPath);
     if (stats.isSymbolicLink()) {
       const target = await readlink(copyPath);
       if (
@@ -161,14 +178,20 @@ async function cleanupGeminiContextCopy(
 async function removeGeminiContextFileName(projectRoot: string): Promise<void> {
   const settingsPath = path.join(projectRoot, '.gemini', 'settings.json');
   try {
+    const stats = await lstat(settingsPath).catch((error: unknown) => {
+      if (getErrorCode(error) === 'ENOENT') {
+        return undefined;
+      }
+      throw error;
+    });
+    if (!stats || !stats.isFile() || stats.nlink > 1) {
+      return;
+    }
     if (await hasSymlinkedParent(projectRoot, settingsPath)) {
       return;
     }
 
-    const content = await readRegularFile(settingsPath);
-    if (content === undefined) {
-      return;
-    }
+    const content = await readFile(settingsPath, 'utf8');
 
     const settings: unknown = JSON.parse(content);
     if (!isRecord(settings)) {
@@ -209,14 +232,20 @@ async function cleanupPromptBlocks(
   filePath: string
 ): Promise<void> {
   try {
+    const stats = await lstat(filePath).catch((error: unknown) => {
+      if (getErrorCode(error) === 'ENOENT') {
+        return undefined;
+      }
+      throw error;
+    });
+    if (!stats || !stats.isFile() || stats.nlink > 1) {
+      return;
+    }
     if (await hasSymlinkedParent(projectRoot, filePath)) {
       return;
     }
 
-    const content = await readRegularFile(filePath);
-    if (content === undefined) {
-      return;
-    }
+    const content = await readFile(filePath, 'utf8');
 
     let removedBlock = false;
     const updated = content.replace(
@@ -322,11 +351,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function logCleanupError(filePath: string, error: unknown): void {
-  const errorCode =
-    typeof error === 'object' && error !== null && 'code' in error
-      ? error.code
-      : undefined;
-  if (errorCode !== 'ENOENT') {
+  if (getErrorCode(error) !== 'ENOENT') {
     logger.debug(`Skipping legacy Genkit cleanup for ${filePath}`, error);
   }
+}
+
+function getErrorCode(error: unknown): unknown {
+  return typeof error === 'object' && error !== null && 'code' in error
+    ? error.code
+    : undefined;
 }
