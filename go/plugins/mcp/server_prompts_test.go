@@ -150,6 +150,53 @@ func TestMCPServerListsOnlyDeclaredClosedPromptArguments(t *testing.T) {
 	}
 }
 
+func TestMCPServerRendersOptionalObjectPromptsWithoutArguments(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		schema map[string]any
+	}{
+		{
+			name: "implicit additional properties",
+			schema: map[string]any{"type": "object", "properties": map[string]any{
+				"name": map[string]any{"type": "string"},
+			}},
+		},
+		{
+			name: "explicit additional properties",
+			schema: map[string]any{"type": "object", "properties": map[string]any{
+				"name": map[string]any{"type": "string"},
+			}, "additionalProperties": true},
+		},
+		{name: "empty object", schema: map[string]any{"type": "object"}},
+		{
+			name: "typed additional properties",
+			schema: map[string]any{
+				"type":                 "object",
+				"additionalProperties": map[string]any{"type": "integer"},
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			g := genkit.Init(ctx)
+			genkit.DefinePrompt(g, "optional", ai.WithInputSchema(test.schema), ai.WithPrompt("Ready"))
+			s := NewMCPServer(g, MCPServerOptions{Name: "optional-prompts"})
+			response := s.GetServer().HandleMessage(ctx, []byte(`{"jsonrpc":"2.0","id":1,"method":"prompts/get","params":{"name":"optional"}}`))
+			got, ok := response.(mcp.JSONRPCResponse)
+			if !ok {
+				t.Fatalf("optional prompt without arguments = %v, want JSONRPCResponse", response)
+			}
+			result, ok := got.Result.(mcp.GetPromptResult)
+			if !ok || len(result.Messages) != 1 {
+				t.Fatalf("optional prompt result = %v, want one message", got.Result)
+			}
+			if text, ok := result.Messages[0].Content.(mcp.TextContent); !ok || text.Text != "Ready" {
+				t.Errorf("optional prompt message = %v, want Ready", result.Messages[0].Content)
+			}
+		})
+	}
+}
+
 func TestGenkitPromptMediaConversion(t *testing.T) {
 	content, err := genkitPartToMCP(ai.NewMediaPart("image/png", "data:image/png;base64,aGVsbG8="))
 	if err != nil {

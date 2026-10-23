@@ -57,9 +57,7 @@ func (s *GenkitMCPServer) registerPromptWithMCP(desc api.ActionDesc) {
 		}
 		defaults := genkitPromptDefaults(desc)
 		if input == nil && defaults == nil && desc.InputSchema["type"] == "object" {
-			if additional, ok := desc.InputSchema["additionalProperties"].(bool); ok && !additional {
-				input = map[string]any{}
-			}
+			input = map[string]any{}
 		}
 		if isObjectPromptSchema(desc.InputSchema) && len(defaults) > 0 && len(request.Params.Arguments) > 0 {
 			// MCP arguments are individual fields. Keep omitted fields from the
