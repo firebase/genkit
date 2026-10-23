@@ -403,18 +403,16 @@ const res = await chat.send('Weather in Tokyo?');
 console.log(res.text);
 ```
 
-On the server, mount the agent at `url` and its companion actions under it, so `remoteAgent` can read, wait for, and stop background tasks:
+On the server, `serveAgent` mounts the agent at `url` and its companion routes under it, so `remoteAgent` can read, wait for, and stop background tasks:
 
 ```ts
-import { expressHandler } from '@genkit-ai/express';
+import { serveAgent } from '@genkit-ai/express/beta';
 
-app.post('/api/weatherAgent', expressHandler(weatherAgent));
-app.post('/api/weatherAgent/getSnapshot', expressHandler(weatherAgent.getSnapshotDataAction));
-app.post('/api/weatherAgent/waitForSnapshot', expressHandler(weatherAgent.waitForSnapshotAction));
-app.post('/api/weatherAgent/abort', expressHandler(weatherAgent.abortAgentAction));
+// Serves /api/weatherAgent and the companion routes the agent supports.
+app.use('/api', serveAgent(weatherAgent));
 ```
 
-Without the `waitForSnapshot` route, `remoteAgent` polls `getSnapshot` instead.
+The router's JSON body limit is 100kb by default. An agent without a store receives its full conversation in every request, so raise the limit for long conversations with `serveAgent(agent, { jsonParserOptions: { limit: '5mb' } })`.
 
 Learn more in the [Agents documentation](https://genkit.dev/docs/js/agents/overview/).
 
