@@ -16,15 +16,21 @@
 
 import { GenerateRequest, GenkitError, z, type ActionContext } from 'genkit';
 import process from 'process';
-import { extractMedia } from '../common/utils.js';
-import { ClientOptions, ImagenInstance, VeoImage, VeoVideo } from './types.js';
+import { ClientOptions, VeoImage, VeoVideo } from './types.js';
 
+export { isObject } from '../common/types.js';
 export {
+  appendToWavData,
+  camelToSnakeCase,
   checkModelName,
   cleanSchema,
+  convertObjectKeysToSnakeCase,
   extractText,
   extractVersion,
+  isStringArray,
   modelName,
+  stripLeadingId3Tags,
+  toSnakeCaseObj,
 } from '../common/utils.js';
 
 /**
@@ -149,20 +155,6 @@ export function extractVeoVideo(
   return {
     uri: media.url,
   };
-}
-
-export function extractImagenImage(
-  request: GenerateRequest
-): ImagenInstance['image'] | undefined {
-  const image = extractMedia(request, {
-    metadataType: 'base',
-    isDefault: true,
-  })?.url.split(',')[1];
-
-  if (image) {
-    return { bytesBase64Encoded: image };
-  }
-  return undefined;
 }
 
 /**
