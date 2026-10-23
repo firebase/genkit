@@ -54,6 +54,10 @@ COLLIDING_TOOLS = [
 
 PAGE_SIZE = int(os.environ.get('MCP_FAKE_PAGE_SIZE', '2'))
 
+TOOL_NAME_PREFIX = os.environ.get('MCP_FAKE_TOOL_NAME_PREFIX', '')
+if TOOL_NAME_PREFIX:
+    TOOLS = [tool.model_copy(update={'name': TOOL_NAME_PREFIX + tool.name}) for tool in TOOLS]
+
 list_requests = 0
 
 rendezvous_arrivals = 0
@@ -78,6 +82,11 @@ async def list_tools(req: ListToolsRequest) -> ListToolsResult:
         # -32000 is the JSON-RPC implementation-defined server error range, which
         # a healthy server may use and the SDK also synthesises on transport death.
         raise McpError(ErrorData(code=CONNECTION_CLOSED, message='application-level failure'))
+
+    stall_list_marker = os.environ.get('MCP_FAKE_STALL_LIST')
+    if stall_list_marker:
+        await anyio.Path(stall_list_marker).write_text('stalled', encoding='utf-8')
+        await asyncio.Event().wait()
 
     if os.environ.get('MCP_FAKE_STUCK_CURSOR'):
         return ListToolsResult(tools=TOOLS[:1], nextCursor='stuck')
