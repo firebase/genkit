@@ -146,6 +146,9 @@ func mcpPromptInput(schema map[string]any, arguments map[string]string) (any, er
 }
 
 func hasGenericPromptInput(schema, properties map[string]any) bool {
+	if additional, ok := schema["additionalProperties"].(bool); ok && !additional {
+		return false
+	}
 	_, named := properties["inputJson"]
 	return !named && (len(properties) == 0 || schema["additionalProperties"] != nil)
 }

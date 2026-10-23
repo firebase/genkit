@@ -86,6 +86,58 @@ func TestMCPServerListsAndRendersGenkitPrompts(t *testing.T) {
 	}
 }
 
+func TestMCPServerListsOnlyDeclaredClosedPromptArguments(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		properties map[string]any
+		wantNames  []string
+	}{
+		{
+			name: "named properties",
+			properties: map[string]any{
+				"name": map[string]any{"type": "string"},
+			},
+			wantNames: []string{"name"},
+		},
+		{name: "no properties", properties: map[string]any{}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			g := genkit.Init(ctx)
+			genkit.DefinePrompt(g, "closed",
+				ai.WithInputSchema(map[string]any{
+					"type":                 "object",
+					"properties":           test.properties,
+					"additionalProperties": false,
+				}),
+				ai.WithPrompt("Ready"),
+			)
+			s := NewMCPServer(g, MCPServerOptions{Name: "closed-prompts"})
+			if err := s.setup(); err != nil {
+				t.Fatal(err)
+			}
+			response := s.GetServer().HandleMessage(ctx, []byte(`{"jsonrpc":"2.0","id":1,"method":"prompts/list"}`))
+			got, ok := response.(mcp.JSONRPCResponse)
+			if !ok {
+				t.Fatalf("prompts/list response = %v, want JSONRPCResponse", response)
+			}
+			listed, ok := got.Result.(mcp.ListPromptsResult)
+			if !ok || len(listed.Prompts) != 1 {
+				t.Fatalf("prompts/list result = %v, want one prompt", got.Result)
+			}
+			args := listed.Prompts[0].Arguments
+			if len(args) != len(test.wantNames) {
+				t.Fatalf("closed prompt arguments = %v, want %v", args, test.wantNames)
+			}
+			for i, name := range test.wantNames {
+				if args[i].Name != name {
+					t.Errorf("argument %d name = %q, want %q", i, args[i].Name, name)
+				}
+			}
+		})
+	}
+}
+
 func TestGenkitPromptMediaConversion(t *testing.T) {
 	content, err := genkitPartToMCP(ai.NewMediaPart("image/png", "data:image/png;base64,aGVsbG8="))
 	if err != nil {
