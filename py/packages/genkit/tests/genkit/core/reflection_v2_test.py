@@ -48,13 +48,22 @@ from genkit import Genkit
 from genkit._core._action import Action, ActionKind, ActionRunContext, BidiAction
 from genkit._core._middleware import BaseMiddleware
 from genkit._core._model import AgentInit, AgentInput, ModelConfig
+from genkit._core._reflection import ActionRunner
 from genkit._core._reflection_v2 import (
     JSON_RPC_INVALID_PARAMS,
     JSON_RPC_METHOD_NOT_FOUND,
     ReflectionServerV2,
 )
 from genkit._core._registry import Registry
+from genkit._core._typing import ReflectionRunActionParams
 from genkit.model import model_ref
+from genkit.plugin_api import ActionMetadata, Plugin
+
+
+@pytest.fixture(autouse=True)
+def _ids_for_reflection(hex_ids: None) -> None:
+    """Dev UI cancel/state uses trace ids."""
+    return
 
 
 class FakeReflectionManager:
@@ -140,7 +149,7 @@ async def _run_client_lifecycle(
 
 
 async def _stop_client(client: ReflectionServerV2, task: asyncio.Task[None]) -> None:
-    client.stop()
+    await client.stop()
     task.cancel()
     try:
         await task
@@ -217,12 +226,48 @@ async def test_reflection_server_v2_list_actions(fake_manager: FakeReflectionMan
                 'actionType': 'custom',
                 'inputSchema': {'type': 'integer'},
                 'outputSchema': {'type': 'integer'},
-                'metadata': {
-                    'inputSchema': {'type': 'integer'},
-                    'outputSchema': {'type': 'integer'},
-                },
             }
         }
+    finally:
+        await _stop_client(client, task)
+
+
+class ListingPlugin(Plugin):
+    """Lists one model row with a request and response schema."""
+
+    name = 'acme'
+
+    async def init(self) -> list[Action]:
+        return []
+
+    async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
+        return None
+
+    async def list_actions(self) -> list[ActionMetadata]:
+        return [
+            ActionMetadata(
+                action_type=ActionKind.MODEL,
+                name='acme/m',
+                input_schema={'type': 'object', 'properties': {'prompt': {'type': 'string'}}},
+                output_schema={'type': 'object', 'properties': {'text': {'type': 'string'}}},
+            )
+        ]
+
+
+@pytest.mark.asyncio
+async def test_reflection_v2_list_actions_uses_input_schema(fake_manager: FakeReflectionManager) -> None:
+    """A plugin row's input_schema and output_schema reach listActions as inputSchema and outputSchema."""
+    ai = Genkit(plugins=[ListingPlugin()])
+
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({'jsonrpc': '2.0', 'method': 'listActions', 'id': '1'})
+        resp = await fake_manager.read_rpc()
+        assert resp.get('id') == '1'
+        listed = resp['result']['actions']['/model/acme/m']
+        assert listed['inputSchema'] == {'type': 'object', 'properties': {'prompt': {'type': 'string'}}}
+        assert listed['outputSchema'] == {'type': 'object', 'properties': {'text': {'type': 'string'}}}
     finally:
         await _stop_client(client, task)
 
@@ -333,7 +378,7 @@ async def test_reflection_server_v2_list_values_serializes_middleware_as_object(
     class _NoOpMiddleware(BaseMiddleware):
         pass
 
-    client, task = await _run_client_lifecycle(ai.registry, fake_manager)
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
     try:
         await ack_register(fake_manager)
         await fake_manager.write_rpc({
@@ -380,7 +425,7 @@ async def test_reflection_server_v2_list_values_includes_derived_config_schema(
     class _Fallback(BaseMiddleware[_FallbackConfig]):
         pass
 
-    client, task = await _run_client_lifecycle(ai.registry, fake_manager)
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
     try:
         await ack_register(fake_manager)
         await fake_manager.write_rpc({
@@ -422,7 +467,7 @@ async def test_reflection_server_v2_list_values_empty_config_schema_for_no_op(
     class _NoOp(BaseMiddleware):
         pass
 
-    client, task = await _run_client_lifecycle(ai.registry, fake_manager)
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
     try:
         await ack_register(fake_manager)
         await fake_manager.write_rpc({
@@ -706,7 +751,9 @@ async def test_reflection_server_v2_bidi_action_cleans_up_active_actions(
 
 
 @pytest.mark.asyncio
-async def test_reflection_server_v2_run_action_not_found(fake_manager: FakeReflectionManager) -> None:
+@pytest.mark.parametrize('key', ['/custom/does-not-exist', '/retriever/x', '/tool/x', '/bogus/x'])
+async def test_reflection_server_v2_run_action_not_found(fake_manager: FakeReflectionManager, key: str) -> None:
+    """runAction for a key naming no runnable action, even one that doesn't parse, gets the not-found error."""
     registry = Registry()
     client, task = await _run_client_lifecycle(registry, fake_manager)
     try:
@@ -714,7 +761,7 @@ async def test_reflection_server_v2_run_action_not_found(fake_manager: FakeRefle
         await fake_manager.write_rpc({
             'jsonrpc': '2.0',
             'method': 'runAction',
-            'params': {'key': '/custom/does-not-exist', 'input': None},
+            'params': {'key': key, 'input': None},
             'id': '5',
         })
         resp = await fake_manager.read_rpc()
@@ -874,11 +921,156 @@ async def test_reflection_server_v2_omits_data_for_simple_errors(
 
 def test_reflection_run_action_params_accepts_dev_ui_telemetry_labels() -> None:
     """Dev UI sends telemetryLabels as a string record (e.g. genkitx:ignore-trace)."""
-
-    from genkit._core._typing import ReflectionRunActionParams
-
     p = ReflectionRunActionParams.model_validate({
         'key': '/executable-prompt/story',
         'telemetryLabels': {'genkitx:ignore-trace': 'true'},
     })
     assert p.telemetry_labels == {'genkitx:ignore-trace': 'true'}
+
+
+@pytest.mark.asyncio
+async def test_empty_trace_id_is_not_registered_for_cancel() -> None:
+    """Empty ids must not become a shared cancel key."""
+
+    async def noop() -> None:
+        return None
+
+    active: dict[str, asyncio.Task[Any]] = {}
+    runner = ActionRunner(
+        action=Action(name='noop', kind=ActionKind.CUSTOM, fn=noop),
+        payload={},
+        stream=False,
+        active_actions=active,
+    )
+    await runner.on_trace_start('', 'span')
+    assert '' not in active
+
+
+@pytest.mark.asyncio
+async def test_empty_trace_id_does_not_notify_run_action_state() -> None:
+    """An empty tid is not a run the Developer UI can display or cancel."""
+    notified: list[tuple[str, str]] = []
+    server = ReflectionServerV2(Registry(), 'ws://127.0.0.1:1')
+
+    async def fake_notify(sid: str, tid: str) -> None:
+        notified.append((sid, tid))
+
+    server.notify_run_action_state = fake_notify  # type: ignore[method-assign]
+    cb = server.trace_start_callback('sid-1', [None], register_for_cancel=True)
+    await cb('', 'span')
+    assert '' not in server.active_actions
+    assert notified == []
+
+
+async def _read_run_action_reply(fm: FakeReflectionManager) -> dict[str, Any]:
+    while True:
+        msg = await fm.read_rpc()
+        if msg.get('method') not in ('runActionState', 'streamChunk'):
+            return msg
+
+
+@pytest.mark.asyncio
+async def test_reflection_server_v2_run_action_context_reaches_flow_and_subflow(
+    fake_manager: FakeReflectionManager,
+) -> None:
+    """runAction `context` reaches the flow, and a subflow called without `context=` sees the same dict."""
+    ai = Genkit()
+    caller = {'auth': {'uid': 'u_42', 'tier': 'gold'}, 'locale': 'en-US'}
+
+    @ai.flow()
+    async def allergy_check(dish: str, ctx: ActionRunContext) -> dict[str, Any]:
+        return dict(ctx.context)
+
+    @ai.flow()
+    async def order_dish(dish: str, ctx: ActionRunContext) -> dict[str, Any]:
+        return {'flow': dict(ctx.context), 'subflow': await allergy_check(dish)}
+
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({
+            'jsonrpc': '2.0',
+            'method': 'runAction',
+            'params': {'key': '/flow/order_dish', 'input': 'Smoked Salmon Tartine', 'context': caller},
+            'id': 'ctx-1',
+        })
+        resp = await _read_run_action_reply(fake_manager)
+        assert resp.get('id') == 'ctx-1'
+        assert resp.get('error') is None
+        assert resp['result']['result'] == {'flow': caller, 'subflow': caller}
+    finally:
+        await _stop_client(client, task)
+
+
+@pytest.mark.asyncio
+async def test_reflection_server_v2_run_action_rejects_non_object_context(
+    fake_manager: FakeReflectionManager,
+) -> None:
+    """runAction with `context: "gold"` fails with invalid params and never runs the flow."""
+    ai = Genkit()
+    calls = 0
+
+    @ai.flow()
+    async def order_dish(dish: str) -> str:
+        nonlocal calls
+        calls += 1
+        return dish
+
+    client, task = await _run_client_lifecycle(ai._registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({
+            'jsonrpc': '2.0',
+            'method': 'runAction',
+            'params': {'key': '/flow/order_dish', 'input': 'Tartine', 'context': 'gold'},
+            'id': 'ctx-2',
+        })
+        resp = await _read_run_action_reply(fake_manager)
+        assert resp.get('id') == 'ctx-2'
+        err = resp.get('error')
+        assert isinstance(err, dict)
+        assert err.get('code') == JSON_RPC_INVALID_PARAMS
+        assert calls == 0
+    finally:
+        await _stop_client(client, task)
+
+
+@pytest.mark.asyncio
+async def test_reflection_server_v2_run_bidi_action_context_reaches_agent(
+    fake_manager: FakeReflectionManager,
+) -> None:
+    """A bidi (agent) runAction with `context` runs the agent with that context."""
+    registry = Registry()
+    caller = {'auth': {'uid': 'u_42', 'tier': 'gold'}, 'locale': 'en-US'}
+
+    async def concierge_agent(_init: Any, input_stream: Any, send_chunk: Any) -> dict[str, Any]:
+        async for _inp in input_stream:
+            pass
+        return {'context': Genkit.current_context()}
+
+    registry.register_action_from_instance(
+        BidiAction(
+            ActionKind.AGENT,
+            'test/concierge',
+            concierge_agent,
+            metadata={'agent': {'stateManagement': 'client'}},
+            init_schema=AgentInit,
+            input_schema=AgentInput,
+        )
+    )
+
+    client, task = await _run_client_lifecycle(registry, fake_manager)
+    try:
+        await ack_register(fake_manager)
+        await fake_manager.write_rpc({
+            'jsonrpc': '2.0',
+            'method': 'runAction',
+            'params': {'key': '/agent/test/concierge', 'input': {}, 'context': caller},
+            'id': 'bidi-ctx',
+        })
+        resp = await _read_run_action_reply(fake_manager)
+        assert resp.get('id') == 'bidi-ctx'
+        assert resp.get('error') is None
+        assert resp['result']['result'] == {'context': caller}
+    finally:
+        await _stop_client(client, task)
