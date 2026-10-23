@@ -55,7 +55,13 @@ func (s *GenkitMCPServer) registerPromptWithMCP(desc api.ActionDesc) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid arguments for Genkit prompt %q: %w", desc.Name, err)
 		}
-		if defaults := genkitPromptDefaults(desc); isObjectPromptSchema(desc.InputSchema) && len(defaults) > 0 && len(request.Params.Arguments) > 0 {
+		defaults := genkitPromptDefaults(desc)
+		if input == nil && defaults == nil && desc.InputSchema["type"] == "object" {
+			if additional, ok := desc.InputSchema["additionalProperties"].(bool); ok && !additional {
+				input = map[string]any{}
+			}
+		}
+		if isObjectPromptSchema(desc.InputSchema) && len(defaults) > 0 && len(request.Params.Arguments) > 0 {
 			// MCP arguments are individual fields. Keep omitted fields from the
 			// Genkit default while allowing callers to replace supplied fields.
 			merged := make(map[string]any, len(defaults)+len(request.Params.Arguments))

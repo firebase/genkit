@@ -134,6 +134,18 @@ func TestMCPServerListsOnlyDeclaredClosedPromptArguments(t *testing.T) {
 					t.Errorf("argument %d name = %q, want %q", i, args[i].Name, name)
 				}
 			}
+			rendered := s.GetServer().HandleMessage(ctx, []byte(`{"jsonrpc":"2.0","id":2,"method":"prompts/get","params":{"name":"closed"}}`))
+			renderResponse, ok := rendered.(mcp.JSONRPCResponse)
+			if !ok {
+				t.Fatalf("closed prompt without arguments = %v, want JSONRPCResponse", rendered)
+			}
+			result, ok := renderResponse.Result.(mcp.GetPromptResult)
+			if !ok || len(result.Messages) != 1 {
+				t.Fatalf("closed prompt result = %v, want one message", renderResponse.Result)
+			}
+			if text, ok := result.Messages[0].Content.(mcp.TextContent); !ok || text.Text != "Ready" {
+				t.Errorf("closed prompt message = %v, want Ready", result.Messages[0].Content)
+			}
 		})
 	}
 }
