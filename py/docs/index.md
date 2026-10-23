@@ -7,111 +7,79 @@
 
 ::: genkit.Genkit
 
-::: genkit.Plugin
-
-::: genkit.Action
-
-::: genkit.Flow
-
-::: genkit.ActionKind
-
-::: genkit.ActionRunContext
-
-::: genkit.ExecutablePrompt
-
-::: genkit.PromptGenerateOptions
-
-::: genkit.Tool
-
-::: genkit.tool
-
-::: genkit.respond_to_interrupt
-
-::: genkit.restart_tool
-
-::: genkit.ToolRunContext
-
-::: genkit.StreamResponse
-
-::: genkit.ModelStreamResponse
-
-::: genkit.GenkitError
-
-::: genkit.PublicError
-
-::: genkit.Interrupt
-
 ::: genkit.Message
+
+::: genkit.Role
 
 ::: genkit.Part
 
 ::: genkit.Media
 
-::: genkit.Role
-
-::: genkit.Metadata
-
-::: genkit.ToolRequest
-
-::: genkit.ToolResponse
-
-::: genkit.ToolDefinition
-
-::: genkit.ToolChoice
-
 ::: genkit.Document
 
-::: genkit.EmbedderRef
-
-::: genkit.EmbedderInfo
-
-::: genkit.Embedding
-
-::: genkit.EmbedRequest
-
-::: genkit.EmbedResponse
-
-::: genkit.ModelRequest
+::: genkit.ToolChoice
 
 ::: genkit.ModelResponse
 
 ::: genkit.ModelResponseChunk
 
-::: genkit.ModelConfigDict
+::: genkit.ModelStreamResponse
 
-::: genkit.ModelInfo
-
-::: genkit.ModelUsage
-
-::: genkit.Constrained
-
-::: genkit.Stage
-
-::: genkit.Supports
+::: genkit.StreamResponse
 
 ::: genkit.FinishReason
+
+::: genkit.Embedding
+
+::: genkit.Operation
+
+::: genkit.tool
+
+::: genkit.Tool
+
+::: genkit.ToolRunContext
+
+::: genkit.Interrupt
+
+::: genkit.tool_response
+
+::: genkit.MultipartToolResponse
+
+::: genkit.ActionRunContext
+
+::: genkit.Prompt
+
+::: genkit.GenkitError
+
+::: genkit.PublicError
+
+::: genkit.RuntimeErrorReason
+
+::: genkit.ContextProvider
+
+::: genkit.RequestData
+
+::: genkit.FormatDef
+
+::: genkit.FormatterConfig
+
+::: genkit.DynamicActionProvider
 
 ## genkit.model
 
 ::: genkit.model.BackgroundAction
 
+::: genkit.model.GenerateActionOptions
+
 ::: genkit.model.ModelRequest
 
-::: genkit.model.ModelResponse
-
-::: genkit.model.ModelResponseChunk
+::: genkit.model.OutputConfig
 
 ::: genkit.model.ModelUsage
 
 ::: genkit.model.Candidate
 
-::: genkit.model.FinishReason
-
-::: genkit.model.GenerateActionOptions
-
-::: genkit.model.Error
-
-::: genkit.model.Operation
+::: genkit.model.OperationError
 
 ::: genkit.model.ToolRequest
 
@@ -131,13 +99,11 @@
 
 ::: genkit.model.model_ref
 
+::: genkit.model.get_basic_usage_stats
+
 ::: genkit.model.ModelRef
 
-::: genkit.model.ModelConfigDict
-
-::: genkit.model.Message
-
-::: genkit.model.get_basic_usage_stats
+::: genkit.model.ModelConfig
 
 ## genkit.embedder
 
@@ -145,11 +111,7 @@
 
 ::: genkit.embedder.EmbedResponse
 
-::: genkit.embedder.Embedding
-
 ::: genkit.embedder.embedder_action_metadata
-
-::: genkit.embedder.embedder_ref
 
 ::: genkit.embedder.EmbedderRef
 
@@ -167,82 +129,64 @@
 
 ::: genkit.plugin_api.ActionKind
 
-::: genkit.plugin_api.ActionRunContext
-
-::: genkit.plugin_api.StatusCodes
-
 ::: genkit.plugin_api.StatusName
 
-::: genkit.plugin_api.GenkitError
+::: genkit.plugin_api.provider_error
 
 ::: genkit.plugin_api.GENKIT_CLIENT_HEADER
 
-::: genkit.plugin_api.GENKIT_VERSION
-
 ::: genkit.plugin_api.loop_local_client
-
-::: genkit.plugin_api.tracer
-
-::: genkit.plugin_api.add_custom_exporter
-
-::: genkit.plugin_api.AdjustingTraceExporter
-
-::: genkit.plugin_api.RedactedSpan
-
-::: genkit.plugin_api.to_display_path
 
 ::: genkit.plugin_api.to_json_schema
 
-::: genkit.plugin_api.get_cached_client
-
-::: genkit.plugin_api.get_callable_json
-
 ::: genkit.plugin_api.is_dev_environment
-
-::: genkit.plugin_api.model_action_metadata
-
-::: genkit.plugin_api.model_ref
-
-::: genkit.plugin_api.ModelConfig
-
-::: genkit.plugin_api.ModelRef
-
-::: genkit.plugin_api.embedder_action_metadata
-
-::: genkit.plugin_api.embedder_ref
-
-::: genkit.plugin_api.EmbedderRef
-
-::: genkit.plugin_api.evaluator_action_metadata
-
-::: genkit.plugin_api.evaluator_ref
-
-::: genkit.plugin_api.EvaluatorRef
-
-::: genkit.plugin_api.ContextProvider
-
-::: genkit.plugin_api.RequestData
 
 ## genkit.evaluator
 
-::: genkit.evaluator.EvalRequest
+::: genkit.evaluator.BaseDataPoint
 
-::: genkit.evaluator.EvalResponse
+::: genkit.evaluator.EvaluatorRequest
 
-::: genkit.evaluator.EvalFnResponse
+::: genkit.evaluator.EvaluatorResponse
 
 ::: genkit.evaluator.Score
 
-::: genkit.evaluator.Details
+::: genkit.evaluator.ScoreDetails
 
-::: genkit.evaluator.BaseEvalDataPoint
+::: genkit.evaluator.ScoreStatus
 
-::: genkit.evaluator.BaseDataPoint
+::: genkit.evaluator.Evaluator
 
-::: genkit.evaluator.EvalStatusEnum
-
-::: genkit.evaluator.evaluator_action_metadata
-
-::: genkit.evaluator.evaluator_ref
+::: genkit.evaluator.BatchEvaluator
 
 ::: genkit.evaluator.EvaluatorRef
+
+## genkit.telemetry
+
+::: genkit.telemetry.run_in_new_span
+
+::: genkit.telemetry.SpanMetadata
+
+## genkit.exp.agent
+
+::: genkit.exp.agent.apply_json_patch
+
+::: genkit.exp.agent.diff_json
+
+::: genkit.exp.agent.JsonPatchOp
+
+::: genkit.exp.agent.JsonPatchOperation
+
+::: genkit.exp.agent.StateT
+
+::: genkit.exp.agent.TERMINAL_STATUSES
+
+::: genkit.exp.agent.SaveFn
+
+::: genkit.exp.agent.apply_save
+
+::: genkit.exp.agent.iterate_statuses
+
+::: genkit.exp.agent.require_one_selector
+
+::: genkit.exp.agent.session_id_of
