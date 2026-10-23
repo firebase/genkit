@@ -23,18 +23,19 @@ from typing import Any, cast
 import pytest
 from pydantic import BaseModel
 
-from genkit import ActionKind, Document, Genkit, Message, Part
+from genkit import Document, Genkit, Message, Part
 from genkit._core._action import ActionRunContext, _action_context
 from genkit._core._error import GenkitError, RuntimeErrorReason
 from genkit._core._middleware import BaseMiddleware, GenerateHookParams, GenerateMiddlewareContext, ModelHookParams
 from genkit._core._model import ModelRequest, ModelResponse, ModelResponseChunk
 from genkit._core._typing import (
-    Error,
     FinishReason,
     Operation,
+    OperationError,
     Role,
     ToolRequest,
 )
+from genkit.plugin_api import ActionKind
 
 
 @pytest.fixture
@@ -399,7 +400,7 @@ async def test_generate_stamps_latency_from_action_run(ai: Genkit) -> None:
 
 
 def _register_raw_background(ai: Genkit, *, name: str, start: Callable[..., Awaitable[object]]) -> None:
-    ai.registry.register_action(name=name, kind=ActionKind.BACKGROUND_MODEL, fn=start)
+    ai._registry.register_action(name=name, kind=ActionKind.BACKGROUND_MODEL, fn=start)
 
 
 @pytest.mark.asyncio
@@ -413,7 +414,7 @@ async def test_box_stamps_operation_action_so_check_can_poll(ai: Genkit) -> None
         return Operation(id=op.id, done=True, action=op.action)
 
     _register_raw_background(ai, name='raw-bg', start=start)
-    ai.registry.register_action(name='raw-bg/check', kind=ActionKind.CHECK_OPERATION, fn=check)
+    ai._registry.register_action(name='raw-bg/check', kind=ActionKind.CHECK_OPERATION, fn=check)
 
     response = await ai.generate(model='raw-bg', prompt='a cat')
     assert response.operation is not None
@@ -638,7 +639,7 @@ def test_model_response_eq_uses_operation_snapshot() -> None:
 
     in_flight = ModelResponse(operation=Operation(id='job1', done=False))
     finished = ModelResponse(operation=Operation(id='job1', done=True, output={'url': 'x'}))
-    failed = ModelResponse(operation=Operation(id='job1', done=True, error=Error(message='boom')))
+    failed = ModelResponse(operation=Operation(id='job1', done=True, error=OperationError(message='boom')))
     assert in_flight != finished
     assert finished != failed
 

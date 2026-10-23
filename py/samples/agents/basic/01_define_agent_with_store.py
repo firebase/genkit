@@ -33,7 +33,8 @@ import random
 from genkit_google_genai import GoogleAI
 from pydantic import BaseModel
 
-from genkit.exp import Genkit, InMemorySessionStore
+from genkit.exp import Genkit
+from genkit.exp.agent import InMemorySessionStore
 
 
 class WeatherInput(BaseModel):
@@ -59,7 +60,7 @@ async def get_weather(input: WeatherInput) -> WeatherOutput:
     )
 
 
-# Same object you mount with serve_agent(agent) under /api/weatherAgent.
+# Same object you mount with genkit_fastapi.exp.serve_agent(agent) under /api/weatherAgent.
 agent = ai.define_agent(
     name='weatherAgent',
     model=GoogleAI.gemini_model('gemini-flash-latest'),
