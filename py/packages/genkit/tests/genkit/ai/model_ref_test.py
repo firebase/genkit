@@ -5,25 +5,17 @@
 
 """Unit tests for ModelRef and model_ref()."""
 
-import ast
-import importlib
 from dataclasses import FrozenInstanceError
-from pathlib import Path
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
+from genkit import Genkit, Message, ModelResponse, Part
+from genkit._ai._model import ModelConfigDict
 from genkit._core._error import GenkitError
-from genkit.model import ModelConfigDict, ModelInfo, ModelRef, Supports, model_ref
-from genkit.plugin_api import ModelConfig
-
-
-def _from_import(module: str, name: str) -> object:
-    """``from module import name`` — ImportError if the name is gone."""
-    try:
-        return getattr(importlib.import_module(module), name)
-    except AttributeError as exc:
-        raise ImportError(f'cannot import name {name!r} from {module!r}') from exc
+from genkit._core._typing import Role
+from genkit.model import ModelConfig, ModelInfo, ModelRef, Supports, model_ref
+from genkit.testing import define_scripted_model
 
 
 class CustomConfig(BaseModel):
@@ -186,7 +178,6 @@ def test_model_config_dict_accepts_common_knobs() -> None:
         'top_p': 0.9,
         'stop_sequences': ['END'],
         'version': '001',
-        'api_key': 'test-key',
     }
 
     assert config['temperature'] == 0.5
@@ -205,39 +196,18 @@ def test_model_config_dict_keys_match_generation_common_config() -> None:
     assert set(ModelConfigDict.__annotations__) == set(ModelConfig.model_fields)
 
 
-def test_public_config_import_contract() -> None:
-    """App code gets ModelConfigDict; ModelConfig lives on plugin_api."""
-    from genkit import ModelConfigDict as VeneerModelConfigDict, PromptGenerateOptions
-    from genkit.plugin_api import ModelConfig as PluginModelConfig
+@pytest.mark.asyncio
+async def test_prompt_call_config_keeps_extra_keys_for_the_plugin() -> None:
+    """`await p(config={'banana': True})` hands the unknown knob to the model so a plugin can read it."""
+    ai = Genkit(model='scriptedModel')
+    pm, _ = define_scripted_model(ai)
+    pm.responses = [ModelResponse(message=Message(role=Role.MODEL, content=[Part.from_text('ok')]))]
+    p = ai.define_prompt(prompt='hi')
 
-    assert VeneerModelConfigDict is ModelConfigDict
-    assert PluginModelConfig is ModelConfig
+    await p(config={'temperature': 0.5, 'banana': True})
 
-    opts: PromptGenerateOptions = {'config': {'temperature': None, 'banana': True}}
-    assert opts['config'] == {'temperature': None, 'banana': True}
-
-    with pytest.raises(ImportError, match='ModelConfig'):
-        _from_import('genkit', 'ModelConfig')
-    with pytest.raises(ImportError, match='ModelConfig'):
-        _from_import('genkit.model', 'ModelConfig')
-
-
-def test_in_tree_sources_do_not_import_model_config_from_veneer() -> None:
-    """Plugin packages take ModelConfig from plugin_api, not genkit / genkit.model."""
-    packages = Path(__file__).resolve().parents[4]
-    forbidden = {('genkit', 'ModelConfig'), ('genkit.model', 'ModelConfig')}
-    offenders: list[str] = []
-    for path in packages.rglob('*.py'):
-        if path.resolve() == Path(__file__).resolve():
-            continue
-        tree = ast.parse(path.read_text(), filename=str(path))
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.ImportFrom) or node.module is None:
-                continue
-            for alias in node.names:
-                if (node.module, alias.name) in forbidden:
-                    offenders.append(f'{path.relative_to(packages)}:{node.lineno}')
-    assert offenders == []
+    assert pm.last_request is not None
+    assert pm.last_request.config == {'temperature': 0.5, 'banana': True}
 
 
 def test_model_ref_isolates_caller_config_and_info() -> None:
@@ -260,3 +230,9 @@ def test_model_ref_isolates_caller_config_and_info() -> None:
     assert ref.info.label == 'before'
     assert ref.info.supports is not None
     assert ref.info.supports.multiturn is True
+
+
+def test_model_info_has_no_config_schema() -> None:
+    """Config schemas go on config_schema= and reach the Dev UI as customOptions; ModelInfo has no slot."""
+    with pytest.raises(ValidationError, match='config_schema'):
+        ModelInfo(config_schema={'type': 'object'})  # type: ignore[call-arg]
