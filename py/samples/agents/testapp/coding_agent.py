@@ -31,7 +31,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from _ai import ai
+from _ai import ai, reply_text
 from genkit_middleware import Filesystem, ToolApproval
 
 from genkit import ActionRunContext
@@ -83,7 +83,7 @@ async def test_coding_agent(text: str, ctx: ActionRunContext) -> str:
                 ctx.send_chunk(chunk.text)
         res = await resume_turn
 
-    return res.text
+    return reply_text(res)
 
 
 # --- Workspace browser flows (served at /api/workspace/files and /file) --------
