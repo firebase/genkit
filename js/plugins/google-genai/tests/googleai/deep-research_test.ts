@@ -18,11 +18,14 @@ import * as assert from 'assert';
 import { GenerateRequest } from 'genkit/model';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
+import { GeminiInteraction } from '../../src/common/interaction-types.js';
 import {
   DeepResearchConfigSchema,
+  TEST_ONLY,
   defineModel,
+  listKnownModels,
+  model,
 } from '../../src/googleai/deep-research.js';
-import { GeminiInteraction } from '../../src/googleai/interaction-types.js';
 import { GoogleAIPluginOptions } from '../../src/googleai/types.js';
 
 describe('Deep Research', () => {
@@ -75,6 +78,36 @@ describe('Deep Research', () => {
       },
     ],
   };
+
+  describe('hidden models', () => {
+    it('keeps deep-research-pro-preview-12-2025 usable, with a stage', () => {
+      const ref = model('deep-research-pro-preview-12-2025');
+      assert.strictEqual(
+        ref.name,
+        'googleai/deep-research-pro-preview-12-2025'
+      );
+      assert.strictEqual(ref.info?.stage, 'deprecated');
+      assert.deepStrictEqual(
+        ref.info?.supports,
+        TEST_ONLY.GENERIC_MODEL.info?.supports
+      );
+      assert.ok(
+        !Object.keys(TEST_ONLY.KNOWN_MODELS).includes(
+          'deep-research-pro-preview-12-2025'
+        )
+      );
+    });
+
+    it('still registers hidden models', () => {
+      const names = listKnownModels(defaultPluginOptions).map(
+        (m) => m.__action.name
+      );
+      assert.ok(names.includes('googleai/deep-research-pro-preview-12-2025'));
+      for (const name of Object.keys(TEST_ONLY.KNOWN_MODELS)) {
+        assert.ok(names.includes(`googleai/${name}`), name);
+      }
+    });
+  });
 
   describe('defineModel', () => {
     it('passes responseModalities to the API', async () => {
@@ -423,7 +456,43 @@ describe('Deep Research', () => {
           name: 'MyServer',
           url: 'http://localhost:8080',
           headers: { Authorization: 'Bearer token' },
-          allowed_tools: ['tool1', 'tool2'],
+          allowed_tools: [{ tools: ['tool1', 'tool2'] }],
+        },
+      ]);
+    });
+
+    it('supports allowedTools with mode in mcpServers', async () => {
+      const model = defineModel(
+        'deep-research-pro-preview-12-2025',
+        defaultPluginOptions
+      );
+      mockFetchResponse(mockInteractionResponse);
+
+      const request: GenerateRequest<typeof DeepResearchConfigSchema> = {
+        ...minimalRequest,
+        config: {
+          mcpServers: [
+            {
+              name: 'MyServer',
+              url: 'http://localhost:8080',
+              allowedTools: [{ mode: 'validated', tools: ['tool1'] }],
+            },
+          ],
+        },
+      };
+
+      await model.start(request);
+
+      sinon.assert.calledOnce(fetchStub);
+      const options = fetchStub.lastCall.args[1];
+      const body = JSON.parse(options.body);
+
+      assert.deepStrictEqual(body.tools, [
+        {
+          type: 'mcp_server',
+          name: 'MyServer',
+          url: 'http://localhost:8080',
+          allowed_tools: [{ mode: 'validated', tools: ['tool1'] }],
         },
       ]);
     });

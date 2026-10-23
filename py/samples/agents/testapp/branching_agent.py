@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from _ai import ai
+from _ai import ai, reply_text
 
 from genkit import ActionRunContext
 from genkit.exp.agent import InMemorySessionStore
@@ -59,7 +59,7 @@ async def test_branching_agent(text: str, ctx: ActionRunContext) -> dict[str, An
     await branch_b.send('My name is John.')
     res_b = await branch_b.send('What is my name? One word.')
 
-    return {'fork_point': fork_point, 'branch_a': res_a.text, 'branch_b': res_b.text}
+    return {'fork_point': fork_point, 'branch_a': reply_text(res_a), 'branch_b': reply_text(res_b)}
 
 
 if __name__ == '__main__':
