@@ -27,7 +27,7 @@ Requires GEMINI_API_KEY.
 
 from __future__ import annotations
 
-from _ai import ai
+from _ai import ai, reply_text
 from pydantic import BaseModel
 
 from genkit import ActionRunContext
@@ -53,12 +53,12 @@ class Task(BaseModel):
 
 @ai.tool(name='delegate_to_researcher', description='Hand a research question to the researcher specialist.')
 async def delegate_to_researcher(input: Task) -> str:
-    return (await researcher.chat().send(input.task)).text
+    return reply_text(await researcher.chat().send(input.task))
 
 
 @ai.tool(name='delegate_to_coder', description='Hand a programming task to the coder specialist.')
 async def delegate_to_coder(input: Task) -> str:
-    return (await coder.chat().send(input.task)).text
+    return reply_text(await coder.chat().send(input.task))
 
 
 orchestrator_agent = ai.define_agent(
@@ -83,7 +83,7 @@ async def test_orchestrator_agent(text: str, ctx: ActionRunContext) -> str:
         if chunk.text:
             ctx.send_chunk(chunk.text)
     res = await turn
-    return res.text
+    return reply_text(res)
 
 
 if __name__ == '__main__':
