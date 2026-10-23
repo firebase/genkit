@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from _ai import LITE_MODEL, ai
+from _ai import LITE_MODEL, ai, reply_text
 from pydantic import BaseModel
 
 from genkit import ActionRunContext
@@ -120,7 +120,7 @@ async def test_research_agent(text: str, ctx: ActionRunContext) -> str:
         if chunk.text:
             ctx.send_chunk(chunk.text)
     res = await turn
-    return res.text
+    return reply_text(res)
 
 
 if __name__ == '__main__':
