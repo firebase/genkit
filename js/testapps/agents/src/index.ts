@@ -15,6 +15,7 @@
  */
 
 import { expressHandler } from '@genkit-ai/express';
+import { serveAgent, serveAgents } from '@genkit-ai/express/beta';
 import express from 'express';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -39,7 +40,6 @@ import {
   testFileStoreChainPruningAgent,
 } from './file-store-agent.js';
 
-import { Agent } from 'genkit/beta';
 import {
   authContextAgent,
   testAuthContextAgent,
@@ -131,47 +131,23 @@ app.use((_req, res, next) => {
   next();
 });
 
-// Register an agent at `/api/<name>`, optionally wiring up its companion
-// `/getSnapshot`, `/waitForSnapshot`, and `/abort` sub-actions. The wait
-// route lets a `remoteAgent` client follow a background task in one request
-// (`task.wait()`) instead of polling `/getSnapshot`.
-function exposeAgent(
-  name: string,
-  agent: Agent,
-  opts: { snapshot?: boolean; abort?: boolean } = {}
-) {
-  app.post(`/api/${name}`, expressHandler(agent));
-  if (opts.snapshot) {
-    app.post(
-      `/api/${name}/getSnapshot`,
-      expressHandler(agent.getSnapshotDataAction)
-    );
-    app.post(
-      `/api/${name}/waitForSnapshot`,
-      expressHandler(agent.waitForSnapshotAction)
-    );
-  }
-  if (opts.abort) {
-    app.post(`/api/${name}/abort`, expressHandler(agent.abortAgentAction));
-  }
-}
-
-// Expose agents
-exposeAgent('researchAgent', researchAgent);
-exposeAgent('weatherAgent', weatherAgent, { snapshot: true });
-exposeAgent('weatherAgentStateless', weatherAgentStateless);
-exposeAgent('bankingAgent', bankingAgent);
-exposeAgent('workspaceAgent', workspaceAgent);
-exposeAgent('backgroundAgent', backgroundAgent, {
-  snapshot: true,
-  abort: true,
-});
-exposeAgent('branchingAgent', branchingAgent, { snapshot: true });
-exposeAgent('taskAgent', taskAgent);
-exposeAgent('orchestratorAgent', orchestratorAgent);
-exposeAgent('commanderAgent', commanderAgent);
-exposeAgent('tripPlannerAgent', tripPlannerAgent, { snapshot: true });
-exposeAgent('codingAgent', codingAgent, { snapshot: true });
+app.use(
+  '/api',
+  serveAgents([
+    researchAgent,
+    weatherAgent,
+    weatherAgentStateless,
+    bankingAgent,
+    workspaceAgent,
+    backgroundAgent,
+    branchingAgent,
+    taskAgent,
+    orchestratorAgent,
+    commanderAgent,
+    codingAgent,
+  ]),
+  serveAgent(tripPlannerAgent, { path: '/tripPlannerAgent' })
+);
 
 // Workspace browser — exposed as Genkit flows via expressHandler
 app.post('/api/workspace/files', expressHandler(listWorkspaceFiles));
