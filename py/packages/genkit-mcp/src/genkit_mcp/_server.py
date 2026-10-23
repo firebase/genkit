@@ -105,6 +105,7 @@ class McpServer:
         its life. A logger built before this call keeps the descriptor it
         captured.
         """
+        sys.stdout.flush()
         streams = stdio_server(
             stdin=anyio.wrap_file(TextIOWrapper(sys.stdin.buffer, encoding='utf-8')),
             stdout=anyio.wrap_file(TextIOWrapper(sys.stdout.buffer, encoding='utf-8')),

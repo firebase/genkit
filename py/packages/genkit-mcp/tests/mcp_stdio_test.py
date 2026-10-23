@@ -133,6 +133,22 @@ async def test_a_logger_built_before_the_swap_still_follows_it(monkeypatch: pyte
     assert b'after the swap' not in wire_bytes.getvalue()
 
 
+@pytest.mark.asyncio
+async def test_text_buffered_before_start_reaches_stdout_ahead_of_the_wire(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unflushed text left in the old stdout would otherwise land between frames whenever it flushed."""
+    server = create_mcp_server(Genkit(), 'buffered')
+    wire_bytes = _KeptOpen()
+    old_stdout = io.TextIOWrapper(wire_bytes, encoding='utf-8')
+    old_stdout.write('pending')
+    monkeypatch.setattr(sys, 'stdin', _stream())
+    monkeypatch.setattr(sys, 'stdout', old_stdout)
+    monkeypatch.setattr(sys, 'stderr', io.StringIO())
+
+    await asyncio.wait_for(server.start(), timeout=LIMIT)
+
+    assert wire_bytes.getvalue() == b'pending'
+
+
 class _KeptOpen(io.BytesIO):
     """Bytes that stay readable after the server's own wrapper closes them."""
 
