@@ -234,6 +234,8 @@ The `contextProvider` applies to every route of the agent. The router parses JSO
 
 When you migrate from `expressHandler`, a provider typed for the turn route (`ContextProvider<C, AgentInput>`) does not compile, because the companion routes send it `{ snapshotId }`. Type its input as `ServeAgentRequest`, or leave it untyped.
 
+The provider runs before input validation, and it cannot tell the companion routes apart: `getSnapshot`, `waitForSnapshot` and `abort` all receive `{ snapshotId }`. To allow reads but deny aborts, check snapshot ownership in the session store, which receives the context, or mount each route with its own `expressHandler`.
+
 The JSON body limit is body-parser's default of 100kb, as with `startFlowServer`. An agent without a store gets its full conversation in every request, so a long conversation reaches the limit and the turn fails with HTTP 413. Raise the turn route's limit with `jsonParserOptions`:
 
 ```ts
