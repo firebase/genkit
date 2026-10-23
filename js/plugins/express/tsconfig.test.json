@@ -1,0 +1,5 @@
+{
+  // Type-checks the tests, including their @ts-expect-error assertions.
+  "extends": "./tsconfig.json",
+  "include": ["src", "tests"]
+}

@@ -12,7 +12,7 @@
   "version": "1.43.0",
   "type": "commonjs",
   "scripts": {
-    "check": "tsc",
+    "check": "tsc && tsc -p tsconfig.test.json",
     "compile": "tsup-node",
     "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean check compile",
@@ -54,6 +54,19 @@
       "default": "./lib/index.js",
       "import": "./lib/index.mjs",
       "types": "./lib/index.d.ts"
+    },
+    "./beta": {
+      "require": "./lib/beta.js",
+      "import": "./lib/beta.mjs",
+      "types": "./lib/beta.d.ts",
+      "default": "./lib/beta.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "beta": [
+        "lib/beta"
+      ]
     }
   }
 }

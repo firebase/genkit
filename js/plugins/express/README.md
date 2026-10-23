@@ -200,6 +200,60 @@ startFlowServer({
 });
 ```
 
+### Agents (Beta)
+
+`serveAgent` returns an Express router that serves an agent in the layout `remoteAgent` expects:
+
+```ts
+import { serveAgent } from '@genkit-ai/express/beta';
+
+app.use('/api', serveAgent(weatherAgent, { contextProvider }));
+```
+
+`serveAgents` serves several agents from one router, each at `/{agent name}`, with one `contextProvider` for all of them. It throws if two agents would serve the same route. For a custom path or a provider per agent, use `serveAgent`.
+
+```ts
+import { serveAgents } from '@genkit-ai/express/beta';
+
+app.use(
+  '/api',
+  serveAgents([weatherAgent, researchAgent], { contextProvider })
+);
+```
+
+It mounts only the routes the agent supports. `path` defaults to `/{agent name}`:
+
+| Route                         | Action                                                     | Mounted when                          |
+| ----------------------------- | ---------------------------------------------------------- | ------------------------------------- |
+| `POST {path}`                 | the agent (one turn per request, `?stream=true` supported) | always                                |
+| `POST {path}/getSnapshot`     | `getSnapshotDataAction`                                    | server-managed (has a store)          |
+| `POST {path}/waitForSnapshot` | `waitForSnapshotAction`                                    | server-managed (has a store)          |
+| `POST {path}/abort`           | `abortAgentAction`                                         | the store can signal the running turn |
+
+The `contextProvider` applies to every route of the agent. The router parses JSON bodies itself, so `app.use(express.json())` is optional. A client connects with `remoteAgent({ url: '/api/weatherAgent' })` and needs no other URL options.
+
+When you migrate from `expressHandler`, a provider typed for the turn route (`ContextProvider<C, AgentInput>`) does not compile, because the companion routes send it `{ snapshotId }`. Type its input as `ServeAgentRequest`, or leave it untyped.
+
+The JSON body limit is body-parser's default of 100kb, as with `startFlowServer`. An agent without a store gets its full conversation in every request, so a long conversation reaches the limit and the turn fails with HTTP 413. Raise the turn route's limit with `jsonParserOptions`:
+
+```ts
+app.use(
+  '/api',
+  serveAgent(weatherAgent, { jsonParserOptions: { limit: '5mb' } })
+);
+```
+
+`jsonParserOptions` applies only to the turn route, and only to requests whose body no earlier middleware has parsed. The companion routes keep the default. If the app runs `express.json()` first, set the limit there instead.
+
+The router answers `OPTIONS` requests to its routes itself. Mount `cors()`, and other middleware that must see preflight requests, before `serveAgent`:
+
+```ts
+app.use(cors());
+app.use('/api', serveAgent(weatherAgent));
+```
+
+To serve a companion route that `serveAgent` does not mount, mount its action with `expressHandler`.
+
 ## Contributing
 
 The sources for this package are in the main [Genkit](https://github.com/genkit-ai/genkit) repo. Please file issues and pull requests against that repo.
