@@ -257,6 +257,21 @@ async def test_allowed_hosts_and_origins_replace_the_local_defaults() -> None:
     assert local.status_code == 421
 
 
+def test_a_single_string_for_allowed_hosts_is_refused() -> None:
+    """A str is a Sequence[str] of its characters, which would refuse every request."""
+    server = create_mcp_server(app_with_tools(), 'bookshop')
+
+    with pytest.raises(TypeError, match='allowed_hosts'):
+        server.asgi_app(allowed_hosts='tools.example.com')
+
+
+def test_a_single_string_for_allowed_origins_is_refused() -> None:
+    server = create_mcp_server(app_with_tools(), 'bookshop')
+
+    with pytest.raises(TypeError, match='allowed_origins'):
+        server.asgi_app(allowed_origins='https://app.example.com')
+
+
 @pytest.mark.asyncio
 async def test_a_trailing_slash_redirects_to_the_endpoint() -> None:
     server = create_mcp_server(app_with_tools(), 'bookshop')

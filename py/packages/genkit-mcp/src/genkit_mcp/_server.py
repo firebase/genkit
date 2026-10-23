@@ -192,7 +192,14 @@ class McpServer:
 
         Returns:
             A Starlette app to serve, mount, or wrap in middleware.
+
+        Raises:
+            TypeError: If ``allowed_hosts`` or ``allowed_origins`` is a single
+                string rather than a sequence of them.
         """
+        for argument, value in (('allowed_hosts', allowed_hosts), ('allowed_origins', allowed_origins)):
+            if isinstance(value, str):
+                raise TypeError(f'{argument} takes a sequence of strings, not one string: [{value!r}]')
         manager = self._session_manager(
             stateless=stateless,
             json_response=json_response,
